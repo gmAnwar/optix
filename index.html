@@ -1285,7 +1285,15 @@
     <div style="display:flex; align-items:center; gap:16px;">
       <div style="font-family:'DM Mono',monospace; font-size:11px; color:var(--text3);" id="dir-fecha"></div>
       <div style="background:rgba(0,229,160,0.1); border:1px solid rgba(0,229,160,0.3); color:var(--accent); font-size:11px; font-family:'DM Mono',monospace; padding:4px 12px; border-radius:20px;">⚡ Dirección</div>
-      <button onclick="showScreen('rol')" style="background:transparent; border:1px solid var(--border); color:var(--text2); font-size:12px; padding:6px 14px; border-radius:8px; cursor:pointer; font-family:'DM Sans',sans-serif;">Cambiar vista</button>
+      <div style="display:flex;gap:4px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:3px;">
+        <button id="jr-btn-dia" onclick="setJrView('dia')" style="background:var(--accent);color:#000;font-size:11px;padding:4px 12px;border-radius:6px;border:none;cursor:pointer;font-family:'DM Mono',monospace;font-weight:600;transition:all 0.2s;">Día</button>
+        <button id="jr-btn-semana" onclick="setJrView('semana')" style="background:transparent;color:var(--text3);font-size:11px;padding:4px 12px;border-radius:6px;border:none;cursor:pointer;font-family:'DM Mono',monospace;transition:all 0.2s;">Semana</button>
+      </div>
+            <div style="display:flex;gap:2px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:3px;">
+        <button style="background:var(--accent);color:#000;font-size:11px;padding:4px 12px;border-radius:6px;border:none;cursor:default;font-family:'DM Mono',monospace;font-weight:600;">Dirección</button>
+        <button onclick="enterAs('senior')" style="background:transparent;color:var(--text3);font-size:11px;padding:4px 12px;border-radius:6px;border:none;cursor:pointer;font-family:'DM Mono',monospace;transition:all 0.2s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text3)'">Senior</button>
+        <button onclick="enterAs('junior')" style="background:transparent;color:var(--text3);font-size:11px;padding:4px 12px;border-radius:6px;border:none;cursor:pointer;font-family:'DM Mono',monospace;transition:all 0.2s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text3)'">Junior</button>
+      </div>
     </div>
   </div>
   <!-- Grid de clientes -->
@@ -1313,7 +1321,15 @@
       </div>
       <div style="display:flex; align-items:center; gap:10px;">
         <div id="home-rol-badge" style="font-size:11px; font-family:'DM Mono',monospace; padding:4px 12px; border-radius:20px; border:1px solid var(--border); color:var(--text2);">—</div>
-        <button onclick="showScreen('rol')" style="background:transparent; border:1px solid var(--border); color:var(--text2); font-size:12px; padding:6px 14px; border-radius:8px; cursor:pointer; font-family:'DM Sans',sans-serif;">Cambiar vista</button>
+        <div style="display:flex;gap:4px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:3px;">
+        <button id="jr-btn-dia" onclick="setJrView('dia')" style="background:var(--accent);color:#000;font-size:11px;padding:4px 12px;border-radius:6px;border:none;cursor:pointer;font-family:'DM Mono',monospace;font-weight:600;transition:all 0.2s;">Día</button>
+        <button id="jr-btn-semana" onclick="setJrView('semana')" style="background:transparent;color:var(--text3);font-size:11px;padding:4px 12px;border-radius:6px;border:none;cursor:pointer;font-family:'DM Mono',monospace;transition:all 0.2s;">Semana</button>
+      </div>
+            <div style="display:flex;gap:2px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:3px;">
+        <button onclick="enterAs('direccion')" style="background:transparent;color:var(--text3);font-size:11px;padding:4px 12px;border-radius:6px;border:none;cursor:pointer;font-family:'DM Mono',monospace;transition:all 0.2s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text3)'">Dirección</button>
+        <button style="background:var(--accent);color:#000;font-size:11px;padding:4px 12px;border-radius:6px;border:none;cursor:default;font-family:'DM Mono',monospace;font-weight:600;">Senior</button>
+        <button onclick="enterAs('junior')" style="background:transparent;color:var(--text3);font-size:11px;padding:4px 12px;border-radius:6px;border:none;cursor:pointer;font-family:'DM Mono',monospace;transition:all 0.2s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text3)'">Junior</button>
+      </div>
       </div>
     </div>
     <div id="clients-grid" class="client-grid"></div>
@@ -1397,13 +1413,27 @@
     </div>
     <div style="display:flex; align-items:center; gap:12px;">
       <div style="font-family:'DM Mono',monospace; font-size:11px; color:var(--text3);" id="jr-fecha"></div>
-      <div style="background:rgba(16,185,129,0.1); border:1px solid rgba(16,185,129,0.3); color:var(--green); font-size:11px; font-family:'DM Mono',monospace; padding:4px 12px; border-radius:20px;">🟢 Junior</div>
-      <button onclick="showScreen('rol')" style="background:transparent; border:1px solid var(--border); color:var(--text2); font-size:12px; padding:6px 14px; border-radius:8px; cursor:pointer; font-family:'DM Sans',sans-serif;">Cambiar vista</button>
+      <!-- Nav de roles -->
+      <div style="display:flex;gap:2px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:3px;">
+        <button onclick="enterAs('direccion')" style="background:transparent;color:var(--text3);font-size:11px;padding:4px 12px;border-radius:6px;border:none;cursor:pointer;font-family:'DM Mono',monospace;transition:all 0.2s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text3)'">Dirección</button>
+        <button onclick="enterAs('senior')" style="background:transparent;color:var(--text3);font-size:11px;padding:4px 12px;border-radius:6px;border:none;cursor:pointer;font-family:'DM Mono',monospace;transition:all 0.2s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text3)'">Senior</button>
+        <button style="background:var(--accent);color:#000;font-size:11px;padding:4px 12px;border-radius:6px;border:none;cursor:default;font-family:'DM Mono',monospace;font-weight:600;">Junior</button>
+      </div>
+      <!-- Toggle Día/Semana -->
+      <div style="display:flex;gap:2px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:3px;">
+        <button id="jr-btn-dia" onclick="setJrView('dia')" style="background:var(--accent);color:#000;font-size:11px;padding:4px 12px;border-radius:6px;border:none;cursor:pointer;font-family:'DM Mono',monospace;font-weight:600;transition:all 0.2s;">Día</button>
+        <button id="jr-btn-semana" onclick="setJrView('semana')" style="background:transparent;color:var(--text3);font-size:11px;padding:4px 12px;border-radius:6px;border:none;cursor:pointer;font-family:'DM Mono',monospace;transition:all 0.2s;">Semana</button>
+      </div>
     </div>
   </div>
 
+  <!-- Vista semanal (oculta por defecto) -->
+  <div id="jr-weekly-view" style="display:none; flex:1; overflow:auto; padding:0; background:var(--bg);">
+    <div id="jr-weekly-grid" style="min-width:700px;"></div>
+  </div>
+
   <!-- Dos columnas: Calendario izq | Checklist der -->
-  <div style="flex:1; display:flex; overflow:hidden;">
+  <div id="jr-daily-view" style="flex:1; display:flex; overflow:hidden;">
 
     <!-- COLUMNA IZQUIERDA: Calendario del día -->
     <div id="jr-cal-col" style="width:320px; flex-shrink:0; border-right:1px solid var(--border); overflow-y:auto; padding:24px 20px; background:var(--surface);">
@@ -1480,8 +1510,8 @@
         </div>
       </div>
     </div>
-  </div>
-</div>
+  </div><!-- /jr-daily-view -->
+</div><!-- /screen-junior -->
 
 <!-- ══════════════════════════════════════════ -->
 <!-- SCREEN: SENIOR (lista de clientes) -->
@@ -1494,7 +1524,15 @@
     </div>
     <div style="display:flex; align-items:center; gap:16px;">
       <div style="background:rgba(124,58,237,0.1); border:1px solid rgba(124,58,237,0.3); color:#a78bfa; font-size:11px; font-family:'DM Mono',monospace; padding:4px 12px; border-radius:20px;">🔵 Senior</div>
-      <button onclick="showScreen('rol')" style="background:transparent; border:1px solid var(--border); color:var(--text2); font-size:12px; padding:6px 14px; border-radius:8px; cursor:pointer; font-family:'DM Sans',sans-serif;">Cambiar vista</button>
+      <div style="display:flex;gap:4px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:3px;">
+        <button id="jr-btn-dia" onclick="setJrView('dia')" style="background:var(--accent);color:#000;font-size:11px;padding:4px 12px;border-radius:6px;border:none;cursor:pointer;font-family:'DM Mono',monospace;font-weight:600;transition:all 0.2s;">Día</button>
+        <button id="jr-btn-semana" onclick="setJrView('semana')" style="background:transparent;color:var(--text3);font-size:11px;padding:4px 12px;border-radius:6px;border:none;cursor:pointer;font-family:'DM Mono',monospace;transition:all 0.2s;">Semana</button>
+      </div>
+            <div style="display:flex;gap:2px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:3px;">
+        <button onclick="enterAs('direccion')" style="background:transparent;color:var(--text3);font-size:11px;padding:4px 12px;border-radius:6px;border:none;cursor:pointer;font-family:'DM Mono',monospace;transition:all 0.2s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text3)'">Dirección</button>
+        <button style="background:var(--accent);color:#000;font-size:11px;padding:4px 12px;border-radius:6px;border:none;cursor:default;font-family:'DM Mono',monospace;font-weight:600;">Senior</button>
+        <button onclick="enterAs('junior')" style="background:transparent;color:var(--text3);font-size:11px;padding:4px 12px;border-radius:6px;border:none;cursor:pointer;font-family:'DM Mono',monospace;transition:all 0.2s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text3)'">Junior</button>
+      </div>
     </div>
   </div>
   <div style="flex:1; overflow-y:auto; padding:32px; max-width:860px; margin:0 auto; width:100%;">
@@ -2452,7 +2490,14 @@
 // ══════════════════════════════════════════
 // STATE
 // ══════════════════════════════════════════
-let clients = JSON.parse(localStorage.getItem('oa-clients') || '[]');
+const DEFAULT_CLIENTS = [
+  { id: 'enpagos', nombre: 'EnPagos', semaforo: { general: 'green' }, nicho: 'Fintech', presupuesto: 50000, plataformas: ['Meta'] },
+  { id: 'favio', nombre: 'Favio', semaforo: { general: 'yellow' }, nicho: 'Clínica estética', presupuesto: 20000, plataformas: ['Meta'] },
+  { id: 'bodygreen', nombre: 'Bodygreen', semaforo: { general: 'green' }, nicho: 'Clínica estética', presupuesto: 25000, plataformas: ['Meta'] },
+  { id: 'divisas', nombre: 'Divisas La Rioja', semaforo: { general: 'red' }, nicho: 'Finanzas', presupuesto: 15000, plataformas: ['Meta'] },
+  { id: 'inmobili', nombre: 'Inmobili', semaforo: { general: 'gray' }, nicho: 'Inmobiliaria', presupuesto: 10000, plataformas: ['Meta'] },
+];
+let clients = JSON.parse(localStorage.getItem('oa-clients') || 'null') || DEFAULT_CLIENTS;
 let currentClientId = null;
 let currentView = 'dashboard';
 let currentRol = null;
@@ -2622,38 +2667,68 @@ function openClientAsSenior(id) {
 // Estructura del calendario Operación — clientes y horarios reales de Mario
 // Formato: { nombre, hora, duracion_min }
 const MARIO_SCHEDULE = {
-  lunes:   [
-    { nombre:'EnPagos', hora:'12:20pm', duracion:40, tipo:'check' },
-    { nombre:'EnPagos', hora:'2:00pm',  duracion:60, tipo:'ops' },
-    { nombre:'Favio',   hora:'3:00pm',  duracion:60, tipo:'ops' },
+  lunes: [
+    { nombre:'Equipo', hora:'9:00am',   duracion:20,  tipo:'check', etiqueta:'Status diario' },
+    { nombre:'Equipo', hora:'9:20am',   duracion:60,  tipo:'ops',   etiqueta:'Actualizar métricas — todas las cuentas' },
+    { nombre:'Equipo', hora:'10:20am',  duracion:60,  tipo:'check', etiqueta:'Enrique-Mario — revisión de cuentas' },
+    { nombre:'EnPagos', hora:'12:20pm', duracion:40,  tipo:'check' },
+    { nombre:'EnPagos', hora:'2:00pm',  duracion:60,  tipo:'ops' },
+    { nombre:'Favio',   hora:'3:00pm',  duracion:60,  tipo:'ops' },
     { nombre:'Bodygreen', hora:'4:00pm', duracion:60, tipo:'ops' },
-    { nombre:'Inmobili', hora:'5:00pm', duracion:60, tipo:'ops' },
+    { nombre:'Inmobili', hora:'5:00pm', duracion:60,  tipo:'ops' },
   ],
-  martes:  [
-    { nombre:'EnPagos', hora:'12:20pm', duracion:40, tipo:'check' },
-    { nombre:'EnPagos', hora:'2:00pm',  duracion:60, tipo:'ops' },
-    { nombre:'Favio',   hora:'3:00pm',  duracion:60, tipo:'ops' },
+  martes: [
+    { nombre:'Equipo', hora:'9:00am',   duracion:20,  tipo:'check', etiqueta:'Status diario' },
+    { nombre:'Equipo', hora:'9:20am',   duracion:60,  tipo:'ops',   etiqueta:'Actualizar métricas — todas las cuentas' },
+    { nombre:'Equipo', hora:'10:20am',  duracion:60,  tipo:'check', etiqueta:'Enrique-Mario — revisión de cuentas' },
+    { nombre:'EnPagos', hora:'11:20am', duracion:60,  tipo:'check', etiqueta:'Rs Favio/Inmobili/EnPagos' },
+    { nombre:'EnPagos', hora:'12:20pm', duracion:40,  tipo:'check' },
+    { nombre:'EnPagos', hora:'2:00pm',  duracion:60,  tipo:'ops' },
+    { nombre:'Favio',   hora:'3:00pm',  duracion:60,  tipo:'ops' },
     { nombre:'Divisas La Rioja', hora:'4:00pm', duracion:60, tipo:'ops' },
   ],
   miercoles: [
-    { nombre:'EnPagos', hora:'12:20pm', duracion:40, tipo:'check' },
-    { nombre:'EnPagos', hora:'2:00pm',  duracion:60, tipo:'ops' },
-    { nombre:'Favio',   hora:'3:00pm',  duracion:60, tipo:'ops' },
+    { nombre:'Equipo', hora:'9:00am',   duracion:20,  tipo:'check', etiqueta:'Status diario' },
+    { nombre:'Equipo', hora:'9:20am',   duracion:60,  tipo:'ops',   etiqueta:'Actualizar métricas — todas las cuentas' },
+    { nombre:'Equipo', hora:'10:20am',  duracion:60,  tipo:'check', etiqueta:'Enrique-Mario — revisión de cuentas' },
+    { nombre:'Divisas La Rioja', hora:'11:20am', duracion:60, tipo:'check', etiqueta:'Rs DLR/Maik/Voltoch' },
+    { nombre:'EnPagos', hora:'12:20pm', duracion:40,  tipo:'check' },
+    { nombre:'EnPagos', hora:'2:00pm',  duracion:60,  tipo:'ops' },
+    { nombre:'Favio',   hora:'3:00pm',  duracion:60,  tipo:'ops' },
     { nombre:'Bodygreen', hora:'4:00pm', duracion:60, tipo:'ops' },
-    { nombre:'Inmobili', hora:'5:00pm', duracion:60, tipo:'ops' },
+    { nombre:'Inmobili', hora:'5:00pm', duracion:60,  tipo:'ops' },
   ],
-  jueves:  [
-    { nombre:'EnPagos', hora:'12:20pm', duracion:40, tipo:'check' },
-    { nombre:'EnPagos', hora:'2:00pm',  duracion:60, tipo:'ops' },
-    { nombre:'Favio',   hora:'3:00pm',  duracion:60, tipo:'ops' },
+  jueves: [
+    { nombre:'Equipo', hora:'9:00am',   duracion:20,  tipo:'check', etiqueta:'Status diario' },
+    { nombre:'Equipo', hora:'9:20am',   duracion:60,  tipo:'ops',   etiqueta:'Actualizar métricas — todas las cuentas' },
+    { nombre:'Equipo', hora:'10:20am',  duracion:60,  tipo:'check', etiqueta:'Enrique-Mario — revisión de cuentas' },
+    { nombre:'EnPagos', hora:'11:20am', duracion:60,  tipo:'check', etiqueta:'Rm Favio/Inmobili/EnPagos' },
+    { nombre:'EnPagos', hora:'12:20pm', duracion:40,  tipo:'check' },
+    { nombre:'EnPagos', hora:'2:00pm',  duracion:60,  tipo:'ops' },
+    { nombre:'Favio',   hora:'3:00pm',  duracion:60,  tipo:'ops' },
     { nombre:'Divisas La Rioja', hora:'4:00pm', duracion:60, tipo:'ops' },
   ],
   viernes: [
-    { nombre:'EnPagos', hora:'12:20pm', duracion:40, tipo:'check' },
-    { nombre:'EnPagos', hora:'2:00pm',  duracion:60, tipo:'ops' },
-    { nombre:'Favio',   hora:'3:00pm',  duracion:60, tipo:'ops' },
+    { nombre:'Equipo', hora:'9:00am',   duracion:20,  tipo:'check', etiqueta:'Status diario' },
+    { nombre:'Equipo', hora:'9:20am',   duracion:60,  tipo:'ops',   etiqueta:'Actualizar métricas — todas las cuentas' },
+    { nombre:'Equipo', hora:'10:20am',  duracion:60,  tipo:'check', etiqueta:'Enrique-Mario — revisión de cuentas' },
+    { nombre:'Divisas La Rioja', hora:'11:20am', duracion:60, tipo:'check', etiqueta:'Rm BG/DLR/Maik/Voltoch' },
+    { nombre:'EnPagos', hora:'12:20pm', duracion:40,  tipo:'check' },
+    { nombre:'EnPagos', hora:'2:00pm',  duracion:60,  tipo:'ops' },
+    { nombre:'Favio',   hora:'3:00pm',  duracion:60,  tipo:'ops' },
     { nombre:'Bodygreen', hora:'4:00pm', duracion:60, tipo:'ops' },
-    { nombre:'Inmobili', hora:'5:00pm', duracion:60, tipo:'ops' },
+    { nombre:'Inmobili', hora:'5:00pm', duracion:60,  tipo:'ops' },
+  ],
+  sabado: [
+    { nombre:'Equipo', hora:'9:00am',   duracion:20,  tipo:'check', etiqueta:'Status diario' },
+    { nombre:'Equipo', hora:'9:20am',   duracion:60,  tipo:'ops',   etiqueta:'Actualizar métricas — todas las cuentas' },
+    { nombre:'Equipo', hora:'10:20am',  duracion:60,  tipo:'check', etiqueta:'Enrique-Mario — revisión de cuentas' },
+    { nombre:'Divisas La Rioja', hora:'11:20am', duracion:60, tipo:'check', etiqueta:'Rm BG/DLR/Maik/Voltoch' },
+    { nombre:'EnPagos', hora:'12:20pm', duracion:40,  tipo:'check' },
+    { nombre:'EnPagos', hora:'2:00pm',  duracion:60,  tipo:'ops' },
+    { nombre:'Favio',   hora:'3:00pm',  duracion:60,  tipo:'ops' },
+    { nombre:'Bodygreen', hora:'4:00pm', duracion:60, tipo:'ops' },
+    { nombre:'Inmobili', hora:'5:00pm', duracion:60,  tipo:'ops' },
   ],
 };
 
@@ -2723,12 +2798,31 @@ function renderJuniorHome() {
   if (!timeline) return;
 
   if (!horarioHoy.length) {
+    const TASK_CLIENTS = ['EnPagos','Favio','Bodygreen','Divisas La Rioja','Inmobili'];
+    const clientesHTML = TASK_CLIENTS.map(nombre => {
+      const color = CLIENT_COLORS[nombre] || '#888';
+      return `<div class="jr-bloque" data-cliente="${nombre}" onclick="selectJrClient('${nombre}')"
+        style="display:flex;align-items:stretch;gap:0;margin-bottom:8px;border-radius:10px;overflow:hidden;cursor:pointer;border:1px solid ${color}33;background:${color}0d;transition:all 0.18s;"
+        onmouseover="this.style.borderColor='${color}';this.style.background='${color}22'"
+        onmouseout="if(window._jrSelectedClient!=='${nombre}'){this.style.borderColor='${color}33';this.style.background='${nombre}0d';}">
+        <div style="width:4px;background:${color};flex-shrink:0;"></div>
+        <div style="flex:1;padding:10px 12px;">
+          <div style="font-family:'DM Sans',sans-serif;font-weight:700;font-size:13px;color:${color};">${nombre}</div>
+          <div style="font-size:10px;color:var(--text3);margin-top:2px;">Sin sesiones hoy</div>
+        </div>
+      </div>`;
+    }).join('');
     timeline.innerHTML = `
-      <div style="text-align:center; padding:40px 16px; color:var(--text3);">
+      <div style="text-align:center; padding:32px 16px 20px; color:var(--text3);">
         <div style="font-size:32px; margin-bottom:12px;">🏖️</div>
         <div style="font-size:13px; font-family:'DM Sans',sans-serif;">Sin eventos hoy</div>
         <div style="font-size:11px; margin-top:4px; opacity:0.6;">Fin de semana</div>
+      </div>
+      <div style="padding:0 4px;">
+        <div style="font-size:10px;font-family:'DM Mono',monospace;color:var(--text3);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px;">Clientes activos</div>
+        ${clientesHTML}
       </div>`;
+    if (!window._jrSelectedClient) selectJrClient('EnPagos');
     return;
   }
 
@@ -2743,42 +2837,42 @@ function renderJuniorHome() {
   // Renderizar bloques tipo Google Calendar
   timeline.innerHTML = horarioHoy.map((ev, i) => {
     const color = CLIENT_COLORS[ev.nombre] || '#888';
-    const durLabel = ev.duracion >= 60 ? (ev.duracion/60) + ' hr' : ev.duracion + ' min';
+    const durLabel = ev.duracion >= 60 ? (ev.duracion % 60 === 0 ? (ev.duracion/60) + ' hr' : (ev.duracion/60).toFixed(1) + ' hr') : ev.duracion + ' min';
     const tipoLabel = ev.tipo === 'check' ? '📋 Check-in' : '⚙️ Operación';
     const isActive = window._jrSelectedClient === ev.nombre;
+    const etiqueta = ev.etiqueta || ev.nombre;
     return `
       <div class="jr-bloque" 
-           data-cliente="\${ev.nombre}"
-           onclick="selectJrClient('\${ev.nombre}')"
+           data-cliente="${ev.nombre}"
+           onclick="selectJrClient('${ev.nombre}')"
            style="
              display:flex; align-items:stretch; gap:0; margin-bottom:8px; 
              border-radius:10px; overflow:hidden; cursor:pointer;
-             border:1px solid \${isActive ? color : color+'33'};
-             background:\${isActive ? color+'22' : color+'0d'};
+             border:1px solid ${isActive ? color : color+'33'};
+             background:${isActive ? color+'22' : color+'0d'};
              transition:all 0.18s;
            "
-           onmouseover="this.style.borderColor='\${color}'; this.style.background='\${color}22'"
-           onmouseout="if(window._jrSelectedClient !== '\${ev.nombre}'){this.style.borderColor='\${color}33'; this.style.background='\${color}0d';}">
-        <!-- Franja de color izquierda -->
-        <div style="width:4px; background:\${color}; flex-shrink:0;"></div>
-        <!-- Contenido -->
+           onmouseover="this.style.borderColor='${color}'; this.style.background='${color}22'"
+           onmouseout="if(window._jrSelectedClient !== '${ev.nombre}'){this.style.borderColor='${color}33'; this.style.background='${color}0d';}">
+        <div style="width:4px; background:${color}; flex-shrink:0;"></div>
         <div style="flex:1; padding:10px 12px;">
           <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:4px;">
-            <div style="font-family:'DM Sans',sans-serif; font-weight:700; font-size:13px; color:\${color};">\${ev.nombre}</div>
-            <div style="font-family:'DM Mono',monospace; font-size:11px; color:var(--text2); flex-shrink:0;">\${ev.hora}</div>
+            <div style="font-family:'DM Sans',sans-serif; font-weight:700; font-size:13px; color:${color};">${etiqueta}</div>
+            <div style="font-family:'DM Mono',monospace; font-size:11px; color:var(--text2); flex-shrink:0;">${ev.hora}</div>
           </div>
           <div style="display:flex; gap:6px; align-items:center;">
-            <span style="font-size:10px; font-family:'DM Mono',monospace; background:\${color}22; color:\${color}; padding:2px 7px; border-radius:4px;">\${durLabel}</span>
-            <span style="font-size:10px; color:var(--text3);">\${tipoLabel}</span>
+            <span style="font-size:10px; font-family:'DM Mono',monospace; background:${color}22; color:${color}; padding:2px 7px; border-radius:4px;">${durLabel}</span>
+            <span style="font-size:10px; color:var(--text3);">${tipoLabel}</span>
           </div>
         </div>
       </div>`;
   }).join('');
 
-  // Auto-seleccionar el primer cliente del día
-  if (!window._jrSelectedClient && horarioHoy.length) {
-    selectJrClient(horarioHoy[0].nombre);
-  }
+  // Auto-seleccionar el primer cliente real del día (no Equipo)
+  // Siempre resetear al cargar para evitar que quede seleccionado Equipo
+  window._jrSelectedClient = null;
+  const primerClienteReal = horarioHoy.find(e => e.nombre !== 'Equipo');
+  if (primerClienteReal) selectJrClient(primerClienteReal.nombre);
 
   updateJrProgress();
 }
@@ -2808,7 +2902,7 @@ function selectJrClient(nombre) {
   const diaKey = diasNombre[new Date().getDay()];
   const sesionesHoy = (MARIO_SCHEDULE[diaKey] || []).filter(e => e.nombre === nombre);
   const minTotal = sesionesHoy.reduce((s, e) => s + e.duracion, 0);
-  const hrLabel = minTotal >= 60 ? (minTotal/60) + ' hr' : minTotal + ' min';
+  const hrLabel = minTotal >= 60 ? (minTotal % 60 === 0 ? (minTotal/60) + ' hr' : (minTotal/60).toFixed(1) + ' hr') : minTotal + ' min';
   const horasDetalle = sesionesHoy.map(e => e.hora + ' (' + (e.duracion >= 60 ? e.duracion/60 + 'hr' : e.duracion + 'min') + ')').join(' · ');
 
   // Mostrar checklist panel
@@ -2817,9 +2911,9 @@ function selectJrClient(nombre) {
 
   // Header del cliente
   document.getElementById('jr-client-dot').style.background = color;
-  document.getElementById('jr-client-title').textContent = nombre;
-  document.getElementById('jr-client-meta').textContent = sesionesHoy.length + ' sesión' + (sesionesHoy.length > 1 ? 'es' : '') + ' hoy';
-  document.getElementById('jr-horas-badge').textContent = '⏱ ' + hrLabel + ' · ' + horasDetalle;
+  document.getElementById('jr-client-title').textContent = nombre === 'Equipo' ? '' : nombre;
+  document.getElementById('jr-client-meta').textContent = nombre === 'Equipo' ? '' : (sesionesHoy.length ? (sesionesHoy.length + ' sesión' + (sesionesHoy.length > 1 ? 'es' : '') + ' hoy') : 'Sin sesiones hoy');
+  document.getElementById('jr-horas-badge').textContent = nombre === 'Equipo' ? '' : (sesionesHoy.length ? ('⏱ ' + hrLabel + ' · ' + horasDetalle) : '📋 Checklist disponible');
   document.getElementById('jr-horas-badge').style.borderColor = color + '44';
   document.getElementById('jr-horas-badge').style.color = color;
 
@@ -2883,6 +2977,25 @@ function loadJrChecklist(nombre) {
     },
   };
 
+  // Si es 'Equipo', mostrar accesos rápidos a clientes reales
+  if (clienteNombre === 'Equipo') {
+    const varList = document.getElementById('jr-variable-list');
+    const recList = document.getElementById('jr-recurrente-list');
+    const linksList = document.getElementById('jr-links-list');
+    const CLIENT_COLORS_LOCAL = { 'EnPagos': '#00e5a0', 'Favio': '#a78bfa', 'Bodygreen': '#34d399', 'Divisas La Rioja': '#fbbf24', 'Inmobili': '#60a5fa' };
+    if (varList) varList.innerHTML = '<div style="color:var(--text3); font-size:12px; padding:8px 0; font-style:italic;">Bloque de equipo — selecciona un cliente:</div>';
+    const TASK_CLIENTS_EQ = ['EnPagos','Favio','Bodygreen','Divisas La Rioja','Inmobili'];
+    if (recList) recList.innerHTML = TASK_CLIENTS_EQ.map(nombre => {
+      const col = CLIENT_COLORS_LOCAL[nombre] || '#888';
+      return `<div onclick="selectJrClient('${nombre}')" style="background:var(--surface);border:1px solid ${col}44;border-radius:10px;padding:10px 14px;margin-bottom:8px;cursor:pointer;display:flex;align-items:center;gap:10px;transition:all 0.15s;" onmouseover="this.style.borderColor='${col}'" onmouseout="this.style.borderColor='${col}44'">
+        <div style="width:8px;height:8px;border-radius:50%;background:${col};flex-shrink:0;"></div>
+        <div style="font-family:'DM Sans',sans-serif;font-weight:700;font-size:13px;color:${col};">${nombre}</div>
+      </div>`;
+    }).join('');
+    if (linksList) linksList.innerHTML = '';
+    updateJrProgress();
+    return;
+  }
   const tasks = CLIENT_TASKS[clienteNombre] || { recurrentes: [], links: [] };
 
   // Variables de la semana
@@ -2904,7 +3017,7 @@ function loadJrChecklist(nombre) {
   // Links rápidos
   const linksList = document.getElementById('jr-links-list');
   linksList.innerHTML = tasks.links.map(l =>
-    `<a href="\${l.url}" target="_blank" style="background:var(--surface2); border:1px solid var(--border); color:var(--text2); font-size:11px; padding:6px 12px; border-radius:8px; text-decoration:none; font-family:'DM Mono',monospace; transition:all 0.2s;" onmouseover="this.style.color='var(--accent)'; this.style.borderColor='var(--accent)'" onmouseout="this.style.color='var(--text2)'; this.style.borderColor='var(--border)'">\${l.label}</a>`
+    `<a href="${l.url}" target="_blank" style="background:var(--surface2); border:1px solid var(--border); color:var(--text2); font-size:11px; padding:6px 12px; border-radius:8px; text-decoration:none; font-family:'DM Mono',monospace; transition:all 0.2s;" onmouseover="this.style.color='var(--accent)'; this.style.borderColor='var(--accent)'" onmouseout="this.style.color='var(--text2)'; this.style.borderColor='var(--border)'">${l.label}</a>`
   ).join('');
 
   updateJrProgress();
@@ -2918,12 +3031,12 @@ function renderJrTask(texto, idx, tipo, clienteNombre) {
     ? '<span style="font-size:10px; font-family:\'DM Mono\',monospace; background:rgba(245,158,11,0.15); color:#fcd34d; padding:2px 7px; border-radius:4px; flex-shrink:0;">Variable</span>'
     : '<span style="font-size:10px; font-family:\'DM Mono\',monospace; background:rgba(59,130,246,0.15); color:#93c5fd; padding:2px 7px; border-radius:4px; flex-shrink:0;">Recurrente</span>';
   return `
-    <div style="background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:12px 14px; margin-bottom:8px; display:flex; align-items:center; gap:12px; cursor:pointer; transition:all 0.15s;" onclick="toggleJrTask(this, '\${key}')">
-      <div style="width:18px; height:18px; border:2px solid \${checked ? 'var(--green)' : 'var(--border2)'}; border-radius:5px; background:\${checked ? 'var(--green)' : 'transparent'}; flex-shrink:0; display:flex; align-items:center; justify-content:center; transition:all 0.15s;">
-        \${checked ? '<svg width="10" height="8" viewBox="0 0 10 8"><polyline points="1,4 4,7 9,1" fill="none" stroke="#000" stroke-width="2" stroke-linecap="round"/></svg>' : ''}
+    <div style="background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:12px 14px; margin-bottom:8px; display:flex; align-items:center; gap:12px; cursor:pointer; transition:all 0.15s;" onclick="toggleJrTask(this, '${key}')">
+      <div style="width:18px; height:18px; border:2px solid ${checked ? 'var(--green)' : 'var(--border2)'}; border-radius:5px; background:${checked ? 'var(--green)' : 'transparent'}; flex-shrink:0; display:flex; align-items:center; justify-content:center; transition:all 0.15s;">
+        ${checked ? '<svg width="10" height="8" viewBox="0 0 10 8"><polyline points="1,4 4,7 9,1" fill="none" stroke="#000" stroke-width="2" stroke-linecap="round"/></svg>' : ''}
       </div>
-      <div style="flex:1; font-size:13px; color:\${checked ? 'var(--text3)' : 'var(--text1)'}; text-decoration:\${checked ? 'line-through' : 'none'}; line-height:1.4;">\${texto}</div>
-      \${badge}
+      <div style="flex:1; font-size:13px; color:${checked ? 'var(--text3)' : 'var(--text1)'}; text-decoration:${checked ? 'line-through' : 'none'}; line-height:1.4;">${texto}</div>
+      ${badge}
     </div>`;
 }
 
@@ -4086,6 +4199,125 @@ function loadEnPagos() {
 }
 
 init();
+
+
+// ══════════════════════════════════════════
+// VISTA SEMANAL JUNIOR
+// ══════════════════════════════════════════
+let _jrCurrentView = 'dia';
+
+function setJrView(view) {
+  _jrCurrentView = view;
+  const btnDia = document.getElementById('jr-btn-dia');
+  const btnSemana = document.getElementById('jr-btn-semana');
+  const daily = document.getElementById('jr-daily-view');
+  const weekly = document.getElementById('jr-weekly-view');
+
+  if (view === 'dia') {
+    btnDia.style.background = 'var(--accent)';
+    btnDia.style.color = '#000';
+    btnSemana.style.background = 'transparent';
+    btnSemana.style.color = 'var(--text3)';
+    daily.style.display = 'flex';
+    weekly.style.display = 'none';
+  } else {
+    btnSemana.style.background = 'var(--accent)';
+    btnSemana.style.color = '#000';
+    btnDia.style.background = 'transparent';
+    btnDia.style.color = 'var(--text3)';
+    daily.style.display = 'none';
+    weekly.style.display = 'block';
+    renderJrWeekly();
+  }
+}
+
+function renderJrWeekly() {
+  const grid = document.getElementById('jr-weekly-grid');
+  if (!grid) return;
+
+  const dias = ['lunes','martes','miercoles','jueves','viernes'];
+  const diasLabel = ['Lun','Mar','Mié','Jue','Vie'];
+  const CLIENT_COLORS_W = {
+    'EnPagos': '#00e5a0', 'Favio': '#a78bfa', 'Bodygreen': '#34d399',
+    'Divisas La Rioja': '#fbbf24', 'Inmobili': '#60a5fa', 'Equipo': '#55555f'
+  };
+
+  // Horas a mostrar: 8am a 7pm
+  const HORA_START = 8;
+  const HORA_END = 19;
+  const HORA_HEIGHT = 60; // px por hora
+
+  // Convertir hora string a decimal (ej: "9:20am" → 9.33)
+  function horaToDecimal(horaStr) {
+    const isPM = horaStr.includes('pm');
+    const isAM = horaStr.includes('am');
+    const clean = horaStr.replace('am','').replace('pm','').trim();
+    let [h, m] = clean.split(':').map(Number);
+    if (!m) m = 0;
+    if (isPM && h !== 12) h += 12;
+    if (isAM && h === 12) h = 0;
+    return h + m / 60;
+  }
+
+  // Columna de horas
+  let horasCol = '<div style="width:52px;flex-shrink:0;padding-top:36px;">';
+  for (let h = HORA_START; h <= HORA_END; h++) {
+    const label = h < 12 ? h + 'am' : h === 12 ? '12pm' : (h-12) + 'pm';
+    horasCol += `<div style="height:${HORA_HEIGHT}px;display:flex;align-items:flex-start;padding-top:4px;">
+      <span style="font-size:10px;font-family:'DM Mono',monospace;color:var(--text3);">${label}</span>
+    </div>`;
+  }
+  horasCol += '</div>';
+
+  // Columnas por día
+  let diasCols = dias.map((dia, di) => {
+    const eventos = MARIO_SCHEDULE[dia] || [];
+    const label = diasLabel[di];
+
+    // Header del día
+    let col = `<div style="flex:1;min-width:120px;border-left:1px solid var(--border2);">
+      <div style="height:36px;display:flex;align-items:center;justify-content:center;border-bottom:1px solid var(--border2);background:var(--surface2);">
+        <span style="font-size:11px;font-family:'DM Mono',monospace;color:var(--text2);font-weight:600;">${label}</span>
+      </div>
+      <div style="position:relative;height:${(HORA_END - HORA_START) * HORA_HEIGHT}px;">`;
+
+    // Líneas de hora
+    for (let h = 0; h <= (HORA_END - HORA_START); h++) {
+      col += `<div style="position:absolute;top:${h * HORA_HEIGHT}px;left:0;right:0;border-top:1px solid var(--border2);opacity:0.4;"></div>`;
+    }
+
+    // Eventos
+    eventos.forEach(ev => {
+      const color = CLIENT_COLORS_W[ev.nombre] || '#888';
+      const top = (horaToDecimal(ev.hora) - HORA_START) * HORA_HEIGHT;
+      const height = Math.max((ev.duracion / 60) * HORA_HEIGHT - 2, 18);
+      const etiqueta = ev.etiqueta || ev.nombre;
+      const durLabel = ev.duracion >= 60 ? (ev.duracion/60) + 'hr' : ev.duracion + 'min';
+      col += `<div onclick="setJrView('dia');selectJrClient('${ev.nombre}')"
+        style="position:absolute;top:${top}px;left:3px;right:3px;height:${height}px;
+               background:${color}22;border-left:3px solid ${color};border-radius:0 6px 6px 0;
+               padding:2px 6px;cursor:pointer;overflow:hidden;transition:all 0.15s;z-index:1;"
+        onmouseover="this.style.background='${color}44'"
+        onmouseout="this.style.background='${color}22'">
+        <div style="font-size:10px;font-weight:700;color:${color};line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${etiqueta}</div>
+        <div style="font-size:9px;color:var(--text3);font-family:'DM Mono',monospace;">${durLabel}</div>
+      </div>`;
+    });
+
+    col += '</div></div>';
+    return col;
+  }).join('');
+
+  grid.innerHTML = `
+    <div style="padding:20px 20px 0;">
+      <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:18px;margin-bottom:4px;">Mi semana</div>
+      <div id="jr-semana-label-w" style="font-size:11px;color:var(--text3);font-family:'DM Mono',monospace;margin-bottom:16px;">${getWeekLabel()}</div>
+    </div>
+    <div style="display:flex;padding:0 20px 40px;gap:0;overflow-x:auto;">
+      ${horasCol}
+      <div style="display:flex;flex:1;min-width:0;">${diasCols}</div>
+    </div>`;
+}
 </script>
 </body>
 </html>
