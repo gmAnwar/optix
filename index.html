@@ -1230,6 +1230,8 @@
   .senior-kpi-val { font-family:'DM Mono',monospace; font-size:13px; font-weight:600; }
   .senior-kpi-lbl { font-size:10px; color:var(--text3); margin-top:2px; }
 </style>
+  <!-- Google Identity Services + Calendar API -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 <body>
 
@@ -1437,10 +1439,17 @@
 
     <!-- COLUMNA IZQUIERDA: Calendario del día -->
     <div id="jr-cal-col" style="width:320px; flex-shrink:0; border-right:1px solid var(--border); overflow-y:auto; padding:24px 20px; background:var(--surface);">
-      <div style="margin-bottom:20px;">
-        <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:18px; margin-bottom:4px;">Mi día</div>
-        <div id="jr-semana-label" style="font-size:11px; color:var(--text3); font-family:'DM Mono',monospace;"></div>
+      <div style="margin-bottom:20px; display:flex; align-items:flex-start; justify-content:space-between;">
+        <div>
+          <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:18px; margin-bottom:4px;">Mi día</div>
+          <div id="jr-semana-label" style="font-size:11px; color:var(--text3); font-family:'DM Mono',monospace;"></div>
+        </div>
+        <button id="btn-gcal-sync" onclick="gcalSync()" style="background:transparent; border:1px solid var(--border); color:var(--text3); font-size:10px; padding:5px 10px; border-radius:7px; cursor:pointer; font-family:'DM Mono',monospace; display:flex; align-items:center; gap:5px; transition:all 0.2s; flex-shrink:0; margin-top:2px;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text3)'">
+          <span id="gcal-sync-icon">↻</span> <span id="gcal-sync-label">Sincronizar</span>
+        </button>
       </div>
+      <!-- Estado GCal -->
+      <div id="gcal-status" style="display:none; font-size:10px; font-family:'DM Mono',monospace; margin-bottom:12px; padding:6px 10px; border-radius:6px;"></div>
 
       <!-- Bloques del día tipo timeline -->
       <div id="jr-timeline" style="position:relative;"></div>
@@ -4317,6 +4326,252 @@ function renderJrWeekly() {
       ${horasCol}
       <div style="display:flex;flex:1;min-width:0;">${diasCols}</div>
     </div>`;
+}
+
+// ══════════════════════════════════════════
+// GOOGLE CALENDAR API INTEGRATION
+// ══════════════════════════════════════════
+const GCAL_CLIENT_ID = '308374726672-jkv7eeood4hcumr0sjjbvdjddoe12524.apps.googleusercontent.com';
+const GCAL_SCOPES = 'https://www.googleapis.com/auth/calendar.readonly';
+const GCAL_OPERATION_NAME = 'Operación'; // Nombre del calendario a leer
+let gcalAccessToken = null;
+let gcalConnected = false;
+
+function gcalSync() {
+  const btn = document.getElementById('btn-gcal-sync');
+  const label = document.getElementById('gcal-sync-label');
+  const icon = document.getElementById('gcal-sync-icon');
+  
+  if (!gcalConnected) {
+    // Primera vez: iniciar OAuth
+    label.textContent = 'Conectando...';
+    icon.textContent = '⏳';
+    btn.style.opacity = '0.7';
+    gcalLogin();
+  } else {
+    // Ya conectado: re-sincronizar
+    icon.textContent = '⏳';
+    label.textContent = 'Actualizando...';
+    btn.style.opacity = '0.7';
+    gcalLoadEvents();
+  }
+}
+
+function gcalLogin() {
+  const client = google.accounts.oauth2.initTokenClient({
+    client_id: GCAL_CLIENT_ID,
+    scope: GCAL_SCOPES,
+    callback: (response) => {
+      if (response.error) {
+        gcalSetStatus('error', '⚠️ Error al conectar: ' + response.error);
+        gcalResetBtn();
+        return;
+      }
+      gcalAccessToken = response.access_token;
+      gcalConnected = true;
+      localStorage.setItem('gcal-connected', '1');
+      gcalLoadEvents();
+    },
+  });
+  client.requestAccessToken();
+}
+
+async function gcalLoadEvents() {
+  gcalSetStatus('loading', '🔄 Cargando eventos del calendario...');
+  
+  try {
+    // 1. Obtener lista de calendarios para encontrar "Operación"
+    const calListRes = await fetch(
+      'https://www.googleapis.com/calendar/v3/users/me/calendarList',
+      { headers: { Authorization: 'Bearer ' + gcalAccessToken } }
+    );
+    const calList = await calListRes.json();
+    
+    if (!calListRes.ok) {
+      throw new Error(calList.error?.message || 'Error obteniendo calendarios');
+    }
+
+    // Buscar calendario "Operación" o usar primary
+    let calId = 'primary';
+    const opCal = (calList.items || []).find(c => 
+      c.summary && c.summary.toLowerCase().includes('operaci')
+    );
+    if (opCal) {
+      calId = opCal.id;
+      console.log('📅 Calendario encontrado:', opCal.summary);
+    } else {
+      console.log('⚠️ Calendario Operación no encontrado, usando primary');
+    }
+
+    // 2. Obtener eventos de hoy
+    const hoy = new Date();
+    const inicio = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate(), 0, 0, 0).toISOString();
+    const fin = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate(), 23, 59, 59).toISOString();
+    
+    const eventsRes = await fetch(
+      `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calId)}/events?timeMin=${inicio}&timeMax=${fin}&singleEvents=true&orderBy=startTime`,
+      { headers: { Authorization: 'Bearer ' + gcalAccessToken } }
+    );
+    const eventsData = await eventsRes.json();
+    
+    if (!eventsRes.ok) {
+      throw new Error(eventsData.error?.message || 'Error obteniendo eventos');
+    }
+
+    const eventos = eventsData.items || [];
+    
+    if (eventos.length === 0) {
+      gcalSetStatus('info', '📭 Sin eventos en el calendario hoy');
+      gcalResetBtn();
+      return;
+    }
+
+    // 3. Convertir eventos de GCal a formato MARIO_SCHEDULE
+    const CLIENT_COLORS_MAP = {
+      'enpagos': 'EnPagos', 'favio': 'Favio', 'bodygreen': 'Bodygreen',
+      'divisas': 'Divisas La Rioja', 'inmobili': 'Inmobili',
+      'la rioja': 'Divisas La Rioja', 'equipo': 'Equipo',
+      'status': 'Equipo', 'actualizar': 'Equipo', 'enrique': 'Equipo',
+    };
+
+    function matchCliente(titulo) {
+      const t = titulo.toLowerCase();
+      for (const [key, val] of Object.entries(CLIENT_COLORS_MAP)) {
+        if (t.includes(key)) return val;
+      }
+      return 'Equipo';
+    }
+
+    function formatHora(isoStr) {
+      const d = new Date(isoStr);
+      let h = d.getHours();
+      const m = d.getMinutes();
+      const ampm = h >= 12 ? 'pm' : 'am';
+      if (h > 12) h -= 12;
+      if (h === 0) h = 12;
+      return h + ':' + String(m).padStart(2, '0') + ampm;
+    }
+
+    const eventosConvertidos = eventos
+      .filter(e => e.start?.dateTime) // solo eventos con hora (no all-day)
+      .map(e => {
+        const start = new Date(e.start.dateTime);
+        const end = new Date(e.end?.dateTime || e.start.dateTime);
+        const durMin = Math.round((end - start) / 60000);
+        const titulo = e.summary || 'Sin título';
+        const cliente = matchCliente(titulo);
+        return {
+          nombre: cliente,
+          hora: formatHora(e.start.dateTime),
+          duracion: durMin,
+          tipo: titulo.toLowerCase().includes('rm') || titulo.toLowerCase().includes('rs') ? 'check' : 
+                durMin <= 30 ? 'check' : 'ops',
+          etiqueta: cliente === 'Equipo' ? titulo : undefined,
+          _gcal: true,
+        };
+      })
+      .filter(e => e.duracion > 0);
+
+    // 4. Actualizar el schedule del día actual con datos reales
+    const diasNombre = ['domingo','lunes','martes','miercoles','jueves','viernes','sabado'];
+    const diaKey = diasNombre[new Date().getDay()];
+    MARIO_SCHEDULE[diaKey + '_gcal'] = eventosConvertidos;
+    window._gcalDiaKey = diaKey;
+
+    // 5. Re-renderizar la vista junior con datos reales
+    window._jrSelectedClient = null;
+    renderJuniorHomeFromGcal(eventosConvertidos);
+    
+    gcalSetStatus('success', `✅ ${eventos.filter(e=>e.start?.dateTime).length} eventos cargados desde Google Calendar`);
+    
+    const btn = document.getElementById('btn-gcal-sync');
+    const label = document.getElementById('gcal-sync-label');
+    const icon = document.getElementById('gcal-sync-icon');
+    btn.style.opacity = '1';
+    icon.textContent = '✓';
+    label.textContent = 'Sincronizado';
+    btn.style.borderColor = 'var(--green)';
+    btn.style.color = 'var(--green)';
+    
+  } catch(err) {
+    console.error('GCal error:', err);
+    gcalSetStatus('error', '⚠️ Error: ' + err.message);
+    gcalResetBtn();
+  }
+}
+
+function renderJuniorHomeFromGcal(horarioHoy) {
+  // Igual que renderJuniorHome pero con datos de GCal
+  const CLIENT_COLORS = {
+    'EnPagos': '#00e5a0', 'Favio': '#a78bfa', 'Bodygreen': '#34d399',
+    'Divisas La Rioja': '#fbbf24', 'Inmobili': '#60a5fa', 'Equipo': '#55555f'
+  };
+  
+  const timeline = document.getElementById('jr-timeline');
+  if (!timeline) return;
+
+  if (!horarioHoy.length) {
+    timeline.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text3);font-size:12px;">Sin eventos hoy</div>';
+    return;
+  }
+
+  timeline.innerHTML = horarioHoy.map((ev) => {
+    const color = CLIENT_COLORS[ev.nombre] || '#888';
+    const durLabel = ev.duracion >= 60 ? (ev.duracion % 60 === 0 ? (ev.duracion/60) + ' hr' : (ev.duracion/60).toFixed(1) + ' hr') : ev.duracion + ' min';
+    const tipoLabel = ev.tipo === 'check' ? '📋 Check-in' : '⚙️ Operación';
+    const etiqueta = ev.etiqueta || ev.nombre;
+    const isActive = window._jrSelectedClient === ev.nombre;
+    return `<div class="jr-bloque" data-cliente="${ev.nombre}" onclick="selectJrClient('${ev.nombre}')"
+      style="display:flex;align-items:stretch;gap:0;margin-bottom:8px;border-radius:10px;overflow:hidden;cursor:pointer;
+             border:1px solid ${isActive ? color : color+'33'};background:${isActive ? color+'22' : color+'0d'};transition:all 0.18s;"
+      onmouseover="this.style.borderColor='${color}';this.style.background='${color}22'"
+      onmouseout="if(window._jrSelectedClient!=='${ev.nombre}'){this.style.borderColor='${color}33';this.style.background='${color}0d';}">
+      <div style="width:4px;background:${color};flex-shrink:0;"></div>
+      <div style="flex:1;padding:10px 12px;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px;">
+          <div style="font-family:'DM Sans',sans-serif;font-weight:700;font-size:13px;color:${color};">${etiqueta}</div>
+          <div style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text2);flex-shrink:0;">${ev.hora}</div>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center;">
+          <span style="font-size:10px;font-family:'DM Mono',monospace;background:${color}22;color:${color};padding:2px 7px;border-radius:4px;">${durLabel}</span>
+          <span style="font-size:10px;color:var(--text3);">${tipoLabel}</span>
+          <span style="font-size:9px;color:var(--accent);font-family:'DM Mono',monospace;">📅 GCal</span>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  const primerReal = horarioHoy.find(e => e.nombre !== 'Equipo');
+  if (primerReal) selectJrClient(primerReal.nombre);
+  updateJrProgress();
+}
+
+function gcalSetStatus(type, msg) {
+  const el = document.getElementById('gcal-status');
+  if (!el) return;
+  el.style.display = 'block';
+  const colors = {
+    'loading': 'var(--surface2)', 'success': 'rgba(16,185,129,0.1)',
+    'error': 'rgba(239,68,68,0.1)', 'info': 'var(--surface2)'
+  };
+  const borders = {
+    'loading': 'var(--border)', 'success': 'rgba(16,185,129,0.3)',
+    'error': 'rgba(239,68,68,0.3)', 'info': 'var(--border)'
+  };
+  el.style.background = colors[type] || 'var(--surface2)';
+  el.style.border = '1px solid ' + (borders[type] || 'var(--border)');
+  el.style.color = type === 'success' ? 'var(--green)' : type === 'error' ? '#ef4444' : 'var(--text2)';
+  el.textContent = msg;
+  if (type === 'success') setTimeout(() => { el.style.display = 'none'; }, 4000);
+}
+
+function gcalResetBtn() {
+  const btn = document.getElementById('btn-gcal-sync');
+  const label = document.getElementById('gcal-sync-label');
+  const icon = document.getElementById('gcal-sync-icon');
+  if (btn) { btn.style.opacity = '1'; btn.style.borderColor = 'var(--border)'; btn.style.color = 'var(--text3)'; }
+  if (icon) icon.textContent = '↻';
+  if (label) label.textContent = gcalConnected ? 'Actualizar' : 'Sincronizar';
 }
 </script>
 </body>
