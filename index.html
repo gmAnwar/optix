@@ -5,6 +5,46 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Optix</title>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500&family=Montserrat:wght@400;700;900&display=swap" rel="stylesheet">
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import { getFirestore, doc, getDoc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyDFz4p5Me5lZwzCT7aM992JSiWeVbWJb6w",
+    authDomain: "optix-5fb36.firebaseapp.com",
+    projectId: "optix-5fb36",
+    storageBucket: "optix-5fb36.firebasestorage.app",
+    messagingSenderId: "453087797268",
+    appId: "1:453087797268:web:c78faee4f1dffd4574c701"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
+  // Exponer funciones de Firebase al scope global
+  window._fbSaveClients = async (clientsData) => {
+    try {
+      await setDoc(doc(db, "optix", "clients"), { data: clientsData });
+    } catch(e) { console.error("Firebase save error:", e); }
+  };
+
+  window._fbLoadClients = async () => {
+    try {
+      const snap = await getDoc(doc(db, "optix", "clients"));
+      if (snap.exists()) return snap.data().data;
+    } catch(e) { console.error("Firebase load error:", e); }
+    return null;
+  };
+
+  window._fbOnClientsChange = (callback) => {
+    onSnapshot(doc(db, "optix", "clients"), (snap) => {
+      if (snap.exists()) callback(snap.data().data);
+    });
+  };
+
+  window._fbReady = true;
+  window.dispatchEvent(new Event('firebase-ready'));
+</script>
 <style>
   :root {
     --bg: #0a0a0b;
@@ -1287,7 +1327,7 @@
     </div>
     <div style="display:flex; align-items:center; gap:12px;">
       <div id="dir-fecha" style="font-family:'DM Mono',monospace; font-size:10px; color:var(--text3);"></div>
-      <div style="background:rgba(0,229,160,0.1); border:1px solid rgba(0,229,160,0.3); color:var(--accent); font-size:11px; font-family:'DM Mono',monospace; padding:4px 10px; border-radius:20px; white-space:nowrap;">⚡ Dirección</div>
+
       <div style="display:flex;gap:2px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:3px;">
         <button style="background:var(--accent);color:#000;font-size:11px;padding:4px 12px;border-radius:6px;border:none;cursor:default;font-family:'DM Mono',monospace;font-weight:600;">⚡ Dirección</button>
         <button onclick="enterAs('senior')" style="background:transparent;color:var(--text3);font-size:11px;padding:4px 12px;border-radius:6px;border:none;cursor:pointer;font-family:'DM Mono',monospace;transition:all 0.2s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text3)'">★ Senior</button>
@@ -1408,7 +1448,7 @@
     </div>
     <div style="display:flex; align-items:center; gap:12px;">
 
-      <div style="background:rgba(16,185,129,0.1); border:1px solid rgba(16,185,129,0.3); color:#10b981; font-size:11px; font-family:'DM Mono',monospace; padding:4px 10px; border-radius:20px; white-space:nowrap;">▲ Junior</div>
+
       <!-- Nav de roles -->
       <div style="display:flex;gap:2px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:3px;">
         <button onclick="enterAs('direccion')" style="background:transparent;color:var(--text3);font-size:11px;padding:4px 12px;border-radius:6px;border:none;cursor:pointer;font-family:'DM Mono',monospace;transition:all 0.2s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text3)'">⚡ Dirección</button>
@@ -1536,7 +1576,7 @@
     </div>
     <div style="display:flex; align-items:center; gap:12px;">
       <div id="sen-fecha" style="font-family:'DM Mono',monospace; font-size:10px; color:var(--text3);"></div>
-      <div style="background:rgba(124,58,237,0.1); border:1px solid rgba(124,58,237,0.3); color:#a78bfa; font-size:11px; font-family:'DM Mono',monospace; padding:4px 10px; border-radius:20px; white-space:nowrap;">★ Senior</div>
+
       <div style="display:flex;gap:2px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:3px;">
         <button onclick="enterAs('direccion')" style="background:transparent;color:var(--text3);font-size:11px;padding:4px 12px;border-radius:6px;border:none;cursor:pointer;font-family:'DM Mono',monospace;transition:all 0.2s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text3)'">⚡ Dirección</button>
         <button style="background:var(--accent);color:#000;font-size:11px;padding:4px 12px;border-radius:6px;border:none;cursor:default;font-family:'DM Mono',monospace;font-weight:600;">★ Senior</button>
@@ -2516,10 +2556,30 @@ const AIConversations = {};
 // ══════════════════════════════════════════
 // INIT
 // ══════════════════════════════════════════
-function init() {
-  // Siempre recargar EnPagos con datos frescos (fuerza sobreescribir localStorage viejo)
+async function init() {
+  // Cargar clientes desde Firebase primero, fallback a localStorage
+  if (window._fbLoadClients) {
+    try {
+      showToast('Sincronizando...', '☁️');
+      const fbClients = await window._fbLoadClients();
+      if (fbClients && fbClients.length > 0) {
+        clients = fbClients;
+      }
+    } catch(e) { console.warn('Firebase load failed, using local data'); }
+  }
+  // Siempre recargar EnPagos con datos frescos
   loadEnPagos();
   showScreen('rol');
+  // Escuchar cambios en tiempo real de Firebase
+  if (window._fbOnClientsChange) {
+    window._fbOnClientsChange((fbClients) => {
+      if (fbClients && fbClients.length > 0) {
+        clients = fbClients;
+        // Recargar EnPagos para mantener datos frescos
+        loadEnPagos();
+      }
+    });
+  }
 }
 
 // ══════════════════════════════════════════
@@ -3264,7 +3324,8 @@ function getClient() {
 }
 
 function saveClients() {
-  localStorage.setItem('oa-clients', JSON.stringify(clients));
+  if (window._fbSaveClients) window._fbSaveClients(clients);
+  try { localStorage.setItem("oa-clients", JSON.stringify(clients)); } catch(e){}
 }
 
 function saveCurrentClient() {
@@ -4222,7 +4283,11 @@ function loadEnPagos() {
   renderClientGrid();
 }
 
-init();
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', init);
+} else {
+  init();
+}
 
 
 // ══════════════════════════════════════════
@@ -4713,5 +4778,12 @@ function gcalResetBtn() {
   if (label) label.textContent = gcalConnected ? 'Actualizar' : 'Sincronizar';
 }
 </script>
+
+<div style="position:fixed; bottom:0; left:0; right:0; z-index:50; padding:10px 24px; display:flex; align-items:center; justify-content:center; gap:8px; border-top:1px solid rgba(255,255,255,0.04); background:linear-gradient(to top, rgba(0,0,0,0.6), transparent); pointer-events:none;">
+  <span style="font-family:'DM Mono',monospace; font-size:10px; color:rgba(255,255,255,0.18); letter-spacing:0.08em;">Engineered by</span>
+  <span style="font-family:'DM Mono',monospace; font-size:10px; font-weight:600; color:rgba(0,229,160,0.4); letter-spacing:0.05em;">OptimizAds</span>
+  <span style="font-family:'DM Mono',monospace; font-size:10px; color:rgba(255,255,255,0.1); letter-spacing:0.08em;">· 2026</span>
+</div>
+
 </body>
 </html>
