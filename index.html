@@ -835,6 +835,46 @@
     flex: 1;
   }
 
+
+  .ai-panel-close {
+    background: none;
+    border: none;
+    color: var(--text3);
+    font-size: 16px;
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 4px;
+    line-height: 1;
+    transition: all 0.15s;
+    margin-left: 4px;
+  }
+  .ai-panel-close:hover {
+    background: var(--surface3);
+    color: var(--text1);
+  }
+  .section-ai-panel.collapsed .ai-panel {
+    display: none;
+  }
+  .section-ai-panel.collapsed {
+    width: auto;
+  }
+  .ai-panel-reopen {
+    display: none;
+    position: fixed;
+    bottom: 80px;
+    right: 24px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 14px;
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--accent);
+    cursor: pointer;
+    z-index: 100;
+    transition: all 0.2s;
+  }
+  .ai-panel-reopen:hover { background: var(--surface3); }
   .ai-context-badge {
     font-size: 10px;
     font-family: 'DM Mono', monospace;
@@ -1935,6 +1975,7 @@
                 <div class="ai-status-dot"></div>
                 <div class="ai-panel-title">Claude · ADN del Negocio</div>
                 <div class="ai-context-badge">En contexto</div>
+                <button class="ai-panel-close" onclick="toggleAIPanel(this)" title="Minimizar">✕</button>
               </div>
               <div class="ai-messages" id="ai-msgs-adn">
                 <div class="ai-msg system">Contexto activo: ADN del Negocio. Claude tiene acceso a toda la info del expediente de este cliente.</div>
@@ -2022,6 +2063,7 @@
                 <div class="ai-status-dot"></div>
                 <div class="ai-panel-title">Claude · Objetivos</div>
                 <div class="ai-context-badge">En contexto</div>
+                <button class="ai-panel-close" onclick="toggleAIPanel(this)" title="Minimizar">✕</button>
               </div>
               <div class="ai-messages" id="ai-msgs-objetivos">
                 <div class="ai-msg system">Contexto activo: Objetivos de Marketing.</div>
@@ -2117,6 +2159,7 @@
                 <div class="ai-status-dot"></div>
                 <div class="ai-panel-title">Claude · Rendimiento</div>
                 <div class="ai-context-badge">En contexto</div>
+                <button class="ai-panel-close" onclick="toggleAIPanel(this)" title="Minimizar">✕</button>
               </div>
               <div class="ai-messages" id="ai-msgs-rendimiento">
                 <div class="ai-msg system">Contexto activo: Rendimiento Histórico.</div>
@@ -2205,6 +2248,7 @@
                 <div class="ai-status-dot"></div>
                 <div class="ai-panel-title">Claude · Segmentos</div>
                 <div class="ai-context-badge">En contexto</div>
+                <button class="ai-panel-close" onclick="toggleAIPanel(this)" title="Minimizar">✕</button>
               </div>
               <div class="ai-messages" id="ai-msgs-segmentos">
                 <div class="ai-msg system">Contexto activo: Segmentos de Cliente.</div>
@@ -2284,6 +2328,7 @@
                 <div class="ai-status-dot"></div>
                 <div class="ai-panel-title">Claude · Validación</div>
                 <div class="ai-context-badge">En contexto</div>
+                <button class="ai-panel-close" onclick="toggleAIPanel(this)" title="Minimizar">✕</button>
               </div>
               <div class="ai-messages" id="ai-msgs-validacion">
                 <div class="ai-msg system">Contexto activo: Validación de Objetivos.</div>
@@ -2386,6 +2431,7 @@
                 <div class="ai-status-dot"></div>
                 <div class="ai-panel-title">Claude · Creativos</div>
                 <div class="ai-context-badge">En contexto</div>
+                <button class="ai-panel-close" onclick="toggleAIPanel(this)" title="Minimizar">✕</button>
               </div>
               <div class="ai-messages" id="ai-msgs-creativos">
                 <div class="ai-msg system">Contexto activo: Brief de Creativos. Tengo acceso al ADN del negocio, segmentos y Winning Ads Vault.</div>
@@ -4282,6 +4328,28 @@ function loadEnPagos() {
 
   saveClients();
   renderClientGrid();
+}
+
+
+function toggleAIPanel(btn) {
+  const panel = btn.closest('.section-ai-panel');
+  panel.classList.toggle('collapsed');
+  if (panel.classList.contains('collapsed')) {
+    const title = btn.closest('.ai-panel').querySelector('.ai-panel-title').textContent;
+    const reopen = document.getElementById('ai-reopen-btn') || (() => {
+      const b = document.createElement('button');
+      b.id = 'ai-reopen-btn';
+      b.className = 'ai-panel-reopen';
+      b.onclick = () => { panel.classList.remove('collapsed'); b.style.display = 'none'; };
+      document.body.appendChild(b);
+      return b;
+    })();
+    reopen.textContent = '💬 Abrir Claude';
+    reopen.style.display = 'block';
+  } else {
+    const reopen = document.getElementById('ai-reopen-btn');
+    if (reopen) reopen.style.display = 'none';
+  }
 }
 
 if (document.readyState === 'loading') {
