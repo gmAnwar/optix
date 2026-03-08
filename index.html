@@ -2585,7 +2585,7 @@
 // ══════════════════════════════════════════
 // STATE
 // ══════════════════════════════════════════
-const CLAUDE_API_KEY = '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';
+const CLAUDE_PROXY_URL = 'https://optix-proxy.anwarhsg.workers.dev';
 const DEFAULT_CLIENTS = [
   { id: 'enpagos', nombre: 'EnPagos', semaforo: { general: 'green' }, nicho: 'Fintech', presupuesto: 50000, plataformas: ['Meta'] },
   { id: 'favio', nombre: 'Favio', semaforo: { general: 'yellow' }, nicho: 'Clínica estética', presupuesto: 20000, plataformas: ['Meta'] },
@@ -3834,9 +3834,9 @@ async function sendAIMessage(section) {
 
   try {
     const messages = buildMessages(section);
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    const response = await fetch(CLAUDE_PROXY_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-api-key': CLAUDE_API_KEY, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
         max_tokens: 1000,
@@ -3943,9 +3943,9 @@ ${vault.length ? `TOP ADS EN VAULT: ${vault.slice(0,2).map(v => `"${v.angulo}" �
 Genera un brief completo, listo para enviarle al diseñador. Incluye: concepto del anuncio, copy sugerido (hook + cuerpo + CTA), descripción visual, referencias de estilo, y notas de producción. Formato limpio y directo.`;
 
   try {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    const response = await fetch(CLAUDE_PROXY_URL, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-api-key': CLAUDE_API_KEY, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
         max_tokens: 1000,
