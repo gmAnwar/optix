@@ -4024,7 +4024,11 @@ function loadHistorialIfExists() {
 }
 
 function loadEnPagos() {
-  // Si ya existe, reemplazar con versión actualizada
+  // Eliminar el EnPagos placeholder del DEFAULT_CLIENTS si existe
+  const placeholderIdx = clients.findIndex(c => c.id === 'enpagos');
+  if (placeholderIdx >= 0) clients.splice(placeholderIdx, 1);
+
+  // Si ya existe el real, reemplazar con versión actualizada
   const existeIdx = clients.findIndex(c => c.id === 'enpagos-real');
 
   const enpagos = {
