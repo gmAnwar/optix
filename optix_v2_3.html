@@ -1,0 +1,4091 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Optix</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0b;
+    --surface: #111114;
+    --surface2: #18181d;
+    --surface3: #1f1f26;
+    --border: #2a2a35;
+    --border2: #35353f;
+    --accent: #00e5a0;
+    --accent2: #7c3aed;
+    --accent3: #f59e0b;
+    --red: #ef4444;
+    --yellow: #f59e0b;
+    --green: #10b981;
+    --text: #f0f0f5;
+    --text2: #9090a8;
+    --text3: #55555f;
+    --blue: #3b82f6;
+    --radius: 12px;
+    --radius-sm: 8px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── SCREEN MANAGER ── */
+  .screen { display: none; min-height: 100vh; }
+  .screen.active { display: flex; flex-direction: column; }
+
+  /* ── LOGIN / HOME ── */
+  #screen-home {
+    background: var(--bg);
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .home-bg {
+    position: absolute; inset: 0;
+    background: radial-gradient(ellipse at 20% 50%, rgba(0,229,160,0.06) 0%, transparent 60%),
+                radial-gradient(ellipse at 80% 20%, rgba(124,58,237,0.08) 0%, transparent 50%);
+    pointer-events: none;
+  }
+
+  .home-grid {
+    position: absolute; inset: 0;
+    background-image: linear-gradient(var(--border) 1px, transparent 1px),
+                      linear-gradient(90deg, var(--border) 1px, transparent 1px);
+    background-size: 48px 48px;
+    opacity: 0.3;
+  }
+
+  .home-content {
+    position: relative; z-index: 1;
+    text-align: center;
+    padding: 40px;
+  }
+
+  .logo-mark {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 40px;
+  }
+
+  .logo-icon {
+    width: 48px; height: 48px;
+    background: var(--accent);
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 20px;
+    color: #000;
+  }
+
+  .logo-text {
+    font-family: 'Syne', sans-serif;
+    font-size: 28px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+  }
+
+  .logo-text span { color: var(--accent); }
+
+  .home-headline {
+    font-family: 'Syne', sans-serif;
+    font-size: clamp(36px, 5vw, 64px);
+    font-weight: 800;
+    line-height: 1.1;
+    letter-spacing: -2px;
+    margin-bottom: 20px;
+  }
+
+  .home-headline em {
+    font-style: normal;
+    color: var(--accent);
+  }
+
+  .home-sub {
+    color: var(--text2);
+    font-size: 17px;
+    max-width: 420px;
+    margin: 0 auto 48px;
+    line-height: 1.6;
+  }
+
+  .client-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 12px;
+    max-width: 700px;
+    margin: 0 auto 32px;
+  }
+
+  .client-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: left;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .client-card:hover {
+    border-color: var(--accent);
+    background: var(--surface2);
+    transform: translateY(-2px);
+  }
+
+  .client-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--accent);
+    transform: scaleX(0);
+    transition: transform 0.2s;
+  }
+
+  .client-card:hover::before { transform: scaleX(1); }
+
+  .client-avatar {
+    width: 40px; height: 40px;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700;
+    font-size: 16px;
+    margin-bottom: 12px;
+    font-family: 'Syne', sans-serif;
+  }
+
+  .client-name {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 14px;
+    margin-bottom: 4px;
+  }
+
+  .client-industry {
+    font-size: 12px;
+    color: var(--text3);
+    font-family: 'DM Mono', monospace;
+  }
+
+  .client-semaforo {
+    position: absolute;
+    top: 16px; right: 16px;
+    display: flex; gap: 4px;
+  }
+
+  .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+  }
+
+  .dot-green { background: var(--green); }
+  .dot-yellow { background: var(--yellow); }
+  .dot-red { background: var(--red); }
+  .dot-gray { background: var(--text3); }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 24px;
+    border-radius: var(--radius-sm);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: #000;
+  }
+
+  .btn-primary:hover {
+    background: #00ffb3;
+    transform: translateY(-1px);
+  }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--text2);
+    border: 1px solid var(--border);
+  }
+
+  .btn-ghost:hover {
+    border-color: var(--border2);
+    color: var(--text);
+    background: var(--surface2);
+  }
+
+  .btn-danger {
+    background: transparent;
+    color: var(--red);
+    border: 1px solid rgba(239,68,68,0.3);
+  }
+
+  .btn-danger:hover { background: rgba(239,68,68,0.1); }
+
+  /* ── NUEVO CLIENTE MODAL ── */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.8);
+    backdrop-filter: blur(4px);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+
+  .modal-overlay.open { display: flex; }
+
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 32px;
+    width: 100%;
+    max-width: 560px;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+
+  .modal-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 22px;
+    font-weight: 800;
+    margin-bottom: 8px;
+  }
+
+  .modal-sub {
+    color: var(--text2);
+    font-size: 14px;
+    margin-bottom: 28px;
+  }
+
+  .form-group { margin-bottom: 20px; }
+
+  .form-label {
+    display: block;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text2);
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    font-family: 'DM Mono', monospace;
+  }
+
+  .form-input, .form-select, .form-textarea {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 12px 16px;
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    transition: border-color 0.2s;
+    outline: none;
+  }
+
+  .form-input:focus, .form-select:focus, .form-textarea:focus {
+    border-color: var(--accent);
+  }
+
+  .form-textarea { resize: vertical; min-height: 80px; }
+
+  .form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+
+  .modal-footer {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+    margin-top: 28px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+  }
+
+  /* ── APP LAYOUT ── */
+  #screen-app {
+    flex-direction: row;
+  }
+
+  .sidebar {
+    width: 260px;
+    flex-shrink: 0;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    position: sticky;
+    top: 0;
+  }
+
+  .sidebar-logo {
+    padding: 24px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+  }
+
+  .sidebar-logo-icon {
+    width: 32px; height: 32px;
+    background: var(--accent);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 14px;
+    color: #000;
+  }
+
+  .sidebar-logo-text {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 16px;
+  }
+
+  .sidebar-logo-text span { color: var(--accent); }
+
+  .sidebar-client {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .sidebar-client-label {
+    font-size: 10px;
+    color: var(--text3);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-family: 'DM Mono', monospace;
+    margin-bottom: 8px;
+  }
+
+  .sidebar-client-name {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 15px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .sidebar-nav {
+    flex: 1;
+    padding: 16px 12px;
+    overflow-y: auto;
+  }
+
+  .nav-section-label {
+    font-size: 10px;
+    color: var(--text3);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-family: 'DM Mono', monospace;
+    padding: 0 8px;
+    margin-bottom: 8px;
+    margin-top: 16px;
+  }
+
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all 0.15s;
+    margin-bottom: 2px;
+    position: relative;
+  }
+
+  .nav-item:hover {
+    background: var(--surface2);
+    color: var(--text);
+  }
+
+  .nav-item.active {
+    background: rgba(0,229,160,0.1);
+    color: var(--accent);
+  }
+
+  .nav-item-icon {
+    width: 18px;
+    font-size: 16px;
+    flex-shrink: 0;
+  }
+
+  .nav-item-text {
+    font-size: 13px;
+    font-weight: 500;
+    flex: 1;
+  }
+
+  .nav-item-role {
+    font-size: 10px;
+    font-family: 'DM Mono', monospace;
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+
+  .role-estrategia {
+    background: rgba(59,130,246,0.15);
+    color: var(--blue);
+  }
+
+  .role-operativo {
+    background: rgba(16,185,129,0.15);
+    color: var(--green);
+  }
+
+  .role-anwar {
+    background: rgba(245,158,11,0.15);
+    color: var(--yellow);
+  }
+
+  .nav-item-status {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .sidebar-footer {
+    padding: 16px 20px;
+    border-top: 1px solid var(--border);
+  }
+
+  /* ── MAIN CONTENT ── */
+  .main-content {
+    flex: 1;
+    overflow-y: auto;
+    background: var(--bg);
+    display: flex;
+    flex-direction: column;
+  }
+
+  .content-header {
+    padding: 28px 36px 24px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+
+  .content-header-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 4px;
+  }
+
+  .content-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 22px;
+    font-weight: 800;
+  }
+
+  .content-subtitle {
+    color: var(--text2);
+    font-size: 13px;
+    font-family: 'DM Mono', monospace;
+  }
+
+  .content-body {
+    padding: 32px 36px;
+    flex: 1;
+  }
+
+  /* ── DASHBOARD ── */
+  .dashboard-semaforo {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-bottom: 32px;
+  }
+
+  .semaforo-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+  }
+
+  .semaforo-label {
+    font-size: 11px;
+    color: var(--text3);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-family: 'DM Mono', monospace;
+    margin-bottom: 12px;
+  }
+
+  .semaforo-indicator {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .semaforo-dot {
+    width: 14px; height: 14px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    box-shadow: 0 0 12px currentColor;
+  }
+
+  .semaforo-dot.green { background: var(--green); color: var(--green); }
+  .semaforo-dot.yellow { background: var(--yellow); color: var(--yellow); }
+  .semaforo-dot.red { background: var(--red); color: var(--red); }
+  .semaforo-dot.gray { background: var(--text3); color: var(--text3); box-shadow: none; }
+
+  .semaforo-value {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 15px;
+  }
+
+  .semaforo-note {
+    font-size: 12px;
+    color: var(--text2);
+    margin-top: 4px;
+  }
+
+  .semaforo-input-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 10px;
+  }
+
+  .semaforo-stars {
+    display: flex;
+    gap: 4px;
+  }
+
+  .star {
+    font-size: 18px;
+    cursor: pointer;
+    transition: transform 0.1s;
+    color: var(--text3);
+  }
+
+  .star.active { color: var(--yellow); }
+  .star:hover { transform: scale(1.2); }
+
+  .contact-log {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+  }
+
+  .contact-badge {
+    font-size: 11px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text2);
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: 'DM Mono', monospace;
+  }
+
+  .contact-badge.logged {
+    background: rgba(16,185,129,0.1);
+    border-color: var(--green);
+    color: var(--green);
+  }
+
+  /* ── SECTIONS ── */
+  .sections-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+    margin-bottom: 32px;
+  }
+
+  .section-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .section-card:hover {
+    border-color: var(--accent);
+    transform: translateY(-2px);
+    background: var(--surface2);
+  }
+
+  .section-card-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+
+  .section-icon {
+    font-size: 24px;
+    line-height: 1;
+  }
+
+  .section-progress {
+    font-size: 11px;
+    font-family: 'DM Mono', monospace;
+    color: var(--text3);
+    background: var(--surface2);
+    padding: 3px 8px;
+    border-radius: 4px;
+  }
+
+  .section-progress.complete {
+    background: rgba(16,185,129,0.1);
+    color: var(--green);
+  }
+
+  .section-name {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 15px;
+    margin-bottom: 4px;
+  }
+
+  .section-desc {
+    font-size: 12px;
+    color: var(--text2);
+    line-height: 1.5;
+    margin-bottom: 14px;
+  }
+
+  .section-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .progress-bar-container {
+    flex: 1;
+    height: 3px;
+    background: var(--border);
+    border-radius: 2px;
+    margin-right: 12px;
+  }
+
+  .progress-bar-fill {
+    height: 100%;
+    border-radius: 2px;
+    background: var(--accent);
+    transition: width 0.3s;
+  }
+
+  /* ── SECCIÓN DETAIL ── */
+  .section-detail {
+    display: none;
+  }
+
+  .section-detail.active {
+    display: flex;
+    gap: 24px;
+  }
+
+  .section-form-area {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .section-ai-panel {
+    width: 360px;
+    flex-shrink: 0;
+  }
+
+  .fields-container {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .field-group {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+  }
+
+  .field-group-title {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 14px;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .field-group-title .icon { font-size: 18px; }
+
+  /* ── AI CHAT PANEL ── */
+  .ai-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 200px);
+    position: sticky;
+    top: 100px;
+    overflow: hidden;
+  }
+
+  .ai-panel-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .ai-status-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 0 8px var(--accent);
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  .ai-panel-title {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 13px;
+    flex: 1;
+  }
+
+  .ai-context-badge {
+    font-size: 10px;
+    font-family: 'DM Mono', monospace;
+    padding: 3px 8px;
+    border-radius: 4px;
+    background: rgba(0,229,160,0.1);
+    color: var(--accent);
+  }
+
+  .ai-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .ai-msg {
+    padding: 12px 14px;
+    border-radius: 10px;
+    font-size: 13px;
+    line-height: 1.55;
+    max-width: 100%;
+  }
+
+  .ai-msg.system {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text2);
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+  }
+
+  .ai-msg.assistant {
+    background: rgba(0,229,160,0.08);
+    border: 1px solid rgba(0,229,160,0.2);
+    color: var(--text);
+  }
+
+  .ai-msg.user {
+    background: var(--surface3);
+    border: 1px solid var(--border2);
+    color: var(--text);
+    align-self: flex-end;
+  }
+
+  .ai-msg.loading {
+    background: rgba(0,229,160,0.08);
+    border: 1px solid rgba(0,229,160,0.2);
+  }
+
+  .typing-dots {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+    padding: 4px 0;
+  }
+
+  .typing-dots span {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--accent);
+    animation: bounce 1.2s infinite;
+  }
+
+  .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+  .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+  @keyframes bounce {
+    0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+    40% { transform: scale(1); opacity: 1; }
+  }
+
+  .ai-input-area {
+    padding: 12px 16px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    gap: 8px;
+    align-items: flex-end;
+  }
+
+  .ai-input {
+    flex: 1;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    resize: none;
+    outline: none;
+    min-height: 40px;
+    max-height: 120px;
+    transition: border-color 0.2s;
+  }
+
+  .ai-input:focus { border-color: var(--accent); }
+
+  .ai-send-btn {
+    width: 38px; height: 38px;
+    border-radius: 8px;
+    background: var(--accent);
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: all 0.2s;
+    color: #000;
+    font-size: 16px;
+  }
+
+  .ai-send-btn:hover { background: #00ffb3; }
+
+  .ai-send-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  .ai-suggestions {
+    padding: 8px 16px;
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    border-top: 1px solid var(--border);
+  }
+
+  .ai-suggest-chip {
+    font-size: 11px;
+    padding: 5px 10px;
+    border-radius: 20px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text2);
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: 'DM Mono', monospace;
+    white-space: nowrap;
+  }
+
+  .ai-suggest-chip:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  /* ── WINNING ADS VAULT ── */
+  .vault-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 16px;
+  }
+
+  .vault-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    position: relative;
+  }
+
+  .vault-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 12px;
+  }
+
+  .vault-tag {
+    font-size: 10px;
+    font-family: 'DM Mono', monospace;
+    padding: 3px 8px;
+    border-radius: 4px;
+    background: rgba(0,229,160,0.1);
+    color: var(--accent);
+  }
+
+  .vault-metric {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 20px;
+    color: var(--accent);
+    margin-bottom: 4px;
+  }
+
+  .vault-metric-label {
+    font-size: 11px;
+    color: var(--text3);
+    font-family: 'DM Mono', monospace;
+  }
+
+  .vault-divider {
+    height: 1px;
+    background: var(--border);
+    margin: 14px 0;
+  }
+
+  .vault-detail {
+    font-size: 12px;
+    color: var(--text2);
+    line-height: 1.5;
+  }
+
+  .vault-detail strong {
+    color: var(--text);
+    display: block;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-family: 'DM Mono', monospace;
+    margin-bottom: 2px;
+    color: var(--text3);
+  }
+
+  /* ── EMPTY STATE ── */
+  .empty-state {
+    text-align: center;
+    padding: 60px 40px;
+    color: var(--text3);
+  }
+
+  .empty-state-icon { font-size: 48px; margin-bottom: 16px; }
+  .empty-state h3 {
+    font-family: 'Syne', sans-serif;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text2);
+    margin-bottom: 8px;
+  }
+  .empty-state p { font-size: 14px; line-height: 1.6; }
+
+  /* ── TABS ── */
+  .tabs {
+    display: flex;
+    gap: 4px;
+    background: var(--surface2);
+    padding: 4px;
+    border-radius: var(--radius-sm);
+    margin-bottom: 24px;
+  }
+
+  .tab {
+    flex: 1;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    text-align: center;
+    color: var(--text2);
+    transition: all 0.15s;
+    border: none;
+    background: none;
+  }
+
+  .tab.active {
+    background: var(--surface);
+    color: var(--text);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+  }
+
+  /* ── TIMELINE ── */
+  .timeline {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .timeline-item {
+    display: flex;
+    gap: 16px;
+    padding-bottom: 20px;
+    position: relative;
+  }
+
+  .timeline-item::before {
+    content: '';
+    position: absolute;
+    left: 15px;
+    top: 32px;
+    bottom: 0;
+    width: 1px;
+    background: var(--border);
+  }
+
+  .timeline-item:last-child::before { display: none; }
+
+  .timeline-dot {
+    width: 32px; height: 32px;
+    border-radius: 50%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 14px;
+  }
+
+  .timeline-content {
+    flex: 1;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 14px 16px;
+  }
+
+  .timeline-date {
+    font-size: 11px;
+    color: var(--text3);
+    font-family: 'DM Mono', monospace;
+    margin-bottom: 4px;
+  }
+
+  .timeline-text {
+    font-size: 13px;
+    color: var(--text2);
+    line-height: 1.5;
+  }
+
+  /* ── TOAST ── */
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 14px 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    z-index: 200;
+    transform: translateY(100px);
+    opacity: 0;
+    transition: all 0.3s;
+    max-width: 360px;
+  }
+
+  .toast.show {
+    transform: translateY(0);
+    opacity: 1;
+  }
+
+  .toast-icon { font-size: 18px; }
+
+  /* ── MISC ── */
+  .tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 10px;
+    font-family: 'DM Mono', monospace;
+    padding: 3px 8px;
+    border-radius: 4px;
+  }
+
+  .divider {
+    height: 1px;
+    background: var(--border);
+    margin: 24px 0;
+  }
+
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+  /* ── DIRECCIÓN: tarjeta de cliente ── */
+  .dir-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+  }
+  .dir-card:hover { border-color: var(--border2); background: var(--surface2); transform: translateY(-2px); }
+  .dir-card-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
+  .dir-card-name { font-family:'Syne',sans-serif; font-weight:800; font-size:15px; }
+  .dir-card-industry { font-size:11px; color:var(--text3); font-family:'DM Mono',monospace; margin-top:2px; }
+  .dir-semaforo-big { font-size:22px; }
+  .dir-kpis { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .dir-kpi { background:var(--surface2); border-radius:8px; padding:10px 12px; }
+  .dir-kpi-label { font-size:10px; color:var(--text3); font-family:'DM Mono',monospace; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px; }
+  .dir-kpi-value { font-family:'DM Mono',monospace; font-size:14px; font-weight:600; }
+  .dir-kpi-sub { font-size:10px; color:var(--text3); margin-top:2px; }
+  .dir-kpi-full { grid-column: 1 / -1; }
+
+  /* ── JUNIOR: checklist ── */
+  .task-item {
+    display:flex; align-items:flex-start; gap:12px;
+    padding:12px 16px;
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:10px;
+    margin-bottom:8px;
+    transition:all 0.2s;
+  }
+  .task-item.done { opacity:0.4; }
+  .task-item.done .task-text { text-decoration:line-through; color:var(--text3); }
+  .task-check {
+    width:20px; height:20px; border-radius:6px;
+    border:2px solid var(--border2);
+    cursor:pointer; flex-shrink:0; margin-top:1px;
+    display:flex; align-items:center; justify-content:center;
+    font-size:12px; transition:all 0.2s;
+    background:transparent;
+  }
+  .task-check.checked { background:var(--green); border-color:var(--green); }
+  .task-text { font-size:13px; line-height:1.5; flex:1; }
+  .task-tag { font-size:10px; font-family:'DM Mono',monospace; padding:2px 8px; border-radius:4px; flex-shrink:0; margin-top:2px; }
+  .task-tag-recurrente { background:rgba(59,130,246,0.15); color:#93c5fd; }
+  .task-tag-variable { background:rgba(245,158,11,0.15); color:#fcd34d; }
+  .task-tag-urgente { background:rgba(239,68,68,0.15); color:#fca5a5; }
+
+  /* ── SENIOR: pantalla de lista de clientes ── */
+  .senior-client-row {
+    display:flex; align-items:center; gap:16px;
+    padding:16px 20px;
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:12px;
+    margin-bottom:10px;
+    cursor:pointer;
+    transition:all 0.2s;
+  }
+  .senior-client-row:hover { border-color:var(--border2); background:var(--surface2); }
+  .senior-kpi-row { display:flex; gap:20px; flex:1; }
+  .senior-kpi-item { text-align:center; min-width:70px; }
+  .senior-kpi-val { font-family:'DM Mono',monospace; font-size:13px; font-weight:600; }
+  .senior-kpi-lbl { font-size:10px; color:var(--text3); margin-top:2px; }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════ -->
+<!-- SCREEN: ROL (selector de vista) -->
+<!-- ══════════════════════════════════════════ -->
+<div id="screen-rol" class="screen active" style="align-items:center; justify-content:center; background:var(--bg); position:relative; overflow:hidden;">
+  <div class="home-bg"></div>
+  <div class="home-grid"></div>
+  <div style="position:relative; z-index:1; text-align:center; padding:40px 24px; max-width:760px; margin:0 auto;">
+    <div class="logo-mark" style="justify-content:center; margin-bottom:48px;">
+      <div class="logo-icon" style="background:var(--accent);color:#000;font-family:'Syne',sans-serif;">X</div>
+      <div class="logo-text">Opti<span>x</span></div>
+    </div>
+    
+    <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:16px; max-width:680px; margin:0 auto;">
+
+      <!-- DIRECCIÓN -->
+      <div onclick="enterAs('direccion')" style="background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:28px 20px; cursor:pointer; transition:all 0.25s; text-align:center;" onmouseover="this.style.borderColor='var(--accent)';this.style.background='var(--surface2)';this.style.transform='translateY(-4px)'" onmouseout="this.style.borderColor='var(--border)';this.style.background='var(--surface)';this.style.transform='translateY(0)'">
+        <div style="font-size:36px; margin-bottom:16px;">⚡</div>
+        <div style="font-family:'DM Sans',sans-serif; font-weight:700; font-size:17px; margin-bottom:8px; color:var(--accent); letter-spacing:0;">Dirección</div>
+        <div style="font-size:12px; color:var(--text3); line-height:1.5;">Dashboard global · todos los clientes · semáforo en tiempo real</div>
+      </div>
+
+      <!-- SENIOR -->
+      <div onclick="enterAs('senior')" style="background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:28px 20px; cursor:pointer; transition:all 0.25s; text-align:center;" onmouseover="this.style.borderColor='#7c3aed';this.style.background='var(--surface2)';this.style.transform='translateY(-4px)'" onmouseout="this.style.borderColor='var(--border)';this.style.background='var(--surface)';this.style.transform='translateY(0)'">
+        <div style="font-size:36px; margin-bottom:16px;">🔵</div>
+        <div style="font-family:'DM Sans',sans-serif; font-weight:700; font-size:17px; margin-bottom:8px; color:#a78bfa; letter-spacing:0;">Senior</div>
+        <div style="font-size:12px; color:var(--text3); line-height:1.5;">Cuentas estratégicas · KPIs · objetivos semanales · brief generator</div>
+      </div>
+
+      <!-- JUNIOR -->
+      <div onclick="enterAs('junior')" style="background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:28px 20px; cursor:pointer; transition:all 0.25s; text-align:center;" onmouseover="this.style.borderColor='#10b981';this.style.background='var(--surface2)';this.style.transform='translateY(-4px)'" onmouseout="this.style.borderColor='var(--border)';this.style.background='var(--surface)';this.style.transform='translateY(0)'">
+        <div style="font-size:36px; margin-bottom:16px;">🟢</div>
+        <div style="font-family:'DM Sans',sans-serif; font-weight:700; font-size:17px; margin-bottom:8px; color:var(--green); letter-spacing:0;">Junior</div>
+        <div style="font-size:12px; color:var(--text3); line-height:1.5;">Tareas del día · checklist semanal · campañas activas</div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════ -->
+<!-- SCREEN: DIRECCIÓN (dashboard global) -->
+<!-- ══════════════════════════════════════════ -->
+<div id="screen-direccion" class="screen" style="flex-direction:column; background:var(--bg); min-height:100vh;">
+  <!-- Header -->
+  <div style="display:flex; align-items:center; justify-content:space-between; padding:20px 32px; border-bottom:1px solid var(--border); background:var(--surface); flex-shrink:0;">
+    <div class="logo-mark" style="margin:0;">
+      <div class="logo-icon" style="width:32px;height:32px;font-size:13px;background:var(--accent);color:#000;">X</div>
+      <div class="logo-text" style="font-size:18px;">Opti<span>x</span></div>
+    </div>
+    <div style="display:flex; align-items:center; gap:16px;">
+      <div style="font-family:'DM Mono',monospace; font-size:11px; color:var(--text3);" id="dir-fecha"></div>
+      <div style="background:rgba(0,229,160,0.1); border:1px solid rgba(0,229,160,0.3); color:var(--accent); font-size:11px; font-family:'DM Mono',monospace; padding:4px 12px; border-radius:20px;">⚡ Dirección</div>
+      <button onclick="showScreen('rol')" style="background:transparent; border:1px solid var(--border); color:var(--text2); font-size:12px; padding:6px 14px; border-radius:8px; cursor:pointer; font-family:'DM Sans',sans-serif;">Cambiar vista</button>
+    </div>
+  </div>
+  <!-- Grid de clientes -->
+  <div style="flex:1; overflow-y:auto; padding:32px;">
+    <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:22px; margin-bottom:6px;">Panel de Control</div>
+    <div style="font-size:13px; color:var(--text3); margin-bottom:28px; font-family:'DM Mono',monospace;">Todos los clientes · semáforo en tiempo real</div>
+    <div id="dir-grid" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(280px,1fr)); gap:16px;"></div>
+    <div style="margin-top:24px; display:flex; gap:12px; justify-content:flex-end;">
+      <button class="btn btn-ghost" style="font-size:12px;" onclick="openNewClientModal()">＋ Nuevo cliente</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════ -->
+<!-- SCREEN: HOME (selector de cliente → vistas Senior/Junior) -->
+<!-- ══════════════════════════════════════════ -->
+<div id="screen-home" class="screen" style="align-items:center; justify-content:center; background:var(--bg); position:relative; overflow:hidden;">
+  <div class="home-bg"></div>
+  <div class="home-grid"></div>
+  <div class="home-content">
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:32px; max-width:700px; margin-left:auto; margin-right:auto;">
+      <div class="logo-mark" style="margin:0;">
+        <div class="logo-icon" style="background:var(--accent);color:#000;font-family:'Syne',sans-serif;">X</div>
+        <div class="logo-text">Opti<span>x</span></div>
+      </div>
+      <div style="display:flex; align-items:center; gap:10px;">
+        <div id="home-rol-badge" style="font-size:11px; font-family:'DM Mono',monospace; padding:4px 12px; border-radius:20px; border:1px solid var(--border); color:var(--text2);">—</div>
+        <button onclick="showScreen('rol')" style="background:transparent; border:1px solid var(--border); color:var(--text2); font-size:12px; padding:6px 14px; border-radius:8px; cursor:pointer; font-family:'DM Sans',sans-serif;">Cambiar vista</button>
+      </div>
+    </div>
+    <div id="clients-grid" class="client-grid"></div>
+    <div style="display:flex; gap:12px; justify-content:center; margin-top:8px;">
+      <button class="btn btn-primary" onclick="openNewClientModal()">＋ Nuevo cliente</button>
+      <button class="btn btn-ghost" id="btn-demo" onclick="loadDemoClient()">Ver demo</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════ -->
+<!-- MODAL: NUEVO CLIENTE -->
+<!-- ══════════════════════════════════════════ -->
+<div id="modal-new-client" class="modal-overlay">
+  <div class="modal">
+    <div class="modal-title">Nuevo cliente</div>
+    <div class="modal-sub">Al crear el expediente, el sistema conectará todas las fuentes de data disponibles.</div>
+
+    <div class="form-group">
+      <label class="form-label">Nombre del cliente / negocio</label>
+      <input id="nc-nombre" class="form-input" type="text" placeholder="ej. Clínica Estética Morelos">
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Industria / vertical</label>
+        <input id="nc-industria" class="form-input" type="text" placeholder="ej. Clínica estética">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Account a cargo</label>
+        <select id="nc-account" class="form-select">
+          <option value="Kike">Kike (Senior)</option>
+          <option value="Mario">Mario (Junior)</option>
+          <option value="Anwar">Anwar</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Descripción corta del negocio</label>
+      <textarea id="nc-desc" class="form-textarea" placeholder="¿Qué vende, a quién, dónde opera?"></textarea>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">🔗 Carpeta de Google Drive (URL)</label>
+      <input id="nc-drive" class="form-input" type="text" placeholder="https://drive.google.com/...">
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">📊 Presentación mensual (URL)</label>
+        <input id="nc-mensual" class="form-input" type="text" placeholder="URL del archivo">
+      </div>
+      <div class="form-group">
+        <label class="form-label">📋 Presentación semanal (URL)</label>
+        <input id="nc-semanal" class="form-input" type="text" placeholder="URL del archivo">
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">🎯 CAC objetivo (MXN o USD)</label>
+      <input id="nc-cac" class="form-input" type="text" placeholder="ej. $350 MXN por lead">
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-new-client')">Cancelar</button>
+      <button class="btn btn-primary" onclick="createClient()">Crear expediente →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════ -->
+<!-- SCREEN: JUNIOR — Vista calendario del día -->
+<!-- ══════════════════════════════════════════ -->
+<div id="screen-junior" class="screen" style="flex-direction:column; background:var(--bg); min-height:100vh;">
+  <!-- Header -->
+  <div style="display:flex; align-items:center; justify-content:space-between; padding:16px 28px; border-bottom:1px solid var(--border); background:var(--surface); flex-shrink:0;">
+    <div class="logo-mark" style="margin:0;">
+      <div class="logo-icon" style="width:32px;height:32px;font-size:13px;background:var(--accent);color:#000;">X</div>
+      <div class="logo-text" style="font-size:18px;">Opti<span>x</span></div>
+    </div>
+    <div style="display:flex; align-items:center; gap:12px;">
+      <div style="font-family:'DM Mono',monospace; font-size:11px; color:var(--text3);" id="jr-fecha"></div>
+      <div style="background:rgba(16,185,129,0.1); border:1px solid rgba(16,185,129,0.3); color:var(--green); font-size:11px; font-family:'DM Mono',monospace; padding:4px 12px; border-radius:20px;">🟢 Junior</div>
+      <button onclick="showScreen('rol')" style="background:transparent; border:1px solid var(--border); color:var(--text2); font-size:12px; padding:6px 14px; border-radius:8px; cursor:pointer; font-family:'DM Sans',sans-serif;">Cambiar vista</button>
+    </div>
+  </div>
+
+  <!-- Dos columnas: Calendario izq | Checklist der -->
+  <div style="flex:1; display:flex; overflow:hidden;">
+
+    <!-- COLUMNA IZQUIERDA: Calendario del día -->
+    <div id="jr-cal-col" style="width:320px; flex-shrink:0; border-right:1px solid var(--border); overflow-y:auto; padding:24px 20px; background:var(--surface);">
+      <div style="margin-bottom:20px;">
+        <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:18px; margin-bottom:4px;">Mi día</div>
+        <div id="jr-semana-label" style="font-size:11px; color:var(--text3); font-family:'DM Mono',monospace;"></div>
+      </div>
+
+      <!-- Bloques del día tipo timeline -->
+      <div id="jr-timeline" style="position:relative;"></div>
+
+      <!-- Progreso global -->
+      <div style="margin-top:24px; padding-top:20px; border-top:1px solid var(--border);">
+        <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+          <div style="font-size:11px; color:var(--text3); font-family:'DM Mono',monospace; text-transform:uppercase;">Progreso del día</div>
+          <div id="jr-progreso-texto" style="font-size:11px; color:var(--text2); font-family:'DM Mono',monospace;">0 / 0</div>
+        </div>
+        <div style="height:4px; background:var(--border); border-radius:2px; overflow:hidden;">
+          <div id="jr-progreso-bar" style="height:100%; background:var(--green); border-radius:2px; transition:width 0.4s; width:0%;"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- COLUMNA DERECHA: Checklist del cliente seleccionado -->
+    <div id="jr-checklist-col" style="flex:1; overflow-y:auto; padding:28px 32px;">
+      <!-- Estado vacío: nadie seleccionado -->
+      <div id="jr-empty-state" style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; color:var(--text3); text-align:center; padding:40px;">
+        <div style="font-size:48px; margin-bottom:16px;">👈</div>
+        <div style="font-family:'Syne',sans-serif; font-weight:700; font-size:16px; margin-bottom:8px;">Selecciona un cliente</div>
+        <div style="font-size:13px; line-height:1.6;">Haz clic en un bloque del calendario<br>para ver las tareas de ese cliente</div>
+      </div>
+
+      <!-- Contenido del checklist (se llena al seleccionar cliente) -->
+      <div id="jr-checklist-content" style="display:none;">
+        <!-- Header del cliente -->
+        <div id="jr-client-header" style="display:flex; align-items:center; gap:16px; margin-bottom:24px; padding-bottom:20px; border-bottom:1px solid var(--border);">
+          <div id="jr-client-dot" style="width:14px; height:14px; border-radius:50%; background:var(--accent); flex-shrink:0;"></div>
+          <div style="flex:1;">
+            <div id="jr-client-title" style="font-family:'Syne',sans-serif; font-weight:800; font-size:20px;"></div>
+            <div id="jr-client-meta" style="font-size:12px; color:var(--text3); font-family:'DM Mono',monospace; margin-top:2px;"></div>
+          </div>
+          <div id="jr-horas-badge" style="background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:6px 12px; font-size:11px; font-family:'DM Mono',monospace; color:var(--text2);"></div>
+        </div>
+
+        <!-- Tareas urgentes -->
+        <div id="jr-urgentes-section" style="display:none; margin-bottom:20px;">
+          <div style="font-family:'Syne',sans-serif; font-weight:700; font-size:12px; color:var(--red); margin-bottom:10px; text-transform:uppercase; letter-spacing:0.5px;">🚨 Urgente</div>
+          <div id="jr-urgentes-list"></div>
+        </div>
+
+        <!-- Tareas de esta semana (variables) -->
+        <div style="margin-bottom:20px;">
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+            <div style="font-family:'Syne',sans-serif; font-weight:700; font-size:12px; text-transform:uppercase; letter-spacing:0.5px;">Esta semana</div>
+            <span style="font-size:10px; font-family:'DM Mono',monospace; background:rgba(245,158,11,0.15); color:#fcd34d; padding:2px 8px; border-radius:4px;">Variable</span>
+          </div>
+          <div id="jr-variable-list"></div>
+          <button onclick="addJrTask('variable')" style="background:transparent; border:1px dashed var(--border2); color:var(--text3); font-size:12px; padding:8px 16px; border-radius:8px; cursor:pointer; width:100%; margin-top:6px; font-family:'DM Sans',sans-serif; transition:all 0.2s;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border2)';this.style.color='var(--text3)'">+ Agregar tarea</button>
+        </div>
+
+        <!-- Tareas recurrentes -->
+        <div style="margin-bottom:20px;">
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
+            <div style="font-family:'Syne',sans-serif; font-weight:700; font-size:12px; text-transform:uppercase; letter-spacing:0.5px;">Recurrentes</div>
+            <span style="font-size:10px; font-family:'DM Mono',monospace; background:rgba(59,130,246,0.15); color:#93c5fd; padding:2px 8px; border-radius:4px;">Siempre</span>
+          </div>
+          <div id="jr-recurrente-list"></div>
+        </div>
+
+        <!-- Links rápidos -->
+        <div id="jr-links-section" style="margin-top:24px; padding-top:20px; border-top:1px solid var(--border);">
+          <div style="font-size:11px; color:var(--text3); font-family:'DM Mono',monospace; text-transform:uppercase; letter-spacing:0.8px; margin-bottom:10px;">Accesos rápidos</div>
+          <div id="jr-links-list" style="display:flex; flex-wrap:wrap; gap:8px;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════ -->
+<!-- SCREEN: SENIOR (lista de clientes) -->
+<!-- ══════════════════════════════════════════ -->
+<div id="screen-senior-home" class="screen" style="flex-direction:column; background:var(--bg); min-height:100vh;">
+  <div style="display:flex; align-items:center; justify-content:space-between; padding:20px 32px; border-bottom:1px solid var(--border); background:var(--surface); flex-shrink:0;">
+    <div class="logo-mark" style="margin:0;">
+      <div class="logo-icon" style="width:32px;height:32px;font-size:13px;background:var(--accent);color:#000;">X</div>
+      <div class="logo-text" style="font-size:18px;">Opti<span>x</span></div>
+    </div>
+    <div style="display:flex; align-items:center; gap:16px;">
+      <div style="background:rgba(124,58,237,0.1); border:1px solid rgba(124,58,237,0.3); color:#a78bfa; font-size:11px; font-family:'DM Mono',monospace; padding:4px 12px; border-radius:20px;">🔵 Senior</div>
+      <button onclick="showScreen('rol')" style="background:transparent; border:1px solid var(--border); color:var(--text2); font-size:12px; padding:6px 14px; border-radius:8px; cursor:pointer; font-family:'DM Sans',sans-serif;">Cambiar vista</button>
+    </div>
+  </div>
+  <div style="flex:1; overflow-y:auto; padding:32px; max-width:860px; margin:0 auto; width:100%;">
+    <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:22px; margin-bottom:4px;">Mis cuentas</div>
+    <div style="font-size:13px; color:var(--text3); margin-bottom:28px; font-family:'DM Mono',monospace;">Selecciona un cliente para entrar al expediente completo</div>
+    <div id="senior-clients-list"></div>
+    <div style="margin-top:16px;">
+      <button class="btn btn-ghost" style="font-size:12px;" onclick="openNewClientModal()">＋ Nuevo cliente</button>
+    </div>
+  </div>
+</div>
+<div id="screen-app" class="screen">
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="sidebar-logo" onclick="goHome()">
+      <div class="sidebar-logo-icon">O</div>
+      <div class="sidebar-logo-text">Opti<span>x</span></div>
+    </div>
+
+    <div class="sidebar-client">
+      <div class="sidebar-client-label">Cliente activo</div>
+      <div class="sidebar-client-name" id="sidebar-client-name">—</div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <div class="nav-section-label">Panel</div>
+      <div class="nav-item active" onclick="navigate('dashboard')">
+        <span class="nav-item-icon">⬡</span>
+        <span class="nav-item-text">Dashboard</span>
+        <span class="nav-item-role role-anwar">⚡</span>
+      </div>
+
+      <div class="nav-section-label">Expediente</div>
+      <div class="nav-item" onclick="navigate('adn')">
+        <span class="nav-item-icon">🧬</span>
+        <span class="nav-item-text">ADN del negocio</span>
+        <span class="nav-item-role role-estrategia">🔵</span>
+      </div>
+      <div class="nav-item" onclick="navigate('objetivos')">
+        <span class="nav-item-icon">🎯</span>
+        <span class="nav-item-text">Objetivos</span>
+        <span class="nav-item-role role-estrategia">🔵</span>
+      </div>
+      <div class="nav-item" onclick="navigate('rendimiento')">
+        <span class="nav-item-icon">📊</span>
+        <span class="nav-item-text">Rendimiento</span>
+        <span class="nav-item-role role-operativo">🟢</span>
+      </div>
+      <div class="nav-item" onclick="navigate('segmentos')">
+        <span class="nav-item-icon">👥</span>
+        <span class="nav-item-text">Segmentos</span>
+        <span class="nav-item-role role-estrategia">🔵</span>
+      </div>
+      <div class="nav-item" onclick="navigate('validacion')">
+        <span class="nav-item-icon">✅</span>
+        <span class="nav-item-text">Validación</span>
+        <span class="nav-item-role role-estrategia">🔵</span>
+      </div>
+
+      <div class="nav-section-label">Operaciones</div>
+      <div class="nav-item" onclick="navigate('creativos')">
+        <span class="nav-item-icon">🎨</span>
+        <span class="nav-item-text">Brief de creativos</span>
+        <span class="nav-item-role role-operativo">🟢</span>
+      </div>
+      <div class="nav-item" onclick="navigate('vault')">
+        <span class="nav-item-icon">🏆</span>
+        <span class="nav-item-text">Winning Ads Vault</span>
+        <span class="nav-item-role role-estrategia">🔵</span>
+      </div>
+      <div class="nav-item" onclick="navigate('decisiones')">
+        <span class="nav-item-icon">📝</span>
+        <span class="nav-item-text">Decisiones</span>
+        <span class="nav-item-role role-anwar">⚡</span>
+      </div>
+    </nav>
+
+    <div class="sidebar-footer">
+      <button class="btn btn-ghost" style="width:100%; font-size:12px;" onclick="goHome()">
+        ← Cambiar cliente
+      </button>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main-content" id="main-content">
+    <!-- DASHBOARD -->
+    <div id="view-dashboard">
+      <div class="content-header">
+        <div class="content-header-top">
+          <div class="content-title">Dashboard</div>
+          <div style="display:flex; gap:8px;">
+            <button class="btn btn-ghost" style="font-size:12px; padding:8px 16px;" onclick="closeWeek()">📅 Cerrar semana</button>
+            <button class="btn btn-primary" style="font-size:12px; padding:8px 16px;" onclick="openNewClientModal()">+ Nuevo cliente</button>
+          </div>
+        </div>
+        <div class="content-subtitle" id="dash-subtitle">Semáforo semanal · lunes</div>
+      </div>
+      <div class="content-body">
+        <!-- SEMAFORO TRIPLE -->
+        <div class="dashboard-semaforo">
+          <!-- Resultados -->
+          <div class="semaforo-card">
+            <div class="semaforo-label">🎯 Resultados vs objetivo</div>
+            <div class="semaforo-indicator">
+              <div class="semaforo-dot gray" id="sem-resultados-dot"></div>
+              <div>
+                <div class="semaforo-value" id="sem-resultados-val">Sin datos</div>
+                <div class="semaforo-note" id="sem-resultados-note">CAC objetivo: —</div>
+              </div>
+            </div>
+            <div style="margin-top:12px;">
+              <div style="font-size:11px; color:var(--text3); font-family:'DM Mono',monospace; margin-bottom:6px;">CAC actual</div>
+              <input id="sem-cac-actual" class="form-input" type="text" placeholder="ej. $420 MXN" style="font-size:13px; padding:8px 12px;" oninput="updateSemaforos()">
+            </div>
+            <div style="margin-top:8px; display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+              <div>
+                <div style="font-size:11px; color:var(--text3); font-family:'DM Mono',monospace; margin-bottom:6px;">Inversión actual</div>
+                <input id="sem-inv-actual" class="form-input" type="text" placeholder="ej. $52,000" style="font-size:12px; padding:7px 10px;" oninput="saveCurrentClient()">
+              </div>
+              <div>
+                <div style="font-size:11px; color:var(--text3); font-family:'DM Mono',monospace; margin-bottom:6px;">Cierres del mes</div>
+                <input id="sem-cierres-mes" class="form-input" type="text" placeholder="ej. 12" style="font-size:12px; padding:7px 10px;" oninput="saveCurrentClient()">
+              </div>
+            </div>
+          </div>
+
+          <!-- Sensación -->
+          <div class="semaforo-card">
+            <div class="semaforo-label">😊 Sensación del cliente</div>
+            <div class="semaforo-indicator">
+              <div class="semaforo-dot gray" id="sem-sensacion-dot"></div>
+              <div>
+                <div class="semaforo-value" id="sem-sensacion-val">Sin calificar</div>
+                <div class="semaforo-note">Percepción subjetiva</div>
+              </div>
+            </div>
+            <div class="semaforo-stars" style="margin-top:12px;" id="stars-container">
+              <span class="star" onclick="setStars(1)">★</span>
+              <span class="star" onclick="setStars(2)">★</span>
+              <span class="star" onclick="setStars(3)">★</span>
+              <span class="star" onclick="setStars(4)">★</span>
+              <span class="star" onclick="setStars(5)">★</span>
+            </div>
+            <input id="sem-sensacion-nota" class="form-input" type="text" placeholder="Nota corta..." style="font-size:12px; padding:7px 10px; margin-top:8px;" oninput="saveCurrentClient()" onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur();showToast('Nota guardada','✅');}">
+          </div>
+
+          <!-- Comunicación -->
+          <div class="semaforo-card">
+            <div class="semaforo-label">📱 Comunicación semanal</div>
+            <div class="semaforo-indicator">
+              <div class="semaforo-dot gray" id="sem-comm-dot"></div>
+              <div>
+                <div class="semaforo-value" id="sem-comm-val">0 / 2 contactos</div>
+                <div class="semaforo-note">Mínimo 2 por semana</div>
+              </div>
+            </div>
+            <div class="contact-log" id="contact-log">
+              <span class="contact-badge" id="contact-1" onclick="logContact(1)">+ Contacto 1</span>
+              <span class="contact-badge" id="contact-2" onclick="logContact(2)">+ Contacto 2</span>
+              <span class="contact-badge" onclick="logContact(3)" id="contact-3">+ Contacto 3</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- SECCIONES -->
+        <!-- HISTORIAL DE SEMÁFORO -->
+        <div id="semaforo-historial-section" style="margin-bottom:32px; display:none;">
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
+            <div style="font-family:'Syne',sans-serif; font-weight:700; font-size:16px;">📅 Historial de semáforo</div>
+            <button class="btn btn-ghost" style="font-size:11px; padding:5px 12px;" onclick="toggleHistorial()">Ocultar</button>
+          </div>
+          <div id="semaforo-historial-table" style="overflow-x:auto;">
+          </div>
+        </div>
+        <div style="font-family:'Syne',sans-serif; font-weight:700; font-size:16px; margin-bottom:16px;">Expediente del cliente</div>
+        <div class="sections-grid">
+          <div class="section-card" onclick="navigate('adn')">
+            <div class="section-card-header">
+              <div class="section-icon">🧬</div>
+              <div class="section-progress" id="prog-adn">Vacío</div>
+            </div>
+            <div class="section-name">ADN del Negocio</div>
+            <div class="section-desc">Estructura, proceso de venta, tipos de campaña y forma de conversión.</div>
+            <div class="section-footer">
+              <div class="progress-bar-container">
+                <div class="progress-bar-fill" id="bar-adn" style="width:0%"></div>
+              </div>
+              <span class="tag role-estrategia">🔵 Kike</span>
+            </div>
+          </div>
+
+          <div class="section-card" onclick="navigate('objetivos')">
+            <div class="section-card-header">
+              <div class="section-icon">🎯</div>
+              <div class="section-progress" id="prog-objetivos">Vacío</div>
+            </div>
+            <div class="section-name">Objetivos de Marketing</div>
+            <div class="section-desc">Metas, KPIs, presupuesto, plan actual y objetivos a largo plazo.</div>
+            <div class="section-footer">
+              <div class="progress-bar-container">
+                <div class="progress-bar-fill" id="bar-objetivos" style="width:0%"></div>
+              </div>
+              <span class="tag role-estrategia">🔵 Kike</span>
+            </div>
+          </div>
+
+          <div class="section-card" onclick="navigate('rendimiento')">
+            <div class="section-card-header">
+              <div class="section-icon">📊</div>
+              <div class="section-progress" id="prog-rendimiento">Vacío</div>
+            </div>
+            <div class="section-name">Rendimiento Histórico</div>
+            <div class="section-desc">Análisis de campañas activas y pasadas, CAC histórico, insights.</div>
+            <div class="section-footer">
+              <div class="progress-bar-container">
+                <div class="progress-bar-fill" id="bar-rendimiento" style="width:0%"></div>
+              </div>
+              <span class="tag role-operativo">🟢 Mario</span>
+            </div>
+          </div>
+
+          <div class="section-card" onclick="navigate('segmentos')">
+            <div class="section-card-header">
+              <div class="section-icon">👥</div>
+              <div class="section-progress" id="prog-segmentos">Vacío</div>
+            </div>
+            <div class="section-name">Segmentos de Cliente</div>
+            <div class="section-desc">Análisis de audiencias, perfil demográfico, comportamiento de compra.</div>
+            <div class="section-footer">
+              <div class="progress-bar-container">
+                <div class="progress-bar-fill" id="bar-segmentos" style="width:0%"></div>
+              </div>
+              <span class="tag role-estrategia">🔵 Kike</span>
+            </div>
+          </div>
+
+          <div class="section-card" onclick="navigate('validacion')">
+            <div class="section-card-header">
+              <div class="section-icon">✅</div>
+              <div class="section-progress" id="prog-validacion">Vacío</div>
+            </div>
+            <div class="section-name">Validación de Objetivos</div>
+            <div class="section-desc">Coherencia entre metas y resultados, propósito y restricciones de campaña.</div>
+            <div class="section-footer">
+              <div class="progress-bar-container">
+                <div class="progress-bar-fill" id="bar-validacion" style="width:0%"></div>
+              </div>
+              <span class="tag role-estrategia">🔵 Kike</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SECCIÓN: ADN -->
+    <div id="view-adn" style="display:none">
+      <div class="content-header">
+        <div class="content-header-top">
+          <div>
+            <div class="content-title">🧬 ADN del Negocio</div>
+            <div class="content-subtitle">Capa 1 · Expediente base · <span class="tag role-estrategia" style="display:inline-flex">🔵 Estrategia — Kike</span></div>
+          </div>
+          <button class="btn btn-ghost" style="font-size:12px;" onclick="navigate('dashboard')">← Dashboard</button>
+        </div>
+      </div>
+      <div class="content-body">
+        <div class="section-detail active">
+          <div class="section-form-area">
+            <div class="fields-container">
+              <div class="field-group">
+                <div class="field-group-title"><span class="icon">🏢</span> Datos generales</div>
+                <div class="form-group">
+                  <label class="form-label">Nombre del negocio</label>
+                  <input id="adn-nombre" class="form-input" type="text" placeholder="Nombre oficial o como lo conocemos" oninput="autoSave('adn')">
+                </div>
+                <div class="form-row">
+                  <div class="form-group">
+                    <label class="form-label">Industria / vertical</label>
+                    <input id="adn-industria" class="form-input" type="text" placeholder="ej. Clínica estética" oninput="autoSave('adn')">
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Ciudad / mercado</label>
+                    <input id="adn-ciudad" class="form-input" type="text" placeholder="ej. Monterrey, México" oninput="autoSave('adn')">
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Descripción del negocio</label>
+                  <textarea id="adn-descripcion" class="form-textarea" placeholder="¿Qué vende, a quién, cómo opera?" oninput="autoSave('adn')"></textarea>
+                </div>
+              </div>
+
+              <div class="field-group">
+                <div class="field-group-title"><span class="icon">💰</span> Proceso de venta</div>
+                <div class="form-group">
+                  <label class="form-label">¿Cómo cierra una venta? (embudo actual)</label>
+                  <textarea id="adn-embudo" class="form-textarea" placeholder="ej. Lead llega por WhatsApp → lo atiende la asesora → agenda cita → cierra en la cita" oninput="autoSave('adn')"></textarea>
+                </div>
+                <div class="form-row">
+                  <div class="form-group">
+                    <label class="form-label">Ticket promedio</label>
+                    <input id="adn-ticket" class="form-input" type="text" placeholder="ej. $8,000 MXN" oninput="autoSave('adn')">
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Tasa de cierre aprox.</label>
+                    <input id="adn-cierre" class="form-input" type="text" placeholder="ej. 30% de leads calificados" oninput="autoSave('adn')">
+                  </div>
+                </div>
+              </div>
+
+              <div class="field-group">
+                <div class="field-group-title"><span class="icon">📣</span> Campañas y diferenciadores</div>
+                <div class="form-group">
+                  <label class="form-label">Tipos de campaña activas</label>
+                  <textarea id="adn-campanas" class="form-textarea" placeholder="ej. Generación de leads por WhatsApp, tráfico a landing, retargeting" oninput="autoSave('adn')"></textarea>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Principales diferenciadores vs competencia</label>
+                  <textarea id="adn-diferenciadores" class="form-textarea" placeholder="¿Por qué un cliente escoge a este cliente y no a otro?" oninput="autoSave('adn')"></textarea>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Principales objeciones de compra</label>
+                  <textarea id="adn-objeciones" class="form-textarea" placeholder="¿Qué frena a un cliente potencial de comprar?" oninput="autoSave('adn')"></textarea>
+                </div>
+              </div>
+
+              <div class="field-group">
+                <div class="field-group-title"><span class="icon">🔗</span> Fuentes de data</div>
+                <div class="form-group">
+                  <label class="form-label">Carpeta Google Drive</label>
+                  <input id="adn-drive" class="form-input" type="text" placeholder="URL de la carpeta del cliente" oninput="autoSave('adn')">
+                </div>
+                <div class="form-row">
+                  <div class="form-group">
+                    <label class="form-label">Presentación mensual</label>
+                    <input id="adn-mensual" class="form-input" type="text" placeholder="URL" oninput="autoSave('adn')">
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Presentación semanal</label>
+                    <input id="adn-semanal" class="form-input" type="text" placeholder="URL" oninput="autoSave('adn')">
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="section-ai-panel">
+            <div class="ai-panel" id="ai-panel-adn">
+              <div class="ai-panel-header">
+                <div class="ai-status-dot"></div>
+                <div class="ai-panel-title">Claude · ADN del Negocio</div>
+                <div class="ai-context-badge">En contexto</div>
+              </div>
+              <div class="ai-messages" id="ai-msgs-adn">
+                <div class="ai-msg system">Contexto activo: ADN del Negocio. Claude tiene acceso a toda la info del expediente de este cliente.</div>
+                <div class="ai-msg assistant">Hola 👋 Estoy aquí para ayudarte a completar el ADN del negocio. Puedo ayudarte a identificar diferenciadores, definir el embudo de ventas, o detectar objeciones comunes. ¿Por dónde empezamos?</div>
+              </div>
+              <div class="ai-suggestions">
+                <div class="ai-suggest-chip" onclick="sendSuggestion('adn', '¿Cuáles son los diferenciadores más poderosos para una clínica estética?')">Diferenciadores</div>
+                <div class="ai-suggest-chip" onclick="sendSuggestion('adn', '¿Cuáles son las objeciones más comunes en este tipo de negocio?')">Objeciones</div>
+                <div class="ai-suggest-chip" onclick="sendSuggestion('adn', 'Analiza el embudo de ventas que tengo y dime qué mejorarías')">Analizar embudo</div>
+              </div>
+              <div class="ai-input-area">
+                <textarea class="ai-input" id="ai-input-adn" placeholder="Pregúntale a Claude..." rows="1" onkeydown="handleAIKey(event, 'adn')"></textarea>
+                <button class="ai-send-btn" onclick="sendAIMessage('adn')">↑</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SECCIÓN: OBJETIVOS -->
+    <div id="view-objetivos" style="display:none">
+      <div class="content-header">
+        <div class="content-header-top">
+          <div>
+            <div class="content-title">🎯 Objetivos de Marketing</div>
+            <div class="content-subtitle">Capa 1 · Expediente base · <span class="tag role-estrategia" style="display:inline-flex">🔵 Estrategia — Kike</span></div>
+          </div>
+          <button class="btn btn-ghost" style="font-size:12px;" onclick="navigate('dashboard')">← Dashboard</button>
+        </div>
+      </div>
+      <div class="content-body">
+        <div class="section-detail active">
+          <div class="section-form-area">
+            <div class="fields-container">
+              <div class="field-group">
+                <div class="field-group-title"><span class="icon">📌</span> Metas principales</div>
+                <div class="form-group">
+                  <label class="form-label">Objetivo principal de marketing</label>
+                  <textarea id="obj-principal" class="form-textarea" placeholder="ej. Generar 40 leads calificados por mes a un CAC máximo de $350 MXN" oninput="autoSave('objetivos')"></textarea>
+                </div>
+                <div class="form-row">
+                  <div class="form-group">
+                    <label class="form-label">CAC objetivo</label>
+                    <input id="obj-cac" class="form-input" type="text" placeholder="ej. $350 MXN" oninput="autoSave('objetivos')">
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Leads objetivo / mes</label>
+                    <input id="obj-leads" class="form-input" type="text" placeholder="ej. 40 leads/mes" oninput="autoSave('objetivos')">
+                  </div>
+                </div>
+                <div class="form-row">
+                  <div class="form-group">
+                    <label class="form-label">Presupuesto mensual</label>
+                    <input id="obj-presupuesto" class="form-input" type="text" placeholder="ej. $15,000 MXN" oninput="autoSave('objetivos')">
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Plataformas activas</label>
+                    <input id="obj-plataformas" class="form-input" type="text" placeholder="ej. Meta (FB + IG)" oninput="autoSave('objetivos')">
+                  </div>
+                </div>
+              </div>
+
+              <div class="field-group">
+                <div class="field-group-title"><span class="icon">📈</span> Plan y alineación estratégica</div>
+                <div class="form-group">
+                  <label class="form-label">Plan de marketing actual</label>
+                  <textarea id="obj-plan" class="form-textarea" placeholder="¿Qué está haciendo hoy el cliente? ¿Qué estamos haciendo nosotros?" oninput="autoSave('objetivos')"></textarea>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Objetivos a largo plazo (3-6 meses)</label>
+                  <textarea id="obj-largo" class="form-textarea" placeholder="¿Hacia dónde quiere crecer el cliente?" oninput="autoSave('objetivos')"></textarea>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">KPIs secundarios a monitorear</label>
+                  <textarea id="obj-kpis" class="form-textarea" placeholder="ej. CTR, CPM, tasa de cierre, % leads calificados" oninput="autoSave('objetivos')"></textarea>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="section-ai-panel">
+            <div class="ai-panel" id="ai-panel-objetivos">
+              <div class="ai-panel-header">
+                <div class="ai-status-dot"></div>
+                <div class="ai-panel-title">Claude · Objetivos</div>
+                <div class="ai-context-badge">En contexto</div>
+              </div>
+              <div class="ai-messages" id="ai-msgs-objetivos">
+                <div class="ai-msg system">Contexto activo: Objetivos de Marketing.</div>
+                <div class="ai-msg assistant">Aquí para ayudarte a definir objetivos claros y medibles. Puedo validar si el CAC objetivo es realista, ayudarte a estructurar el plan, o proponer KPIs relevantes para este cliente.</div>
+              </div>
+              <div class="ai-suggestions">
+                <div class="ai-suggest-chip" onclick="sendSuggestion('objetivos', '¿Es realista el CAC objetivo para esta industria?')">Validar CAC</div>
+                <div class="ai-suggest-chip" onclick="sendSuggestion('objetivos', '¿Qué KPIs debo monitorear además del CAC?')">Proponer KPIs</div>
+                <div class="ai-suggest-chip" onclick="sendSuggestion('objetivos', 'Ayúdame a redactar el objetivo principal de forma SMART')">Objetivo SMART</div>
+              </div>
+              <div class="ai-input-area">
+                <textarea class="ai-input" id="ai-input-objetivos" placeholder="Pregúntale a Claude..." rows="1" onkeydown="handleAIKey(event, 'objetivos')"></textarea>
+                <button class="ai-send-btn" onclick="sendAIMessage('objetivos')">↑</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SECCIÓN: RENDIMIENTO -->
+    <div id="view-rendimiento" style="display:none">
+      <div class="content-header">
+        <div class="content-header-top">
+          <div>
+            <div class="content-title">📊 Rendimiento Histórico</div>
+            <div class="content-subtitle">Capa 1 · Expediente base · <span class="tag role-operativo" style="display:inline-flex">🟢 Operativo — Mario</span></div>
+          </div>
+          <button class="btn btn-ghost" style="font-size:12px;" onclick="navigate('dashboard')">← Dashboard</button>
+        </div>
+      </div>
+      <div class="content-body">
+        <div class="section-detail active">
+          <div class="section-form-area">
+            <div class="fields-container">
+              <div class="field-group">
+                <div class="field-group-title"><span class="icon">📉</span> Rendimiento general</div>
+                <div class="form-group">
+                  <label class="form-label">Resumen de rendimiento actual</label>
+                  <textarea id="rend-resumen" class="form-textarea" placeholder="¿Cómo va el cliente hoy? CAC actual, leads por semana, tendencia..." oninput="autoSave('rendimiento')"></textarea>
+                </div>
+                <div class="form-row">
+                  <div class="form-group">
+                    <label class="form-label">CAC promedio (últimos 30 días)</label>
+                    <input id="rend-cac30" class="form-input" type="text" placeholder="ej. $420 MXN" oninput="autoSave('rendimiento')">
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Leads generados (último mes)</label>
+                    <input id="rend-leads" class="form-input" type="text" placeholder="ej. 28 leads" oninput="autoSave('rendimiento')">
+                  </div>
+                </div>
+                <div class="form-row">
+                  <div class="form-group">
+                    <label class="form-label">Gasto total (último mes)</label>
+                    <input id="rend-gasto" class="form-input" type="text" placeholder="ej. $11,760 MXN" oninput="autoSave('rendimiento')">
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Mejor ad activo</label>
+                    <input id="rend-mejor-ad" class="form-input" type="text" placeholder="Nombre o descripción del top ad" oninput="autoSave('rendimiento')">
+                  </div>
+                </div>
+              </div>
+
+              <div class="field-group">
+                <div class="field-group-title"><span class="icon">📋</span> Análisis de campañas</div>
+                <div class="form-group">
+                  <label class="form-label">Campañas activas y su rendimiento</label>
+                  <textarea id="rend-campanas" class="form-textarea" placeholder="Lista las campañas activas, su CAC individual, y estado (activa/pausada)" oninput="autoSave('rendimiento')" style="min-height:120px;"></textarea>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Insights estratégicos / aprendizajes</label>
+                  <textarea id="rend-insights" class="form-textarea" placeholder="¿Qué has aprendido de este cliente? ¿Qué funciona y qué no?" oninput="autoSave('rendimiento')"></textarea>
+                </div>
+              </div>
+
+              <div class="field-group">
+                <div class="field-group-title"><span class="icon">🔗</span> Links de análisis</div>
+                <div class="form-group">
+                  <label class="form-label">Daily Analysis Sheet (URL)</label>
+                  <input id="rend-daily" class="form-input" type="text" placeholder="URL del Google Sheet" oninput="autoSave('rendimiento')">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Presentación semanal más reciente (URL)</label>
+                  <input id="rend-pres" class="form-input" type="text" placeholder="URL" oninput="autoSave('rendimiento')">
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="section-ai-panel">
+            <div class="ai-panel" id="ai-panel-rendimiento">
+              <div class="ai-panel-header">
+                <div class="ai-status-dot"></div>
+                <div class="ai-panel-title">Claude · Rendimiento</div>
+                <div class="ai-context-badge">En contexto</div>
+              </div>
+              <div class="ai-messages" id="ai-msgs-rendimiento">
+                <div class="ai-msg system">Contexto activo: Rendimiento Histórico.</div>
+                <div class="ai-msg assistant">Cuéntame los números del cliente y te ayudo a interpretarlos, identificar problemas, o proponer ajustes. ¿Tienes el CAC actual y el objetivo?</div>
+              </div>
+              <div class="ai-suggestions">
+                <div class="ai-suggest-chip" onclick="sendSuggestion('rendimiento', 'Analiza mis números y dime si voy bien o en riesgo')">Analizar números</div>
+                <div class="ai-suggest-chip" onclick="sendSuggestion('rendimiento', '¿Qué optimizaciones haría con base en el rendimiento actual?')">Optimizaciones</div>
+                <div class="ai-suggest-chip" onclick="sendSuggestion('rendimiento', 'Ayúdame a redactar el resumen de rendimiento para la presentación semanal')">Resumen semanal</div>
+              </div>
+              <div class="ai-input-area">
+                <textarea class="ai-input" id="ai-input-rendimiento" placeholder="Pregúntale a Claude..." rows="1" onkeydown="handleAIKey(event, 'rendimiento')"></textarea>
+                <button class="ai-send-btn" onclick="sendAIMessage('rendimiento')">↑</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SECCIÓN: SEGMENTOS -->
+    <div id="view-segmentos" style="display:none">
+      <div class="content-header">
+        <div class="content-header-top">
+          <div>
+            <div class="content-title">👥 Segmentos de Cliente</div>
+            <div class="content-subtitle">Capa 1 · Expediente base · <span class="tag role-estrategia" style="display:inline-flex">🔵 Estrategia — Kike</span></div>
+          </div>
+          <button class="btn btn-ghost" style="font-size:12px;" onclick="navigate('dashboard')">← Dashboard</button>
+        </div>
+      </div>
+      <div class="content-body">
+        <div class="section-detail active">
+          <div class="section-form-area">
+            <div class="fields-container">
+              <div class="field-group">
+                <div class="field-group-title"><span class="icon">🎭</span> Segmentos principales</div>
+                <div class="form-group">
+                  <label class="form-label">Segmento principal (primario)</label>
+                  <input id="seg-1-nombre" class="form-input" type="text" placeholder="ej. Mujeres 28-45 en Monterrey" oninput="autoSave('segmentos')">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Motivadores del segmento primario</label>
+                  <textarea id="seg-1-motivadores" class="form-textarea" placeholder="¿Qué los mueve a comprar? ¿Qué resultado buscan?" oninput="autoSave('segmentos')"></textarea>
+                </div>
+                <div class="divider"></div>
+                <div class="form-group">
+                  <label class="form-label">Segmento secundario</label>
+                  <input id="seg-2-nombre" class="form-input" type="text" placeholder="ej. Hombres 35-55 profesionistas" oninput="autoSave('segmentos')">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Motivadores del segmento secundario</label>
+                  <textarea id="seg-2-motivadores" class="form-textarea" placeholder="¿Qué los mueve a comprar?" oninput="autoSave('segmentos')"></textarea>
+                </div>
+              </div>
+
+              <div class="field-group">
+                <div class="field-group-title"><span class="icon">🧠</span> Comportamiento y decisión de compra</div>
+                <div class="form-group">
+                  <label class="form-label">¿Cómo toma la decisión de compra el cliente ideal?</label>
+                  <textarea id="seg-decision" class="form-textarea" placeholder="ej. Ve el anuncio → busca en Google → revisa reseñas → manda WhatsApp → agenda" oninput="autoSave('segmentos')"></textarea>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">¿Cuánto tiempo tarda en decidir?</label>
+                  <input id="seg-tiempo" class="form-input" type="text" placeholder="ej. 1-3 días desde que ve el anuncio" oninput="autoSave('segmentos')">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Canales donde está la audiencia</label>
+                  <textarea id="seg-canales" class="form-textarea" placeholder="ej. Instagram (reels), Facebook (grupos locales), WhatsApp" oninput="autoSave('segmentos')"></textarea>
+                </div>
+              </div>
+
+              <div class="field-group">
+                <div class="field-group-title"><span class="icon">💡</span> Insights estratégicos del segmento</div>
+                <div class="form-group">
+                  <label class="form-label">¿Qué insights hemos descubierto sobre esta audiencia?</label>
+                  <textarea id="seg-insights" class="form-textarea" placeholder="Aprendizajes de campañas pasadas sobre qué funciona con este segmento" oninput="autoSave('segmentos')"></textarea>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="section-ai-panel">
+            <div class="ai-panel" id="ai-panel-segmentos">
+              <div class="ai-panel-header">
+                <div class="ai-status-dot"></div>
+                <div class="ai-panel-title">Claude · Segmentos</div>
+                <div class="ai-context-badge">En contexto</div>
+              </div>
+              <div class="ai-messages" id="ai-msgs-segmentos">
+                <div class="ai-msg system">Contexto activo: Segmentos de Cliente.</div>
+                <div class="ai-msg assistant">Puedo ayudarte a identificar segmentos de audiencia, descubrir sus motivadores reales, y definir cómo llegar a ellos. ¿Ya tienes un segmento en mente o empezamos desde cero?</div>
+              </div>
+              <div class="ai-suggestions">
+                <div class="ai-suggest-chip" onclick="sendSuggestion('segmentos', 'Basándote en el ADN del negocio, ¿qué segmentos de audiencia me propones?')">Proponer segmentos</div>
+                <div class="ai-suggest-chip" onclick="sendSuggestion('segmentos', '¿Cuáles son los motivadores más poderosos para este tipo de audiencia?')">Motivadores</div>
+                <div class="ai-suggest-chip" onclick="sendSuggestion('segmentos', 'Ayúdame a construir el perfil del cliente ideal para este negocio')">Perfil ideal</div>
+              </div>
+              <div class="ai-input-area">
+                <textarea class="ai-input" id="ai-input-segmentos" placeholder="Pregúntale a Claude..." rows="1" onkeydown="handleAIKey(event, 'segmentos')"></textarea>
+                <button class="ai-send-btn" onclick="sendAIMessage('segmentos')">↑</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SECCIÓN: VALIDACIÓN -->
+    <div id="view-validacion" style="display:none">
+      <div class="content-header">
+        <div class="content-header-top">
+          <div>
+            <div class="content-title">✅ Validación de Objetivos</div>
+            <div class="content-subtitle">Capa 1 · Expediente base · <span class="tag role-estrategia" style="display:inline-flex">🔵 Estrategia — Kike</span></div>
+          </div>
+          <button class="btn btn-ghost" style="font-size:12px;" onclick="navigate('dashboard')">← Dashboard</button>
+        </div>
+      </div>
+      <div class="content-body">
+        <div class="section-detail active">
+          <div class="section-form-area">
+            <div class="fields-container">
+              <div class="field-group">
+                <div class="field-group-title"><span class="icon">🔍</span> Coherencia metas vs realidad</div>
+                <div class="form-group">
+                  <label class="form-label">¿Los objetivos del cliente son alcanzables con el presupuesto actual?</label>
+                  <textarea id="val-coherencia" class="form-textarea" placeholder="Análisis de coherencia entre lo que el cliente quiere y lo que el presupuesto permite lograr" oninput="autoSave('validacion')"></textarea>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Restricciones o limitantes identificadas</label>
+                  <textarea id="val-restricciones" class="form-textarea" placeholder="ej. Presupuesto bajo para el nicho, competencia muy fuerte, producto de alto ticket difícil de vender en frío" oninput="autoSave('validacion')"></textarea>
+                </div>
+              </div>
+
+              <div class="field-group">
+                <div class="field-group-title"><span class="icon">🎯</span> Propósito y dirección de campaña</div>
+                <div class="form-group">
+                  <label class="form-label">Objetivo validado y acordado con el cliente</label>
+                  <textarea id="val-objetivo" class="form-textarea" placeholder="El objetivo final acordado, ya validado y realista" oninput="autoSave('validacion')"></textarea>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Expectativas del cliente (lo que espera ver)</label>
+                  <textarea id="val-expectativas" class="form-textarea" placeholder="¿Qué métricas o resultados le importan más al cliente?" oninput="autoSave('validacion')"></textarea>
+                </div>
+              </div>
+
+              <div class="field-group">
+                <div class="field-group-title"><span class="icon">✍️</span> Confirmación y resultado</div>
+                <div class="form-group">
+                  <label class="form-label">¿Quién validó y cuándo?</label>
+                  <input id="val-quien" class="form-input" type="text" placeholder="ej. Kike + Anwar · 10 marzo 2026" oninput="autoSave('validacion')">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Resultado final de la validación</label>
+                  <textarea id="val-resultado" class="form-textarea" placeholder="Conclusión: ¿se ajustaron los objetivos? ¿se aumentó el presupuesto? ¿se redefinió el CAC?" oninput="autoSave('validacion')"></textarea>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="section-ai-panel">
+            <div class="ai-panel" id="ai-panel-validacion">
+              <div class="ai-panel-header">
+                <div class="ai-status-dot"></div>
+                <div class="ai-panel-title">Claude · Validación</div>
+                <div class="ai-context-badge">En contexto</div>
+              </div>
+              <div class="ai-messages" id="ai-msgs-validacion">
+                <div class="ai-msg system">Contexto activo: Validación de Objetivos.</div>
+                <div class="ai-msg assistant">Cuéntame los objetivos del cliente y el presupuesto disponible, y te digo si es coherente o no. Si hay un gap, te ayudo a proponer cómo ajustarlo o comunicárselo al cliente.</div>
+              </div>
+              <div class="ai-suggestions">
+                <div class="ai-suggest-chip" onclick="sendSuggestion('validacion', 'Valida si mis objetivos son coherentes con el presupuesto')">Validar coherencia</div>
+                <div class="ai-suggest-chip" onclick="sendSuggestion('validacion', '¿Cómo le comunico al cliente que sus expectativas no son realistas?')">Manejo de expectativas</div>
+                <div class="ai-suggest-chip" onclick="sendSuggestion('validacion', 'Ayúdame a redactar el objetivo final validado')">Redactar objetivo</div>
+              </div>
+              <div class="ai-input-area">
+                <textarea class="ai-input" id="ai-input-validacion" placeholder="Pregúntale a Claude..." rows="1" onkeydown="handleAIKey(event, 'validacion')"></textarea>
+                <button class="ai-send-btn" onclick="sendAIMessage('validacion')">↑</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SECCIÓN: CREATIVOS -->
+    <div id="view-creativos" style="display:none">
+      <div class="content-header">
+        <div class="content-header-top">
+          <div>
+            <div class="content-title">🎨 Brief de Creativos</div>
+            <div class="content-subtitle">Capa 2 · Workflow operativo semanal · <span class="tag role-operativo" style="display:inline-flex">🟢 Operativo</span></div>
+          </div>
+          <button class="btn btn-ghost" style="font-size:12px;" onclick="navigate('dashboard')">← Dashboard</button>
+        </div>
+      </div>
+      <div class="content-body">
+        <div class="section-detail active">
+          <div class="section-form-area">
+            <div class="fields-container">
+              <div class="field-group">
+                <div class="field-group-title"><span class="icon">📋</span> Brief semanal de creativos</div>
+                <div class="form-row">
+                  <div class="form-group">
+                    <label class="form-label">Ángulo ganador esta semana</label>
+                    <input id="cre-angulo" class="form-input" type="text" placeholder="ej. Miedo a perder el descuento" oninput="autoSave('creativos')">
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Tipo de anuncio</label>
+                    <select id="cre-tipo" class="form-select" onchange="autoSave('creativos')">
+                      <option value="">Seleccionar...</option>
+                      <option>Video testimonial</option>
+                      <option>Video educativo</option>
+                      <option>Imagen estática</option>
+                      <option>Carrusel</option>
+                      <option>UGC (contenido de usuario)</option>
+                      <option>Talking head</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="form-row">
+                  <div class="form-group">
+                    <label class="form-label">Formato</label>
+                    <select id="cre-formato" class="form-select" onchange="autoSave('creativos')">
+                      <option value="">Seleccionar...</option>
+                      <option>Reels (9:16)</option>
+                      <option>Feed cuadrado (1:1)</option>
+                      <option>Stories (9:16)</option>
+                      <option>Feed horizontal (4:5)</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">CAC del mejor ad actual</label>
+                    <input id="cre-cac" class="form-input" type="text" placeholder="ej. $280 MXN" oninput="autoSave('creativos')">
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Hook (apertura del anuncio)</label>
+                  <textarea id="cre-hook" class="form-textarea" placeholder="Los primeros 3 segundos / la primera línea del anuncio" oninput="autoSave('creativos')"></textarea>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">CTA propuesto</label>
+                  <input id="cre-cta" class="form-input" type="text" placeholder="ej. 'Reserva tu cita gratis hoy'" oninput="autoSave('creativos')">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Instrucciones adicionales para el diseñador</label>
+                  <textarea id="cre-instrucciones" class="form-textarea" placeholder="Colores, referencias, estilo visual, qué evitar..." oninput="autoSave('creativos')"></textarea>
+                </div>
+              </div>
+
+              <div class="field-group">
+                <div class="field-group-title"><span class="icon">📤</span> Brief generado</div>
+                <div id="brief-preview" style="background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:16px; font-size:13px; color:var(--text2); min-height:120px; font-family:'DM Mono',monospace; line-height:1.7; white-space:pre-wrap;">El brief aparecerá aquí cuando Claude lo genere →</div>
+                <div style="display:flex; gap:10px; margin-top:12px;">
+                  <button class="btn btn-primary" style="font-size:12px;" onclick="generateBrief()">✨ Generar brief con Claude</button>
+                  <button class="btn btn-ghost" style="font-size:12px;" onclick="copyBrief()">Copiar brief</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="section-ai-panel">
+            <div class="ai-panel" id="ai-panel-creativos">
+              <div class="ai-panel-header">
+                <div class="ai-status-dot"></div>
+                <div class="ai-panel-title">Claude · Creativos</div>
+                <div class="ai-context-badge">En contexto</div>
+              </div>
+              <div class="ai-messages" id="ai-msgs-creativos">
+                <div class="ai-msg system">Contexto activo: Brief de Creativos. Tengo acceso al ADN del negocio, segmentos y Winning Ads Vault.</div>
+                <div class="ai-msg assistant">Aquí para ayudarte a generar el brief semanal de creativos. Llena los datos del formulario y haz clic en "Generar brief" — o pregúntame directamente por ángulos, hooks o variaciones de copy.</div>
+              </div>
+              <div class="ai-suggestions">
+                <div class="ai-suggest-chip" onclick="sendSuggestion('creativos', 'Propón 3 hooks diferentes para este anuncio')">3 hooks</div>
+                <div class="ai-suggest-chip" onclick="sendSuggestion('creativos', '¿Qué ángulos no hemos explorado aún para este cliente?')">Nuevos ángulos</div>
+                <div class="ai-suggest-chip" onclick="sendSuggestion('creativos', 'Genera variaciones del CTA para A/B testing')">Variaciones CTA</div>
+              </div>
+              <div class="ai-input-area">
+                <textarea class="ai-input" id="ai-input-creativos" placeholder="Pregúntale a Claude..." rows="1" onkeydown="handleAIKey(event, 'creativos')"></textarea>
+                <button class="ai-send-btn" onclick="sendAIMessage('creativos')">↑</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SECCIÓN: VAULT -->
+    <div id="view-vault" style="display:none">
+      <div class="content-header">
+        <div class="content-header-top">
+          <div>
+            <div class="content-title">🏆 Winning Ads Vault</div>
+            <div class="content-subtitle">Repositorio de ads ganadores · Se consulta automáticamente al generar briefs</div>
+          </div>
+          <div style="display:flex; gap:10px;">
+            <button class="btn btn-primary" style="font-size:12px;" onclick="openAddVaultModal()">+ Agregar ad ganador</button>
+            <button class="btn btn-ghost" style="font-size:12px;" onclick="navigate('dashboard')">← Dashboard</button>
+          </div>
+        </div>
+      </div>
+      <div class="content-body">
+        <div id="vault-container">
+          <div class="empty-state">
+            <div class="empty-state-icon">🏆</div>
+            <h3>Vault vacío</h3>
+            <p>Agrega tus ads ganadores para que Claude los consulte automáticamente cuando generes briefs nuevos.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SECCIÓN: DECISIONES -->
+    <div id="view-decisiones" style="display:none">
+      <div class="content-header">
+        <div class="content-header-top">
+          <div>
+            <div class="content-title">📝 Decisiones Estratégicas</div>
+            <div class="content-subtitle">Registro histórico de decisiones con fecha y contexto · <span class="tag role-anwar" style="display:inline-flex">⚡ Anwar</span></div>
+          </div>
+          <div style="display:flex; gap:10px;">
+            <button class="btn btn-primary" style="font-size:12px;" onclick="openAddDecisionModal()">+ Registrar decisión</button>
+            <button class="btn btn-ghost" style="font-size:12px;" onclick="navigate('dashboard')">← Dashboard</button>
+          </div>
+        </div>
+      </div>
+      <div class="content-body">
+        <div id="decisiones-container">
+          <div class="empty-state">
+            <div class="empty-state-icon">📝</div>
+            <h3>Sin decisiones registradas</h3>
+            <p>Registra cada decisión estratégica con fecha y contexto. Cuando Kike retome este cliente en 3 meses, sabrá exactamente por qué se tomó cada decisión.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /main-content -->
+</div><!-- /screen-app -->
+
+<!-- MODAL: VAULT -->
+<div id="modal-vault" class="modal-overlay">
+  <div class="modal">
+    <div class="modal-title">🏆 Agregar Ad Ganador</div>
+    <div class="modal-sub">Este ad quedará en el Vault y Claude lo consultará al generar nuevos briefs.</div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Ángulo del ad</label>
+        <input id="vault-angulo" class="form-input" type="text" placeholder="ej. Urgencia + descuento">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Formato</label>
+        <input id="vault-formato" class="form-input" type="text" placeholder="ej. Video 9:16">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Hook del ad</label>
+      <textarea id="vault-hook" class="form-textarea" placeholder="Los primeros segundos / primera línea"></textarea>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">CAC logrado</label>
+        <input id="vault-cac" class="form-input" type="text" placeholder="ej. $240 MXN">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Segmento ganador</label>
+        <input id="vault-segmento" class="form-input" type="text" placeholder="ej. Mujeres 28-40">
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">¿Por qué funcionó? (insight)</label>
+      <textarea id="vault-insight" class="form-textarea" placeholder="El aprendizaje clave de este ad"></textarea>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-vault')">Cancelar</button>
+      <button class="btn btn-primary" onclick="addVaultEntry()">Guardar en Vault →</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: DECISIÓN -->
+<div id="modal-decision" class="modal-overlay">
+  <div class="modal">
+    <div class="modal-title">📝 Registrar Decisión</div>
+    <div class="modal-sub">Esta decisión quedará en el historial del cliente con fecha y contexto completo.</div>
+    <div class="form-group">
+      <label class="form-label">Decisión tomada</label>
+      <textarea id="dec-texto" class="form-textarea" placeholder="ej. Decidimos pausar campaña de retargeting y redirigir presupuesto a prospección fría"></textarea>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Contexto / razón</label>
+      <textarea id="dec-contexto" class="form-textarea" placeholder="¿Por qué se tomó esta decisión? ¿Qué data lo respaldó?"></textarea>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Responsable</label>
+        <input id="dec-responsable" class="form-input" type="text" placeholder="ej. Anwar + Kike">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Impacto esperado</label>
+        <input id="dec-impacto" class="form-input" type="text" placeholder="ej. Reducir CAC 20% en 2 semanas">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-decision')">Cancelar</button>
+      <button class="btn btn-primary" onclick="addDecision()">Registrar →</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast">
+  <span class="toast-icon" id="toast-icon">✅</span>
+  <span id="toast-msg">Guardado</span>
+</div>
+
+<script>
+// ══════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════
+let clients = JSON.parse(localStorage.getItem('oa-clients') || '[]');
+let currentClientId = null;
+let currentView = 'dashboard';
+let currentRol = null;
+const sectionIds = ['adn', 'objetivos', 'rendimiento', 'segmentos', 'validacion', 'creativos'];
+const AIConversations = {};
+
+// ══════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════
+function init() {
+  // Siempre recargar EnPagos con datos frescos (fuerza sobreescribir localStorage viejo)
+  loadEnPagos();
+  showScreen('rol');
+}
+
+// ══════════════════════════════════════════
+// ROL SELECTOR
+// ══════════════════════════════════════════
+function enterAs(rol) {
+  currentRol = rol;
+  localStorage.setItem('oa-last-rol', rol);
+
+  if (rol === 'direccion') {
+    renderDireccion();
+    showScreen('direccion');
+  } else if (rol === 'senior') {
+    renderSeniorHome();
+    showScreen('senior-home');
+  } else if (rol === 'junior') {
+    renderJuniorHome();
+    showScreen('junior');
+  }
+}
+
+// ══════════════════════════════════════════
+// DASHBOARD DIRECCIÓN
+// ══════════════════════════════════════════
+function renderDireccion() {
+  const hoy = new Date();
+  const label = hoy.toLocaleDateString('es-MX', { weekday:'long', day:'numeric', month:'long' });
+  document.getElementById('dir-fecha').textContent = label.charAt(0).toUpperCase() + label.slice(1);
+
+  const grid = document.getElementById('dir-grid');
+  if (!clients.length) {
+    grid.innerHTML = '<div style="color:var(--text3); font-size:14px;">No hay clientes. Agrega uno para empezar.</div>';
+    return;
+  }
+
+  const semColorMap = { green: '#10b981', yellow: '#f59e0b', red: '#ef4444', gray: '#55555f' };
+  const semEmoji = { green: '🟢', yellow: '🟡', red: '🔴', gray: '⚫' };
+
+  grid.innerHTML = clients.map(c => {
+    const sf = calcSemaforoFinal(c);
+    const emoji = semEmoji[sf] || '⚫';
+    const color = semColorMap[sf] || 'var(--text3)';
+
+    // CAC con delta y temporalidad
+    const cacActual = c.sem_cac_actual || c.rendimiento?.cac30 || '—';
+    const cacObj = c.cac_objetivo || c.objetivos?.cac || '—';
+    // Calcular días del mes para contexto
+    const diasMes = new Date().getDate();
+    const semNombre = getWeekLabel();
+    const cacTemporalidad = diasMes <= 7 ? '1ra semana' : diasMes <= 14 ? '2da semana' : diasMes <= 21 ? '3ra semana' : `día ${diasMes} del mes`;
+
+    // Inversión
+    const invActual = c.sem_inv_actual || '—';
+    const invProg = c.sem_inv_programada || c.objetivos?.presupuesto || '—';
+    // Calcular si la inversión va al ritmo esperado
+    const invPct = invActual !== '—' && invProg !== '—' ? Math.round(diasMes / 30 * 100) + '% del mes' : null;
+
+    // Cierres
+    const cierresMes = c.sem_cierres_mes || '—';
+
+    // Sensación
+    const stars = c.sem_stars || 0;
+    const starStr = '★'.repeat(stars) + '☆'.repeat(Math.max(0, 5 - stars));
+
+    return `
+    <div class="dir-card" onclick="openClientFromDir('${c.id}')">
+      <div class="dir-card-header">
+        <div>
+          <div class="dir-card-name">${c.nombre}</div>
+          <div class="dir-card-industry">${c.industria || '—'}</div>
+        </div>
+        <div class="dir-semaforo-big" title="Semáforo global">${emoji}</div>
+      </div>
+      <div class="dir-kpis">
+        <div class="dir-kpi">
+          <div class="dir-kpi-label">CAC · ${cacTemporalidad}</div>
+          <div class="dir-kpi-value" style="color:${sf === 'red' ? 'var(--red)' : sf === 'green' ? 'var(--green)' : 'var(--yellow)'}">${cacActual}</div>
+          <div class="dir-kpi-sub">obj: ${cacObj}</div>
+        </div>
+        <div class="dir-kpi">
+          <div class="dir-kpi-label">Inversión actual</div>
+          <div class="dir-kpi-value">${invActual}</div>
+          <div class="dir-kpi-sub">prog: ${invProg}${invPct ? ' · ' + invPct : ''}</div>
+        </div>
+        <div class="dir-kpi">
+          <div class="dir-kpi-label">Cierres del mes</div>
+          <div class="dir-kpi-value">${cierresMes}</div>
+          <div class="dir-kpi-sub">${semNombre}</div>
+        </div>
+        <div class="dir-kpi">
+          <div class="dir-kpi-label">Sensación cliente</div>
+          <div class="dir-kpi-value" style="letter-spacing:1px; color:var(--yellow)">${starStr}</div>
+          <div class="dir-kpi-sub">${c.sem_sensacion_nota || '—'}</div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function openClientFromDir(id) {
+  currentRol = currentRol || 'senior';
+  openClient(id);
+}
+
+// ══════════════════════════════════════════
+// SENIOR HOME
+// ══════════════════════════════════════════
+function renderSeniorHome() {
+  const list = document.getElementById('senior-clients-list');
+  const semEmoji = { green: '🟢', yellow: '🟡', red: '🔴', gray: '⚫' };
+
+  list.innerHTML = clients.map(c => {
+    const sf = calcSemaforoFinal(c);
+    const emoji = semEmoji[sf] || '⚫';
+    const cacActual = c.sem_cac_actual || c.rendimiento?.cac30 || '—';
+    const cacObj = c.cac_objetivo || c.objetivos?.cac || '—';
+    const inv = c.objetivos?.presupuesto || '—';
+    const obj = c.sem_objetivo_semana || '—';
+
+    return `
+    <div class="senior-client-row" onclick="openClientAsSenior('${c.id}')">
+      <div style="font-size:22px; min-width:32px; text-align:center;">${emoji}</div>
+      <div style="flex:0 0 160px;">
+        <div style="font-family:'Syne',sans-serif; font-weight:700; font-size:14px;">${c.nombre}</div>
+        <div style="font-size:11px; color:var(--text3); font-family:'DM Mono',monospace;">${c.industria || '—'}</div>
+      </div>
+      <div class="senior-kpi-row">
+        <div class="senior-kpi-item">
+          <div class="senior-kpi-val">${cacActual}</div>
+          <div class="senior-kpi-lbl">CAC actual</div>
+        </div>
+        <div class="senior-kpi-item">
+          <div class="senior-kpi-val">${cacObj}</div>
+          <div class="senior-kpi-lbl">objetivo</div>
+        </div>
+        <div class="senior-kpi-item">
+          <div class="senior-kpi-val">${inv}</div>
+          <div class="senior-kpi-lbl">presupuesto</div>
+        </div>
+      </div>
+      <div style="font-size:20px; color:var(--border2);">›</div>
+    </div>`;
+  }).join('');
+}
+
+function openClientAsSenior(id) {
+  currentRol = 'senior';
+  openClient(id);
+}
+
+// ══════════════════════════════════════════
+// JUNIOR HOME
+// ══════════════════════════════════════════
+// Estructura del calendario Operación — clientes y horarios reales de Mario
+// Formato: { nombre, hora, duracion_min }
+const MARIO_SCHEDULE = {
+  lunes:   [
+    { nombre:'EnPagos', hora:'12:20pm', duracion:40, tipo:'check' },
+    { nombre:'EnPagos', hora:'2:00pm',  duracion:60, tipo:'ops' },
+    { nombre:'Favio',   hora:'3:00pm',  duracion:60, tipo:'ops' },
+    { nombre:'Bodygreen', hora:'4:00pm', duracion:60, tipo:'ops' },
+    { nombre:'Inmobili', hora:'5:00pm', duracion:60, tipo:'ops' },
+  ],
+  martes:  [
+    { nombre:'EnPagos', hora:'12:20pm', duracion:40, tipo:'check' },
+    { nombre:'EnPagos', hora:'2:00pm',  duracion:60, tipo:'ops' },
+    { nombre:'Favio',   hora:'3:00pm',  duracion:60, tipo:'ops' },
+    { nombre:'Divisas La Rioja', hora:'4:00pm', duracion:60, tipo:'ops' },
+  ],
+  miercoles: [
+    { nombre:'EnPagos', hora:'12:20pm', duracion:40, tipo:'check' },
+    { nombre:'EnPagos', hora:'2:00pm',  duracion:60, tipo:'ops' },
+    { nombre:'Favio',   hora:'3:00pm',  duracion:60, tipo:'ops' },
+    { nombre:'Bodygreen', hora:'4:00pm', duracion:60, tipo:'ops' },
+    { nombre:'Inmobili', hora:'5:00pm', duracion:60, tipo:'ops' },
+  ],
+  jueves:  [
+    { nombre:'EnPagos', hora:'12:20pm', duracion:40, tipo:'check' },
+    { nombre:'EnPagos', hora:'2:00pm',  duracion:60, tipo:'ops' },
+    { nombre:'Favio',   hora:'3:00pm',  duracion:60, tipo:'ops' },
+    { nombre:'Divisas La Rioja', hora:'4:00pm', duracion:60, tipo:'ops' },
+  ],
+  viernes: [
+    { nombre:'EnPagos', hora:'12:20pm', duracion:40, tipo:'check' },
+    { nombre:'EnPagos', hora:'2:00pm',  duracion:60, tipo:'ops' },
+    { nombre:'Favio',   hora:'3:00pm',  duracion:60, tipo:'ops' },
+    { nombre:'Bodygreen', hora:'4:00pm', duracion:60, tipo:'ops' },
+    { nombre:'Inmobili', hora:'5:00pm', duracion:60, tipo:'ops' },
+  ],
+};
+
+const CLIENTES_MARIO = ['EnPagos', 'Favio', 'Bodygreen', 'Divisas La Rioja', 'Inmobili'];
+
+const TAREAS_RECURRENTES_POR_CLIENTE = {
+  'EnPagos': [
+    'Actualizar análisis diario (sheet de métricas)',
+    'Verificar campañas activas — sin errores de entrega ni presupuesto agotado',
+    'Revisar leads del día en Bixis — calidad de prospectos',
+    'Checar tasa prospecto→preaut de la semana vs objetivo 6.65%',
+  ],
+  'Favio': [
+    'Revisar métricas del día — CPM, CTR, costo por lead',
+    'Verificar campañas activas corriendo sin errores',
+    'Actualizar sheet de análisis semanal',
+  ],
+  'Bodygreen': [
+    'Revisar rendimiento de campañas del día',
+    'Verificar presupuesto diario vs gasto real',
+    'Reportar anomalías en Slack',
+  ],
+  'Divisas La Rioja': [
+    'Revisar métricas del día',
+    'Verificar campañas activas',
+    'Actualizar análisis semanal',
+  ],
+  'Inmobili': [
+    'Revisar leads del día y calidad',
+    'Verificar campañas activas — sin errores',
+    'Actualizar métricas en sheet',
+  ],
+};
+
+const TAREAS_RECURRENTES = [
+  'Status 9am — reporte diario del equipo',
+  'Actualizar métricas 9:20–10:20am — todas las cuentas',
+  'Enrique-Mario 10:20–11:20am — revisión de cuentas con Kike',
+  'Revisar y llenar el análisis diario de cada cliente',
+  'Verificar que las campañas activas estén corriendo sin errores',
+  'Checar presupuesto diario vs gasto real — todas las cuentas',
+  'Reportar en Slack cualquier anomalía en campañas',
+];
+
+function renderJuniorHome() {
+  const hoy = new Date();
+  const diasNombre = ['domingo','lunes','martes','miercoles','jueves','viernes','sabado'];
+  const diaKey = diasNombre[hoy.getDay()];
+  const label = hoy.toLocaleDateString('es-MX', { weekday:'long', day:'numeric', month:'long' });
+  const labelCap = label.charAt(0).toUpperCase() + label.slice(1);
+
+  // Header fechas
+  const elFecha = document.getElementById('jr-fecha');
+  if (elFecha) elFecha.textContent = labelCap;
+  const elSemana = document.getElementById('jr-semana-label');
+  if (elSemana) elSemana.textContent = getWeekLabel() + ' · ' + labelCap;
+
+  // Colores por cliente
+  const CLIENT_COLORS = {
+    'EnPagos': '#00e5a0', 'Favio': '#a78bfa', 'Bodygreen': '#34d399',
+    'Divisas La Rioja': '#fbbf24', 'Inmobili': '#60a5fa',
+  };
+
+  // ── TIMELINE DEL DÍA ──────────────────────────────────────────
+  const horarioHoy = MARIO_SCHEDULE[diaKey] || [];
+  const timeline = document.getElementById('jr-timeline');
+  if (!timeline) return;
+
+  if (!horarioHoy.length) {
+    timeline.innerHTML = `
+      <div style="text-align:center; padding:40px 16px; color:var(--text3);">
+        <div style="font-size:32px; margin-bottom:12px;">🏖️</div>
+        <div style="font-size:13px; font-family:'DM Sans',sans-serif;">Sin eventos hoy</div>
+        <div style="font-size:11px; margin-top:4px; opacity:0.6;">Fin de semana</div>
+      </div>`;
+    return;
+  }
+
+  // Agrupar sesiones por cliente para mostrar resumen total
+  const clientTotals = {};
+  horarioHoy.forEach(ev => {
+    if (!clientTotals[ev.nombre]) clientTotals[ev.nombre] = { min: 0, sesiones: [] };
+    clientTotals[ev.nombre].min += ev.duracion;
+    clientTotals[ev.nombre].sesiones.push(ev);
+  });
+
+  // Renderizar bloques tipo Google Calendar
+  timeline.innerHTML = horarioHoy.map((ev, i) => {
+    const color = CLIENT_COLORS[ev.nombre] || '#888';
+    const durLabel = ev.duracion >= 60 ? (ev.duracion/60) + ' hr' : ev.duracion + ' min';
+    const tipoLabel = ev.tipo === 'check' ? '📋 Check-in' : '⚙️ Operación';
+    const isActive = window._jrSelectedClient === ev.nombre;
+    return `
+      <div class="jr-bloque" 
+           data-cliente="\${ev.nombre}"
+           onclick="selectJrClient('\${ev.nombre}')"
+           style="
+             display:flex; align-items:stretch; gap:0; margin-bottom:8px; 
+             border-radius:10px; overflow:hidden; cursor:pointer;
+             border:1px solid \${isActive ? color : color+'33'};
+             background:\${isActive ? color+'22' : color+'0d'};
+             transition:all 0.18s;
+           "
+           onmouseover="this.style.borderColor='\${color}'; this.style.background='\${color}22'"
+           onmouseout="if(window._jrSelectedClient !== '\${ev.nombre}'){this.style.borderColor='\${color}33'; this.style.background='\${color}0d';}">
+        <!-- Franja de color izquierda -->
+        <div style="width:4px; background:\${color}; flex-shrink:0;"></div>
+        <!-- Contenido -->
+        <div style="flex:1; padding:10px 12px;">
+          <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:4px;">
+            <div style="font-family:'DM Sans',sans-serif; font-weight:700; font-size:13px; color:\${color};">\${ev.nombre}</div>
+            <div style="font-family:'DM Mono',monospace; font-size:11px; color:var(--text2); flex-shrink:0;">\${ev.hora}</div>
+          </div>
+          <div style="display:flex; gap:6px; align-items:center;">
+            <span style="font-size:10px; font-family:'DM Mono',monospace; background:\${color}22; color:\${color}; padding:2px 7px; border-radius:4px;">\${durLabel}</span>
+            <span style="font-size:10px; color:var(--text3);">\${tipoLabel}</span>
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+
+  // Auto-seleccionar el primer cliente del día
+  if (!window._jrSelectedClient && horarioHoy.length) {
+    selectJrClient(horarioHoy[0].nombre);
+  }
+
+  updateJrProgress();
+}
+
+function selectJrClient(nombre) {
+  window._jrSelectedClient = nombre;
+  const CLIENT_COLORS = {
+    'EnPagos': '#00e5a0', 'Favio': '#a78bfa', 'Bodygreen': '#34d399',
+    'Divisas La Rioja': '#fbbf24', 'Inmobili': '#60a5fa',
+  };
+  const color = CLIENT_COLORS[nombre] || '#888';
+
+  // Actualizar resalte en timeline
+  document.querySelectorAll('.jr-bloque').forEach(el => {
+    const c = CLIENT_COLORS[el.dataset.cliente] || '#888';
+    if (el.dataset.cliente === nombre) {
+      el.style.borderColor = c;
+      el.style.background = c + '22';
+    } else {
+      el.style.borderColor = c + '33';
+      el.style.background = c + '0d';
+    }
+  });
+
+  // Calcular horas totales del día para este cliente
+  const diasNombre = ['domingo','lunes','martes','miercoles','jueves','viernes','sabado'];
+  const diaKey = diasNombre[new Date().getDay()];
+  const sesionesHoy = (MARIO_SCHEDULE[diaKey] || []).filter(e => e.nombre === nombre);
+  const minTotal = sesionesHoy.reduce((s, e) => s + e.duracion, 0);
+  const hrLabel = minTotal >= 60 ? (minTotal/60) + ' hr' : minTotal + ' min';
+  const horasDetalle = sesionesHoy.map(e => e.hora + ' (' + (e.duracion >= 60 ? e.duracion/60 + 'hr' : e.duracion + 'min') + ')').join(' · ');
+
+  // Mostrar checklist panel
+  document.getElementById('jr-empty-state').style.display = 'none';
+  document.getElementById('jr-checklist-content').style.display = 'block';
+
+  // Header del cliente
+  document.getElementById('jr-client-dot').style.background = color;
+  document.getElementById('jr-client-title').textContent = nombre;
+  document.getElementById('jr-client-meta').textContent = sesionesHoy.length + ' sesión' + (sesionesHoy.length > 1 ? 'es' : '') + ' hoy';
+  document.getElementById('jr-horas-badge').textContent = '⏱ ' + hrLabel + ' · ' + horasDetalle;
+  document.getElementById('jr-horas-badge').style.borderColor = color + '44';
+  document.getElementById('jr-horas-badge').style.color = color;
+
+  // Cargar checklist
+  loadJrChecklist(nombre);
+}
+
+function loadJrChecklist(nombre) {
+  const clienteNombre = nombre || window._jrSelectedClient;
+  if (!clienteNombre) return;
+
+  const key = 'jr_tasks_' + clienteNombre.replace(/\s/g,'_');
+  let saved = {};
+  try { saved = JSON.parse(localStorage.getItem(key) || '{}'); } catch(e){}
+
+  const CLIENT_TASKS = {
+    'EnPagos': {
+      recurrentes: [
+        'Análisis diario de métricas — CPM, CTR, costo/lead, tasa preaut',
+        'Verificar campañas activas corriendo sin errores',
+        'Registrar nuevos leads en Bixis',
+        'Revisar tasa prospecto → preautorizado del día',
+      ],
+      links: [
+        { label:'📊 Sheet diario', url:'https://docs.google.com/spreadsheets/d/1Zr86DwDUkpkp7uGOWsWrMxcU-iBXl9rulSobzUeAAzw/edit#gid=336116865' },
+        { label:'📋 Bixis CRM', url:'https://bixis.io' },
+        { label:'📈 Meta Ads', url:'https://adsmanager.facebook.com' },
+      ]
+    },
+    'Favio': {
+      recurrentes: [
+        'Revisar métricas del día — CPM, CTR, costo por lead',
+        'Verificar campañas activas corriendo sin errores',
+        'Actualizar sheet de análisis semanal',
+      ],
+      links: [{ label:'📈 Meta Ads', url:'https://adsmanager.facebook.com' }]
+    },
+    'Bodygreen': {
+      recurrentes: [
+        'Revisar métricas del día — CPM, CTR, costo por lead',
+        'Verificar campañas activas corriendo sin errores',
+        'Actualizar sheet de análisis semanal',
+      ],
+      links: [{ label:'📈 Meta Ads', url:'https://adsmanager.facebook.com' }]
+    },
+    'Divisas La Rioja': {
+      recurrentes: [
+        'Revisar métricas del día — CPM, CTR, costo por lead',
+        'Verificar campañas activas corriendo sin errores',
+        'Actualizar sheet de análisis semanal',
+      ],
+      links: [{ label:'📈 Meta Ads', url:'https://adsmanager.facebook.com' }]
+    },
+    'Inmobili': {
+      recurrentes: [
+        'Revisar métricas del día — CPM, CTR, costo por lead',
+        'Verificar campañas activas corriendo sin errores',
+        'Actualizar sheet de análisis semanal',
+      ],
+      links: [{ label:'📈 Meta Ads', url:'https://adsmanager.facebook.com' }]
+    },
+  };
+
+  const tasks = CLIENT_TASKS[clienteNombre] || { recurrentes: [], links: [] };
+
+  // Variables de la semana
+  const varKey = 'jr_var_' + clienteNombre.replace(/\s/g,'_');
+  let varTasks = [];
+  try { varTasks = JSON.parse(localStorage.getItem(varKey) || '[]'); } catch(e){}
+
+  const varList = document.getElementById('jr-variable-list');
+  if (varTasks.length) {
+    varList.innerHTML = varTasks.map((t, i) => renderJrTask(t, i, 'var', clienteNombre)).join('');
+  } else {
+    varList.innerHTML = '<div style="color:var(--text3); font-size:12px; padding:8px 0; font-style:italic;">Kike no ha asignado tareas esta semana</div>';
+  }
+
+  // Recurrentes
+  const recList = document.getElementById('jr-recurrente-list');
+  recList.innerHTML = tasks.recurrentes.map((t, i) => renderJrTask(t, i, 'rec', clienteNombre)).join('');
+
+  // Links rápidos
+  const linksList = document.getElementById('jr-links-list');
+  linksList.innerHTML = tasks.links.map(l =>
+    `<a href="\${l.url}" target="_blank" style="background:var(--surface2); border:1px solid var(--border); color:var(--text2); font-size:11px; padding:6px 12px; border-radius:8px; text-decoration:none; font-family:'DM Mono',monospace; transition:all 0.2s;" onmouseover="this.style.color='var(--accent)'; this.style.borderColor='var(--accent)'" onmouseout="this.style.color='var(--text2)'; this.style.borderColor='var(--border)'">\${l.label}</a>`
+  ).join('');
+
+  updateJrProgress();
+}
+
+function renderJrTask(texto, idx, tipo, clienteNombre) {
+  const key = 'jr_check_' + clienteNombre.replace(/\s/g,'_') + '_' + tipo + '_' + idx;
+  let checked = false;
+  try { checked = JSON.parse(localStorage.getItem(key) || 'false'); } catch(e){}
+  const badge = tipo === 'var'
+    ? '<span style="font-size:10px; font-family:\'DM Mono\',monospace; background:rgba(245,158,11,0.15); color:#fcd34d; padding:2px 7px; border-radius:4px; flex-shrink:0;">Variable</span>'
+    : '<span style="font-size:10px; font-family:\'DM Mono\',monospace; background:rgba(59,130,246,0.15); color:#93c5fd; padding:2px 7px; border-radius:4px; flex-shrink:0;">Recurrente</span>';
+  return `
+    <div style="background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:12px 14px; margin-bottom:8px; display:flex; align-items:center; gap:12px; cursor:pointer; transition:all 0.15s;" onclick="toggleJrTask(this, '\${key}')">
+      <div style="width:18px; height:18px; border:2px solid \${checked ? 'var(--green)' : 'var(--border2)'}; border-radius:5px; background:\${checked ? 'var(--green)' : 'transparent'}; flex-shrink:0; display:flex; align-items:center; justify-content:center; transition:all 0.15s;">
+        \${checked ? '<svg width="10" height="8" viewBox="0 0 10 8"><polyline points="1,4 4,7 9,1" fill="none" stroke="#000" stroke-width="2" stroke-linecap="round"/></svg>' : ''}
+      </div>
+      <div style="flex:1; font-size:13px; color:\${checked ? 'var(--text3)' : 'var(--text1)'}; text-decoration:\${checked ? 'line-through' : 'none'}; line-height:1.4;">\${texto}</div>
+      \${badge}
+    </div>`;
+}
+
+function toggleJrTask(el, key) {
+  const cur = JSON.parse(localStorage.getItem(key) || 'false');
+  localStorage.setItem(key, JSON.stringify(!cur));
+  const cliente = window._jrSelectedClient;
+  if (cliente) loadJrChecklist(cliente);
+}
+
+function addJrTask(tipo) {
+  const nombre = window._jrSelectedClient;
+  if (!nombre) return;
+  const texto = prompt('Nueva tarea para ' + nombre + ':');
+  if (!texto || !texto.trim()) return;
+  const varKey = 'jr_var_' + nombre.replace(/\s/g,'_');
+  let arr = [];
+  try { arr = JSON.parse(localStorage.getItem(varKey) || '[]'); } catch(e){}
+  arr.push(texto.trim());
+  localStorage.setItem(varKey, JSON.stringify(arr));
+  loadJrChecklist(nombre);
+}
+
+function updateJrProgress() {
+  const nombre = window._jrSelectedClient;
+  if (!nombre) return;
+  const CLIENT_TASKS = {
+    'EnPagos': { recurrentes: ['','','',''] },
+    'Favio': { recurrentes: ['','',''] },
+    'Bodygreen': { recurrentes: ['','',''] },
+    'Divisas La Rioja': { recurrentes: ['','',''] },
+    'Inmobili': { recurrentes: ['','',''] },
+  };
+  const base = (CLIENT_TASKS[nombre] || { recurrentes: [] }).recurrentes.length;
+  const varKey = 'jr_var_' + nombre.replace(/\s/g,'_');
+  let varArr = [];
+  try { varArr = JSON.parse(localStorage.getItem(varKey) || '[]'); } catch(e){}
+  const total = base + varArr.length;
+  let done = 0;
+  for (let i = 0; i < base; i++) {
+    const k = 'jr_check_' + nombre.replace(/\s/g,'_') + '_rec_' + i;
+    if (JSON.parse(localStorage.getItem(k) || 'false')) done++;
+  }
+  varArr.forEach((_, i) => {
+    const k = 'jr_check_' + nombre.replace(/\s/g,'_') + '_var_' + i;
+    if (JSON.parse(localStorage.getItem(k) || 'false')) done++;
+  });
+  const el = document.getElementById('jr-progreso-texto');
+  const bar = document.getElementById('jr-progreso-bar');
+  if (el) el.textContent = done + ' / ' + total;
+  if (bar) bar.style.width = total > 0 ? Math.round(done/total*100) + '%' : '0%';
+}
+
+
+
+function renderClientGrid() {
+  const grid = document.getElementById('clients-grid');
+  if (!grid) return;
+  if (clients.length === 0) { grid.innerHTML = ''; return; }
+  const colors = ['#00e5a0','#7c3aed','#f59e0b','#3b82f6','#ef4444','#ec4899'];
+  grid.innerHTML = clients.map((c,i) => {
+    const color = colors[i % colors.length];
+    const initials = c.nombre.substring(0,2).toUpperCase();
+    const sem = getSemaforo(c);
+    return `
+    <div class="client-card" onclick="openClient('${c.id}')">
+      <div class="client-semaforo">
+        <div class="dot dot-${sem.resultados}"></div>
+        <div class="dot dot-${sem.sensacion}"></div>
+        <div class="dot dot-${sem.comm}"></div>
+      </div>
+      <div class="client-avatar" style="background:${color}22; color:${color}">${initials}</div>
+      <div class="client-name">${c.nombre}</div>
+      <div class="client-industry">${c.industria || '—'}</div>
+    </div>`;
+  }).join('');
+}
+
+function getSemaforo(c) {
+  return {
+    resultados: c.sem_resultados || 'gray',
+    sensacion: c.sem_sensacion || 'gray',
+    comm: c.sem_comm || 'gray'
+  };
+}
+
+// ══════════════════════════════════════════
+// DEMO
+// ══════════════════════════════════════════
+function loadDemoClient() {
+  const demo = {
+    id: 'demo-' + Date.now(),
+    nombre: 'Clínica Estética Demo',
+    industria: 'Clínica estética',
+    account: 'Kike',
+    descripcion: 'Clínica de estética avanzada en Monterrey. Servicios: body sculpting, faciales, rellenos. Mercado B2C.',
+    drive: '',
+    mensual: '',
+    semanal: '',
+    cac_objetivo: '$350 MXN',
+    sem_stars: 4,
+    sem_comm_count: 1,
+    sem_sensacion: 'yellow',
+    sem_resultados: 'gray',
+    sem_comm: 'red',
+    adn: {
+      nombre: 'Clínica Estética Demo',
+      industria: 'Clínica estética',
+      ciudad: 'Monterrey, NL',
+      descripcion: 'Clínica de estética avanzada. Servicios: body sculpting, faciales HD, rellenos dérmicos. Público femenino 25-50.',
+      embudo: 'Lead llega por WhatsApp → asesora califica → agenda cita de valoración gratuita → en cita cierra con paquete',
+      ticket: '$8,500 MXN promedio',
+      cierre: '28% de leads calificados',
+      campanas: 'Generación de leads por WhatsApp (main), Retargeting de visitantes al sitio',
+      diferenciadores: 'Equipos certificados de última generación, médicos especializados, resultados visibles desde primera sesión, financiamiento disponible',
+      objeciones: 'Precio elevado, miedo al dolor, desconfianza por malas experiencias previas, tiempo de recuperación'
+    },
+    objetivos: {
+      principal: 'Generar 40 leads calificados por mes a un CAC máximo de $350 MXN',
+      cac: '$350 MXN',
+      leads: '40 leads/mes',
+      presupuesto: '$15,000 MXN',
+      plataformas: 'Meta (Facebook + Instagram)',
+      plan: 'Campañas de generación de leads en Meta con targeting por intereses y lookalike.',
+      largo: 'En 6 meses abrir canal en Google Ads y escalar a $25,000 MXN de presupuesto mensual.',
+      kpis: 'CAC, CTR, CPM, % leads calificados, tasa de cierre'
+    },
+    vault: [],
+    decisiones: []
+  };
+  clients.push(demo);
+  saveClients();
+  renderClientGrid();
+  showToast('Demo cargado', '✅');
+}
+
+// ══════════════════════════════════════════
+// NAVIGATION
+// ══════════════════════════════════════════
+function goHome() {
+  if (currentRol === 'direccion') {
+    renderDireccion();
+    showScreen('direccion');
+  } else if (currentRol === 'junior') {
+    renderJuniorHome();
+    showScreen('junior');
+  } else if (currentRol === 'senior') {
+    renderSeniorHome();
+    showScreen('senior-home');
+  } else {
+    showScreen('rol');
+  }
+}
+
+function openClient(id) {
+  currentClientId = id;
+  showScreen('app');
+  const client = getClient();
+  document.getElementById('sidebar-client-name').textContent = client.nombre;
+  document.getElementById('dash-subtitle').textContent = `Semáforo semanal · ${client.industria || 'cliente'}`;
+  navigate('dashboard');
+  loadAllFields();
+}
+
+function navigate(view) {
+  currentView = view;
+  // Hide all views
+  document.querySelectorAll('[id^="view-"]').forEach(v => v.style.display = 'none');
+  document.getElementById('view-' + view).style.display = 'flex';
+  document.getElementById('view-' + view).style.flexDirection = 'column';
+
+  // Nav items
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  const navMap = {
+    dashboard: 0, adn: 1, objetivos: 2, rendimiento: 3, segmentos: 4, validacion: 5,
+    creativos: 6, vault: 7, decisiones: 8
+  };
+  const navItems = document.querySelectorAll('.nav-item');
+  if (navMap[view] !== undefined && navItems[navMap[view]]) {
+    navItems[navMap[view]].classList.add('active');
+  }
+
+  if (view === 'dashboard') { updateDashboard(); loadHistorialIfExists(); }
+  if (view === 'vault') renderVault();
+  if (view === 'decisiones') renderDecisiones();
+  if (view === 'adn') initAIPanel('adn');
+  if (view === 'objetivos') initAIPanel('objetivos');
+  if (view === 'rendimiento') initAIPanel('rendimiento');
+  if (view === 'segmentos') initAIPanel('segmentos');
+  if (view === 'validacion') initAIPanel('validacion');
+  if (view === 'creativos') initAIPanel('creativos');
+}
+
+function showScreen(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-' + name).classList.add('active');
+}
+
+// ══════════════════════════════════════════
+// CLIENT CRUD
+// ══════════════════════════════════════════
+function getClient() {
+  return clients.find(c => c.id === currentClientId);
+}
+
+function saveClients() {
+  localStorage.setItem('oa-clients', JSON.stringify(clients));
+}
+
+function saveCurrentClient() {
+  saveClients();
+}
+
+function openNewClientModal() {
+  document.getElementById('modal-new-client').classList.add('open');
+}
+
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+}
+
+function createClient() {
+  const nombre = document.getElementById('nc-nombre').value.trim();
+  if (!nombre) { showToast('Escribe el nombre del cliente', '⚠️'); return; }
+
+  const client = {
+    id: 'client-' + Date.now(),
+    nombre,
+    industria: document.getElementById('nc-industria').value,
+    account: document.getElementById('nc-account').value,
+    descripcion: document.getElementById('nc-desc').value,
+    drive: document.getElementById('nc-drive').value,
+    mensual: document.getElementById('nc-mensual').value,
+    semanal: document.getElementById('nc-semanal').value,
+    cac_objetivo: document.getElementById('nc-cac').value,
+    vault: [],
+    decisiones: [],
+    sem_stars: 0,
+    sem_comm_count: 0,
+    adn: {}, objetivos: {}, rendimiento: {}, segmentos: {}, validacion: {}, creativos: {}
+  };
+
+  clients.push(client);
+  saveClients();
+  closeModal('modal-new-client');
+  renderClientGrid();
+  openClient(client.id);
+  showToast('Cliente creado', '✅');
+}
+
+// ══════════════════════════════════════════
+// FIELDS
+// ══════════════════════════════════════════
+const fieldMap = {
+  adn: ['nombre','industria','ciudad','descripcion','embudo','ticket','cierre','campanas','diferenciadores','objeciones','drive','mensual','semanal'],
+  objetivos: ['principal','cac','leads','presupuesto','plataformas','plan','largo','kpis'],
+  rendimiento: ['resumen','cac30','leads','gasto','mejor-ad','campanas','insights','daily','pres'],
+  segmentos: ['1-nombre','1-motivadores','2-nombre','2-motivadores','decision','tiempo','canales','insights'],
+  validacion: ['coherencia','restricciones','objetivo','expectativas','quien','resultado'],
+  creativos: ['angulo','tipo','formato','cac','hook','cta','instrucciones']
+};
+
+function autoSave(section) {
+  const client = getClient();
+  if (!client) return;
+  if (!client[section]) client[section] = {};
+  const fields = fieldMap[section];
+  fields.forEach(f => {
+    const el = document.getElementById(section === 'rendimiento' && f === 'mejor-ad' ? 'rend-mejor-ad' : section.substring(0,3) + '-' + f)
+              || document.getElementById(section.substring(0,3) + '-' + f)
+              || document.getElementById(section + '-' + f);
+    if (!el) return;
+    const key = f.replace(/-/g, '_');
+    client[section][key] = el.value;
+  });
+  saveClients();
+  updateProgress(section);
+}
+
+function loadAllFields() {
+  const client = getClient();
+  if (!client) return;
+
+  Object.keys(fieldMap).forEach(section => {
+    const data = client[section] || {};
+    fieldMap[section].forEach(f => {
+      const key = f.replace(/-/g, '_');
+      const prefix = section.substring(0,3);
+      const elId = `${prefix}-${f}`;
+      const el = document.getElementById(elId);
+      if (el && data[key] !== undefined) el.value = data[key];
+    });
+    updateProgress(section);
+  });
+
+  // Load semaforo
+  loadSemaforo();
+}
+
+function updateProgress(section) {
+  const client = getClient();
+  if (!client) return;
+  const data = client[section] || {};
+  const fields = fieldMap[section];
+  const filled = fields.filter(f => {
+    const key = f.replace(/-/g, '_');
+    return data[key] && data[key].toString().trim() !== '';
+  }).length;
+  const pct = Math.round((filled / fields.length) * 100);
+
+  const bar = document.getElementById('bar-' + section);
+  const prog = document.getElementById('prog-' + section);
+  if (bar) bar.style.width = pct + '%';
+  if (prog) {
+    prog.textContent = pct === 100 ? '✅ Completo' : pct > 0 ? pct + '%' : 'Vacío';
+    prog.className = 'section-progress' + (pct === 100 ? ' complete' : '');
+  }
+}
+
+// ══════════════════════════════════════════
+// DASHBOARD
+// ══════════════════════════════════════════
+function updateDashboard() {
+  const client = getClient();
+  if (!client) return;
+  loadSemaforo();
+  sectionIds.forEach(s => updateProgress(s));
+}
+
+function loadSemaforo() {
+  const client = getClient();
+  if (!client) return;
+
+  // Stars
+  const stars = client.sem_stars || 0;
+  document.querySelectorAll('.star').forEach((s, i) => {
+    s.classList.toggle('active', i < stars);
+  });
+  updateSensacionDot(stars);
+
+  // Comm
+  const count = client.sem_comm_count || 0;
+  updateCommDot(count);
+  updateCommBadges(count);
+
+  // CAC input
+  const cacEl = document.getElementById('sem-cac-actual');
+  if (cacEl) cacEl.value = client.sem_cac_actual || '';
+  const invEl = document.getElementById('sem-inv-actual');
+  if (invEl) invEl.value = client.sem_inv_actual || '';
+  const cierresEl = document.getElementById('sem-cierres-mes');
+  if (cierresEl) cierresEl.value = client.sem_cierres_mes || '';
+  if (client.sem_sensacion_nota) {
+    const notaEl = document.getElementById('sem-sensacion-nota');
+    if (notaEl) notaEl.value = client.sem_sensacion_nota;
+  }
+  updateSemaforos();
+}
+
+function setStars(n) {
+  const client = getClient();
+  if (!client) return;
+  client.sem_stars = n;
+  document.querySelectorAll('.star').forEach((s, i) => {
+    s.classList.toggle('active', i < n);
+  });
+  updateSensacionDot(n);
+  saveClients();
+}
+
+function updateSensacionDot(stars) {
+  const dot = document.getElementById('sem-sensacion-dot');
+  const val = document.getElementById('sem-sensacion-val');
+  if (!dot || !val) return;
+  const client = getClient();
+  let color = 'gray', label = 'Sin calificar', semColor = 'gray';
+  if (stars >= 4) { color = 'green'; label = 'Muy bien'; semColor = 'green'; }
+  else if (stars === 3) { color = 'yellow'; label = 'Regular'; semColor = 'yellow'; }
+  else if (stars > 0) { color = 'red'; label = 'Mal'; semColor = 'red'; }
+  dot.className = 'semaforo-dot ' + color;
+  val.textContent = label;
+  if (client) { client.sem_sensacion = semColor; saveClients(); }
+}
+
+function logContact(n) {
+  const client = getClient();
+  if (!client) return;
+  const current = client.sem_comm_count || 0;
+  // Toggle: si ya está marcado este contacto, desmarca desde ahí
+  if (current >= n) {
+    client.sem_comm_count = n - 1;
+  } else {
+    client.sem_comm_count = n;
+  }
+  updateCommDot(client.sem_comm_count);
+  updateCommBadges(client.sem_comm_count);
+  saveClients();
+}
+
+function updateCommDot(count) {
+  const dot = document.getElementById('sem-comm-dot');
+  const val = document.getElementById('sem-comm-val');
+  const client = getClient();
+  if (!dot || !val) return;
+  let color, label, semColor;
+  if (count >= 2) { color = 'green'; label = count + ' / 2 ✓'; semColor = 'green'; }
+  else if (count === 1) { color = 'yellow'; label = '1 / 2 contactos'; semColor = 'yellow'; }
+  else { color = 'red'; label = '0 / 2 contactos'; semColor = 'red'; }
+  dot.className = 'semaforo-dot ' + color;
+  val.textContent = label;
+  if (client) { client.sem_comm = semColor; saveClients(); }
+}
+
+function updateCommBadges(count) {
+  for (let i = 1; i <= 3; i++) {
+    const badge = document.getElementById('contact-' + i);
+    if (!badge) continue;
+    if (i <= count) {
+      badge.classList.add('logged');
+      badge.textContent = '✓ Contacto ' + i;
+    } else {
+      badge.classList.remove('logged');
+      badge.textContent = '+ Contacto ' + i;
+    }
+  }
+}
+
+function updateSemaforos() {
+  const client = getClient();
+  if (!client) return;
+  const cacActual = document.getElementById('sem-cac-actual')?.value || '';
+  client.sem_cac_actual = cacActual;
+  const invActualEl = document.getElementById('sem-inv-actual');
+  if (invActualEl) client.sem_inv_actual = invActualEl.value;
+  const cierresMesEl = document.getElementById('sem-cierres-mes');
+  if (cierresMesEl) client.sem_cierres_mes = cierresMesEl.value;
+  const notaEl = document.getElementById('sem-sensacion-nota');
+  if (notaEl) client.sem_sensacion_nota = notaEl.value;
+  saveClients();
+
+  // Resultados dot
+  const dot = document.getElementById('sem-resultados-dot');
+  const val = document.getElementById('sem-resultados-val');
+  const note = document.getElementById('sem-resultados-note');
+  if (dot && val && note) {
+    note.textContent = 'CAC objetivo: ' + (client.cac_objetivo || '—');
+    if (!cacActual) {
+      dot.className = 'semaforo-dot gray';
+      val.textContent = 'Sin datos';
+      client.sem_resultados = 'gray';
+    } else {
+      // Simple comparison if numbers present
+      const numActual = parseFloat(cacActual.replace(/[^0-9.]/g, ''));
+      const numObj = parseFloat((client.cac_objetivo || '').replace(/[^0-9.]/g, ''));
+      if (!isNaN(numActual) && !isNaN(numObj)) {
+        if (numActual <= numObj) {
+          dot.className = 'semaforo-dot green';
+          val.textContent = 'En objetivo';
+          client.sem_resultados = 'green';
+        } else if (numActual <= numObj * 1.2) {
+          dot.className = 'semaforo-dot yellow';
+          val.textContent = 'Cerca del objetivo';
+          client.sem_resultados = 'yellow';
+        } else {
+          dot.className = 'semaforo-dot red';
+          val.textContent = 'Fuera de objetivo';
+          client.sem_resultados = 'red';
+        }
+      } else {
+        dot.className = 'semaforo-dot gray';
+        val.textContent = cacActual;
+        client.sem_resultados = 'gray';
+      }
+    }
+  }
+  saveClients();
+}
+
+// ══════════════════════════════════════════
+// VAULT
+// ══════════════════════════════════════════
+function openAddVaultModal() {
+  document.getElementById('modal-vault').classList.add('open');
+}
+
+function addVaultEntry() {
+  const client = getClient();
+  if (!client) return;
+  const entry = {
+    id: Date.now(),
+    angulo: document.getElementById('vault-angulo').value,
+    formato: document.getElementById('vault-formato').value,
+    hook: document.getElementById('vault-hook').value,
+    cac: document.getElementById('vault-cac').value,
+    segmento: document.getElementById('vault-segmento').value,
+    insight: document.getElementById('vault-insight').value,
+    fecha: new Date().toLocaleDateString('es-MX')
+  };
+  if (!entry.angulo) { showToast('Escribe el ángulo del ad', '⚠️'); return; }
+  if (!client.vault) client.vault = [];
+  client.vault.push(entry);
+  saveClients();
+  closeModal('modal-vault');
+  renderVault();
+  showToast('Ad agregado al Vault', '🏆');
+}
+
+function renderVault() {
+  const client = getClient();
+  const vault = client?.vault || [];
+  const container = document.getElementById('vault-container');
+  if (!container) return;
+
+  if (vault.length === 0) {
+    container.innerHTML = `<div class="empty-state"><div class="empty-state-icon">🏆</div><h3>Vault vacío</h3><p>Agrega tus ads ganadores para que Claude los consulte automáticamente cuando generes briefs nuevos.</p></div>`;
+    return;
+  }
+
+  container.innerHTML = `<div class="vault-grid">${vault.map(v => `
+    <div class="vault-card">
+      <div class="vault-card-header">
+        <span class="vault-tag">${v.formato || 'Video'}</span>
+        <span style="font-size:11px; color:var(--text3); font-family:'DM Mono',monospace;">${v.fecha}</span>
+      </div>
+      <div class="vault-metric">${v.cac || '—'}</div>
+      <div class="vault-metric-label">CAC logrado</div>
+      <div class="vault-divider"></div>
+      <div class="vault-detail" style="margin-bottom:8px;">
+        <strong>Ángulo</strong>${v.angulo}
+      </div>
+      <div class="vault-detail" style="margin-bottom:8px;">
+        <strong>Hook</strong>${v.hook || '—'}
+      </div>
+      <div class="vault-detail" style="margin-bottom:8px;">
+        <strong>Segmento</strong>${v.segmento || '—'}
+      </div>
+      <div class="vault-detail">
+        <strong>Insight</strong>${v.insight || '—'}
+      </div>
+    </div>`).join('')}</div>`;
+}
+
+// ══════════════════════════════════════════
+// DECISIONES
+// ══════════════════════════════════════════
+function openAddDecisionModal() {
+  document.getElementById('modal-decision').classList.add('open');
+}
+
+function addDecision() {
+  const client = getClient();
+  if (!client) return;
+  const dec = {
+    id: Date.now(),
+    texto: document.getElementById('dec-texto').value,
+    contexto: document.getElementById('dec-contexto').value,
+    responsable: document.getElementById('dec-responsable').value,
+    impacto: document.getElementById('dec-impacto').value,
+    fecha: new Date().toLocaleDateString('es-MX')
+  };
+  if (!dec.texto) { showToast('Escribe la decisión', '⚠️'); return; }
+  if (!client.decisiones) client.decisiones = [];
+  client.decisiones.unshift(dec);
+  saveClients();
+  closeModal('modal-decision');
+  renderDecisiones();
+  showToast('Decisión registrada', '📝');
+}
+
+function renderDecisiones() {
+  const client = getClient();
+  const decs = client?.decisiones || [];
+  const container = document.getElementById('decisiones-container');
+  if (!container) return;
+
+  if (decs.length === 0) {
+    container.innerHTML = `<div class="empty-state"><div class="empty-state-icon">📝</div><h3>Sin decisiones registradas</h3><p>Registra cada decisión estratégica con fecha y contexto. Cuando Kike retome este cliente en 3 meses, sabrá exactamente por qué se tomó cada decisión.</p></div>`;
+    return;
+  }
+
+  container.innerHTML = `<div class="timeline">${decs.map(d => `
+    <div class="timeline-item">
+      <div class="timeline-dot">📝</div>
+      <div class="timeline-content">
+        <div class="timeline-date">${d.fecha} · ${d.responsable || '—'}</div>
+        <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:14px;margin-bottom:6px;">${d.texto}</div>
+        <div class="timeline-text">${d.contexto || ''}</div>
+        ${d.impacto ? `<div style="margin-top:8px;font-size:12px;color:var(--accent);font-family:'DM Mono',monospace;">→ ${d.impacto}</div>` : ''}
+      </div>
+    </div>`).join('')}</div>`;
+}
+
+// ══════════════════════════════════════════
+// AI PANEL
+// ══════════════════════════════════════════
+function initAIPanel(section) {
+  if (!AIConversations[section]) {
+    AIConversations[section] = [];
+  }
+}
+
+function buildSystemPrompt(section) {
+  const client = getClient();
+  if (!client) return '';
+
+  const adn = client.adn || {};
+  const obj = client.objetivos || {};
+  const seg = client.segmentos || {};
+
+  const contextMap = {
+    adn: `Eres el estratega senior de OptimizAds. Estás ayudando a completar el ADN del negocio del cliente "${client.nombre}" (${client.industria || ''}). 
+Lo que sabemos del cliente: ${client.descripcion || 'Sin descripción aún'}.
+CAC objetivo: ${client.cac_objetivo || 'No definido'}.
+Responde de forma directa, estratégica y ejecutable. Máximo 3 párrafos o bullets cortos. Sin relleno.`,
+
+    objetivos: `Eres el estratega senior de OptimizAds. Ayudas a definir los objetivos de marketing del cliente "${client.nombre}" (${client.industria || ''}).
+ADN del negocio: ${adn.descripcion || client.descripcion || '—'}
+Embudo actual: ${adn.embudo || '—'}
+Ticket promedio: ${adn.ticket || '—'}
+Responde de forma directa con recomendaciones accionables.`,
+
+    rendimiento: `Eres un analista experto de OptimizAds. Analizas el rendimiento del cliente "${client.nombre}".
+CAC objetivo: ${obj.cac || client.cac_objetivo || '—'}
+Objetivo de leads: ${obj.leads || '—'}
+Presupuesto: ${obj.presupuesto || '—'}
+Sé directo: identifica problemas, propón optimizaciones concretas.`,
+
+    segmentos: `Eres el estratega senior de OptimizAds. Defines segmentos de audiencia para "${client.nombre}" (${client.industria || ''}).
+Descripción del negocio: ${adn.descripcion || client.descripcion || '—'}
+Diferenciadores: ${adn.diferenciadores || '—'}
+Objeciones conocidas: ${adn.objeciones || '—'}
+Propón segmentos con motivadores específicos y accionables.`,
+
+    validacion: `Eres el estratega senior de OptimizAds. Validas si los objetivos del cliente "${client.nombre}" son realistas.
+Industria: ${client.industria || '—'}
+CAC objetivo: ${obj.cac || client.cac_objetivo || '—'}
+Presupuesto: ${obj.presupuesto || '—'}
+Leads objetivo: ${obj.leads || '—'}
+Sé directo. Si hay un gap, dilo con datos. Propón cómo ajustarlo o comunicarlo.`,
+
+    creativos: `Eres el estratega creativo senior de OptimizAds. Generas briefs y creativos para "${client.nombre}".
+Industria: ${client.industria || '—'}
+Segmento principal: ${seg['1_nombre'] || '—'}
+Motivadores: ${seg['1_motivadores'] || '—'}
+Diferenciadores: ${adn.diferenciadores || '—'}
+Objeciones: ${adn.objeciones || '—'}
+${client.vault?.length ? `Winning Ads Vault (${client.vault.length} ads): ${client.vault.slice(0,3).map(v => `Ángulo "${v.angulo}" → CAC ${v.cac}`).join(', ')}` : ''}
+Genera copy específico, hooks concretos, y briefs listos para ejecutar.`
+  };
+
+  return contextMap[section] || `Eres el estratega senior de OptimizAds. Cliente: "${client.nombre}". Sé directo y ejecutable.`;
+}
+
+async function sendAIMessage(section) {
+  const inputEl = document.getElementById('ai-input-' + section);
+  const userMsg = inputEl?.value?.trim();
+  if (!userMsg) return;
+
+  inputEl.value = '';
+  addAIMessage(section, 'user', userMsg);
+  AIConversations[section].push({ role: 'user', content: userMsg });
+
+  const loadingEl = addAIMessage(section, 'loading', '');
+  const sendBtn = document.querySelector(`#ai-panel-${section} .ai-send-btn`);
+  if (sendBtn) sendBtn.disabled = true;
+
+  try {
+    const messages = buildMessages(section);
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        system: buildSystemPrompt(section),
+        messages
+      })
+    });
+
+    const data = await response.json();
+    loadingEl.remove();
+
+    const text = data.content?.find(b => b.type === 'text')?.text || 'Sin respuesta.';
+    addAIMessage(section, 'assistant', text);
+    AIConversations[section].push({ role: 'assistant', content: text });
+
+    scrollAIMessages(section);
+  } catch (e) {
+    loadingEl.remove();
+    addAIMessage(section, 'assistant', '⚠️ Error al conectar con Claude. Verifica la conexión.');
+  } finally {
+    if (sendBtn) sendBtn.disabled = false;
+  }
+}
+
+function buildMessages(section) {
+  const conv = AIConversations[section] || [];
+  return conv.map(m => ({ role: m.role, content: m.content }));
+}
+
+function addAIMessage(section, type, text) {
+  const container = document.getElementById('ai-msgs-' + section);
+  if (!container) return null;
+  const div = document.createElement('div');
+  div.className = 'ai-msg ' + type;
+  if (type === 'loading') {
+    div.innerHTML = '<div class="typing-dots"><span></span><span></span><span></span></div>';
+  } else {
+    div.textContent = text;
+  }
+  container.appendChild(div);
+  container.scrollTop = container.scrollHeight;
+  return div;
+}
+
+function scrollAIMessages(section) {
+  const container = document.getElementById('ai-msgs-' + section);
+  if (container) container.scrollTop = container.scrollHeight;
+}
+
+function handleAIKey(e, section) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendAIMessage(section);
+  }
+}
+
+function sendSuggestion(section, text) {
+  const inputEl = document.getElementById('ai-input-' + section);
+  if (inputEl) {
+    inputEl.value = text;
+    sendAIMessage(section);
+  }
+}
+
+// ══════════════════════════════════════════
+// BRIEF GENERATOR
+// ══════════════════════════════════════════
+async function generateBrief() {
+  const client = getClient();
+  if (!client) return;
+
+  const angulo = document.getElementById('cre-angulo')?.value || '—';
+  const tipo = document.getElementById('cre-tipo')?.value || '—';
+  const formato = document.getElementById('cre-formato')?.value || '—';
+  const hook = document.getElementById('cre-hook')?.value || '—';
+  const cta = document.getElementById('cre-cta')?.value || '—';
+  const cac = document.getElementById('cre-cac')?.value || '—';
+  const instrucciones = document.getElementById('cre-instrucciones')?.value || '';
+
+  const preview = document.getElementById('brief-preview');
+  preview.textContent = 'Generando brief con Claude...';
+
+  const seg = client.segmentos || {};
+  const adn = client.adn || {};
+  const vault = client.vault || [];
+
+  const prompt = `Genera un brief profesional de creative para el diseñador/editor con la siguiente info:
+
+CLIENTE: ${client.nombre} (${client.industria || '—'})
+SEGMENTO: ${seg['1_nombre'] || '—'}
+MOTIVADORES: ${seg['1_motivadores'] || '—'}
+DIFERENCIADORES: ${adn.diferenciadores || '—'}
+OBJECIONES: ${adn.objeciones || '—'}
+
+ÁNGULO ESTA SEMANA: ${angulo}
+TIPO DE ANUNCIO: ${tipo}
+FORMATO: ${formato}
+HOOK PROPUESTO: ${hook}
+CTA: ${cta}
+CAC DEL MEJOR AD: ${cac}
+INSTRUCCIONES ADICIONALES: ${instrucciones}
+${vault.length ? `TOP ADS EN VAULT: ${vault.slice(0,2).map(v => `"${v.angulo}" → ${v.cac}`).join(' | ')}` : ''}
+
+Genera un brief completo, listo para enviarle al diseñador. Incluye: concepto del anuncio, copy sugerido (hook + cuerpo + CTA), descripción visual, referencias de estilo, y notas de producción. Formato limpio y directo.`;
+
+  try {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+    const data = await response.json();
+    const text = data.content?.find(b => b.type === 'text')?.text || 'Error generando brief.';
+    preview.textContent = text;
+    showToast('Brief generado', '✨');
+  } catch (e) {
+    preview.textContent = '⚠️ Error al conectar con Claude.';
+  }
+}
+
+function copyBrief() {
+  const preview = document.getElementById('brief-preview');
+  navigator.clipboard.writeText(preview.textContent);
+  showToast('Brief copiado', '📋');
+}
+
+// ══════════════════════════════════════════
+// TOAST
+// ══════════════════════════════════════════
+let toastTimeout;
+function showToast(msg, icon = '✅') {
+  clearTimeout(toastTimeout);
+  document.getElementById('toast-msg').textContent = msg;
+  document.getElementById('toast-icon').textContent = icon;
+  document.getElementById('toast').classList.add('show');
+  toastTimeout = setTimeout(() => document.getElementById('toast').classList.remove('show'), 2500);
+}
+
+// ══════════════════════════════════════════
+// INIT
+// ══════════════════════════════════════════
+// ══════════════════════════════════════════
+// HISTORIAL DE SEMÁFORO
+// ══════════════════════════════════════════
+function closeWeek() {
+  const client = getClient();
+  if (!client) return;
+
+  // Construir snapshot
+  const snap = {
+    fecha: new Date().toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' }),
+    semana: getWeekLabel(),
+    resultados: client.sem_resultados || 'gray',
+    cac_actual: client.sem_cac_actual || '—',
+    cac_objetivo: client.cac_objetivo || '—',
+    sensacion: client.sem_stars || 0,
+    sensacion_color: client.sem_sensacion || 'gray',
+    sensacion_nota: client.sem_sensacion_nota || '',
+    comm: client.sem_comm || 'gray',
+    comm_count: client.sem_comm_count || 0,
+    semaforo_final: calcSemaforoFinal(client)
+  };
+
+  if (!client.sem_history) client.sem_history = [];
+
+  // Evitar duplicado de la misma semana
+  const existeIdx = client.sem_history.findIndex(h => h.semana === snap.semana);
+  if (existeIdx >= 0) {
+    client.sem_history[existeIdx] = snap; // sobrescribe si ya existe
+    showToast('Semana actualizada en el historial', '📅');
+  } else {
+    client.sem_history.unshift(snap);
+    showToast('Semana cerrada y guardada en historial', '📅');
+  }
+
+  saveClients();
+  renderHistorial();
+  document.getElementById('semaforo-historial-section').style.display = 'block';
+
+  // Reset semáforo para la semana nueva
+  client.sem_comm_count = 0;
+  client.sem_stars = 0;
+  client.sem_cac_actual = '';
+  client.sem_sensacion_nota = '';
+  client.sem_resultados = 'gray';
+  client.sem_sensacion = 'gray';
+  client.sem_comm = 'gray';
+  saveClients();
+  loadSemaforo();
+
+  // Reset inputs visuales
+  const cacEl = document.getElementById('sem-cac-actual');
+  if (cacEl) cacEl.value = '';
+  const notaEl = document.getElementById('sem-sensacion-nota');
+  if (notaEl) notaEl.value = '';
+}
+
+function getWeekLabel() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const start = new Date(year, 0, 1);
+  const week = Math.ceil(((now - start) / 86400000 + start.getDay() + 1) / 7);
+  return `Semana ${week} · ${year}`;
+}
+
+function calcSemaforoFinal(client) {
+  const order = { red: 0, yellow: 1, green: 2, gray: 3 };
+  const vals = [
+    client.sem_resultados || 'gray',
+    client.sem_sensacion || 'gray',
+    client.sem_comm || 'gray'
+  ];
+  return vals.sort((a,b) => order[a] - order[b])[0];
+}
+
+function renderHistorial() {
+  const client = getClient();
+  const history = client?.sem_history || [];
+  const container = document.getElementById('semaforo-historial-table');
+  if (!container) return;
+
+  if (history.length === 0) {
+    container.innerHTML = '<div style="color:var(--text3);font-size:13px;padding:12px 0;">Sin semanas cerradas aún.</div>';
+    return;
+  }
+
+  const colorLabel = { green: '🟢', yellow: '🟡', red: '🔴', gray: '⚪' };
+  const colorText = { green: 'var(--green)', yellow: 'var(--yellow)', red: 'var(--red)', gray: 'var(--text3)' };
+
+  const stars = (n) => '★'.repeat(n) + '☆'.repeat(5 - n);
+
+  const rows = history.map(h => `
+    <tr style="border-bottom:1px solid var(--border);">
+      <td style="padding:12px 16px; white-space:nowrap;">
+        <div style="font-family:'DM Mono',monospace; font-size:12px; color:var(--text2);">${h.semana}</div>
+        <div style="font-size:11px; color:var(--text3);">${h.fecha}</div>
+      </td>
+      <td style="padding:12px 16px; text-align:center;">
+        <span style="font-size:18px;">${colorLabel[h.semaforo_final] || '⚪'}</span>
+      </td>
+      <td style="padding:12px 16px;">
+        <div style="font-size:13px; color:${colorText[h.resultados]}; font-weight:600;">${h.cac_actual}</div>
+        <div style="font-size:11px; color:var(--text3);">obj: ${h.cac_objetivo}</div>
+      </td>
+      <td style="padding:12px 16px;">
+        <div style="color:${colorText[h.sensacion_color]}; font-size:14px; letter-spacing:1px;">${stars(h.sensacion)}</div>
+        ${h.sensacion_nota ? `<div style="font-size:11px; color:var(--text3); margin-top:2px;">${h.sensacion_nota}</div>` : ''}
+      </td>
+      <td style="padding:12px 16px; text-align:center;">
+        <span style="color:${colorText[h.comm]}; font-size:13px; font-family:'DM Mono',monospace; font-weight:600;">${h.comm_count}/2</span>
+      </td>
+    </tr>`).join('');
+
+  container.innerHTML = `
+    <table style="width:100%; border-collapse:collapse; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden;">
+      <thead>
+        <tr style="border-bottom:1px solid var(--border2);">
+          <th style="padding:10px 16px; text-align:left; font-size:11px; font-family:'DM Mono',monospace; color:var(--text3); font-weight:400;">SEMANA</th>
+          <th style="padding:10px 16px; text-align:center; font-size:11px; font-family:'DM Mono',monospace; color:var(--text3); font-weight:400;">GLOBAL</th>
+          <th style="padding:10px 16px; text-align:left; font-size:11px; font-family:'DM Mono',monospace; color:var(--text3); font-weight:400;">🎯 CAC</th>
+          <th style="padding:10px 16px; text-align:left; font-size:11px; font-family:'DM Mono',monospace; color:var(--text3); font-weight:400;">😊 SENSACIÓN</th>
+          <th style="padding:10px 16px; text-align:center; font-size:11px; font-family:'DM Mono',monospace; color:var(--text3); font-weight:400;">📱 COMM</th>
+        </tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
+function toggleHistorial() {
+  const section = document.getElementById('semaforo-historial-section');
+  const btn = section.querySelector('button');
+  if (section.style.display === 'none') {
+    section.style.display = 'block';
+    btn.textContent = 'Ocultar';
+  } else {
+    section.style.display = 'none';
+    btn.textContent = 'Ver historial';
+  }
+}
+
+function loadHistorialIfExists() {
+  const client = getClient();
+  if (!client || !client.sem_history || client.sem_history.length === 0) {
+    document.getElementById('semaforo-historial-section').style.display = 'none';
+    return;
+  }
+  document.getElementById('semaforo-historial-section').style.display = 'block';
+  renderHistorial();
+}
+
+function loadEnPagos() {
+  // Si ya existe, reemplazar con versión actualizada
+  const existeIdx = clients.findIndex(c => c.id === 'enpagos-real');
+
+  const enpagos = {
+    id: 'enpagos-real',
+    nombre: 'EnPagos',
+    industria: 'Financiamiento de equipos comerciales',
+    account: 'Kike',
+    descripcion: 'Financiamiento B2C de equipos comerciales (vitrinas, enfriadores, máquinas de hielo, congeladores, freidoras, maquinaria). Modelo híbrido: 50% distribuidor + 50% financiera. Alianza directa con Torrey → precio único de lista en todas las ciudades. Ciudades activas: MTY, Saltillo, Torreón, QRO, GDL, Guanajuato. Expansión a AGS, SLP, San Miguel Allende Mar 2026.',
+    drive: 'https://docs.google.com/spreadsheets/d/1eoru9zXLj5JRJJ2TvPv7LNc-Zs98v4zu/edit',
+    daily_sheet: 'https://docs.google.com/spreadsheets/d/1Zr86DwDUkpkp7uGOWsWrMxcU-iBXl9rulSobzUeAAzw/edit',
+    presentacion: 'https://docs.google.com/presentation/d/1uOfq_HnkbgJ_9n82PP-_tFEvwZP2ybEW/edit',
+    mensual: '',
+    semanal: '',
+    cac_objetivo: '$2,170–$2,400 MXN por cierre',
+    facebook: 'https://www.facebook.com/enpagos',
+    instagram: 'https://www.instagram.com/enpagos',
+    sem_stars: 0,
+    sem_comm_count: 0,
+    sem_sensacion: 'gray',
+    sem_resultados: 'red',
+    sem_comm: 'gray',
+    sem_cac_actual: '$6,508 MXN (Feb 2026)',
+    sem_inv_actual: '$75,000 MXN',
+    sem_inv_programada: '$75,000 MXN',
+    sem_cierres_mes: '10 (Feb 2026)',
+    adn: {
+      nombre: 'EnPagos',
+      industria: 'Financiamiento de equipos comerciales a crédito',
+      ciudad: 'MTY, Saltillo, Torreón, QRO, GDL, Guanajuato | Próximo: AGS, SLP, San Miguel de Allende (Mar 2026), Tampico, Chihuahua, Hermosillo (Abr 2026)',
+      descripcion: 'Financiamiento B2C de equipos comerciales. Modelo híbrido: 50% distribuidor + 50% financiera. No tienen inventario propio, son sub-distribuidores de Torrey con precio único de lista en todas las ciudades. El equipo de verificación visita el negocio antes del cierre. Analogía de posicionamiento: EnPagos es para negocios lo que Coppel/Elektra es para familias.',
+      embudo: 'Lead Meta (WhatsApp) → bot Patagon pre-califica (3 preguntas: ¿tienes negocio?, ventas mensuales, ciudad) → vendedor da seguimiento en Bixis → tramita preautorización (buró) → cierre → entrega equipo',
+      ticket: 'Ticket promedio: ~$65,000 MXN. Vitrina carnicera puede generar +$100K/mes al cliente. Meta anual 2026: $34–35M MXN colocados. Ciudad rentable = mínimo $3M/año.',
+      cierre: 'Tasa preautorizado→cierre: 10–12% (aceptable). El cuello de botella NO es el cierre, es la tasa prospecto→preautorizado: 2.42% actual vs 6.65% objetivo. Razones de descarte: foráneo, no tiene negocio establecido, no contesta.',
+      campanas: 'Meta Ads (principal): mensajes a WhatsApp, campañas individuales por ciudad y tipo de equipo. Google Ads: prueba activa solo MTY ~$7-8K/mes, ~2 cierres/mes. Requiere landing page para escalar.',
+      diferenciadores: 'Trato humano y asesoría personalizada, plazo más largo que MercadoPago, recomendación del equipo correcto (no solo venden lo que piden), entrega en puerta, atención a garantías, visita de verificación al negocio. Mensaje: no es un gasto, es una inversión que se paga sola.',
+      objeciones: 'Rechazo por buró de crédito (estructural, no resoluble con campañas). Clientes con terminal MercadoPago con línea suficiente = competencia directa. Leads foráneos (no tiene distribuidor en su ciudad). Prospecto sin negocio establecido.',
+      drive: 'https://docs.google.com/spreadsheets/d/1eoru9zXLj5JRJJ2TvPv7LNc-Zs98v4zu/edit',
+      crm: 'Bixis — implementado Nov 2025, estabilizado Feb 2026. Cuando llegan 40-50 leads/día, nuevos tienen prioridad; leads +3 días sin contestar pasan a seguimiento automático.',
+      bot: 'Patagon — pre-califica vía WhatsApp. Acuerdo: simplificar a 3 preguntas básicas. Tasa High Quality: 10% vs 22% orgánico. Puede enviar leads calificados vía API a OptimizAds para optimizar campañas.',
+      contactos: 'Pepe/José López (dueño, decisor), Alan Vázquez (estrategia/números, CAC objetivo), Luis Martínez (líder ventas + verificación), Mauricio (cierres), Brian (contenido)'
+    },
+    objetivos: {
+      principal: 'CAC por cierre: $2,170–$2,400 MXN. Meta anual 2026: $34–35M MXN en colocación. Cuello de botella a resolver: tasa prospecto→preautorizado (2.42% actual → objetivo 6.65%).',
+      cac: '$2,170–$2,400 MXN por cierre | Costo/preaut objetivo: $244 MXN | Costo/prospecto objetivo: $16.20 MXN',
+      leads: 'Objetivo: 4,018 prospectos/mes. Récord de preautorizados: 267 (Jul 2025). Récord de cierres: 30 (Jul 2025) = $2.13M MXN en ventas.',
+      presupuesto: '$75,000 MXN/mes actual. Objetivo: escalar a $130K en temporada alta (Mar 2026), subiendo máximo 20-30% por ciclo. Solicitar $90K con proyección de embudo.',
+      plataformas: 'Meta (principal). Google Ads (prueba MTY, pendiente landing page para escalar y cotizar a OptimizAds).',
+      plan: 'Q1 2026: mejorar tasa prospecto→preaut de 2.42% a 6.65%. Abrir AGS, SLP, San Miguel Allende (Mar). Preparar Tampico, Chihuahua, Hermosillo (Abr). Implementar reporte semanal de cambios de campaña al equipo de ventas. Solicitar datos de rechazados/cancelados por ciudad a Pepe.',
+      largo: 'Meta anual $34–35M MXN. Escalar a $130K/mes presupuesto. Landing page + Google Ads. Cotizar manejo Google Ads a OptimizAds. Pipeline Make: Tactiq→Claude→Slack para automatizar análisis.',
+      kpis: 'CAC por cierre, costo/preautorizado, % prospecto→preaut (cuello de botella), % preaut→cierre, prospectos/mes, cierres/mes, venta total MXN por ciudad'
+    },
+    rendimiento: {
+      resumen: 'HISTÓRICO — 2024: 160 cierres, $10.4M MXN. 2025: 249 cierres (+55%), $16.2M MXN (+55%). RÉCORD: Jul 2025 = 30 cierres, CAC $2,170, $2.13M MXN. Q4 2025 fue el peor trimestre en 2 años (nov CAC $12,552 / dic CAC $15,165). Recuperación en curso: Feb 2026 = 10 cierres, CAC $6,508 (aún 3x objetivo).',
+      cac30: '$6,508 MXN por cierre (Feb 2026) — Objetivo: $2,170–$2,400',
+      leads: 'Feb 2026: 3,801 prospectos, 92 preaut (2.42% tasa), 10 cierres. Mejor semana 2026: 16-22 Feb = 31 preaut, 3 cierres, $588 costo/preaut.',
+      gasto: '$75,000 MXN/mes (Meta Ads) + ~$7-8K Google Ads MTY',
+      mejor_ad: 'Secuencia testimonial: cliente real con vitrina → equipos. Videos que arrancan con el cliente diciendo exactamente lo que el prospecto quiere escuchar. Los primeros 2 segundos son determinantes. Tráfico tibio (testimonios) funciona también como frío.',
+      campanas: 'Activas: MTY, Saltillo, Torreón (mejor tasa conv 4.18% en Ene 2026), QRO, GDL, Guanajuato. Por abrir: AGS, SLP, San Miguel (Mar). Próximas: Tampico, Chihuahua, Hermosillo (Abr).',
+      insights: 'El mensaje debe enfatizar el financiamiento, no el equipo ("no te vendemos una vitrina, te damos la vitrina pagando con lo que ya vendes"). Temporada alta Mar-Sep: pautar todo. Temporada baja Oct-Dic: solo ticket alto (vitrinas, enfriadores). NO hacer múltiples pruebas simultáneas en la misma ciudad (lección de Nov 2025).',
+      daily: 'https://docs.google.com/spreadsheets/d/1Zr86DwDUkpkp7uGOWsWrMxcU-iBXl9rulSobzUeAAzw/edit'
+    },
+    segmentos: {
+      '1_nombre': 'Dueño de negocio de alimentos/bebidas, local propio, 30-50 años',
+      '1_motivadores': 'Tiene negocio mínimo 6 meses, ventas +$150K/mes, quiere equipo para crecer pero no tiene capital de contado. El equipo (vitrina, enfriador) es una inversión que se paga sola. No es el que quiere emprender — es el que ya tiene negocio y quiere escalar.',
+      '2_nombre': 'Negocios en ciudades secundarias (Torreón, QRO, AGS, SLP)',
+      '2_motivadores': 'Mismo perfil, mercado menos competido, menor costo por lead. Torreón: mejor tasa de conversión a preaut (4.18% Ene 2026) aunque 0 cierres = problema en ventas, no en Meta.',
+      decision: 'Ve anuncio Meta (FB/IG) → manda WhatsApp → bot Patagon pre-califica → vendedor Bixis da seguimiento → preautorización → verificación del negocio → cierre → entrega.',
+      tiempo: 'No medido formalmente desde primer mensaje hasta cierre. Pendiente medir.',
+      canales: 'Facebook e Instagram (Meta). WhatsApp para pre-calificación (Patagon) y cierre (vendedores).',
+      insights: 'Segmento demográfico principal: Hombres y mujeres 35-54 años. Mujeres 35-54 = vitrinas. Hombres 35-44 = máquinas de hielo y enfriadores. El anuncio define la segmentación aunque la campaña sea abierta. Competencia directa: MercadoPago (terminal con línea de crédito), Atrato (fintech en marketplaces, conversión baja por buró), marcas con 12 MSI en tarjeta.'
+    },
+    validacion: {
+      coherencia: 'CAC objetivo real: $2,170–$2,400 por cierre. Feb 2026: CAC $6,508 = 3x el objetivo. El costo/lead es aceptable ($17 vs $16.20 objetivo). La tasa cierre/preaut es aceptable (10.87% vs 11.24% objetivo). El cuello de botella único: tasa prospecto→preaut = 2.42% vs 6.65% objetivo. Cada punto porcentual de mejora = ~44 preaut adicionales/mes = ~5 cierres más = $325K adicionales en ventas.',
+      restricciones: 'Buró de crédito: rechazo estructural no resoluble con campañas. Estacionalidad: Q4 (oct-dic) históricamente bajo. Bixis: ya estabilizado (Alan, Feb 2026). Patagon: calidad pre-calificación pendiente de mejora (simplificar flujo a 3 preguntas). No hacer múltiples pruebas simultáneas en misma ciudad.',
+      objetivo: 'Regresar CAC a $2,170-$2,400. Subir tasa prospecto→preaut de 2.42% a 6.65%. Meta anual: $34-35M MXN colocados. Ciudad rentable = $3M/año mínimo. Escalar presupuesto a $130K/mes en temporada alta.',
+      expectativas: 'Pepe (dueño): consistencia en ventas mensuales ($1.5M+/mes), recuperar niveles jul-oct 2025. Alan: CAC límite y deseado definidos por él con base en mejores meses 2025 + 20% margen. Luis: retroalimentación semanal de qué cambió en campañas y por qué. Planeación mensual anticipada (reunión un mes antes para decidir qué equipos pautar).',
+      quien: 'Anwar + Kike (estrategia) | Mario (operativo) | Ernesto (Google Ads freelance)',
+      resultado: 'Temporada alta Mar 2026: oportunidad de recuperar posición. Investigar qué cambió en semana 16-22 Feb (mejor semana del año: 31 preaut, 3 cierres, $588/preaut). Expansión agresiva de ciudades. Escalar presupuesto. Google Ads pendiente de landing page.'
+    },
+    vault: [
+      {
+        id: 1,
+        angulo: 'Secuencia testimonial universal — vitrina + equipos',
+        formato: 'Secuencia de imágenes',
+        hook: 'Primera imagen: cliente real con vitrina o enfriador. Resto: variedad de equipos. Los primeros 2 segundos son determinantes — arrancar con el cliente diciendo lo que el prospecto quiere escuchar.',
+        cac: '$2,170 MXN por cierre (Jul 2025 — mes récord)',
+        segmento: 'Mujeres 35-54, dueñas de negocios alimentos/bebidas. Campaña abierta.',
+        insight: 'AD GANADOR UNIVERSAL. Funciona en todas las ciudades y equipos. Costo/mensaje ~$7 MXN. Genera leads que preguntan también por otros equipos. El recorte al punto correcto del video mejora significativamente los costos.',
+        fecha: 'Desde Abr 2025 — activo'
+      },
+      {
+        id: 2,
+        angulo: 'Video testimonial corto (<15 seg) — tráfico tibio como frío',
+        formato: 'Video testimonial',
+        hook: 'Cliente real en 15 segundos con su equipo financiado. Arrancar en el momento exacto en que el cliente dice lo que el prospecto quiere escuchar.',
+        cac: 'Costo/mensaje $5.93 con audiencia 0-6 meses (mejor que tráfico frío puro)',
+        segmento: 'Todos los segmentos. Funciona como retargeting Y como frío desde el inicio.',
+        insight: 'Los anuncios de tráfico tibio (testimonios de retargeting 7+ días) funcionan también como tráfico frío. Esto redujo costo/mensaje en varias ciudades simultáneamente. Videos <15 seg superan a los largos.',
+        fecha: 'Desde Ago 2025 — activo'
+      },
+      {
+        id: 3,
+        angulo: 'Máquinas de hielo a crédito',
+        formato: 'Imagen estática con persona real y máquina de hielo',
+        hook: 'Tu máquina de hielo sin pago de contado — prepárate para el verano',
+        cac: 'CAC bajísimo en ese segmento. Nueva implementación en Torreón (semana 3 Mar 2026).',
+        segmento: 'Hombres 35-44, negocios alimentos y bebidas',
+        insight: 'Alta intención de compra. Temporada alta: verano. Ciclo vicioso en congeladores: no hay anuncios porque no hay testimonios, no hay testimonios porque no hay leads — hay que romperlo.',
+        fecha: 'Ago 2024 — activo, escalando a Torreón Mar 2026'
+      },
+      {
+        id: 4,
+        angulo: 'OA5 — Secuencia enfriador + vitrina + equipos (histórico)',
+        formato: 'Secuencia de imágenes',
+        hook: 'Primera imagen: enfriador + vitrina juntos. Resto: variedad de equipos.',
+        cac: '$37–51 MXN por lead en campaña CP',
+        segmento: 'Segmentación abierta + intereses',
+        insight: 'Ad histórico ganador en campaña CP. Generaba mayoría de resultados. La apertura con dos equipos amplía el público sin perder relevancia.',
+        fecha: 'Nov 2024'
+      }
+    ],
+    decisiones: [
+      {
+        id: 1,
+        texto: 'Migración a WhatsApp — salir de Messenger',
+        contexto: 'WhatsApp mostró mejor tasa de cierre que Messenger en todas las zonas.',
+        responsable: 'Kike + Anwar',
+        impacto: 'Mejora en tasa de cierre. Leads más calificados y con mayor intención.',
+        fecha: 'Jun 2024'
+      },
+      {
+        id: 2,
+        texto: 'Campañas individuales por tipo de equipo',
+        contexto: 'Campañas generales creaban canibalización. Separar por equipo permite controlar ticket y evitar competir contra nosotros mismos en la puja.',
+        responsable: 'Kike + Anwar',
+        impacto: 'Reducción de costos, mayor control de segmento y ticket. Empezó en Abr 2024.',
+        fecha: 'Abr 2024'
+      },
+      {
+        id: 3,
+        texto: 'Expansión: Guadalajara (Jul 25) + Guanajuato (Oct 25)',
+        contexto: 'GDL arrancó con 9 cierres a CAC $1,359 = mejor arranque histórico. GTO arrancó con 4 cierres a $2,384 CAC.',
+        responsable: 'Kike + Anwar',
+        impacto: 'GDL y GTO consolidados como ciudades activas con buen desempeño inicial.',
+        fecha: 'Jul 2025'
+      },
+      {
+        id: 4,
+        texto: 'Implementación Bixis (CRM)',
+        contexto: 'Implementado Nov 2025. Curva de aprendizaje ~3 meses. Alan confirma en Feb 2026 que ya está afinado y lo recomienda para este tipo de negocio.',
+        responsable: 'Equipo EnPagos + OptimizAds',
+        impacto: 'CRM estabilizado. Proceso: nuevos leads tienen prioridad, +3 días sin contacto pasan a seguimiento automático.',
+        fecha: 'Nov 2025 — estabilizado Feb 2026'
+      },
+      {
+        id: 5,
+        texto: 'Reestructura equipo de ventas EnPagos',
+        contexto: 'Se unificó en un solo equipo. Luis al frente (ventas + verificación), Alan en estrategia/números, Mauricio en cierres, Brian en contenido. Antes eran dos equipos separados.',
+        responsable: 'Pepe + Luis',
+        impacto: 'Mayor coherencia en proceso de ventas. Retroalimentación bidireccional con OptimizAds establecida.',
+        fecha: 'Ene 2026'
+      },
+      {
+        id: 6,
+        texto: 'Pivot 2026: calidad sobre cantidad en leads',
+        contexto: 'Q4 2025 = peor trimestre en 2 años. CAC nov $12,552 / dic $15,165. Tasa prospecto→preaut colapsó a 2.15%. Análisis: el problema NO es el costo/lead ni la tasa de cierre — es el filtro en preautorización.',
+        responsable: 'Anwar + Kike',
+        impacto: 'Estrategia 2026: filtros pre-vendedor (formularios, landing, bot Patagon simplificado). Objetivo: 6.65% tasa prospecto→preaut.',
+        fecha: 'Ene 2026'
+      },
+      {
+        id: 7,
+        texto: 'Expansión agresiva de ciudades Mar–Abr 2026',
+        contexto: 'Alan confirmó: AGS, SLP, San Miguel Allende arrancan Mar 2026 con estructura actual. Tampico, Chihuahua, Hermosillo en Abr (requieren distribuidores locales). Presupuesto objetivo: $130K/mes en temporada alta.',
+        responsable: 'Kike + Anwar',
+        impacto: 'Duplicar zonas de operación. Meta anual $34-35M MXN en colocación.',
+        fecha: 'Mar 2026'
+      }
+    ]
+  };
+
+  if (existeIdx >= 0) {
+    clients[existeIdx] = enpagos;
+    showToast('EnPagos actualizado al Mar 2026 ✓', '🔄');
+  } else {
+    clients.unshift(enpagos);
+    showToast('EnPagos cargado ✓', '🚀');
+  }
+
+  saveClients();
+  renderClientGrid();
+  openClient('enpagos-real');
+}
+
+init();
+</script>
+</body>
+</html>
