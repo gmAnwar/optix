@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Optix</title>
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500&family=Montserrat:wght@400;700;900&display=swap" rel="stylesheet">
 <style>
   :root {
     --bg: #0a0a0b;
@@ -90,10 +90,10 @@
   }
 
   .logo-text {
-    font-family: 'Syne', sans-serif;
-    font-size: 28px;
-    font-weight: 800;
-    letter-spacing: -0.5px;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 26px;
+    font-weight: 900;
+    letter-spacing: -1px;
   }
 
   .logo-text span { color: var(--accent); }
@@ -365,9 +365,10 @@
   }
 
   .sidebar-logo-text {
-    font-family: 'Syne', sans-serif;
-    font-weight: 800;
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 900;
     font-size: 16px;
+    letter-spacing: -0.5px;
   }
 
   .sidebar-logo-text span { color: var(--accent); }
@@ -1176,7 +1177,7 @@
   }
   .dir-card:hover { border-color: var(--border2); background: var(--surface2); transform: translateY(-2px); }
   .dir-card-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
-  .dir-card-name { font-family:'Syne',sans-serif; font-weight:800; font-size:15px; }
+  .dir-card-name { font-family:'DM Sans',sans-serif; font-weight:700; font-size:15px; letter-spacing:-0.1px; }
   .dir-card-industry { font-size:11px; color:var(--text3); font-family:'DM Mono',monospace; margin-top:2px; }
   .dir-semaforo-big { font-size:22px; }
   .dir-kpis { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
@@ -1258,14 +1259,14 @@
 
       <!-- SENIOR -->
       <div onclick="enterAs('senior')" style="background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:28px 20px; cursor:pointer; transition:all 0.25s; text-align:center;" onmouseover="this.style.borderColor='#7c3aed';this.style.background='var(--surface2)';this.style.transform='translateY(-4px)'" onmouseout="this.style.borderColor='var(--border)';this.style.background='var(--surface)';this.style.transform='translateY(0)'">
-        <div style="font-size:36px; margin-bottom:16px;">🔵</div>
+        <div style="font-size:36px; margin-bottom:16px; color:#a78bfa;">★</div>
         <div style="font-family:'DM Sans',sans-serif; font-weight:700; font-size:17px; margin-bottom:8px; color:#a78bfa; letter-spacing:0;">Senior</div>
         <div style="font-size:12px; color:var(--text3); line-height:1.5;">Cuentas estratégicas · KPIs · objetivos semanales · brief generator</div>
       </div>
 
       <!-- JUNIOR -->
       <div onclick="enterAs('junior')" style="background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:28px 20px; cursor:pointer; transition:all 0.25s; text-align:center;" onmouseover="this.style.borderColor='#10b981';this.style.background='var(--surface2)';this.style.transform='translateY(-4px)'" onmouseout="this.style.borderColor='var(--border)';this.style.background='var(--surface)';this.style.transform='translateY(0)'">
-        <div style="font-size:36px; margin-bottom:16px;">🟢</div>
+        <div style="font-size:36px; margin-bottom:16px; color:#10b981;">▲</div>
         <div style="font-family:'DM Sans',sans-serif; font-weight:700; font-size:17px; margin-bottom:8px; color:var(--green); letter-spacing:0;">Junior</div>
         <div style="font-size:12px; color:var(--text3); line-height:1.5;">Tareas del día · checklist semanal · campañas activas</div>
       </div>
@@ -1280,27 +1281,23 @@
 <div id="screen-direccion" class="screen" style="flex-direction:column; background:var(--bg); min-height:100vh;">
   <!-- Header -->
   <div style="display:flex; align-items:center; justify-content:space-between; padding:20px 32px; border-bottom:1px solid var(--border); background:var(--surface); flex-shrink:0;">
-    <div class="logo-mark" style="margin:0;">
+    <div class="logo-mark" style="margin:0;cursor:pointer;" onclick="showScreen('rol')" title="Ir al inicio">
       <div class="logo-icon" style="width:32px;height:32px;font-size:13px;background:var(--accent);color:#000;">X</div>
       <div class="logo-text" style="font-size:18px;">Opti<span>x</span></div>
     </div>
-    <div style="display:flex; align-items:center; gap:16px;">
-      <div style="font-family:'DM Mono',monospace; font-size:11px; color:var(--text3);" id="dir-fecha"></div>
-      <div style="background:rgba(0,229,160,0.1); border:1px solid rgba(0,229,160,0.3); color:var(--accent); font-size:11px; font-family:'DM Mono',monospace; padding:4px 12px; border-radius:20px;">⚡ Dirección</div>
-      <div style="display:flex;gap:4px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:3px;">
-        <button id="jr-btn-dia" onclick="setJrView('dia')" style="background:var(--accent);color:#000;font-size:11px;padding:4px 12px;border-radius:6px;border:none;cursor:pointer;font-family:'DM Mono',monospace;font-weight:600;transition:all 0.2s;">Día</button>
-        <button id="jr-btn-semana" onclick="setJrView('semana')" style="background:transparent;color:var(--text3);font-size:11px;padding:4px 12px;border-radius:6px;border:none;cursor:pointer;font-family:'DM Mono',monospace;transition:all 0.2s;">Semana</button>
-      </div>
-            <div style="display:flex;gap:2px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:3px;">
-        <button style="background:var(--accent);color:#000;font-size:11px;padding:4px 12px;border-radius:6px;border:none;cursor:default;font-family:'DM Mono',monospace;font-weight:600;">Dirección</button>
-        <button onclick="enterAs('senior')" style="background:transparent;color:var(--text3);font-size:11px;padding:4px 12px;border-radius:6px;border:none;cursor:pointer;font-family:'DM Mono',monospace;transition:all 0.2s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text3)'">Senior</button>
-        <button onclick="enterAs('junior')" style="background:transparent;color:var(--text3);font-size:11px;padding:4px 12px;border-radius:6px;border:none;cursor:pointer;font-family:'DM Mono',monospace;transition:all 0.2s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text3)'">Junior</button>
+    <div style="display:flex; align-items:center; gap:12px;">
+      <div id="dir-fecha" style="font-family:'DM Mono',monospace; font-size:10px; color:var(--text3);"></div>
+      <div style="background:rgba(0,229,160,0.1); border:1px solid rgba(0,229,160,0.3); color:var(--accent); font-size:11px; font-family:'DM Mono',monospace; padding:4px 10px; border-radius:20px; white-space:nowrap;">⚡ Dirección</div>
+      <div style="display:flex;gap:2px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:3px;">
+        <button style="background:var(--accent);color:#000;font-size:11px;padding:4px 12px;border-radius:6px;border:none;cursor:default;font-family:'DM Mono',monospace;font-weight:600;">⚡ Dirección</button>
+        <button onclick="enterAs('senior')" style="background:transparent;color:var(--text3);font-size:11px;padding:4px 12px;border-radius:6px;border:none;cursor:pointer;font-family:'DM Mono',monospace;transition:all 0.2s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text3)'">★ Senior</button>
+        <button onclick="enterAs('junior')" style="background:transparent;color:var(--text3);font-size:11px;padding:4px 12px;border-radius:6px;border:none;cursor:pointer;font-family:'DM Mono',monospace;transition:all 0.2s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text3)'">▲ Junior</button>
       </div>
     </div>
   </div>
   <!-- Grid de clientes -->
   <div style="flex:1; overflow-y:auto; padding:32px;">
-    <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:22px; margin-bottom:6px;">Panel de Control</div>
+    <div style="font-family:'DM Sans',sans-serif; font-weight:700; font-size:22px; margin-bottom:6px; letter-spacing:-0.3px;">Panel de Control</div>
     <div style="font-size:13px; color:var(--text3); margin-bottom:28px; font-family:'DM Mono',monospace;">Todos los clientes · semáforo en tiempo real</div>
     <div id="dir-grid" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(280px,1fr)); gap:16px;"></div>
     <div style="margin-top:24px; display:flex; gap:12px; justify-content:flex-end;">
@@ -1323,14 +1320,10 @@
       </div>
       <div style="display:flex; align-items:center; gap:10px;">
         <div id="home-rol-badge" style="font-size:11px; font-family:'DM Mono',monospace; padding:4px 12px; border-radius:20px; border:1px solid var(--border); color:var(--text2);">—</div>
-        <div style="display:flex;gap:4px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:3px;">
-        <button id="jr-btn-dia" onclick="setJrView('dia')" style="background:var(--accent);color:#000;font-size:11px;padding:4px 12px;border-radius:6px;border:none;cursor:pointer;font-family:'DM Mono',monospace;font-weight:600;transition:all 0.2s;">Día</button>
-        <button id="jr-btn-semana" onclick="setJrView('semana')" style="background:transparent;color:var(--text3);font-size:11px;padding:4px 12px;border-radius:6px;border:none;cursor:pointer;font-family:'DM Mono',monospace;transition:all 0.2s;">Semana</button>
-      </div>
-            <div style="display:flex;gap:2px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:3px;">
-        <button onclick="enterAs('direccion')" style="background:transparent;color:var(--text3);font-size:11px;padding:4px 12px;border-radius:6px;border:none;cursor:pointer;font-family:'DM Mono',monospace;transition:all 0.2s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text3)'">Dirección</button>
-        <button style="background:var(--accent);color:#000;font-size:11px;padding:4px 12px;border-radius:6px;border:none;cursor:default;font-family:'DM Mono',monospace;font-weight:600;">Senior</button>
-        <button onclick="enterAs('junior')" style="background:transparent;color:var(--text3);font-size:11px;padding:4px 12px;border-radius:6px;border:none;cursor:pointer;font-family:'DM Mono',monospace;transition:all 0.2s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text3)'">Junior</button>
+        <div style="display:flex;gap:2px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:3px;">
+        <button onclick="enterAs('direccion')" style="background:transparent;color:var(--text3);font-size:11px;padding:4px 12px;border-radius:6px;border:none;cursor:pointer;font-family:'DM Mono',monospace;transition:all 0.2s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text3)'">⚡ Dirección</button>
+        <button style="background:var(--accent);color:#000;font-size:11px;padding:4px 12px;border-radius:6px;border:none;cursor:default;font-family:'DM Mono',monospace;font-weight:600;">★ Senior</button>
+        <button onclick="enterAs('junior')" style="background:transparent;color:var(--text3);font-size:11px;padding:4px 12px;border-radius:6px;border:none;cursor:pointer;font-family:'DM Mono',monospace;transition:all 0.2s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text3)'">▲ Junior</button>
       </div>
       </div>
     </div>
@@ -1409,17 +1402,18 @@
 <div id="screen-junior" class="screen" style="flex-direction:column; background:var(--bg); min-height:100vh;">
   <!-- Header -->
   <div style="display:flex; align-items:center; justify-content:space-between; padding:16px 28px; border-bottom:1px solid var(--border); background:var(--surface); flex-shrink:0;">
-    <div class="logo-mark" style="margin:0;">
+    <div class="logo-mark" style="margin:0;cursor:pointer;" onclick="showScreen('rol')" title="Ir al inicio">
       <div class="logo-icon" style="width:32px;height:32px;font-size:13px;background:var(--accent);color:#000;">X</div>
       <div class="logo-text" style="font-size:18px;">Opti<span>x</span></div>
     </div>
     <div style="display:flex; align-items:center; gap:12px;">
-      <div style="font-family:'DM Mono',monospace; font-size:11px; color:var(--text3);" id="jr-fecha"></div>
+
+      <div style="background:rgba(16,185,129,0.1); border:1px solid rgba(16,185,129,0.3); color:#10b981; font-size:11px; font-family:'DM Mono',monospace; padding:4px 10px; border-radius:20px; white-space:nowrap;">▲ Junior</div>
       <!-- Nav de roles -->
       <div style="display:flex;gap:2px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:3px;">
-        <button onclick="enterAs('direccion')" style="background:transparent;color:var(--text3);font-size:11px;padding:4px 12px;border-radius:6px;border:none;cursor:pointer;font-family:'DM Mono',monospace;transition:all 0.2s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text3)'">Dirección</button>
-        <button onclick="enterAs('senior')" style="background:transparent;color:var(--text3);font-size:11px;padding:4px 12px;border-radius:6px;border:none;cursor:pointer;font-family:'DM Mono',monospace;transition:all 0.2s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text3)'">Senior</button>
-        <button style="background:var(--accent);color:#000;font-size:11px;padding:4px 12px;border-radius:6px;border:none;cursor:default;font-family:'DM Mono',monospace;font-weight:600;">Junior</button>
+        <button onclick="enterAs('direccion')" style="background:transparent;color:var(--text3);font-size:11px;padding:4px 12px;border-radius:6px;border:none;cursor:pointer;font-family:'DM Mono',monospace;transition:all 0.2s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text3)'">⚡ Dirección</button>
+        <button onclick="enterAs('senior')" style="background:transparent;color:var(--text3);font-size:11px;padding:4px 12px;border-radius:6px;border:none;cursor:pointer;font-family:'DM Mono',monospace;transition:all 0.2s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text3)'">★ Senior</button>
+        <button style="background:var(--accent);color:#000;font-size:11px;padding:4px 12px;border-radius:6px;border:none;cursor:default;font-family:'DM Mono',monospace;font-weight:600;">▲ Junior</button>
       </div>
       <!-- Toggle Día/Semana -->
       <div style="display:flex;gap:2px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:3px;">
@@ -1439,15 +1433,24 @@
 
     <!-- COLUMNA IZQUIERDA: Calendario del día -->
     <div id="jr-cal-col" style="width:320px; flex-shrink:0; border-right:1px solid var(--border); overflow-y:auto; padding:24px 20px; background:var(--surface);">
-      <div style="margin-bottom:20px; display:flex; align-items:flex-start; justify-content:space-between;">
-        <div>
-          <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:18px; margin-bottom:4px;">Mi día</div>
-          <div id="jr-semana-label" style="font-size:11px; color:var(--text3); font-family:'DM Mono',monospace;"></div>
+      <!-- Header Mi día con navegación -->
+      <div style="margin-bottom:16px;">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">
+          <div style="font-family:'DM Sans',sans-serif; font-weight:700; font-size:18px; letter-spacing:-0.2px;">Mi día</div>
+          <button id="btn-gcal-sync" onclick="gcalSync()" style="background:transparent; border:1px solid var(--border); color:var(--text3); font-size:10px; padding:4px 9px; border-radius:7px; cursor:pointer; font-family:'DM Mono',monospace; display:flex; align-items:center; gap:4px; transition:all 0.2s;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text3)'">
+            <span id="gcal-sync-icon">↻</span> <span id="gcal-sync-label">Sincronizar</span>
+          </button>
         </div>
-        <button id="btn-gcal-sync" onclick="gcalSync()" style="background:transparent; border:1px solid var(--border); color:var(--text3); font-size:10px; padding:5px 10px; border-radius:7px; cursor:pointer; font-family:'DM Mono',monospace; display:flex; align-items:center; gap:5px; transition:all 0.2s; flex-shrink:0; margin-top:2px;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text3)'">
-          <span id="gcal-sync-icon">↻</span> <span id="gcal-sync-label">Sincronizar</span>
-        </button>
+        <!-- Navegación de fecha -->
+        <div style="display:flex; align-items:center; gap:6px; margin-bottom:8px;">
+          <button onclick="jrNavDay(-1)" style="background:transparent;border:1px solid var(--border);color:var(--text2);width:26px;height:26px;border-radius:6px;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center;transition:all 0.15s;" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">‹</button>
+          <div id="jr-fecha-nav" onclick="jrGoToday()" style="flex:1;text-align:center;font-family:'DM Mono',monospace;font-size:11px;color:var(--text2);cursor:pointer;padding:3px 6px;border-radius:6px;transition:all 0.15s;" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background='transparent'"></div>
+          <button onclick="jrNavDay(1)" style="background:transparent;border:1px solid var(--border);color:var(--text2);width:26px;height:26px;border-radius:6px;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center;transition:all 0.15s;" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">›</button>
+        </div>
+        <div id="jr-semana-label" style="font-size:10px; color:var(--text3); font-family:'DM Mono',monospace;"></div>
       </div>
+      <!-- Mini calendario mensual -->
+      <div id="jr-mini-cal" style="margin-bottom:16px;border:1px solid var(--border);border-radius:10px;padding:10px;background:var(--surface2);"></div>
       <!-- Estado GCal -->
       <div id="gcal-status" style="display:none; font-size:10px; font-family:'DM Mono',monospace; margin-bottom:12px; padding:6px 10px; border-radius:6px;"></div>
 
@@ -1471,7 +1474,7 @@
       <!-- Estado vacío: nadie seleccionado -->
       <div id="jr-empty-state" style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; color:var(--text3); text-align:center; padding:40px;">
         <div style="font-size:48px; margin-bottom:16px;">👈</div>
-        <div style="font-family:'Syne',sans-serif; font-weight:700; font-size:16px; margin-bottom:8px;">Selecciona un cliente</div>
+        <div style="font-family:'DM Sans',sans-serif; font-weight:600; font-size:16px; letter-spacing:-0.1px; margin-bottom:8px;">Selecciona un cliente</div>
         <div style="font-size:13px; line-height:1.6;">Haz clic en un bloque del calendario<br>para ver las tareas de ese cliente</div>
       </div>
 
@@ -1481,7 +1484,7 @@
         <div id="jr-client-header" style="display:flex; align-items:center; gap:16px; margin-bottom:24px; padding-bottom:20px; border-bottom:1px solid var(--border);">
           <div id="jr-client-dot" style="width:14px; height:14px; border-radius:50%; background:var(--accent); flex-shrink:0;"></div>
           <div style="flex:1;">
-            <div id="jr-client-title" style="font-family:'Syne',sans-serif; font-weight:800; font-size:20px;"></div>
+            <div id="jr-client-title" style="font-family:'DM Sans',sans-serif; font-weight:700; font-size:20px; letter-spacing:-0.3px;"></div>
             <div id="jr-client-meta" style="font-size:12px; color:var(--text3); font-family:'DM Mono',monospace; margin-top:2px;"></div>
           </div>
           <div id="jr-horas-badge" style="background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:6px 12px; font-size:11px; font-family:'DM Mono',monospace; color:var(--text2);"></div>
@@ -1489,14 +1492,14 @@
 
         <!-- Tareas urgentes -->
         <div id="jr-urgentes-section" style="display:none; margin-bottom:20px;">
-          <div style="font-family:'Syne',sans-serif; font-weight:700; font-size:12px; color:var(--red); margin-bottom:10px; text-transform:uppercase; letter-spacing:0.5px;">🚨 Urgente</div>
+          <div style="font-family:'DM Mono',monospace; font-weight:500; font-size:11px; color:var(--red); margin-bottom:10px; text-transform:uppercase; letter-spacing:1px;">🚨 Urgente</div>
           <div id="jr-urgentes-list"></div>
         </div>
 
         <!-- Tareas de esta semana (variables) -->
         <div style="margin-bottom:20px;">
           <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
-            <div style="font-family:'Syne',sans-serif; font-weight:700; font-size:12px; text-transform:uppercase; letter-spacing:0.5px;">Esta semana</div>
+            <div style="font-family:'DM Mono',monospace; font-weight:500; font-size:11px; text-transform:uppercase; letter-spacing:1px;">Esta semana</div>
             <span style="font-size:10px; font-family:'DM Mono',monospace; background:rgba(245,158,11,0.15); color:#fcd34d; padding:2px 8px; border-radius:4px;">Variable</span>
           </div>
           <div id="jr-variable-list"></div>
@@ -1506,7 +1509,7 @@
         <!-- Tareas recurrentes -->
         <div style="margin-bottom:20px;">
           <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px;">
-            <div style="font-family:'Syne',sans-serif; font-weight:700; font-size:12px; text-transform:uppercase; letter-spacing:0.5px;">Recurrentes</div>
+            <div style="font-family:'DM Mono',monospace; font-weight:500; font-size:11px; text-transform:uppercase; letter-spacing:1px;">Recurrentes</div>
             <span style="font-size:10px; font-family:'DM Mono',monospace; background:rgba(59,130,246,0.15); color:#93c5fd; padding:2px 8px; border-radius:4px;">Siempre</span>
           </div>
           <div id="jr-recurrente-list"></div>
@@ -1527,25 +1530,22 @@
 <!-- ══════════════════════════════════════════ -->
 <div id="screen-senior-home" class="screen" style="flex-direction:column; background:var(--bg); min-height:100vh;">
   <div style="display:flex; align-items:center; justify-content:space-between; padding:20px 32px; border-bottom:1px solid var(--border); background:var(--surface); flex-shrink:0;">
-    <div class="logo-mark" style="margin:0;">
+    <div class="logo-mark" style="margin:0;cursor:pointer;" onclick="showScreen('rol')" title="Ir al inicio">
       <div class="logo-icon" style="width:32px;height:32px;font-size:13px;background:var(--accent);color:#000;">X</div>
       <div class="logo-text" style="font-size:18px;">Opti<span>x</span></div>
     </div>
-    <div style="display:flex; align-items:center; gap:16px;">
-      <div style="background:rgba(124,58,237,0.1); border:1px solid rgba(124,58,237,0.3); color:#a78bfa; font-size:11px; font-family:'DM Mono',monospace; padding:4px 12px; border-radius:20px;">🔵 Senior</div>
-      <div style="display:flex;gap:4px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:3px;">
-        <button id="jr-btn-dia" onclick="setJrView('dia')" style="background:var(--accent);color:#000;font-size:11px;padding:4px 12px;border-radius:6px;border:none;cursor:pointer;font-family:'DM Mono',monospace;font-weight:600;transition:all 0.2s;">Día</button>
-        <button id="jr-btn-semana" onclick="setJrView('semana')" style="background:transparent;color:var(--text3);font-size:11px;padding:4px 12px;border-radius:6px;border:none;cursor:pointer;font-family:'DM Mono',monospace;transition:all 0.2s;">Semana</button>
-      </div>
-            <div style="display:flex;gap:2px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:3px;">
-        <button onclick="enterAs('direccion')" style="background:transparent;color:var(--text3);font-size:11px;padding:4px 12px;border-radius:6px;border:none;cursor:pointer;font-family:'DM Mono',monospace;transition:all 0.2s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text3)'">Dirección</button>
-        <button style="background:var(--accent);color:#000;font-size:11px;padding:4px 12px;border-radius:6px;border:none;cursor:default;font-family:'DM Mono',monospace;font-weight:600;">Senior</button>
-        <button onclick="enterAs('junior')" style="background:transparent;color:var(--text3);font-size:11px;padding:4px 12px;border-radius:6px;border:none;cursor:pointer;font-family:'DM Mono',monospace;transition:all 0.2s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text3)'">Junior</button>
+    <div style="display:flex; align-items:center; gap:12px;">
+      <div id="sen-fecha" style="font-family:'DM Mono',monospace; font-size:10px; color:var(--text3);"></div>
+      <div style="background:rgba(124,58,237,0.1); border:1px solid rgba(124,58,237,0.3); color:#a78bfa; font-size:11px; font-family:'DM Mono',monospace; padding:4px 10px; border-radius:20px; white-space:nowrap;">★ Senior</div>
+      <div style="display:flex;gap:2px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:3px;">
+        <button onclick="enterAs('direccion')" style="background:transparent;color:var(--text3);font-size:11px;padding:4px 12px;border-radius:6px;border:none;cursor:pointer;font-family:'DM Mono',monospace;transition:all 0.2s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text3)'">⚡ Dirección</button>
+        <button style="background:var(--accent);color:#000;font-size:11px;padding:4px 12px;border-radius:6px;border:none;cursor:default;font-family:'DM Mono',monospace;font-weight:600;">★ Senior</button>
+        <button onclick="enterAs('junior')" style="background:transparent;color:var(--text3);font-size:11px;padding:4px 12px;border-radius:6px;border:none;cursor:pointer;font-family:'DM Mono',monospace;transition:all 0.2s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text3)'">▲ Junior</button>
       </div>
     </div>
   </div>
   <div style="flex:1; overflow-y:auto; padding:32px; max-width:860px; margin:0 auto; width:100%;">
-    <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:22px; margin-bottom:4px;">Mis cuentas</div>
+    <div style="font-family:'DM Sans',sans-serif; font-weight:700; font-size:22px; margin-bottom:4px; letter-spacing:-0.3px;">Mis cuentas</div>
     <div style="font-size:13px; color:var(--text3); margin-bottom:28px; font-family:'DM Mono',monospace;">Selecciona un cliente para entrar al expediente completo</div>
     <div id="senior-clients-list"></div>
     <div style="margin-top:16px;">
@@ -1712,13 +1712,13 @@
         <!-- HISTORIAL DE SEMÁFORO -->
         <div id="semaforo-historial-section" style="margin-bottom:32px; display:none;">
           <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
-            <div style="font-family:'Syne',sans-serif; font-weight:700; font-size:16px;">📅 Historial de semáforo</div>
+            <div style="font-family:'DM Sans',sans-serif; font-weight:600; font-size:16px; letter-spacing:-0.1px;">📅 Historial de semáforo</div>
             <button class="btn btn-ghost" style="font-size:11px; padding:5px 12px;" onclick="toggleHistorial()">Ocultar</button>
           </div>
           <div id="semaforo-historial-table" style="overflow-x:auto;">
           </div>
         </div>
-        <div style="font-family:'Syne',sans-serif; font-weight:700; font-size:16px; margin-bottom:16px;">Expediente del cliente</div>
+        <div style="font-family:'DM Sans',sans-serif; font-weight:600; font-size:16px; letter-spacing:-0.1px; margin-bottom:16px;">Expediente del cliente</div>
         <div class="sections-grid">
           <div class="section-card" onclick="navigate('adn')">
             <div class="section-card-header">
@@ -2547,7 +2547,8 @@ function enterAs(rol) {
 function renderDireccion() {
   const hoy = new Date();
   const label = hoy.toLocaleDateString('es-MX', { weekday:'long', day:'numeric', month:'long' });
-  document.getElementById('dir-fecha').textContent = label.charAt(0).toUpperCase() + label.slice(1);
+  const elDirFecha = document.getElementById('dir-fecha');
+  if (elDirFecha) elDirFecha.textContent = label.charAt(0).toUpperCase() + label.slice(1);
 
   const grid = document.getElementById('dir-grid');
   if (!clients.length) {
@@ -2643,7 +2644,7 @@ function renderSeniorHome() {
     <div class="senior-client-row" onclick="openClientAsSenior('${c.id}')">
       <div style="font-size:22px; min-width:32px; text-align:center;">${emoji}</div>
       <div style="flex:0 0 160px;">
-        <div style="font-family:'Syne',sans-serif; font-weight:700; font-size:14px;">${c.nombre}</div>
+        <div style="font-family:'DM Sans',sans-serif; font-weight:600; font-size:14px; letter-spacing:-0.1px;">${c.nombre}</div>
         <div style="font-size:11px; color:var(--text3); font-family:'DM Mono',monospace;">${c.industria || '—'}</div>
       </div>
       <div class="senior-kpi-row">
@@ -2783,17 +2784,28 @@ const TAREAS_RECURRENTES = [
 ];
 
 function renderJuniorHome() {
-  const hoy = new Date();
+  const hoy = _jrActiveDate || new Date();
   const diasNombre = ['domingo','lunes','martes','miercoles','jueves','viernes','sabado'];
   const diaKey = diasNombre[hoy.getDay()];
   const label = hoy.toLocaleDateString('es-MX', { weekday:'long', day:'numeric', month:'long' });
   const labelCap = label.charAt(0).toUpperCase() + label.slice(1);
 
-  // Header fechas
+  // Header fechas con número de día
   const elFecha = document.getElementById('jr-fecha');
   if (elFecha) elFecha.textContent = labelCap;
+  const elFechNav = document.getElementById('jr-fecha-nav');
+  if (elFechNav) {
+    const isToday = new Date().toDateString() === hoy.toDateString();
+    const diaNum = hoy.getDate();
+    const mesNom = hoy.toLocaleDateString('es-MX', { month:'short' });
+    elFechNav.textContent = (isToday ? '● Hoy · ' : '') + diaNum + ' ' + mesNom.charAt(0).toUpperCase() + mesNom.slice(1);
+    elFechNav.style.color = isToday ? 'var(--accent)' : 'var(--text2)';
+    elFechNav.title = 'Ir a hoy';
+  }
   const elSemana = document.getElementById('jr-semana-label');
   if (elSemana) elSemana.textContent = getWeekLabel() + ' · ' + labelCap;
+  
+  renderMiniCal();
 
   // Colores por cliente
   const CLIENT_COLORS = {
@@ -3631,7 +3643,7 @@ function renderDecisiones() {
       <div class="timeline-dot">📝</div>
       <div class="timeline-content">
         <div class="timeline-date">${d.fecha} · ${d.responsable || '—'}</div>
-        <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:14px;margin-bottom:6px;">${d.texto}</div>
+        <div style="font-family:'DM Sans',sans-serif;font-weight:600;font-size:14px;letter-spacing:-0.1px;margin-bottom:6px;">${d.texto}</div>
         <div class="timeline-text">${d.contexto || ''}</div>
         ${d.impacto ? `<div style="margin-top:8px;font-size:12px;color:var(--accent);font-family:'DM Mono',monospace;">→ ${d.impacto}</div>` : ''}
       </div>
@@ -4217,25 +4229,26 @@ let _jrCurrentView = 'dia';
 
 function setJrView(view) {
   _jrCurrentView = view;
-  const btnDia = document.getElementById('jr-btn-dia');
-  const btnSemana = document.getElementById('jr-btn-semana');
   const daily = document.getElementById('jr-daily-view');
   const weekly = document.getElementById('jr-weekly-view');
 
+  document.querySelectorAll('[id="jr-btn-dia"]').forEach(btn => {
+    btn.style.background = view === 'dia' ? 'var(--accent)' : 'transparent';
+    btn.style.color = view === 'dia' ? '#000' : 'var(--text3)';
+    btn.style.fontWeight = view === 'dia' ? '600' : '400';
+  });
+  document.querySelectorAll('[id="jr-btn-semana"]').forEach(btn => {
+    btn.style.background = view === 'semana' ? 'var(--accent)' : 'transparent';
+    btn.style.color = view === 'semana' ? '#000' : 'var(--text3)';
+    btn.style.fontWeight = view === 'semana' ? '600' : '400';
+  });
+
   if (view === 'dia') {
-    btnDia.style.background = 'var(--accent)';
-    btnDia.style.color = '#000';
-    btnSemana.style.background = 'transparent';
-    btnSemana.style.color = 'var(--text3)';
-    daily.style.display = 'flex';
-    weekly.style.display = 'none';
+    if (daily) daily.style.display = 'flex';
+    if (weekly) weekly.style.display = 'none';
   } else {
-    btnSemana.style.background = 'var(--accent)';
-    btnSemana.style.color = '#000';
-    btnDia.style.background = 'transparent';
-    btnDia.style.color = 'var(--text3)';
-    daily.style.display = 'none';
-    weekly.style.display = 'block';
+    if (daily) daily.style.display = 'none';
+    if (weekly) weekly.style.display = 'block';
     renderJrWeekly();
   }
 }
@@ -4278,15 +4291,27 @@ function renderJrWeekly() {
   }
   horasCol += '</div>';
 
+  // Semana activa: calcular lunes
+  const activeDate = _jrActiveDate || new Date();
+  const _dow = activeDate.getDay();
+  const _diffMon = _dow === 0 ? -6 : 1 - _dow;
+  const lunes = new Date(activeDate);
+  lunes.setDate(activeDate.getDate() + _diffMon);
+
   // Columnas por día
   let diasCols = dias.map((dia, di) => {
     const eventos = MARIO_SCHEDULE[dia] || [];
+    const fechaCol = new Date(lunes); fechaCol.setDate(lunes.getDate() + di);
+    const isToday = new Date().toDateString() === fechaCol.toDateString();
+    const diaNum = fechaCol.getDate();
     const label = diasLabel[di];
+    const fcY = fechaCol.getFullYear(), fcM = fechaCol.getMonth(), fcD = fechaCol.getDate();
 
-    // Header del día
+    // Header del día con número y click para ir a ese día
     let col = `<div style="flex:1;min-width:120px;border-left:1px solid var(--border2);">
-      <div style="height:36px;display:flex;align-items:center;justify-content:center;border-bottom:1px solid var(--border2);background:var(--surface2);">
-        <span style="font-size:11px;font-family:'DM Mono',monospace;color:var(--text2);font-weight:600;">${label}</span>
+      <div style="height:46px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;border-bottom:1px solid var(--border2);background:${isToday ? 'rgba(0,229,160,0.06)' : 'var(--surface2)'};cursor:pointer;" onclick="jrNavToDate(new Date(${fcY},${fcM},${fcD}));setJrView('dia')">
+        <span style="font-size:9px;font-family:'DM Mono',monospace;color:var(--text3);">${label}</span>
+        <span style="font-size:15px;font-weight:700;font-family:'DM Sans',sans-serif;color:${isToday ? 'var(--accent)' : 'var(--text2)'};">${diaNum}</span>
       </div>
       <div style="position:relative;height:${(HORA_END - HORA_START) * HORA_HEIGHT}px;">`;
 
@@ -4317,10 +4342,23 @@ function renderJrWeekly() {
     return col;
   }).join('');
 
+  // Calcular rango de semana para label
+  const finSem = new Date(lunes); finSem.setDate(lunes.getDate() + 4);
+  const f1 = lunes.getDate() + ' ' + lunes.toLocaleDateString('es-MX',{month:'short'});
+  const f2 = finSem.getDate() + ' ' + finSem.toLocaleDateString('es-MX',{month:'short'});
+  const isThisWeek = (() => { const n=new Date(); const nd=n.getDay(); const nl=new Date(n); nl.setDate(n.getDate()+(nd===0?-6:1-nd)); return nl.toDateString()===lunes.toDateString(); })();
+
   grid.innerHTML = `
-    <div style="padding:20px 20px 0;">
-      <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:18px;margin-bottom:4px;">Mi semana</div>
-      <div id="jr-semana-label-w" style="font-size:11px;color:var(--text3);font-family:'DM Mono',monospace;margin-bottom:16px;">${getWeekLabel()}</div>
+    <div style="padding:16px 20px 0;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+        <div style="font-family:'DM Sans',sans-serif;font-weight:700;font-size:18px;letter-spacing:-0.2px;">Mi semana</div>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <button onclick="jrNavWeek(-1)" style="background:transparent;border:1px solid var(--border);color:var(--text2);width:26px;height:26px;border-radius:6px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;transition:all 0.15s;" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">‹</button>
+          <span style="font-size:11px;font-family:'DM Mono',monospace;color:${isThisWeek ? 'var(--accent)' : 'var(--text2)'};">${isThisWeek ? '● ' : ''}${f1} – ${f2}</span>
+          <button onclick="jrNavWeek(1)" style="background:transparent;border:1px solid var(--border);color:var(--text2);width:26px;height:26px;border-radius:6px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;transition:all 0.15s;" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">›</button>
+          ${!isThisWeek ? `<button onclick="jrGoToday();renderJrWeekly()" style="background:transparent;border:1px solid var(--border);color:var(--text3);font-size:9px;padding:3px 8px;border-radius:5px;cursor:pointer;font-family:'DM Mono',monospace;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text3)'">hoy</button>` : ''}
+        </div>
+      </div>
     </div>
     <div style="display:flex;padding:0 20px 40px;gap:0;overflow-x:auto;">
       ${horasCol}
@@ -4328,6 +4366,100 @@ function renderJrWeekly() {
     </div>`;
 }
 
+
+// ══════════════════════════════════════════
+// NAVEGACIÓN DE FECHAS (día y semana)
+// ══════════════════════════════════════════
+
+function jrNavDay(delta) {
+  if (!_jrActiveDate) _jrActiveDate = new Date();
+  _jrActiveDate = new Date(_jrActiveDate);
+  _jrActiveDate.setDate(_jrActiveDate.getDate() + delta);
+  renderJuniorHome();
+}
+
+function jrNavWeek(delta) {
+  if (!_jrActiveDate) _jrActiveDate = new Date();
+  _jrActiveDate = new Date(_jrActiveDate);
+  _jrActiveDate.setDate(_jrActiveDate.getDate() + delta * 7);
+  renderJrWeekly();
+}
+
+function jrGoToday() {
+  _jrActiveDate = new Date();
+  renderJuniorHome();
+}
+
+function jrNavToDate(fecha) {
+  _jrActiveDate = fecha;
+  renderJuniorHome();
+}
+
+function renderMiniCal() {
+  const el = document.getElementById('jr-mini-cal');
+  if (!el) return;
+
+  const active = _jrActiveDate || new Date();
+  const hoy = new Date();
+  const mes = active.getMonth();
+  const año = active.getFullYear();
+  
+  const primerDia = new Date(año, mes, 1);
+  const ultimoDia = new Date(año, mes + 1, 0);
+  const startDow = primerDia.getDay(); // 0=dom
+  // Ajustar para semana que empieza en lunes
+  const offset = startDow === 0 ? 6 : startDow - 1;
+  
+  const mesNom = primerDia.toLocaleDateString('es-MX', { month:'long', year:'numeric' });
+  const mesLabel = mesNom.charAt(0).toUpperCase() + mesNom.slice(1);
+  
+  let html = `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+    <button onclick="miniCalNav(-1)" style="background:transparent;border:none;color:var(--text3);cursor:pointer;font-size:12px;padding:2px 6px;border-radius:4px;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text3)'">‹</button>
+    <span style="font-size:10px;font-family:'DM Mono',monospace;color:var(--text2);">${mesLabel}</span>
+    <button onclick="miniCalNav(1)" style="background:transparent;border:none;color:var(--text3);cursor:pointer;font-size:12px;padding:2px 6px;border-radius:4px;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text3)'">›</button>
+  </div>`;
+  
+  // Headers días
+  const headers = ['L','M','M','J','V','S','D'];
+  html += `<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:1px;margin-bottom:4px;">`;
+  headers.forEach(h => {
+    html += `<div style="text-align:center;font-size:9px;font-family:'DM Mono',monospace;color:var(--text3);padding:2px 0;">${h}</div>`;
+  });
+  html += `</div><div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px;">`;
+  
+  // Celdas vacías al inicio
+  for (let i = 0; i < offset; i++) {
+    html += `<div></div>`;
+  }
+  
+  // Días del mes
+  for (let d = 1; d <= ultimoDia.getDate(); d++) {
+    const fecha = new Date(año, mes, d);
+    const isActive = fecha.toDateString() === active.toDateString();
+    const isHoy = fecha.toDateString() === hoy.toDateString();
+    const esFinde = fecha.getDay() === 0 || fecha.getDay() === 6;
+    
+    html += `<div onclick="jrNavToDate(new Date(${año},${mes},${d}))" 
+      style="text-align:center;font-size:10px;font-family:'DM Mono',monospace;padding:3px 1px;border-radius:4px;cursor:pointer;
+             background:${isActive ? 'var(--accent)' : isHoy ? 'rgba(0,229,160,0.12)' : 'transparent'};
+             color:${isActive ? '#000' : esFinde ? 'var(--text3)' : 'var(--text2)'};
+             font-weight:${isActive || isHoy ? '700' : '400'};
+             transition:all 0.1s;"
+      onmouseover="if(!${isActive})this.style.background='var(--surface2)'"
+      onmouseout="if(!${isActive})this.style.background='${isActive ? 'var(--accent)' : isHoy ? 'rgba(0,229,160,0.12)' : 'transparent'}'">${d}</div>`;
+  }
+  
+  html += `</div>`;
+  el.innerHTML = html;
+}
+
+function miniCalNav(delta) {
+  if (!_jrActiveDate) _jrActiveDate = new Date();
+  const d = new Date(_jrActiveDate);
+  d.setMonth(d.getMonth() + delta);
+  _jrActiveDate = d;
+  renderMiniCal();
+}
 // ══════════════════════════════════════════
 // GOOGLE CALENDAR API INTEGRATION
 // ══════════════════════════════════════════
@@ -4336,6 +4468,10 @@ const GCAL_SCOPES = 'https://www.googleapis.com/auth/calendar.readonly';
 const GCAL_OPERATION_NAME = 'Operación'; // Nombre del calendario a leer
 let gcalAccessToken = null;
 let gcalConnected = false;
+
+// Fecha activa de navegación (para día y semana)
+let _jrActiveDate = new Date();
+
 
 function gcalSync() {
   const btn = document.getElementById('btn-gcal-sync');
