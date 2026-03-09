@@ -1603,31 +1603,76 @@
 </div><!-- /screen-junior -->
 
 <!-- ══════════════════════════════════════════ -->
-<!-- SCREEN: SENIOR (lista de clientes) -->
+<!-- SCREEN: SENIOR — COMMAND CENTER -->
 <!-- ══════════════════════════════════════════ -->
 <div id="screen-senior-home" class="screen" style="flex-direction:column; background:var(--bg); min-height:100vh;">
-  <div style="display:flex; align-items:center; justify-content:space-between; padding:20px 32px; border-bottom:1px solid var(--border); background:var(--surface); flex-shrink:0;">
-    <div class="logo-mark" style="margin:0;cursor:pointer;" onclick="showScreen('rol')" title="Ir al inicio">
-      <div class="logo-icon" style="width:32px;height:32px;font-size:13px;background:var(--accent);color:#000;">X</div>
-      <div class="logo-text" style="font-size:18px;">Opti<span>x</span></div>
-    </div>
-    <div style="display:flex; align-items:center; gap:12px;">
-      <div id="sen-fecha" style="font-family:'DM Mono',monospace; font-size:10px; color:var(--text3);"></div>
 
+  <!-- NAVBAR -->
+  <div style="display:flex; align-items:center; justify-content:space-between; padding:14px 28px; border-bottom:1px solid var(--border); background:var(--surface); flex-shrink:0;">
+    <div style="display:flex; align-items:center; gap:16px;">
+      <div class="logo-mark" style="margin:0;cursor:pointer;" onclick="showScreen('rol')">
+        <div class="logo-icon" style="width:28px;height:28px;font-size:11px;background:var(--accent);color:#000;">X</div>
+        <div class="logo-text" style="font-size:16px;">Opti<span>x</span></div>
+      </div>
+      <!-- TABS: modo vista -->
+      <div style="display:flex; gap:2px; background:var(--bg2); border:1px solid var(--border); border-radius:8px; padding:3px;">
+        <button id="sen-tab-cmd" onclick="seniorSetTab('cmd')" style="background:var(--accent);color:#000;font-size:11px;padding:4px 14px;border-radius:5px;border:none;cursor:pointer;font-family:'DM Mono',monospace;font-weight:600;">⚡ Command</button>
+        <button id="sen-tab-lunes" onclick="seniorSetTab('lunes')" style="background:transparent;color:var(--text3);font-size:11px;padding:4px 14px;border-radius:5px;border:none;cursor:pointer;font-family:'DM Mono',monospace;transition:all 0.2s;">📋 Revisión Lunes</button>
+      </div>
+    </div>
+    <div style="display:flex; align-items:center; gap:10px;">
+      <div id="sen-fecha" style="font-family:'DM Mono',monospace; font-size:10px; color:var(--text3);"></div>
       <div style="display:flex;gap:2px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:3px;">
-        <button onclick="enterAs('direccion')" style="background:transparent;color:var(--text3);font-size:11px;padding:4px 12px;border-radius:6px;border:none;cursor:pointer;font-family:'DM Mono',monospace;transition:all 0.2s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text3)'">⚡ Dirección</button>
-        <button style="background:var(--accent);color:#000;font-size:11px;padding:4px 12px;border-radius:6px;border:none;cursor:default;font-family:'DM Mono',monospace;font-weight:600;">★ Senior</button>
-        <button onclick="enterAs('junior')" style="background:transparent;color:var(--text3);font-size:11px;padding:4px 12px;border-radius:6px;border:none;cursor:pointer;font-family:'DM Mono',monospace;transition:all 0.2s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text3)'">▲ Junior</button>
+        <button onclick="enterAs('direccion')" style="background:transparent;color:var(--text3);font-size:11px;padding:4px 10px;border-radius:6px;border:none;cursor:pointer;font-family:'DM Mono',monospace;transition:all 0.2s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text3)'">⚡ Dir</button>
+        <button style="background:var(--accent);color:#000;font-size:11px;padding:4px 10px;border-radius:6px;border:none;cursor:default;font-family:'DM Mono',monospace;font-weight:600;">★ Sr</button>
+        <button onclick="enterAs('junior')" style="background:transparent;color:var(--text3);font-size:11px;padding:4px 10px;border-radius:6px;border:none;cursor:pointer;font-family:'DM Mono',monospace;transition:all 0.2s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text3)'">▲ Jr</button>
       </div>
     </div>
   </div>
-  <div style="flex:1; overflow-y:auto; padding:32px; max-width:860px; margin:0 auto; width:100%;">
-    <div style="font-family:'DM Sans',sans-serif; font-weight:700; font-size:22px; margin-bottom:4px; letter-spacing:-0.3px;">Mis cuentas</div>
-    <div style="font-size:13px; color:var(--text3); margin-bottom:28px; font-family:'DM Mono',monospace;">Selecciona un cliente para entrar al expediente completo</div>
-    <div id="senior-clients-list"></div>
-    <div style="margin-top:16px;">
-      <button class="btn btn-ghost" style="font-size:12px;" onclick="openNewClientModal()">＋ Nuevo cliente</button>
+
+  <!-- ── TAB: COMMAND CENTER ── -->
+  <div id="sen-view-cmd" style="flex:1; overflow-y:auto; padding:28px 32px; max-width:960px; margin:0 auto; width:100%;">
+
+    <!-- HEADER -->
+    <div style="display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:24px;">
+      <div>
+        <div style="font-family:'DM Sans',sans-serif; font-weight:700; font-size:20px; letter-spacing:-0.3px;">Command Center</div>
+        <div id="sen-cmd-semana" style="font-size:11px; color:var(--text3); font-family:'DM Mono',monospace; margin-top:2px;"></div>
+      </div>
+      <button class="btn btn-ghost" style="font-size:11px;" onclick="openNewClientModal()">＋ Cliente</button>
     </div>
+
+    <!-- TARJETAS DE CUENTAS -->
+    <div id="sen-cmd-cards" style="display:flex; flex-direction:column; gap:12px;"></div>
+
+  </div>
+
+  <!-- ── TAB: REVISIÓN LUNES ── -->
+  <div id="sen-view-lunes" style="flex:1; overflow-y:auto; padding:28px 32px; max-width:960px; margin:0 auto; width:100%; display:none;">
+
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">
+      <div>
+        <div style="font-family:'DM Sans',sans-serif; font-weight:700; font-size:20px; letter-spacing:-0.3px;">Revisión de Lunes</div>
+        <div style="font-size:11px; color:var(--text3); font-family:'DM Mono',monospace; margin-top:2px;">Llena el objetivo de cada cuenta → genera el reporte para Anwar</div>
+      </div>
+      <button onclick="generarReporteSlack()" style="background:var(--accent); color:#000; border:none; border-radius:10px; padding:9px 18px; font-size:12px; font-weight:700; cursor:pointer; font-family:'DM Sans',sans-serif; display:flex; align-items:center; gap:6px; transition:opacity 0.2s;" onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
+        <span>📤</span> Generar y enviar a Anwar
+      </button>
+    </div>
+
+    <!-- TABLA REVISIÓN -->
+    <div id="sen-lunes-table" style="margin-top:20px; display:flex; flex-direction:column; gap:10px;"></div>
+
+    <!-- PREVIEW DEL REPORTE -->
+    <div id="sen-reporte-preview" style="display:none; margin-top:28px; background:var(--surface); border:1px solid var(--border); border-radius:14px; padding:20px;">
+      <div style="font-size:11px; font-family:'DM Mono',monospace; color:var(--text3); margin-bottom:12px; text-transform:uppercase; letter-spacing:0.08em;">Preview — Reporte Slack</div>
+      <pre id="sen-reporte-text" style="font-family:'DM Mono',monospace; font-size:12px; color:var(--text1); white-space:pre-wrap; line-height:1.7; margin:0;"></pre>
+      <div style="display:flex; gap:8px; margin-top:16px;">
+        <button onclick="enviarReporteSlack()" style="background:var(--accent); color:#000; border:none; border-radius:8px; padding:8px 16px; font-size:12px; font-weight:700; cursor:pointer; font-family:'DM Sans',sans-serif;">✅ Confirmar y enviar</button>
+        <button onclick="document.getElementById('sen-reporte-preview').style.display='none'" style="background:transparent; color:var(--text3); border:1px solid var(--border); border-radius:8px; padding:8px 16px; font-size:12px; cursor:pointer; font-family:'DM Sans',sans-serif;">Cancelar</button>
+      </div>
+    </div>
+
   </div>
 </div>
 <div id="screen-app" class="screen">
@@ -2859,44 +2904,257 @@ function openClientFromDir(id) {
 }
 
 // ══════════════════════════════════════════
-// SENIOR HOME
+// SENIOR — COMMAND CENTER
 // ══════════════════════════════════════════
-function renderSeniorHome() {
-  const list = document.getElementById('senior-clients-list');
-  const semEmoji = { green: '🟢', yellow: '🟡', red: '🔴', gray: '⚫' };
 
-  list.innerHTML = clients.map(c => {
-    const sf = calcSemaforoFinal(c);
-    const emoji = semEmoji[sf] || '⚫';
-    const cacActual = c.sem_cac_actual || c.rendimiento?.cac30 || '—';
-    const cacObj = c.cac_objetivo || c.objetivos?.cac || '—';
-    const inv = c.objetivos?.presupuesto || '—';
-    const obj = c.sem_objetivo_semana || '—';
+function seniorSetTab(tab) {
+  document.getElementById('sen-view-cmd').style.display   = tab === 'cmd'   ? 'block' : 'none';
+  document.getElementById('sen-view-lunes').style.display = tab === 'lunes' ? 'block' : 'none';
+  document.getElementById('sen-tab-cmd').style.background   = tab === 'cmd'   ? 'var(--accent)' : 'transparent';
+  document.getElementById('sen-tab-cmd').style.color        = tab === 'cmd'   ? '#000'          : 'var(--text3)';
+  document.getElementById('sen-tab-lunes').style.background = tab === 'lunes' ? 'var(--accent)' : 'transparent';
+  document.getElementById('sen-tab-lunes').style.color      = tab === 'lunes' ? '#000'          : 'var(--text3)';
+  if (tab === 'lunes') renderSeniorLunes();
+}
+
+function renderSeniorHome() {
+  // Fecha y semana
+  const now = new Date();
+  const fechaEl = document.getElementById('sen-fecha');
+  if (fechaEl) fechaEl.textContent = now.toLocaleDateString('es-MX', { weekday:'long', day:'numeric', month:'short' });
+  const semEl = document.getElementById('sen-cmd-semana');
+  if (semEl) {
+    const lunes = new Date(now); lunes.setDate(now.getDate() - ((now.getDay() + 6) % 7));
+    const dom   = new Date(lunes); dom.setDate(lunes.getDate() + 6);
+    const fmt = d => d.toLocaleDateString('es-MX', { day:'numeric', month:'short' });
+    semEl.textContent = `Semana ${fmt(lunes)} — ${fmt(dom)}`;
+  }
+
+  renderSeniorCMD();
+}
+
+function renderSeniorCMD() {
+  const container = document.getElementById('sen-cmd-cards');
+  if (!container) return;
+
+  const semEmoji = { green: '🟢', yellow: '🟡', red: '🔴', gray: '⚫' };
+  const semColor = { green: '#34d399', yellow: '#fbbf24', red: '#f87171', gray: 'var(--text3)' };
+
+  container.innerHTML = clients.map(c => {
+    const sf       = calcSemaforoFinal(c);
+    const emoji    = semEmoji[sf] || '⚫';
+    const color    = semColor[sf] || 'var(--text3)';
+
+    // Métricas clave
+    const cacActual = c.sem_cac_actual || '—';
+    const cacObj    = c.objetivos?.cac || c.cac_objetivo || '—';
+    const cacMax    = c.objetivos?.cac_max || '—';
+    const cierres   = c.sem_cierres_mes || '—';
+    const cierresObj= c.objetivos?.cierres || '—';
+    const inversion = c.sem_inv_actual || c.objetivos?.presupuesto || '—';
+
+    // CAC vs objetivo: color de alerta
+    const cacNum    = parseFloat(String(cacActual).replace(/[^0-9.]/g,''));
+    const cacObjNum = parseFloat(String(cacObj).replace(/[^0-9.]/g,''));
+    const cacRatio  = (!isNaN(cacNum) && !isNaN(cacObjNum) && cacObjNum > 0) ? cacNum / cacObjNum : null;
+    const cacColor  = cacRatio === null ? 'var(--text2)' : cacRatio <= 1.1 ? '#34d399' : cacRatio <= 1.5 ? '#fbbf24' : '#f87171';
+
+    // Objetivo de la semana
+    const objSemana = c.sem_objetivo_semana || '';
+
+    // Alertas automáticas
+    const alertas = [];
+    if (cacRatio !== null && cacRatio > 1.5) alertas.push(`CAC ${Math.round(cacRatio)}x el objetivo`);
+    if (c.sem_stars <= 2) alertas.push('Sensación de cuenta baja');
+    const expFields = ['nombre','industria','contacto1','embudo','descripcion'];
+    const expFaltantes = expFields.filter(f => !c.adn?.[f]);
+    if (expFaltantes.length > 2) alertas.push(`Expediente incompleto (${expFaltantes.length} campos)`);
 
     return `
-    <div class="senior-client-row" onclick="openClientAsSenior('${c.id}')">
-      <div style="font-size:22px; min-width:32px; text-align:center;">${emoji}</div>
-      <div style="flex:0 0 160px;">
-        <div style="font-family:'DM Sans',sans-serif; font-weight:600; font-size:14px; letter-spacing:-0.1px;">${c.nombre}</div>
-        <div style="font-size:11px; color:var(--text3); font-family:'DM Mono',monospace;">${c.industria || '—'}</div>
+    <div style="background:var(--surface); border:1px solid var(--border); border-radius:14px; overflow:hidden; transition:border-color 0.2s;" onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='var(--border)'">
+
+      <!-- HEADER DE LA TARJETA -->
+      <div style="display:flex; align-items:center; justify-content:space-between; padding:14px 18px; border-bottom:1px solid var(--border); cursor:pointer;" onclick="openClientAsSenior('${c.id}')">
+        <div style="display:flex; align-items:center; gap:12px;">
+          <span style="font-size:18px;">${emoji}</span>
+          <div>
+            <div style="font-family:'DM Sans',sans-serif; font-weight:600; font-size:14px; letter-spacing:-0.1px;">${c.nombre}</div>
+            <div style="font-size:10px; color:var(--text3); font-family:'DM Mono',monospace;">${c.industria || '—'}</div>
+          </div>
+        </div>
+        <div style="display:flex; align-items:center; gap:20px;">
+          <!-- KPIs inline -->
+          <div style="display:flex; gap:20px; align-items:center;">
+            <div style="text-align:center;">
+              <div style="font-family:'DM Mono',monospace; font-size:13px; font-weight:600; color:${cacColor};">${cacActual}</div>
+              <div style="font-size:9px; color:var(--text3); margin-top:1px;">CAC actual</div>
+            </div>
+            <div style="text-align:center;">
+              <div style="font-family:'DM Mono',monospace; font-size:13px; font-weight:600; color:var(--text2);">${cacObj}</div>
+              <div style="font-size:9px; color:var(--text3); margin-top:1px;">obj</div>
+            </div>
+            <div style="text-align:center;">
+              <div style="font-family:'DM Mono',monospace; font-size:13px; font-weight:600; color:var(--text2);">${cierres}<span style="color:var(--text3); font-size:10px;">/${cierresObj}</span></div>
+              <div style="font-size:9px; color:var(--text3); margin-top:1px;">cierres</div>
+            </div>
+            <div style="text-align:center;">
+              <div style="font-family:'DM Mono',monospace; font-size:13px; font-weight:600; color:var(--text2);">${inversion}</div>
+              <div style="font-size:9px; color:var(--text3); margin-top:1px;">inversión</div>
+            </div>
+          </div>
+          <div style="font-size:16px; color:var(--border2);">›</div>
+        </div>
       </div>
-      <div class="senior-kpi-row">
-        <div class="senior-kpi-item">
-          <div class="senior-kpi-val">${cacActual}</div>
-          <div class="senior-kpi-lbl">CAC actual</div>
-        </div>
-        <div class="senior-kpi-item">
-          <div class="senior-kpi-val">${cacObj}</div>
-          <div class="senior-kpi-lbl">objetivo</div>
-        </div>
-        <div class="senior-kpi-item">
-          <div class="senior-kpi-val">${inv}</div>
-          <div class="senior-kpi-lbl">presupuesto</div>
-        </div>
+
+      <!-- ALERTAS -->
+      ${alertas.length > 0 ? `
+      <div style="display:flex; gap:6px; flex-wrap:wrap; padding:8px 18px; background:rgba(248,113,113,0.05); border-bottom:1px solid var(--border);">
+        ${alertas.map(a => `<span style="font-size:10px; padding:2px 8px; border-radius:20px; background:rgba(248,113,113,0.12); color:#f87171; font-family:'DM Mono',monospace;">⚠️ ${a}</span>`).join('')}
+      </div>` : ''}
+
+      <!-- OBJETIVO DE LA SEMANA -->
+      <div style="padding:12px 18px; display:flex; align-items:center; gap:10px;">
+        <div style="font-size:10px; color:var(--text3); font-family:'DM Mono',monospace; white-space:nowrap; flex-shrink:0;">Objetivo semana →</div>
+        <input
+          type="text"
+          value="${objSemana}"
+          placeholder="¿Qué vas a hacer esta semana con esta cuenta?"
+          oninput="saveObjetivoSemana('${c.id}', this.value)"
+          onclick="event.stopPropagation()"
+          style="flex:1; background:transparent; border:none; border-bottom:1px solid var(--border); color:var(--text1); font-family:'DM Mono',monospace; font-size:11px; padding:4px 0; outline:none; transition:border-color 0.2s;"
+          onfocus="this.style.borderColor='var(--accent)'"
+          onblur="this.style.borderColor='var(--border)'"
+        >
       </div>
-      <div style="font-size:20px; color:var(--border2);">›</div>
     </div>`;
   }).join('');
+}
+
+function saveObjetivoSemana(clientId, valor) {
+  const client = clients.find(c => c.id === clientId);
+  if (!client) return;
+  client.sem_objetivo_semana = valor;
+  saveClients();
+}
+
+// ── REVISIÓN LUNES ──
+function renderSeniorLunes() {
+  const container = document.getElementById('sen-lunes-table');
+  if (!container) return;
+
+  const semEmoji = { green: '🟢', yellow: '🟡', red: '🔴', gray: '⚫' };
+
+  container.innerHTML = clients.map((c, i) => {
+    const sf      = calcSemaforoFinal(c);
+    const emoji   = semEmoji[sf] || '⚫';
+    const cacActual = c.sem_cac_actual || '—';
+    const cacObj    = c.objetivos?.cac || '—';
+    const cierres   = c.sem_cierres_mes || '—';
+    const inversion = c.sem_inv_actual || c.objetivos?.presupuesto || '—';
+    const objSemana = c.sem_objetivo_semana || '';
+    const diagnostico = c.sem_diagnostico_semana || '';
+
+    return `
+    <div style="background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:16px 18px;">
+      <div style="display:flex; align-items:center; gap:10px; margin-bottom:12px;">
+        <span style="font-size:16px;">${emoji}</span>
+        <div style="font-family:'DM Sans',sans-serif; font-weight:600; font-size:14px;">${c.nombre}</div>
+        <div style="display:flex; gap:12px; margin-left:auto; font-family:'DM Mono',monospace; font-size:11px; color:var(--text3);">
+          <span>CAC: <strong style="color:var(--text1);">${cacActual}</strong></span>
+          <span>obj: ${cacObj}</span>
+          <span>cierres: ${cierres}</span>
+          <span>inv: ${inversion}</span>
+        </div>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:8px;">
+        <div>
+          <div style="font-size:10px; color:var(--text3); font-family:'DM Mono',monospace; margin-bottom:4px;">DIAGNÓSTICO — ¿qué pasó esta semana?</div>
+          <textarea
+            placeholder="ej. CAC subió por cambio de segmentación el miércoles. Volvimos a la audiencia anterior."
+            oninput="saveDiagnosticoSemana('${c.id}', this.value)"
+            style="width:100%; background:var(--bg2); border:1px solid var(--border); border-radius:8px; color:var(--text1); font-family:'DM Mono',monospace; font-size:11px; padding:8px 10px; outline:none; resize:none; box-sizing:border-box; line-height:1.5;"
+            rows="2"
+            onfocus="this.style.borderColor='var(--accent)'"
+            onblur="this.style.borderColor='var(--border)'"
+          >${diagnostico}</textarea>
+        </div>
+        <div>
+          <div style="font-size:10px; color:var(--text3); font-family:'DM Mono',monospace; margin-bottom:4px;">OBJETIVO SEMANA — ¿qué vas a hacer esta semana?</div>
+          <textarea
+            placeholder="ej. Probar nueva segmentación 35-44 hombres en GDL. Meta: bajar costo/preaut a $550."
+            oninput="saveObjetivoSemana('${c.id}', this.value)"
+            style="width:100%; background:var(--bg2); border:1px solid var(--border); border-radius:8px; color:var(--text1); font-family:'DM Mono',monospace; font-size:11px; padding:8px 10px; outline:none; resize:none; box-sizing:border-box; line-height:1.5;"
+            rows="2"
+            onfocus="this.style.borderColor='var(--accent)'"
+            onblur="this.style.borderColor='var(--border)'"
+          >${objSemana}</textarea>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function saveDiagnosticoSemana(clientId, valor) {
+  const client = clients.find(c => c.id === clientId);
+  if (!client) return;
+  client.sem_diagnostico_semana = valor;
+  saveClients();
+}
+
+function generarReporteSlack() {
+  const semEmoji = { green: '🟢', yellow: '🟡', red: '🔴', gray: '⚫' };
+  const now = new Date();
+  const lunes = new Date(now); lunes.setDate(now.getDate() - ((now.getDay() + 6) % 7));
+  const dom   = new Date(lunes); dom.setDate(lunes.getDate() + 6);
+  const fmt = d => d.toLocaleDateString('es-MX', { day:'numeric', month:'short' });
+
+  let texto = `📊 *Reporte semanal OptimizAds — Lunes ${fmt(lunes)}*\n`;
+  texto += `_Semana ${fmt(lunes)}–${fmt(dom)}_\n`;
+  texto += `━━━━━━━━━━━━━━━━━━━━\n\n`;
+
+  clients.forEach(c => {
+    const sf      = calcSemaforoFinal(c);
+    const emoji   = semEmoji[sf] || '⚫';
+    const cacActual  = c.sem_cac_actual || '—';
+    const cacObj     = c.objetivos?.cac || '—';
+    const cierres    = c.sem_cierres_mes || '—';
+    const cierresObj = c.objetivos?.cierres || '—';
+    const inv        = c.sem_inv_actual || c.objetivos?.presupuesto || '—';
+    const diagnostico = c.sem_diagnostico_semana || '_Sin diagnóstico_';
+    const objetivo    = c.sem_objetivo_semana || '_Sin objetivo definido_';
+
+    texto += `${emoji} *${c.nombre}*\n`;
+    texto += `CAC: ${cacActual} (obj: ${cacObj}) · Cierres: ${cierres}/${cierresObj} · Inv: ${inv}\n`;
+    texto += `↳ _${diagnostico}_\n`;
+    texto += `*Objetivo semana:* ${objetivo}\n\n`;
+  });
+
+  const preview = document.getElementById('sen-reporte-preview');
+  const previewText = document.getElementById('sen-reporte-text');
+  if (preview && previewText) {
+    previewText.textContent = texto;
+    preview.style.display = 'block';
+    preview.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+}
+
+async function enviarReporteSlack() {
+  const texto = document.getElementById('sen-reporte-text')?.textContent;
+  if (!texto) return;
+
+  try {
+    if (window.OptixIntegraciones?.emit && window.OptixIntegraciones?.OptixEvents) {
+      await window.OptixIntegraciones.emit('REPORTE_SEMANAL_ENVIADO', {
+        texto,
+        timestamp: new Date().toISOString(),
+        enviado_por: 'Kike'
+      });
+    }
+    showToast('Reporte enviado a Anwar', '📤');
+    document.getElementById('sen-reporte-preview').style.display = 'none';
+  } catch(e) {
+    showToast('Error al enviar. Copia el texto manualmente.', '⚠️');
+  }
 }
 
 function openClientAsSenior(id) {
