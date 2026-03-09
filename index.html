@@ -158,6 +158,8 @@
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
+
+  html { font-size: clamp(13px, 0.9vw + 0.4rem, 17px); }
   body {
     font-family: 'DM Sans', sans-serif;
     background: var(--bg);
@@ -462,7 +464,7 @@
   }
 
   .sidebar {
-    width: 260px;
+    width: clamp(220px, 18vw, 300px);
     flex-shrink: 0;
     background: var(--surface);
     border-right: 1px solid var(--border);
@@ -619,7 +621,7 @@
   }
 
   .content-header {
-    padding: 28px 36px 24px;
+    padding: clamp(16px, 2vw, 32px) clamp(24px, 4vw, 64px) clamp(14px, 1.5vw, 28px);
     border-bottom: 1px solid var(--border);
     background: var(--surface);
     position: sticky;
@@ -636,7 +638,7 @@
 
   .content-title {
     font-family: 'DM Sans', sans-serif;
-    font-size: 20px;
+    font-size: clamp(18px, 1.5vw, 26px);
     font-weight: 600;
   }
 
@@ -647,16 +649,19 @@
   }
 
   .content-body {
-    padding: 32px 36px;
+    padding: clamp(20px, 3vw, 48px) clamp(24px, 4vw, 64px);
     flex: 1;
+    max-width: 1400px;
+    width: 100%;
+    box-sizing: border-box;
   }
 
   /* ── DASHBOARD ── */
   .dashboard-semaforo {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 16px;
-    margin-bottom: 32px;
+    gap: clamp(12px, 1.5vw, 24px);
+    margin-bottom: clamp(20px, 2.5vw, 40px);
   }
 
   .semaforo-card {
@@ -667,7 +672,7 @@
   }
 
   .semaforo-label {
-    font-size: 11px;
+    font-size: clamp(10px, 0.8vw, 13px);
     color: var(--text3);
     text-transform: uppercase;
     letter-spacing: 1px;
@@ -696,11 +701,11 @@
   .semaforo-value {
     font-family: 'Syne', sans-serif;
     font-weight: 700;
-    font-size: 15px;
+    font-size: clamp(14px, 1.2vw, 20px);
   }
 
   .semaforo-note {
-    font-size: 12px;
+    font-size: clamp(11px, 0.85vw, 14px);
     color: var(--text2);
     margin-top: 4px;
   }
@@ -1742,7 +1747,7 @@
   </div>
 
   <!-- ── TAB: COMMAND CENTER ── -->
-  <div id="sen-view-cmd" style="flex:1; overflow-y:auto; padding:28px 32px; max-width:960px; margin:0 auto; width:100%;">
+  <div id="sen-view-cmd" style="flex:1; overflow-y:auto; padding:clamp(20px,3vw,48px) clamp(24px,4vw,64px); max-width:1400px; margin:0 auto; width:100%;">
 
     <!-- HEADER -->
     <div style="display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:24px;">
@@ -1759,7 +1764,7 @@
   </div>
 
   <!-- ── TAB: REVISIÓN LUNES ── -->
-  <div id="sen-view-lunes" style="flex:1; overflow-y:auto; padding:28px 32px; max-width:960px; margin:0 auto; width:100%; display:none;">
+  <div id="sen-view-lunes" style="flex:1; overflow-y:auto; padding:clamp(20px,3vw,48px) clamp(24px,4vw,64px); max-width:1400px; margin:0 auto; width:100%; display:none;">
 
     <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:6px;">
       <div>
