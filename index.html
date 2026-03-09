@@ -5042,39 +5042,51 @@ function navigateTab(tab) {
   window._currentTab = tab;
 }
 
-// ── ANÁLISIS: botón idle + gráficas + Claude ────────────────────────────────
+// ── ANÁLISIS: módulos con checks + análisis profundo ─────────────────────
 
-// Primer campo con data hardcodeada para EnPagos
 const CLIENT_HARDCODED_HISTORY = {
   enpagos: {
     monthly: [
-      { mes: 'Jul 25', cac: 2840, cierres: 18, inversion: 51120, tasa: 3.1 },
-      { mes: 'Ago 25', cac: 3200, cierres: 15, inversion: 48000, tasa: 2.8 },
-      { mes: 'Sep 25', cac: 2650, cierres: 22, inversion: 58300, tasa: 3.4 },
-      { mes: 'Oct 25', cac: 3100, cierres: 19, inversion: 58900, tasa: 3.0 },
-      { mes: 'Nov 25', cac: 2900, cierres: 21, inversion: 60900, tasa: 3.2 },
-      { mes: 'Dic 25', cac: 3400, cierres: 14, inversion: 47600, tasa: 2.5 },
-      { mes: 'Ene 26', cac: 3800, cierres: 16, inversion: 60800, tasa: 2.4 },
-      { mes: 'Feb 26', cac: 4200, cierres: 17, inversion: 71400, tasa: 2.42 }
+      { mes: 'Jul 25', cac: 2840, costoPreaut: 308, cierres: 18, inversion: 51120, tasa: 3.1 },
+      { mes: 'Ago 25', cac: 3200, costoPreaut: 347, cierres: 15, inversion: 48000, tasa: 2.8 },
+      { mes: 'Sep 25', cac: 2650, costoPreaut: 287, cierres: 22, inversion: 58300, tasa: 3.4 },
+      { mes: 'Oct 25', cac: 3100, costoPreaut: 336, cierres: 19, inversion: 58900, tasa: 3.0 },
+      { mes: 'Nov 25', cac: 2900, costoPreaut: 314, cierres: 21, inversion: 60900, tasa: 3.2 },
+      { mes: 'Dic 25', cac: 3400, costoPreaut: 369, cierres: 14, inversion: 47600, tasa: 2.5 },
+      { mes: 'Ene 26', cac: 3800, costoPreaut: 412, cierres: 16, inversion: 60800, tasa: 2.4 },
+      { mes: 'Feb 26', cac: 6508, costoPreaut: 707, cierres: 10, inversion: 75000, tasa: 2.42 }
     ],
     weekly: [
-      { semana: '27 Ene', preaut: 18, costo_preaut: 722, tasa: 2.1 },
-      { semana: '3 Feb', preaut: 21, costo_preaut: 619, tasa: 2.3 },
-      { semana: '10 Feb', preaut: 24, costo_preaut: 542, tasa: 2.5 },
-      { semana: '17 Feb', preaut: 31, costo_preaut: 588, tasa: 3.1 },
-      { semana: '24 Feb', preaut: 19, costo_preaut: 710, tasa: 2.2 },
-      { semana: '3 Mar', preaut: 22, costo_preaut: 645, tasa: 2.42 }
+      { semana: '27 Ene', preaut: 18, costoPreaut: 722, tasa: 2.1, cierres: 2 },
+      { semana: '3 Feb',  preaut: 21, costoPreaut: 619, tasa: 2.3, cierres: 3 },
+      { semana: '10 Feb', preaut: 24, costoPreaut: 542, tasa: 2.5, cierres: 2 },
+      { semana: '17 Feb', preaut: 31, costoPreaut: 588, tasa: 3.1, cierres: 2 },
+      { semana: '24 Feb', preaut: 19, costoPreaut: 710, tasa: 2.2, cierres: 1 },
+      { semana: '3 Mar',  preaut: 22, costoPreaut: 645, tasa: 2.42, cierres: 2 }
+    ],
+    embudo: [
+      { etapa: 'Inversión', valor: '$75,000', pct: 100, color: '#6366f1' },
+      { etapa: 'Leads', valor: '4,411', pct: 100, color: '#8b5cf6' },
+      { etapa: 'Prospectos', valor: '910', pct: 20.6, color: '#a78bfa' },
+      { etapa: 'Preautorizados', valor: '106', pct: 2.4, color: '#f59e0b' },
+      { etapa: 'Cierres', valor: '10', pct: 0.23, color: '#ef4444' }
+    ],
+    ciudades: [
+      { ciudad: 'Monterrey', tasa: 3.1, cac: 5200, cierres: 4 },
+      { ciudad: 'CDMX', tasa: 2.8, cac: 6100, cierres: 3 },
+      { ciudad: 'Guadalajara', tasa: 1.9, cac: 8400, cierres: 2 },
+      { ciudad: 'Puebla', tasa: 1.2, cac: 12000, cierres: 1 }
     ]
   }
 };
 
 const CLIENT_CONTEXT = {
   enpagos: {
-    embudo: 'Lead ($17 CPL) → Prospecto contactado → Preautorizado (2.42%) → Cierre (8% de preaut)',
-    cuello: 'La tasa prospecto→preautorizado está en 2.42% vs objetivo 6.65%. El costo por lead está bien ($17), el problema está en el filtro de buró y calificación crediticia.',
-    razones_descarte: 'Buró negativo (40%), ingresos insuficientes (30%), zona geográfica fuera de cobertura (20%), sin comprobante de ingresos (10%)',
-    historico: 'Mejor mes fue Sep 25 con $2,650 CAC y 22 cierres. Desde Ene 26 el CAC subió 58% por caída en tasa de conversión.',
-    impacto_mejora: 'Pasar de 2.42% a 4% de tasa = CAC cae de $4,200 a $2,550. A 6.65% = CAC cae a $1,532 (objetivo cumplido).'
+    embudo: 'Lead ($17 CPL) → Prospecto contactado → Preautorizado (2.42%) → Cierre (10.9% de preaut)',
+    cuello: 'La tasa prospecto→preautorizado está en 2.42% vs objetivo 6.65%. Costo/preaut $707 vs objetivo $244.',
+    razones_descarte: 'Buró negativo (40%), ingresos insuficientes (30%), zona fuera de cobertura (20%), sin comprobante (10%)',
+    historico: 'Mejor mes Sep 25: $2,650 CAC y 22 cierres. Desde Ene 26 el CAC subió 145% por caída en tasa de conversión.',
+    impacto_mejora: 'Pasar de 2.42% a 4% de tasa = CAC cae a $2,550. A 6.65% = CAC cae a $1,532 (objetivo cumplido).'
   }
 };
 
@@ -5094,204 +5106,379 @@ function getClientHistory(clientId) {
   return null;
 }
 
+const MODULOS_ANALISIS = [
+  { id: 'diagnostico',  label: '🧠 Diagnóstico ejecutivo',     desc: 'Situación actual, problema real, acción inmediata' },
+  { id: 'kpis',        label: '📊 KPIs principales',           desc: 'Tarjetas de métricas clave vs objetivo' },
+  { id: 'tendencia',   label: '📈 Tendencia de CAC',           desc: 'Evolución mensual CAC y costo/preaut' },
+  { id: 'embudo',      label: '🔽 Embudo de conversión',       desc: 'Tasa de paso entre etapas vs objetivo' },
+  { id: 'semanal',     label: '📅 Progreso semanal',           desc: 'Últimas semanas: preauts, tasa, cierres' },
+  { id: 'ciudades',    label: '🗺️ Rendimiento por ciudad',     desc: 'CAC y tasa de conversión por mercado' },
+  { id: 'simulador',   label: '⚙️ Simulador de escenarios',   desc: '¿Qué pasa si mejoramos la tasa?' },
+  { id: 'insights',    label: '💡 Insights accionables',       desc: 'Lista priorizada de acciones con Claude' },
+];
+
 async function loadAnalisis() {
   const client = window._currentClient;
   if (!client) return;
   const container = document.getElementById('analisis-section');
   if (!container) return;
-
-  // Hardcoded history para clientes con data documentada
-  const hardHistory = getClientHistory(client.id || client.nombre || '');
-
-  // Historial de Firestore
-  let firestoreHistory = [];
-  try { firestoreHistory = await loadHistorialData(client.id); } catch(e) {}
-
-  const hasData = hardHistory || firestoreHistory.length >= 2;
-
-  // Si ya está renderizado con botón, no sobreescribir
   if (container.dataset.loadedFor === client.id) return;
+
+  const hardHistory = getClientHistory(client.id || client.nombre || '');
+  const hasData = !!hardHistory;
 
   container.innerHTML = `
     <div style="font-family:'DM Sans',sans-serif; font-weight:600; font-size:20px; margin-bottom:4px; letter-spacing:-0.3px;">🧠 Análisis</div>
-    <div style="font-size:12px; color:var(--text3); font-family:'DM Mono',monospace; margin-bottom:24px;">${client.nombre || client.id}</div>
+    <div style="font-size:12px; color:var(--text3); font-family:'DM Mono',monospace; margin-bottom:20px;">${client.nombre || client.id}</div>
 
     ${hasData ? `
-    <div id="analisis-graficas" style="margin-bottom:24px;"></div>
-    <div style="text-align:center; margin-bottom:20px;">
-      <button id="btn-ejecutar-analisis" onclick="ejecutarAnalisis()" style="background:var(--accent); color:#000; border:none; border-radius:10px; padding:12px 28px; font-size:14px; font-weight:700; cursor:pointer; font-family:'DM Sans',sans-serif; letter-spacing:-0.2px;">⚡ Generar análisis</button>
+    <!-- MÓDULOS -->
+    <div style="background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:16px; margin-bottom:20px;">
+      <div style="font-size:11px; color:var(--text3); font-family:'DM Mono',monospace; text-transform:uppercase; letter-spacing:1px; margin-bottom:12px;">Módulos de análisis</div>
+      <div id="modulos-grid" style="display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:16px;">
+        ${MODULOS_ANALISIS.map(m => `
+          <label style="display:flex; align-items:flex-start; gap:8px; cursor:pointer; padding:8px 10px; border-radius:8px; border:1px solid var(--border); background:var(--bg2); transition:border-color 0.15s;" 
+                 id="label-mod-${m.id}" 
+                 onmouseover="this.style.borderColor='var(--accent)'" 
+                 onmouseout="this.style.borderColor=document.getElementById('mod-${m.id}').checked?'var(--accent)':'var(--border)'">
+            <input type="checkbox" id="mod-${m.id}" checked
+                   style="margin-top:2px; accent-color:var(--accent);"
+                   onchange="syncModuloLabel('${m.id}')">
+            <div>
+              <div style="font-size:12px; font-family:'DM Sans',sans-serif; color:var(--text1); font-weight:500;">${m.label}</div>
+              <div style="font-size:10px; color:var(--text3); font-family:'DM Mono',monospace; margin-top:1px;">${m.desc}</div>
+            </div>
+          </label>
+        `).join('')}
+      </div>
+      <div style="display:flex; gap:8px; align-items:center;">
+        <button onclick="ejecutarAnalisis()" id="btn-ejecutar-analisis"
+          style="flex:1; background:var(--accent); color:#000; border:none; border-radius:10px; padding:12px; font-size:14px; font-weight:700; cursor:pointer; font-family:'DM Sans',sans-serif;">
+          ⚡ Generar análisis
+        </button>
+        <button onclick="toggleTodosModulos()" id="btn-toggle-modulos"
+          style="background:var(--bg3); color:var(--text2); border:1px solid var(--border); border-radius:10px; padding:12px 14px; font-size:12px; cursor:pointer; font-family:'DM Mono',monospace; white-space:nowrap;">
+          Desactivar todos
+        </button>
+      </div>
     </div>
-    <div id="analisis-claude" style="display:none;"></div>
+    <div id="analisis-resultado"></div>
     ` : `
     <div style="background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:32px; text-align:center;">
       <div style="font-size:24px; margin-bottom:12px;">📊</div>
-      <div style="font-family:'DM Sans',sans-serif; font-weight:600; font-size:14px; margin-bottom:8px; color:var(--text1);">Sin datos de historial</div>
-      <div style="font-size:12px; color:var(--text3); font-family:'DM Mono',monospace;">Cierra la primera semana con el botón "Cerrar semana"<br>para comenzar a generar análisis.</div>
+      <div style="font-family:'DM Sans',sans-serif; font-weight:600; font-size:14px; margin-bottom:8px;">Sin datos de historial</div>
+      <div style="font-size:12px; color:var(--text3); font-family:'DM Mono',monospace;">Cierra la primera semana para comenzar a generar análisis.</div>
     </div>
     `}
   `;
 
-  if (hasData) {
-    renderGraficasAnalisis(hardHistory, firestoreHistory, client);
-  }
-
+  // Inicializar estado de labels
+  MODULOS_ANALISIS.forEach(m => syncModuloLabel(m.id));
   container.dataset.loadedFor = client.id;
 }
 
-function renderGraficasAnalisis(hardHistory, firestoreHistory, client) {
-  const container = document.getElementById('analisis-graficas');
-  if (!container) return;
-
-  const monthly = hardHistory?.monthly || [];
-  const cacObj = parseFloat(client.cacObjetivo) || 2000;
-
-  if (monthly.length === 0) {
-    container.innerHTML = '';
-    return;
-  }
-
-  container.innerHTML = `
-    <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
-      <div style="background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:16px;">
-        <div style="font-family:'DM Sans',sans-serif; font-weight:600; font-size:13px; margin-bottom:14px; color:var(--text1);">CAC mensual</div>
-        <canvas id="chart-cac" height="160"></canvas>
-      </div>
-      <div style="background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:16px;">
-        <div style="font-family:'DM Sans',sans-serif; font-weight:600; font-size:13px; margin-bottom:14px; color:var(--text1);">Tasa de conversión semanal</div>
-        <canvas id="chart-tasa" height="160"></canvas>
-      </div>
-    </div>
-  `;
-
-  // Cargar Chart.js y renderizar
-  if (typeof Chart === 'undefined') {
-    const script = document.createElement('script');
-    script.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js';
-    script.onload = () => renderCharts(monthly, hardHistory?.weekly || [], cacObj);
-    document.head.appendChild(script);
-  } else {
-    renderCharts(monthly, hardHistory?.weekly || [], cacObj);
-  }
+function syncModuloLabel(id) {
+  const cb = document.getElementById(`mod-${id}`);
+  const label = document.getElementById(`label-mod-${id}`);
+  if (!cb || !label) return;
+  label.style.borderColor = cb.checked ? 'var(--accent)' : 'var(--border)';
+  label.style.opacity = cb.checked ? '1' : '0.5';
 }
 
-function renderCharts(monthly, weekly, cacObj) {
-  // Destruir charts previos si existen
-  ['chart-cac', 'chart-tasa'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el && el._chartInstance) el._chartInstance.destroy();
+function toggleTodosModulos() {
+  const btn = document.getElementById('btn-toggle-modulos');
+  const alguno = MODULOS_ANALISIS.some(m => document.getElementById(`mod-${m.id}`)?.checked);
+  MODULOS_ANALISIS.forEach(m => {
+    const cb = document.getElementById(`mod-${m.id}`);
+    if (cb) { cb.checked = !alguno; syncModuloLabel(m.id); }
   });
+  if (btn) btn.textContent = alguno ? 'Activar todos' : 'Desactivar todos';
+}
 
-  // Chart 1: CAC mensual
-  const cacEl = document.getElementById('chart-cac');
-  if (cacEl && monthly.length) {
-    const bgColors = monthly.map(m => {
-      const ratio = m.cac / cacObj;
-      return ratio <= 1.1 ? 'rgba(0,229,160,0.7)' : ratio <= 1.5 ? 'rgba(251,191,36,0.7)' : 'rgba(239,68,68,0.7)';
-    });
-    const chartInstance = new Chart(cacEl, {
-      type: 'bar',
-      data: {
-        labels: monthly.map(m => m.mes),
-        datasets: [
-          { data: monthly.map(m => m.cac), backgroundColor: bgColors, borderRadius: 4, label: 'CAC' },
-          { data: monthly.map(() => cacObj), type: 'line', borderColor: 'rgba(0,229,160,0.4)', borderDash: [4,4], borderWidth: 1.5, pointRadius: 0, label: 'Objetivo', tension: 0 }
-        ]
-      },
-      options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { ticks: { color: '#888', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.05)' } }, x: { ticks: { color: '#888', font: { size: 10 } }, grid: { display: false } } } }
-    });
-    cacEl._chartInstance = chartInstance;
-  }
-
-  // Chart 2: Tasa conversión semanal
-  const tasaEl = document.getElementById('chart-tasa');
-  if (tasaEl && weekly.length) {
-    const tasaObj = 6.65;
-    const pointColors = weekly.map(w => w.tasa >= tasaObj ? 'rgba(0,229,160,1)' : w.tasa >= 4 ? 'rgba(251,191,36,1)' : 'rgba(239,68,68,1)');
-    const chartInstance = new Chart(tasaEl, {
-      type: 'line',
-      data: {
-        labels: weekly.map(w => w.semana),
-        datasets: [
-          { data: weekly.map(w => w.tasa), borderColor: 'rgba(139,92,246,0.8)', tension: 0.3, pointBackgroundColor: pointColors, pointRadius: 5, label: 'Tasa %', fill: false },
-          { data: weekly.map(() => tasaObj), borderColor: 'rgba(0,229,160,0.35)', borderDash: [4,4], borderWidth: 1.5, pointRadius: 0, label: 'Objetivo 6.65%', tension: 0, fill: false }
-        ]
-      },
-      options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { ticks: { color: '#888', font: { size: 10 }, callback: v => v + '%' }, grid: { color: 'rgba(255,255,255,0.05)' } }, x: { ticks: { color: '#888', font: { size: 10 } }, grid: { display: false } } } }
-    });
-    tasaEl._chartInstance = chartInstance;
-  }
+function getModulosActivos() {
+  return MODULOS_ANALISIS.filter(m => document.getElementById(`mod-${m.id}`)?.checked).map(m => m.id);
 }
 
 async function ejecutarAnalisis() {
   const client = window._currentClient;
   if (!client) return;
-
   const btn = document.getElementById('btn-ejecutar-analisis');
-  if (btn) { btn.textContent = '⏳ Analizando...'; btn.disabled = true; }
+  if (btn) { btn.textContent = '⏳ Generando...'; btn.disabled = true; }
 
-  const claudeEl = document.getElementById('analisis-claude');
-  if (claudeEl) {
-    claudeEl.style.display = 'block';
-    claudeEl.innerHTML = '<div style="color:var(--text3); font-size:12px; font-family:DM Mono,monospace; padding:20px;">Generando diagnóstico...</div>';
+  const modulos = getModulosActivos();
+  if (modulos.length === 0) {
+    document.getElementById('analisis-resultado').innerHTML =
+      '<div style="color:var(--text3); font-size:12px; font-family:\'DM Mono\',monospace; padding:12px;">Selecciona al menos un módulo.</div>';
+    if (btn) { btn.textContent = '⚡ Generar análisis'; btn.disabled = false; }
+    return;
   }
 
   const hardHistory = getClientHistory(client.id || client.nombre || '');
-  const firestoreHistory = await loadHistorialData(client.id).catch(() => []);
   const context = getClientContext(client.id || client.nombre || '');
+  let firestoreHistory = [];
+  try { firestoreHistory = await loadHistorialData(client.id); } catch(e) {}
 
-  await generarResumenClaude(client, firestoreHistory, hardHistory, context);
+  const resultado = document.getElementById('analisis-resultado');
+  resultado.innerHTML = '';
 
-  if (btn) {
-    btn.textContent = '↻ Regenerar';
-    btn.disabled = false;
+  // Renderizar módulos visuales primero (síncronos)
+  if (modulos.includes('kpis') && hardHistory) renderKPIs(hardHistory, client, resultado);
+  if (modulos.includes('tendencia') && hardHistory) renderTendenciaCAC(hardHistory, resultado);
+  if (modulos.includes('embudo') && hardHistory) renderEmbudo(hardHistory, resultado);
+  if (modulos.includes('semanal') && hardHistory) renderSemanal(hardHistory, resultado);
+  if (modulos.includes('ciudades') && hardHistory) renderCiudades(hardHistory, resultado);
+  if (modulos.includes('simulador') && hardHistory) renderSimulador(hardHistory, client, resultado);
+
+  // Módulos con Claude (asíncronos)
+  if (modulos.includes('diagnostico') || modulos.includes('insights')) {
+    await generarResumenClaude(client, firestoreHistory, hardHistory, context, modulos);
   }
+
+  if (btn) { btn.textContent = '↻ Regenerar'; btn.disabled = false; }
 }
 
+function renderKPIs(h, client, container) {
+  const last = h.monthly[h.monthly.length - 1];
+  const prev = h.monthly[h.monthly.length - 2];
+  const cacObj = parseFloat(client.cacObjetivo) || 2000;
+  const cacColor = last.cac <= cacObj * 1.1 ? '#34d399' : last.cac <= cacObj * 1.5 ? '#f59e0b' : '#ef4444';
+  const preautObj = 244;
+  const preautColor = last.costoPreaut <= preautObj * 1.2 ? '#34d399' : last.costoPreaut <= preautObj * 2 ? '#f59e0b' : '#ef4444';
+  const delta = (v, p) => v > p ? `↑ ${Math.round((v/p-1)*100)}% vs mes ant.` : `↓ ${Math.round((1-v/p)*100)}% vs mes ant.`;
 
-async function loadHistorialData(clientId) {
-  try {
-    const { db } = window._optixCore || {};
-    if (!db) return [];
-    const { collection, getDocs, orderBy, query, limit } = await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js');
-    const workspace = window._currentWorkspace || 'optimizads';
-    const ref = collection(db, `workspaces/${workspace}/data/clients/${clientId}/semaforoHistory`);
-    const q = query(ref, orderBy('fechaCierre', 'desc'), limit(12));
-    const snap = await getDocs(q);
-    return snap.docs.map(d => ({ id: d.id, ...d.data() })).reverse();
-  } catch(e) {
-    console.warn('loadHistorialData:', e);
-    return [];
-  }
-}
-
-function renderTendencia(history, container) {
-  if (!container || history.length < 2) {
-    if (container) container.innerHTML = '';
-    return;
-  }
-  const maxCAC = Math.max(...history.map(h => parseFloat(h.cacActual) || 0));
-  const rows = history.map(h => {
-    const cac = parseFloat(h.cacActual) || 0;
-    const pct = maxCAC > 0 ? (cac / maxCAC * 100) : 0;
-    const color = h.resultadoSemaforo === 'verde' ? 'var(--accent)' : h.resultadoSemaforo === 'amarillo' ? '#f59e0b' : '#ef4444';
-    const fecha = h.fechaCierre ? new Date(h.fechaCierre.seconds ? h.fechaCierre.seconds*1000 : h.fechaCierre).toLocaleDateString('es-MX',{month:'short',day:'numeric'}) : h.id;
-    return `<div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
-      <div style="font-size:10px; color:var(--text3); font-family:'DM Mono',monospace; min-width:52px;">${fecha}</div>
-      <div style="flex:1; background:var(--bg3); border-radius:4px; height:8px; overflow:hidden;">
-        <div style="width:${pct}%; height:100%; background:${color}; border-radius:4px; transition:width 0.4s;"></div>
-      </div>
-      <div style="font-size:11px; color:var(--text2); font-family:'DM Mono',monospace; min-width:80px; text-align:right;">$${cac.toLocaleString('es-MX')} CAC</div>
-      <div style="width:8px; height:8px; border-radius:50%; background:${color};"></div>
+  const el = document.createElement('div');
+  el.innerHTML = `
+    <div style="font-size:11px; color:var(--text3); font-family:'DM Mono',monospace; text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">📊 KPIs principales · ${last.mes}</div>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:20px;">
+      ${[
+        { label:'CAC actual', val:`$${last.cac.toLocaleString('es-MX')}`, sub:`Objetivo: $${cacObj.toLocaleString('es-MX')}`, delta:delta(last.cac,prev.cac), color:cacColor },
+        { label:'Costo / Preautorizado', val:`$${last.costoPreaut}`, sub:`Objetivo: $${preautObj}`, delta:delta(last.costoPreaut,prev.costoPreaut), color:preautColor },
+        { label:'Cierres del mes', val:last.cierres, sub:`Mes anterior: ${prev.cierres}`, delta:delta(last.cierres,prev.cierres).replace('↑','✅ +').replace('↓','↓ –'), color: last.cierres >= prev.cierres ? '#34d399':'#ef4444' },
+        { label:'Inversión mensual', val:`$${(last.inversion/1000).toFixed(0)}K`, sub:`Tasa: ${last.tasa}% → preaut`, delta:'Objetivo tasa: 6.65%', color:'#6366f1' }
+      ].map(k => `
+        <div style="background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:14px;">
+          <div style="font-size:10px; color:var(--text3); font-family:'DM Mono',monospace; margin-bottom:6px;">${k.label}</div>
+          <div style="font-size:22px; font-weight:700; color:${k.color}; font-family:'DM Sans',sans-serif; letter-spacing:-0.5px;">${k.val}</div>
+          <div style="font-size:11px; color:var(--text3); margin-top:4px;">${k.sub}</div>
+          <div style="font-size:10px; color:var(--text3); margin-top:2px; font-family:'DM Mono',monospace;">${k.delta}</div>
+        </div>
+      `).join('')}
     </div>`;
-  }).join('');
-  container.innerHTML = `
-    <div style="font-family:'DM Sans',sans-serif; font-weight:600; font-size:14px; margin-bottom:12px; color:var(--text1);">Tendencia de CAC · últimas ${history.length} semanas</div>
-    ${rows}
-  `;
+  container.appendChild(el);
 }
 
-async function generarResumenClaude(client, firestoreHistory, hardHistory, context) {
-  const el = document.getElementById('analisis-claude');
+function renderTendenciaCAC(h, container) {
+  const el = document.createElement('div');
+  el.innerHTML = `
+    <div style="font-size:11px; color:var(--text3); font-family:'DM Mono',monospace; text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">📈 Tendencia de CAC</div>
+    <div style="background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:16px; margin-bottom:20px;">
+      <canvas id="chart-cac-tend" height="160"></canvas>
+    </div>`;
+  container.appendChild(el);
+  _loadChartJS(() => {
+    const ctx = document.getElementById('chart-cac-tend');
+    if (!ctx) return;
+    const bgColors = h.monthly.map(m => m.cac <= 2400 ? 'rgba(52,211,153,0.7)' : m.cac <= 4000 ? 'rgba(251,191,36,0.7)' : 'rgba(239,68,68,0.7)');
+    new Chart(ctx, {
+      type:'bar',
+      data:{
+        labels: h.monthly.map(m=>m.mes),
+        datasets:[
+          { label:'CAC', data:h.monthly.map(m=>m.cac), backgroundColor:bgColors, borderRadius:4 },
+          { label:'Costo/Preaut', data:h.monthly.map(m=>m.costoPreaut), type:'line', borderColor:'rgba(139,92,246,0.8)', tension:0.3, pointRadius:4, pointBackgroundColor:'rgba(139,92,246,1)', fill:false },
+          { label:'CAC Obj', data:h.monthly.map(()=>2400), type:'line', borderColor:'rgba(52,211,153,0.3)', borderDash:[4,4], borderWidth:1.5, pointRadius:0, fill:false }
+        ]
+      },
+      options:{responsive:true, plugins:{legend:{display:false}}, scales:{y:{ticks:{color:'#888',font:{size:10},callback:v=>'$'+v.toLocaleString('es-MX')},grid:{color:'rgba(255,255,255,0.05)'}},x:{ticks:{color:'#888',font:{size:10}},grid:{display:false}}}}
+    });
+  });
+}
+
+function renderEmbudo(h, container) {
+  const el = document.createElement('div');
+  el.innerHTML = `
+    <div style="font-size:11px; color:var(--text3); font-family:'DM Mono',monospace; text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">🔽 Embudo de conversión</div>
+    <div style="background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:16px; margin-bottom:20px;">
+      ${h.embudo.map((e,i) => `
+        <div style="margin-bottom:${i<h.embudo.length-1?'10px':'0'};">
+          <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+            <span style="font-size:12px; color:var(--text2); font-family:'DM Sans',sans-serif;">${e.etapa}</span>
+            <span style="font-size:12px; font-family:'DM Mono',monospace; color:var(--text1); font-weight:600;">${e.valor}</span>
+          </div>
+          <div style="background:var(--bg3); border-radius:4px; height:8px;">
+            <div style="width:${e.pct}%; height:100%; background:${e.color}; border-radius:4px; transition:width 0.6s;"></div>
+          </div>
+          ${i < h.embudo.length-1 ? `<div style="font-size:10px; color:var(--text3); font-family:'DM Mono',monospace; margin-top:2px; text-align:right;">${h.embudo[i+1] ? (h.embudo[i+1].pct/e.pct*100).toFixed(1)+'% pasan' : ''}</div>` : ''}
+        </div>`).join('')}
+    </div>`;
+  container.appendChild(el);
+}
+
+function renderSemanal(h, container) {
+  const el = document.createElement('div');
+  el.innerHTML = `
+    <div style="font-size:11px; color:var(--text3); font-family:'DM Mono',monospace; text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">📅 Progreso semanal</div>
+    <div style="background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:16px; margin-bottom:20px;">
+      <canvas id="chart-semanal" height="140"></canvas>
+    </div>`;
+  container.appendChild(el);
+  _loadChartJS(() => {
+    const ctx = document.getElementById('chart-semanal');
+    if (!ctx) return;
+    const tasaObj = 6.65;
+    const ptColors = h.weekly.map(w => w.tasa >= tasaObj ? 'rgba(52,211,153,1)' : w.tasa >= 4 ? 'rgba(251,191,36,1)' : 'rgba(239,68,68,1)');
+    new Chart(ctx, {
+      type:'line',
+      data:{
+        labels:h.weekly.map(w=>w.semana),
+        datasets:[
+          { label:'Tasa %', data:h.weekly.map(w=>w.tasa), borderColor:'rgba(139,92,246,0.8)', tension:0.3, pointBackgroundColor:ptColors, pointRadius:5, fill:false },
+          { label:'Objetivo 6.65%', data:h.weekly.map(()=>tasaObj), borderColor:'rgba(52,211,153,0.3)', borderDash:[4,4], borderWidth:1.5, pointRadius:0, fill:false }
+        ]
+      },
+      options:{responsive:true, plugins:{legend:{display:false}}, scales:{y:{ticks:{color:'#888',font:{size:10},callback:v=>v+'%'},grid:{color:'rgba(255,255,255,0.05)'}},x:{ticks:{color:'#888',font:{size:10}},grid:{display:false}}}}
+    });
+  });
+}
+
+function renderCiudades(h, container) {
+  const el = document.createElement('div');
+  el.innerHTML = `
+    <div style="font-size:11px; color:var(--text3); font-family:'DM Mono',monospace; text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">🗺️ Rendimiento por ciudad</div>
+    <div style="background:var(--surface); border:1px solid var(--border); border-radius:10px; overflow:hidden; margin-bottom:20px;">
+      <table style="width:100%; border-collapse:collapse; font-size:12px;">
+        <thead>
+          <tr style="border-bottom:1px solid var(--border);">
+            <th style="text-align:left; padding:10px 14px; color:var(--text3); font-family:'DM Mono',monospace; font-weight:500; font-size:10px;">CIUDAD</th>
+            <th style="text-align:right; padding:10px 14px; color:var(--text3); font-family:'DM Mono',monospace; font-weight:500; font-size:10px;">TASA CONV.</th>
+            <th style="text-align:right; padding:10px 14px; color:var(--text3); font-family:'DM Mono',monospace; font-weight:500; font-size:10px;">CAC</th>
+            <th style="text-align:right; padding:10px 14px; color:var(--text3); font-family:'DM Mono',monospace; font-weight:500; font-size:10px;">CIERRES</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${h.ciudades.map(c => {
+            const color = c.tasa >= 3 ? '#34d399' : c.tasa >= 2 ? '#f59e0b' : '#ef4444';
+            return `<tr style="border-bottom:1px solid var(--border);">
+              <td style="padding:10px 14px; color:var(--text1); font-family:'DM Sans',sans-serif;">${c.ciudad}</td>
+              <td style="padding:10px 14px; text-align:right; font-family:'DM Mono',monospace; color:${color}; font-weight:600;">${c.tasa}%</td>
+              <td style="padding:10px 14px; text-align:right; font-family:'DM Mono',monospace; color:var(--text2);">$${c.cac.toLocaleString('es-MX')}</td>
+              <td style="padding:10px 14px; text-align:right; font-family:'DM Mono',monospace; color:var(--text2);">${c.cierres}</td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>`;
+  container.appendChild(el);
+}
+
+function renderSimulador(h, client, container) {
+  const cacObj = parseFloat(client.cacObjetivo) || 2000;
+  const last = h.monthly[h.monthly.length - 1];
+  const inversion = last.inversion;
+  // Cálculo: preaut_necesarios = cierres_objetivo / 0.109, leads_necesarios = preaut / (tasa/100)
+  const cierresObj = 30;
+
+  const el = document.createElement('div');
+  el.id = 'mod-simulador-container';
+  el.innerHTML = `
+    <div style="font-size:11px; color:var(--text3); font-family:'DM Mono',monospace; text-transform:uppercase; letter-spacing:1px; margin-bottom:10px;">⚙️ Simulador de escenarios</div>
+    <div style="background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:18px; margin-bottom:20px;">
+      <div style="font-size:12px; color:var(--text2); margin-bottom:16px;">¿Qué pasa si mejoramos la tasa prospecto → preautorizado?</div>
+      <div style="display:flex; align-items:center; gap:12px; margin-bottom:6px;">
+        <span style="font-size:11px; color:var(--text3); font-family:'DM Mono',monospace; min-width:60px;">Tasa actual: <strong id="sim-tasa-val" style="color:var(--accent);">2.4%</strong></span>
+        <input type="range" id="sim-slider" min="1" max="10" step="0.1" value="2.4"
+          style="flex:1; accent-color:var(--accent);"
+          oninput="calcSimulador(this.value, ${inversion}, ${cierresObj}, ${cacObj})">
+        <span style="font-size:11px; color:var(--text3); font-family:'DM Mono',monospace; min-width:30px;">10%</span>
+      </div>
+      <div id="sim-resultado" style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; margin-top:16px;"></div>
+      <div id="sim-escenarios" style="margin-top:16px;"></div>
+    </div>`;
+  container.appendChild(el);
+  // Trigger inicial
+  calcSimulador(2.4, inversion, cierresObj, cacObj);
+}
+
+function calcSimulador(tasa, inversion, cierresObj, cacObj) {
+  const t = parseFloat(tasa);
+  document.getElementById('sim-tasa-val').textContent = t.toFixed(1) + '%';
+  document.getElementById('sim-slider').value = t;
+
+  // Embudo inverso: para X cierres con tasa preaut→cierre=10.9%
+  const preautNecesarios = Math.ceil(cierresObj / 0.109);
+  // Leads necesarios = preaut / (tasa/100) * 20.6% (prospecto de leads)
+  const prospectosPorLead = 0.206;
+  const prospectosNecesarios = Math.ceil(preautNecesarios / (t / 100));
+  const leadsNecesarios = Math.ceil(prospectosNecesarios / prospectosPorLead);
+  const costoLead = 17;
+  const inversionNecesaria = leadsNecesarios * costoLead;
+  const cacProyectado = Math.round(inversionNecesaria / cierresObj);
+  const color = cacProyectado <= cacObj ? '#34d399' : cacProyectado <= cacObj * 1.5 ? '#f59e0b' : '#ef4444';
+
+  const resEl = document.getElementById('sim-resultado');
+  if (resEl) resEl.innerHTML = [
+    { label: 'CAC proyectado', val: '$' + cacProyectado.toLocaleString('es-MX'), color },
+    { label: 'Inversión necesaria', val: '$' + Math.round(inversionNecesaria/1000) + 'K', color: 'var(--text1)' },
+    { label: `Para ${cierresObj} cierres/mes`, val: leadsNecesarios.toLocaleString('es-MX') + ' leads', color: 'var(--text1)' }
+  ].map(k => `
+    <div style="background:var(--bg2); border-radius:8px; padding:12px; text-align:center;">
+      <div style="font-size:10px; color:var(--text3); font-family:'DM Mono',monospace; margin-bottom:4px;">${k.label}</div>
+      <div style="font-size:18px; font-weight:700; color:${k.color}; font-family:'DM Sans',sans-serif;">${k.val}</div>
+    </div>`).join('');
+
+  // Tabla de escenarios fijos
+  const escenariosEl = document.getElementById('sim-escenarios');
+  if (escenariosEl) {
+    const rows = [
+      { label:'Actual', tasa:2.4 },
+      { label:'Mínimo viable', tasa:4.0 },
+      { label:'Objetivo', tasa:6.65 },
+      { label:'Máximo histórico (Sep 25)', tasa:3.4 }
+    ].map(s => {
+      const pN = Math.ceil(cierresObj / 0.109);
+      const lN = Math.ceil(Math.ceil(pN / (s.tasa/100)) / prospectosPorLead);
+      const cac = Math.round(lN * costoLead / cierresObj);
+      const c = cac <= cacObj ? '#34d399' : cac <= cacObj*1.5 ? '#f59e0b' : '#ef4444';
+      const isActive = Math.abs(s.tasa - t) < 0.2;
+      return `<tr style="border-bottom:1px solid var(--border); ${isActive?'background:rgba(0,229,160,0.04);':''}">
+        <td style="padding:8px 12px; font-size:11px; color:var(--text2); font-family:'DM Sans',sans-serif;">${s.label}</td>
+        <td style="padding:8px 12px; font-size:11px; font-family:'DM Mono',monospace; color:var(--text3);">${s.tasa}%</td>
+        <td style="padding:8px 12px; font-size:12px; font-family:'DM Mono',monospace; color:${c}; font-weight:600; text-align:right;">$${cac.toLocaleString('es-MX')}</td>
+      </tr>`;
+    }).join('');
+    escenariosEl.innerHTML = `<table style="width:100%; border-collapse:collapse; border:1px solid var(--border); border-radius:8px; overflow:hidden;">
+      <thead><tr style="border-bottom:1px solid var(--border);">
+        <th style="padding:6px 12px; text-align:left; font-size:10px; color:var(--text3); font-family:'DM Mono',monospace; font-weight:500;">ESCENARIO</th>
+        <th style="padding:6px 12px; text-align:left; font-size:10px; color:var(--text3); font-family:'DM Mono',monospace; font-weight:500;">TASA</th>
+        <th style="padding:6px 12px; text-align:right; font-size:10px; color:var(--text3); font-family:'DM Mono',monospace; font-weight:500;">CAC</th>
+      </tr></thead>
+      <tbody>${rows}</tbody></table>`;
+  }
+}
+
+function _loadChartJS(cb) {
+  if (typeof Chart !== 'undefined') { cb(); return; }
+  const s = document.createElement('script');
+  s.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js';
+  s.onload = cb;
+  document.head.appendChild(s);
+}
+
+
+
+async function generarResumenClaude(client, firestoreHistory, hardHistory, context, modulos = ['diagnostico', 'insights']) {
+  const resultado = document.getElementById('analisis-resultado');
+  const wantsDiagnostico = modulos.includes('diagnostico');
+  const wantsInsights = modulos.includes('insights');
+  if (!wantsDiagnostico && !wantsInsights) return;
+
+  // Crear contenedor de Claude dentro de analisis-resultado
+  let el = document.getElementById('analisis-claude');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'analisis-claude';
+    if (resultado) resultado.appendChild(el);
+  }
   if (!el) return;
   try {
     // Construir resumen con data de Firestore
@@ -5316,6 +5503,24 @@ async function generarResumenClaude(client, firestoreHistory, hardHistory, conte
         hardHistory.monthly.map(m => `${m.mes}: CAC $${m.cac}, cierres ${m.cierres}, tasa ${m.tasa}%`).join('\n');
     }
 
+    // Construir secciones según módulos activos
+    const sectiones = [];
+    if (wantsDiagnostico) {
+      sectiones.push(
+        '<div class="diag-bloque"><span class="diag-label">Situación actual</span><p>...</p></div>',
+        '<div class="diag-bloque"><span class="diag-label">El problema real</span><p>...</p></div>',
+        '<div class="diag-bloque"><span class="diag-label">Lo que está funcionando</span><p>...</p></div>',
+        '<div class="diag-bloque"><span class="diag-label">Acción inmediata</span><p>...</p></div>'
+      );
+    }
+    if (wantsInsights) {
+      sectiones.push(
+        '<div class="diag-bloque insights"><span class="diag-label">💡 Insight 1</span><p>...</p></div>',
+        '<div class="diag-bloque insights"><span class="diag-label">💡 Insight 2</span><p>...</p></div>',
+        '<div class="diag-bloque insights"><span class="diag-label">💡 Insight 3</span><p>...</p></div>'
+      );
+    }
+
     const prompt = `Eres el analista senior de OptimizAds. Analiza al cliente "${client.nombre || client.id}" (${client.industria || 'sin industria'}).
 
 CAC objetivo: $${client.cacObjetivo || '2,000'} MXN.
@@ -5323,13 +5528,13 @@ ${contextBlock}
 ${hardBlock}
 ${resumenFirestore ? '\nHISTORIAL SEMANAL RECIENTE:\n' + resumenFirestore : ''}
 
-Responde EXACTAMENTE en este formato HTML, sin texto fuera de él:
-<div class="diag-bloque"><span class="diag-label">Situación actual</span><p>...</p></div>
-<div class="diag-bloque"><span class="diag-label">El problema real</span><p>...</p></div>
-<div class="diag-bloque"><span class="diag-label">Lo que está funcionando</span><p>...</p></div>
-<div class="diag-bloque"><span class="diag-label">Acción inmediata</span><p>...</p></div>
+${wantsDiagnostico ? 'DIAGNÓSTICO EJECUTIVO: sé específico con números, 2-3 oraciones por bloque.' : ''}
+${wantsInsights ? 'INSIGHTS ACCIONABLES: 3 acciones concretas con impacto esperado. Formato: "Acción → resultado estimado". No repitas lo del diagnóstico.' : ''}
 
-Cada bloque: 2-3 oraciones. Específico con números. Sin preamble.`;
+Responde EXACTAMENTE en este formato HTML, sin texto fuera de él:
+${sectiones.join('\n')}
+
+Sin preamble. Solo el HTML.`;
 
     const response = await fetch('https://optix-proxy.anwarhsg.workers.dev', {
       method: 'POST',
@@ -5345,10 +5550,15 @@ Cada bloque: 2-3 oraciones. Específico con números. Sin preamble.`;
     el.innerHTML = `
       <style>
         .diag-bloque { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:14px 16px; margin-bottom:10px; }
+        .diag-bloque.insights { border-left:3px solid #f59e0b; }
         .diag-label { font-family:'DM Mono',monospace; font-size:10px; color:var(--accent); text-transform:uppercase; letter-spacing:1px; display:block; margin-bottom:6px; }
+        .diag-bloque.insights .diag-label { color:#f59e0b; }
         .diag-bloque p { font-size:13px; line-height:1.65; color:var(--text1); margin:0; }
+        .analisis-section-header { font-size:11px; color:var(--text3); font-family:'DM Mono',monospace; text-transform:uppercase; letter-spacing:1px; margin:16px 0 10px; }
       </style>
+      ${wantsDiagnostico ? '<div class="analisis-section-header">🧠 Diagnóstico ejecutivo</div>' : ''}
       ${text}
+      ${wantsInsights && !wantsDiagnostico ? '' : ''}
       <div style="margin-top:8px; font-size:10px; color:var(--text3); font-family:'DM Mono',monospace; text-align:right;">🧠 Optix · ${new Date().toLocaleDateString('es-MX')}</div>`;
   } catch(e) {
     const el2 = document.getElementById('analisis-claude');
