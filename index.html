@@ -1690,55 +1690,18 @@
     </div>
 
     <nav class="sidebar-nav">
-      <div class="nav-section-label">Panel</div>
-      <div class="nav-item active" onclick="navigate('dashboard')">
-        <span class="nav-item-icon">⬡</span>
-        <span class="nav-item-text">Dashboard</span>
-        <span class="nav-item-role role-anwar">⚡</span>
+      <div class="nav-item active" id="tab-semana" onclick="navigateTab('semana')">
+        <span class="nav-item-icon">⚡</span>
+        <span class="nav-item-text">Esta semana</span>
       </div>
-
-      <div class="nav-section-label">Expediente</div>
-      <div class="nav-item" onclick="navigate('adn')">
-        <span class="nav-item-icon">🧬</span>
-        <span class="nav-item-text">ADN del negocio</span>
-        <span class="nav-item-role role-estrategia">🔵</span>
+      <div class="nav-item" id="tab-expediente" onclick="navigateTab('expediente')">
+        <span class="nav-item-icon">📁</span>
+        <span class="nav-item-text">Expediente</span>
+        <span class="nav-item-role" id="tab-exp-badge" style="font-size:10px; font-family:'DM Mono',monospace; color:var(--text3);">—</span>
       </div>
-      <div class="nav-item" onclick="navigate('objetivos')">
-        <span class="nav-item-icon">🎯</span>
-        <span class="nav-item-text">Objetivos</span>
-        <span class="nav-item-role role-estrategia">🔵</span>
-      </div>
-      <div class="nav-item" onclick="navigate('rendimiento')">
-        <span class="nav-item-icon">📊</span>
-        <span class="nav-item-text">Rendimiento</span>
-        <span class="nav-item-role role-operativo">🟢</span>
-      </div>
-      <div class="nav-item" onclick="navigate('segmentos')">
-        <span class="nav-item-icon">👥</span>
-        <span class="nav-item-text">Segmentos</span>
-        <span class="nav-item-role role-estrategia">🔵</span>
-      </div>
-      <div class="nav-item" onclick="navigate('validacion')">
-        <span class="nav-item-icon">✅</span>
-        <span class="nav-item-text">Validación</span>
-        <span class="nav-item-role role-estrategia">🔵</span>
-      </div>
-
-      <div class="nav-section-label">Operaciones</div>
-      <div class="nav-item" onclick="navigate('creativos')">
-        <span class="nav-item-icon">🎨</span>
-        <span class="nav-item-text">Brief de creativos</span>
-        <span class="nav-item-role role-operativo">🟢</span>
-      </div>
-      <div class="nav-item" onclick="navigate('vault')">
-        <span class="nav-item-icon">🏆</span>
-        <span class="nav-item-text">Winning Ads Vault</span>
-        <span class="nav-item-role role-estrategia">🔵</span>
-      </div>
-      <div class="nav-item" onclick="navigate('decisiones')">
-        <span class="nav-item-icon">📝</span>
-        <span class="nav-item-text">Decisiones</span>
-        <span class="nav-item-role role-anwar">⚡</span>
+      <div class="nav-item" id="tab-historial" onclick="navigateTab('historial')">
+        <span class="nav-item-icon">📈</span>
+        <span class="nav-item-text">Historial</span>
       </div>
     </nav>
 
@@ -1840,110 +1803,35 @@
           <div id="semaforo-historial-table" style="overflow-x:auto;">
           </div>
         </div>
-        <!-- EXPEDIENTE 3 CAPAS -->
-        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
-          <div style="font-family:'DM Sans',sans-serif; font-weight:600; font-size:16px; letter-spacing:-0.1px;">Expediente del cliente</div>
-          <div style="font-size:11px; color:var(--text3); font-family:'DM Mono',monospace;" id="exp-completitud-global">—</div>
-        </div>
-
-        <!-- CAPA 1: ADN -->
-        <div style="margin-bottom:10px;">
-          <div style="font-size:10px; font-family:'DM Mono',monospace; color:var(--text3); letter-spacing:0.08em; text-transform:uppercase; margin-bottom:8px; padding-left:2px;">Capa 1 · ADN del Cliente · Onboarding</div>
-          <div class="sections-grid" style="grid-template-columns: repeat(2, 1fr); gap:10px;">
-            <div class="section-card" onclick="navigate('adn')" style="position:relative;">
-              <div class="section-card-header">
-                <div class="section-icon">🧬</div>
-                <div class="layer-badge" id="badge-adn" style="font-size:10px; padding:2px 8px; border-radius:20px; background:var(--bg3); color:var(--text3); font-family:'DM Mono',monospace;">Vacío</div>
+        <!-- ACCESO AL EXPEDIENTE — Compacto, al fondo del dashboard -->
+        <div style="margin-top:8px; margin-bottom:24px;">
+          <div style="display:flex; align-items:center; justify-content:space-between; padding:14px 18px; background:var(--bg2); border:1px solid var(--border1); border-radius:12px; cursor:pointer;" onclick="navigateTab('expediente')">
+            <div style="display:flex; align-items:center; gap:12px;">
+              <span style="font-size:18px;">📁</span>
+              <div>
+                <div style="font-size:13px; font-weight:600; color:var(--text1); font-family:'DM Sans',sans-serif;">Expediente del cliente</div>
+                <div style="font-size:11px; color:var(--text3); font-family:'DM Mono',monospace; margin-top:2px;">ADN · Objetivos · Performance · Creativos · Decisiones</div>
               </div>
-              <div class="section-name">Datos generales + Contactos</div>
-              <div class="section-desc" style="font-size:11px;">Nombre, industria, contactos con email y teléfono, modelo de negocio.</div>
-              <div class="section-footer">
-                <div class="progress-bar-container"><div class="progress-bar-fill" id="bar-adn" style="width:0%"></div></div>
-                <span class="tag role-estrategia">Anwar</span>
-              </div>
-              <div id="capa1-dot" style="position:absolute; top:12px; right:12px; width:8px; height:8px; border-radius:50%; background:var(--text3);"></div>
             </div>
-
-            <div class="section-card" onclick="navigate('segmentos')" style="position:relative;">
-              <div class="section-card-header">
-                <div class="section-icon">👥</div>
-                <div class="layer-badge" id="badge-segmentos" style="font-size:10px; padding:2px 8px; border-radius:20px; background:var(--bg3); color:var(--text3); font-family:'DM Mono',monospace;">Vacío</div>
-              </div>
-              <div class="section-name">Segmentos + Proceso de venta</div>
-              <div class="section-desc" style="font-size:11px;">Perfil del cliente ideal, embudo, motivadores, frenos de compra.</div>
-              <div class="section-footer">
-                <div class="progress-bar-container"><div class="progress-bar-fill" id="bar-segmentos" style="width:0%"></div></div>
-                <span class="tag role-estrategia">🔵 Kike</span>
-              </div>
+            <div style="display:flex; align-items:center; gap:12px;">
+              <div style="font-size:11px; font-family:'DM Mono',monospace;" id="exp-completitud-global">—</div>
+              <span style="color:var(--text3); font-size:14px;">→</span>
             </div>
           </div>
         </div>
 
-        <!-- CAPA 2: OBJETIVOS Y ESTRATEGIA -->
-        <div style="margin-bottom:10px;">
-          <div style="font-size:10px; font-family:'DM Mono',monospace; color:var(--text3); letter-spacing:0.08em; text-transform:uppercase; margin-bottom:8px; padding-left:2px;">Capa 2 · Objetivos y Estrategia · Mensual</div>
-          <div class="sections-grid" style="grid-template-columns: repeat(2, 1fr); gap:10px;">
-            <div class="section-card" onclick="navigate('objetivos')" style="position:relative;">
-              <div class="section-card-header">
-                <div class="section-icon">🎯</div>
-                <div class="layer-badge" id="badge-objetivos" style="font-size:10px; padding:2px 8px; border-radius:20px; background:var(--bg3); color:var(--text3); font-family:'DM Mono',monospace;">Vacío</div>
-              </div>
-              <div class="section-name">Metas + KPIs</div>
-              <div class="section-desc" style="font-size:11px;">Objetivo central, CAC objetivo, CAC máximo, LTV, presupuesto.</div>
-              <div class="section-footer">
-                <div class="progress-bar-container"><div class="progress-bar-fill" id="bar-objetivos" style="width:0%"></div></div>
-                <span class="tag role-estrategia">🔵 Kike</span>
-              </div>
-            </div>
-
-            <div class="section-card" onclick="navigate('validacion')" style="position:relative;">
-              <div class="section-card-header">
-                <div class="section-icon">⚖️</div>
-                <div class="layer-badge" id="badge-validacion" style="font-size:10px; padding:2px 8px; border-radius:20px; background:var(--bg3); color:var(--text3); font-family:'DM Mono',monospace;">Vacío</div>
-              </div>
-              <div class="section-name">Validación + Restricciones</div>
-              <div class="section-desc" style="font-size:11px;">Coherencia CAC vs histórico, cuellos de botella, restricciones activas.</div>
-              <div class="section-footer">
-                <div class="progress-bar-container"><div class="progress-bar-fill" id="bar-validacion" style="width:0%"></div></div>
-                <span class="tag role-estrategia">🔵 Kike</span>
-              </div>
-            </div>
-          </div>
+        <!-- badges ocultos para compatibilidad con loadAllFields -->
+        <div style="display:none;">
+          <div id="badge-adn"></div><div id="badge-segmentos"></div>
+          <div id="badge-objetivos"></div><div id="badge-validacion"></div>
+          <div id="badge-rendimiento"></div><div id="badge-creativos"></div>
+          <div id="bar-adn" style="width:0%"></div><div id="bar-segmentos" style="width:0%"></div>
+          <div id="bar-objetivos" style="width:0%"></div><div id="bar-validacion" style="width:0%"></div>
+          <div id="bar-rendimiento" style="width:0%"></div><div id="bar-creativos" style="width:0%"></div>
+          <div id="capa1-dot"></div>
         </div>
 
-        <!-- CAPA 3: PERFORMANCE OPERATIVO -->
-        <div style="margin-bottom:10px;">
-          <div style="font-size:10px; font-family:'DM Mono',monospace; color:var(--text3); letter-spacing:0.08em; text-transform:uppercase; margin-bottom:8px; padding-left:2px;">Capa 3 · Performance Operativo · Semanal</div>
-          <div class="sections-grid" style="grid-template-columns: repeat(2, 1fr); gap:10px;">
-            <div class="section-card" onclick="navigate('rendimiento')" style="position:relative;">
-              <div class="section-card-header">
-                <div class="section-icon">📊</div>
-                <div class="layer-badge" id="badge-rendimiento" style="font-size:10px; padding:2px 8px; border-radius:20px; background:var(--bg3); color:var(--text3); font-family:'DM Mono',monospace;">Vacío</div>
-              </div>
-              <div class="section-name">Rendimiento + Campañas</div>
-              <div class="section-desc" style="font-size:11px;">CAC histórico, campañas activas, métricas clave, análisis diario.</div>
-              <div class="section-footer">
-                <div class="progress-bar-container"><div class="progress-bar-fill" id="bar-rendimiento" style="width:0%"></div></div>
-                <span class="tag role-operativo">🟢 Mario</span>
-              </div>
-            </div>
-
-            <div class="section-card" onclick="navigate('creativos')" style="position:relative; opacity:0.7;">
-              <div class="section-card-header">
-                <div class="section-icon">🎨</div>
-                <div class="layer-badge" id="badge-creativos" style="font-size:10px; padding:2px 8px; border-radius:20px; background:var(--bg3); color:var(--text3); font-family:'DM Mono',monospace;">Vacío</div>
-              </div>
-              <div class="section-name">Insights creativos + Winning Ads</div>
-              <div class="section-desc" style="font-size:11px;">Ads ganadores, ángulos, hooks, aprendizajes creativos.</div>
-              <div class="section-footer">
-                <div class="progress-bar-container"><div class="progress-bar-fill" id="bar-creativos" style="width:0%"></div></div>
-                <span class="tag role-estrategia">🔵 Kike</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- PENDIENTES RÁPIDOS para Kike -->
+        <!-- PENDIENTES RÁPIDOS para Kike — oculto, usado por loadAllFields -->
         <div id="exp-pendientes-panel" style="display:none; margin-top:16px; background:var(--bg2); border:1px solid var(--border1); border-radius:12px; padding:14px 16px;">
           <div style="font-size:12px; font-weight:600; color:var(--text1); margin-bottom:10px;">⚠️ Campos pendientes para completar el expediente</div>
           <div id="exp-pendientes-list" style="display:flex; flex-wrap:wrap; gap:6px;"></div>
@@ -1959,7 +1847,7 @@
             <div class="content-title">🧬 ADN del Negocio</div>
             <div class="content-subtitle">Capa 1 · Expediente base · <span class="tag role-estrategia" style="display:inline-flex">🔵 Estrategia</span></div>
           </div>
-          <button class="btn btn-ghost" style="font-size:12px;" onclick="navigate('dashboard')">← Dashboard</button>
+          <button class="btn btn-ghost" style="font-size:12px;" onclick="navigateTab('semana')">← Esta semana</button>
         </div>
       </div>
       <div class="content-body">
@@ -2124,7 +2012,7 @@
             <div class="content-title">🎯 Objetivos y Estrategia</div>
             <div class="content-subtitle">Capa 2 · Revisión mensual · <span class="tag role-estrategia" style="display:inline-flex">🔵 Kike</span></div>
           </div>
-          <button class="btn btn-ghost" style="font-size:12px;" onclick="navigate('dashboard')">← Dashboard</button>
+          <button class="btn btn-ghost" style="font-size:12px;" onclick="navigateTab('semana')">← Esta semana</button>
         </div>
       </div>
       <div class="content-body">
@@ -2256,7 +2144,7 @@
             <div class="content-title">📊 Rendimiento Histórico</div>
             <div class="content-subtitle">Capa 1 · Expediente base · <span class="tag role-operativo" style="display:inline-flex">🟢 Operativo</span></div>
           </div>
-          <button class="btn btn-ghost" style="font-size:12px;" onclick="navigate('dashboard')">← Dashboard</button>
+          <button class="btn btn-ghost" style="font-size:12px;" onclick="navigateTab('semana')">← Esta semana</button>
         </div>
       </div>
       <div class="content-body">
@@ -2352,7 +2240,7 @@
             <div class="content-title">👥 Segmentos de Cliente</div>
             <div class="content-subtitle">Capa 1 · Expediente base · <span class="tag role-estrategia" style="display:inline-flex">🔵 Estrategia</span></div>
           </div>
-          <button class="btn btn-ghost" style="font-size:12px;" onclick="navigate('dashboard')">← Dashboard</button>
+          <button class="btn btn-ghost" style="font-size:12px;" onclick="navigateTab('semana')">← Esta semana</button>
         </div>
       </div>
       <div class="content-body">
@@ -2441,7 +2329,7 @@
             <div class="content-title">✅ Validación de Objetivos</div>
             <div class="content-subtitle">Capa 1 · Expediente base · <span class="tag role-estrategia" style="display:inline-flex">🔵 Estrategia</span></div>
           </div>
-          <button class="btn btn-ghost" style="font-size:12px;" onclick="navigate('dashboard')">← Dashboard</button>
+          <button class="btn btn-ghost" style="font-size:12px;" onclick="navigateTab('semana')">← Esta semana</button>
         </div>
       </div>
       <div class="content-body">
@@ -2521,7 +2409,7 @@
             <div class="content-title">🎨 Brief de Creativos</div>
             <div class="content-subtitle">Capa 2 · Workflow operativo semanal · <span class="tag role-operativo" style="display:inline-flex">🟢 Operativo</span></div>
           </div>
-          <button class="btn btn-ghost" style="font-size:12px;" onclick="navigate('dashboard')">← Dashboard</button>
+          <button class="btn btn-ghost" style="font-size:12px;" onclick="navigateTab('semana')">← Esta semana</button>
         </div>
       </div>
       <div class="content-body">
@@ -2626,7 +2514,7 @@
           </div>
           <div style="display:flex; gap:10px;">
             <button class="btn btn-primary" style="font-size:12px;" onclick="openAddVaultModal()">+ Agregar ad ganador</button>
-            <button class="btn btn-ghost" style="font-size:12px;" onclick="navigate('dashboard')">← Dashboard</button>
+            <button class="btn btn-ghost" style="font-size:12px;" onclick="navigateTab('semana')">← Esta semana</button>
           </div>
         </div>
       </div>
@@ -2651,7 +2539,7 @@
           </div>
           <div style="display:flex; gap:10px;">
             <button class="btn btn-primary" style="font-size:12px;" onclick="openAddDecisionModal()">+ Registrar decisión</button>
-            <button class="btn btn-ghost" style="font-size:12px;" onclick="navigate('dashboard')">← Dashboard</button>
+            <button class="btn btn-ghost" style="font-size:12px;" onclick="navigateTab('semana')">← Esta semana</button>
           </div>
         </div>
       </div>
@@ -3709,8 +3597,45 @@ function openClient(id) {
   const client = getClient();
   document.getElementById('sidebar-client-name').textContent = client.nombre;
   document.getElementById('dash-subtitle').textContent = `Semáforo semanal · ${client.industria || 'cliente'}`;
-  navigate('dashboard');
+  navigateTab('semana');
   loadAllFields();
+}
+
+// ── Tab system ──────────────────────────────
+// Tabs: 'semana' | 'expediente' | 'historial'
+// Dentro de expediente, sub-vistas: adn, objetivos, rendimiento, segmentos, validacion, creativos, vault, decisiones
+
+const EXPEDIENTE_VIEWS = ['adn','objetivos','rendimiento','segmentos','validacion','creativos','vault','decisiones'];
+
+function navigateTab(tab) {
+  // Actualizar tabs activos en sidebar
+  ['semana','expediente','historial'].forEach(t => {
+    const el = document.getElementById('tab-' + t);
+    if (el) el.classList.toggle('active', t === tab);
+  });
+
+  if (tab === 'semana') {
+    navigate('dashboard');
+  } else if (tab === 'expediente') {
+    // Si ya estaba en una sub-vista del expediente, mantenerla; si no, ir a adn
+    if (EXPEDIENTE_VIEWS.includes(currentView)) {
+      navigate(currentView);
+    } else {
+      navigate('adn');
+    }
+  } else if (tab === 'historial') {
+    navigate('dashboard');
+    // Mostrar solo la sección de historial, ocultar lo demás del dashboard
+    setTimeout(() => {
+      const hist = document.getElementById('semaforo-historial-section');
+      const body = document.querySelector('#view-dashboard .content-body');
+      if (hist) {
+        hist.style.display = 'block';
+        // Desplazar a historial
+        hist.scrollIntoView({ behavior: 'smooth' });
+      }
+    }, 100);
+  }
 }
 
 function navigate(view) {
@@ -3720,15 +3645,25 @@ function navigate(view) {
   document.getElementById('view-' + view).style.display = 'flex';
   document.getElementById('view-' + view).style.flexDirection = 'column';
 
-  // Nav items
-  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-  const navMap = {
-    dashboard: 0, adn: 1, objetivos: 2, rendimiento: 3, segmentos: 4, validacion: 5,
-    creativos: 6, vault: 7, decisiones: 8
-  };
-  const navItems = document.querySelectorAll('.nav-item');
-  if (navMap[view] !== undefined && navItems[navMap[view]]) {
-    navItems[navMap[view]].classList.add('active');
+  // Sincronizar tab activo en sidebar
+  const isExpediente = EXPEDIENTE_VIEWS.includes(view);
+  ['semana','expediente','historial'].forEach(t => {
+    const el = document.getElementById('tab-' + t);
+    if (!el) return;
+    if (t === 'semana') el.classList.toggle('active', view === 'dashboard');
+    if (t === 'expediente') el.classList.toggle('active', isExpediente);
+    if (t === 'historial') el.classList.remove('active');
+  });
+
+  // Badge de completitud en tab Expediente
+  const badge = document.getElementById('tab-exp-badge');
+  if (badge) {
+    const client = getClient();
+    if (client) {
+      const pct = calcCompletitudGlobal(client);
+      badge.textContent = pct + '%';
+      badge.style.color = pct >= 80 ? '#10b981' : pct >= 50 ? '#f59e0b' : 'var(--text3)';
+    }
   }
 
   if (view === 'dashboard') { updateDashboard(); loadHistorialIfExists(); }
@@ -3929,6 +3864,22 @@ function updateProgress(section) {
 
   // Actualizar completitud global
   updateGlobalCompletitud();
+}
+
+function calcCompletitudGlobal(client) {
+  if (!client) return 0;
+  const sections = ['adn','objetivos','rendimiento','segmentos','validacion'];
+  let totalReq = 0, totalFilled = 0;
+  sections.forEach(section => {
+    const data = client[section] || {};
+    const reqFields = requiredFields[section] || [];
+    totalReq += reqFields.length;
+    totalFilled += reqFields.filter(f => {
+      const key = f.replace(/-/g, '_');
+      return data[key] && data[key].toString().trim() !== '';
+    }).length;
+  });
+  return totalReq > 0 ? Math.round((totalFilled / totalReq) * 100) : 0;
 }
 
 function updateGlobalCompletitud() {
