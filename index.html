@@ -5,45 +5,42 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Optix</title>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500&family=Montserrat:wght@400;700;900&display=swap" rel="stylesheet">
+<!-- ═══════════════════════════════════════════════════════
+     OPTIX — ARQUITECTURA MODULAR v3.0
+     
+     Módulos cargados:
+     - core.js       → Firebase, WorkspaceId, estado global
+     - audit.js      → Audit log (quién cambió qué y cuándo)
+     - integraciones.js → Webhooks salida + estructura API inbound
+     
+     Todos los módulos exponen su API en window.Optix*
+     para compatibilidad con el código legacy de este HTML.
+     
+     WorkspaceId: 'optimizads' (multi-tenant listo desde el inicio)
+     ═══════════════════════════════════════════════════════ -->
 <script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-  import { getFirestore, doc, getDoc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
-
-  const firebaseConfig = {
-    apiKey: "AIzaSyDFz4p5Me5lZwzCT7aM992JSiWeVbWJb6w",
-    authDomain: "optix-5fb36.firebaseapp.com",
-    projectId: "optix-5fb36",
-    storageBucket: "optix-5fb36.firebasestorage.app",
-    messagingSenderId: "453087797268",
-    appId: "1:453087797268:web:c78faee4f1dffd4574c701"
-  };
-
-  const app = initializeApp(firebaseConfig);
-  const db = getFirestore(app);
-
-  // Exponer funciones de Firebase al scope global
-  window._fbSaveClients = async (clientsData) => {
-    try {
-      await setDoc(doc(db, "optix", "clients"), { data: clientsData });
-    } catch(e) { console.error("Firebase save error:", e); }
-  };
-
-  window._fbLoadClients = async () => {
-    try {
-      const snap = await getDoc(doc(db, "optix", "clients"));
-      if (snap.exists()) return snap.data().data;
-    } catch(e) { console.error("Firebase load error:", e); }
-    return null;
-  };
-
-  window._fbOnClientsChange = (callback) => {
-    onSnapshot(doc(db, "optix", "clients"), (snap) => {
-      if (snap.exists()) callback(snap.data().data);
-    });
-  };
-
-  window._fbReady = true;
-  window.dispatchEvent(new Event('firebase-ready'));
+  // Cargar módulos en orden: Core primero, luego los dependientes
+  
+  // 1. Core — Firebase, workspaceId, estado global
+  const { 
+    fbSaveClients, fbLoadClients, fbOnClientsChange,
+    fbSaveClientData, fbLoadClientData,
+    State, setState, WORKSPACE, isFeatureEnabled
+  } = await import('./modules/core.js');
+  
+  // 2. Audit Log — depende de core
+  const { Audit, log: auditLog, getRecentLogs } = await import('./modules/audit.js');
+  
+  // 3. Integraciones — depende de core  
+  const { emit, OptixEvents, loadConnectors } = await import('./modules/integraciones.js');
+  
+  // Cargar conectores del workspace (async, no bloquea)
+  loadConnectors().catch(e => console.warn('[Init] Conectores no cargaron:', e.message));
+  
+  // Log de inicio de sesión
+  Audit.sessionStart('app_load');
+  
+  console.log('[Optix v3] Módulos cargados — workspace:', WORKSPACE.id);
 </script>
 <style>
   :root {
@@ -2585,13 +2582,17 @@
 // ══════════════════════════════════════════
 // STATE
 // ══════════════════════════════════════════
-const CLAUDE_PROXY_URL = 'https://optix-proxy.anwarhsg.workers.dev';
+const CLAUDE_PROXY_URL = 'https://optix-claude.anwarhsg.workers.dev';
+// WorkspaceId — identificador del workspace activo
+// En SaaS multi-tenant: viene del auth. Por ahora hardcoded.
+const WORKSPACE_ID = window._OptixCore?.WORKSPACE?.id || 'optimizads';
+
 const DEFAULT_CLIENTS = [
-  { id: 'enpagos', nombre: 'EnPagos', semaforo: { general: 'green' }, nicho: 'Fintech', presupuesto: 50000, plataformas: ['Meta'] },
-  { id: 'favio', nombre: 'Favio', semaforo: { general: 'yellow' }, nicho: 'Clínica estética', presupuesto: 20000, plataformas: ['Meta'] },
-  { id: 'bodygreen', nombre: 'Bodygreen', semaforo: { general: 'green' }, nicho: 'Clínica estética', presupuesto: 25000, plataformas: ['Meta'] },
-  { id: 'divisas', nombre: 'Divisas La Rioja', semaforo: { general: 'red' }, nicho: 'Finanzas', presupuesto: 15000, plataformas: ['Meta'] },
-  { id: 'inmobili', nombre: 'Inmobili', semaforo: { general: 'gray' }, nicho: 'Inmobiliaria', presupuesto: 10000, plataformas: ['Meta'] },
+  { id: 'enpagos', workspaceId: WORKSPACE_ID, nombre: 'EnPagos', semaforo: { general: 'green' }, nicho: 'Fintech', presupuesto: 50000, plataformas: ['Meta'] },
+  { id: 'favio', workspaceId: WORKSPACE_ID, nombre: 'Favio', semaforo: { general: 'yellow' }, nicho: 'Clínica estética', presupuesto: 20000, plataformas: ['Meta'] },
+  { id: 'bodygreen', workspaceId: WORKSPACE_ID, nombre: 'Bodygreen', semaforo: { general: 'green' }, nicho: 'Clínica estética', presupuesto: 25000, plataformas: ['Meta'] },
+  { id: 'divisas', workspaceId: WORKSPACE_ID, nombre: 'Divisas La Rioja', semaforo: { general: 'red' }, nicho: 'Finanzas', presupuesto: 15000, plataformas: ['Meta'] },
+  { id: 'inmobili', workspaceId: WORKSPACE_ID, nombre: 'Inmobili', semaforo: { general: 'gray' }, nicho: 'Inmobiliaria', presupuesto: 10000, plataformas: ['Meta'] },
 ];
 let clients = JSON.parse(localStorage.getItem('oa-clients') || 'null') || DEFAULT_CLIENTS;
 let currentClientId = null;
@@ -2635,6 +2636,9 @@ async function init() {
 function enterAs(rol) {
   currentRol = rol;
   localStorage.setItem('oa-last-rol', rol);
+  
+  // Audit log — quién entró y cuándo
+  if (window.OptixAudit) window.OptixAudit.Audit.sessionStart(rol);
 
   if (rol === 'direccion') {
     renderDireccion();
@@ -3392,8 +3396,11 @@ function createClient() {
   if (!nombre) { showToast('Escribe el nombre del cliente', '⚠️'); return; }
 
   const client = {
+    // Identificación
     id: 'client-' + Date.now(),
+    workspaceId: window._OptixCore?.WORKSPACE?.id || 'optimizads', // Multi-workspace desde el inicio
     nombre,
+    // Datos básicos
     industria: document.getElementById('nc-industria').value,
     account: document.getElementById('nc-account').value,
     descripcion: document.getElementById('nc-desc').value,
@@ -3401,15 +3408,27 @@ function createClient() {
     mensual: document.getElementById('nc-mensual').value,
     semanal: document.getElementById('nc-semanal').value,
     cac_objetivo: document.getElementById('nc-cac').value,
+    // Colecciones vacías
     vault: [],
     decisiones: [],
+    // Semáforo
     sem_stars: 0,
     sem_comm_count: 0,
-    adn: {}, objetivos: {}, rendimiento: {}, segmentos: {}, validacion: {}, creativos: {}
+    // Expediente — 3 capas
+    adn: {}, objetivos: {}, rendimiento: {}, segmentos: {}, validacion: {}, creativos: {},
+    // Metadata
+    createdAt: new Date().toISOString(),
+    createdBy: currentRol || 'unknown',
   };
 
   clients.push(client);
   saveClients();
+  
+  // Audit log
+  if (window.OptixAudit) window.OptixAudit.Audit.clientCreated(client.id, { nombre: client.nombre, workspaceId: client.workspaceId });
+  // Emitir evento a integraciones
+  if (window.OptixIntegraciones) window.OptixIntegraciones.emit(window.OptixIntegraciones.OptixEvents.CLIENT_CREATED, { clientId: client.id, nombre: client.nombre });
+  
   closeModal('modal-new-client');
   renderClientGrid();
   openClient(client.id);
@@ -4030,6 +4049,16 @@ function closeWeek() {
   client.sem_comm = 'gray';
   saveClients();
   loadSemaforo();
+
+  // Emitir evento de cierre de semana a conectores externos
+  if (window.OptixIntegraciones) {
+    window.OptixIntegraciones.notifyWeekClosed({
+      clientId: client.id,
+      clientName: client.nombre,
+      week: snap?.semana || getWeekLabel(),
+      workspaceId: window._OptixCore?.WORKSPACE?.id || 'optimizads',
+    });
+  }
 
   // Reset inputs visuales
   const cacEl = document.getElementById('sem-cac-actual');
