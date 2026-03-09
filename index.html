@@ -4738,7 +4738,7 @@ async function loadAnalisis() {
     await generarResumenClaude(client, history);
   } else {
     document.getElementById('analisis-claude').innerHTML = 
-      '<span style="color:var(--text3); font-size:12px; font-family:'DM Mono',monospace;">Se necesitan al menos 2 semanas de datos para generar un análisis.</span>';
+      '<span style="color:var(--text3); font-size:12px; font-family:\'DM Mono\',monospace;">Se necesitan al menos 2 semanas de datos para generar un análisis.</span>';
   }
 
   container.dataset.loadedFor = client.id;
@@ -4793,8 +4793,7 @@ async function generarResumenClaude(client, history) {
     const resumen = history.map(h => {
       const fecha = h.fechaCierre ? new Date(h.fechaCierre.seconds ? h.fechaCierre.seconds*1000 : h.fechaCierre).toLocaleDateString('es-MX') : h.id;
       return `Semana ${fecha}: CAC $${h.cacActual||'?'} MXN, inversión $${h.inversion||'?'} MXN, cierres ${h.cierres||'?'}, semáforo ${h.resultadoSemaforo||'?'}`;
-    }).join('
-');
+    }).join('\n');
 
     const prompt = `Eres el analista senior de OptimizAds. Analiza estas ${history.length} semanas del cliente "${client.nombre || client.id}" (${client.industria || 'sin industria'}):
 
