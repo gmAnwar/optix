@@ -1399,6 +1399,25 @@
   .senior-kpi-item { text-align:center; min-width:70px; }
   .senior-kpi-val { font-family:'DM Mono',monospace; font-size:13px; font-weight:600; }
   .senior-kpi-lbl { font-size:10px; color:var(--text3); margin-top:2px; }
+
+  /* ── TABS DE CLIENTE ──────────────────────────────── */
+  .client-tab {
+    border-radius: 10px;
+    margin-bottom: 4px;
+    font-size: 14px;
+    font-weight: 500;
+    padding: 12px 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transition: background 0.15s;
+    color: var(--text2);
+  }
+  .client-tab:hover { background: var(--bg2); }
+  .client-tab.active { background: var(--accent); color: #000; font-weight: 600; }
+  .client-tab.active .tab-badge { color: rgba(0,0,0,0.6); }
+  .tab-badge { margin-left:auto; font-size:10px; font-family:'DM Mono',monospace; color:var(--text3); }
 </style>
   <!-- Google Identity Services + Calendar API -->
   <script src="https://accounts.google.com/gsi/client" async defer></script>
@@ -1781,56 +1800,16 @@
       <div class="sidebar-client-name" id="sidebar-client-name">—</div>
     </div>
 
-    <nav class="sidebar-nav">
-      <div class="nav-section-label">Panel</div>
-      <div class="nav-item active" onclick="navigate('dashboard')">
-        <span class="nav-item-icon">⬡</span>
-        <span class="nav-item-text">Dashboard</span>
-        <span class="nav-item-role role-anwar">⚡</span>
+    <nav class="sidebar-nav" style="padding-top:8px;">
+      <div class="client-tab active" id="tab-semana" onclick="navigateTab('semana')">
+        <span>⚡</span><span>Esta semana</span>
       </div>
-
-      <div class="nav-section-label">Expediente</div>
-      <div class="nav-item" onclick="navigate('adn')">
-        <span class="nav-item-icon">🧬</span>
-        <span class="nav-item-text">ADN del negocio</span>
-        <span class="nav-item-role role-estrategia">🔵</span>
+      <div class="client-tab" id="tab-expediente" onclick="navigateTab('expediente')">
+        <span>📁</span><span>Expediente</span>
+        <span class="tab-badge" id="tab-exp-badge">—</span>
       </div>
-      <div class="nav-item" onclick="navigate('objetivos')">
-        <span class="nav-item-icon">🎯</span>
-        <span class="nav-item-text">Objetivos</span>
-        <span class="nav-item-role role-estrategia">🔵</span>
-      </div>
-      <div class="nav-item" onclick="navigate('rendimiento')">
-        <span class="nav-item-icon">📊</span>
-        <span class="nav-item-text">Rendimiento</span>
-        <span class="nav-item-role role-operativo">🟢</span>
-      </div>
-      <div class="nav-item" onclick="navigate('segmentos')">
-        <span class="nav-item-icon">👥</span>
-        <span class="nav-item-text">Segmentos</span>
-        <span class="nav-item-role role-estrategia">🔵</span>
-      </div>
-      <div class="nav-item" onclick="navigate('validacion')">
-        <span class="nav-item-icon">✅</span>
-        <span class="nav-item-text">Validación</span>
-        <span class="nav-item-role role-estrategia">🔵</span>
-      </div>
-
-      <div class="nav-section-label">Operaciones</div>
-      <div class="nav-item" onclick="navigate('creativos')">
-        <span class="nav-item-icon">🎨</span>
-        <span class="nav-item-text">Brief de creativos</span>
-        <span class="nav-item-role role-operativo">🟢</span>
-      </div>
-      <div class="nav-item" onclick="navigate('vault')">
-        <span class="nav-item-icon">🏆</span>
-        <span class="nav-item-text">Winning Ads Vault</span>
-        <span class="nav-item-role role-estrategia">🔵</span>
-      </div>
-      <div class="nav-item" onclick="navigate('decisiones')">
-        <span class="nav-item-icon">📝</span>
-        <span class="nav-item-text">Decisiones</span>
-        <span class="nav-item-role role-anwar">⚡</span>
+      <div class="client-tab" id="tab-analisis" onclick="navigateTab('analisis')">
+        <span>🧠</span><span>Análisis</span>
       </div>
     </nav>
 
@@ -1857,6 +1836,7 @@
       </div>
       <div class="content-body">
         <!-- SEMAFORO TRIPLE -->
+        <div id="semaforo-cards">
         <div class="dashboard-semaforo">
           <!-- Resultados -->
           <div class="semaforo-card">
@@ -1921,126 +1901,53 @@
             </div>
           </div>
         </div>
+        </div><!-- /semaforo-cards -->
 
-        <!-- SECCIONES -->
-        <!-- HISTORIAL DE SEMÁFORO -->
-        <div id="semaforo-historial-section" style="margin-bottom:32px; display:none;">
-          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;">
-            <div style="font-family:'DM Sans',sans-serif; font-weight:600; font-size:16px; letter-spacing:-0.1px;">📅 Historial de semáforo</div>
-            <button class="btn btn-ghost" style="font-size:11px; padding:5px 12px;" onclick="toggleHistorial()">Ocultar</button>
-          </div>
-          <div id="semaforo-historial-table" style="overflow-x:auto;">
-          </div>
-        </div>
-        <!-- EXPEDIENTE 3 CAPAS -->
-        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
-          <div style="font-family:'DM Sans',sans-serif; font-weight:600; font-size:16px; letter-spacing:-0.1px;">Expediente del cliente</div>
-          <div style="font-size:11px; color:var(--text3); font-family:'DM Mono',monospace;" id="exp-completitud-global">—</div>
+        <!-- IDs ocultos para compatibilidad -->
+        <div style="display:none;">
+          <div id="semaforo-historial-section"><div id="semaforo-historial-table"></div></div>
+          <div id="exp-completitud-global"></div>
         </div>
 
-        <!-- CAPA 1: ADN -->
-        <div style="margin-bottom:10px;">
-          <div style="font-size:10px; font-family:'DM Mono',monospace; color:var(--text3); letter-spacing:0.08em; text-transform:uppercase; margin-bottom:8px; padding-left:2px;">Capa 1 · ADN del Cliente · Onboarding</div>
-          <div class="sections-grid" style="grid-template-columns: repeat(2, 1fr); gap:10px;">
-            <div class="section-card" onclick="navigate('adn')" style="position:relative;">
-              <div class="section-card-header">
-                <div class="section-icon">🧬</div>
-                <div class="layer-badge" id="badge-adn" style="font-size:10px; padding:2px 8px; border-radius:20px; background:var(--bg3); color:var(--text3); font-family:'DM Mono',monospace;">Vacío</div>
-              </div>
-              <div class="section-name">Datos generales + Contactos</div>
-              <div class="section-desc" style="font-size:11px;">Nombre, industria, contactos con email y teléfono, modelo de negocio.</div>
-              <div class="section-footer">
-                <div class="progress-bar-container"><div class="progress-bar-fill" id="bar-adn" style="width:0%"></div></div>
-                <span class="tag role-estrategia">Anwar</span>
-              </div>
-              <div id="capa1-dot" style="position:absolute; top:12px; right:12px; width:8px; height:8px; border-radius:50%; background:var(--text3);"></div>
-            </div>
-
-            <div class="section-card" onclick="navigate('segmentos')" style="position:relative;">
-              <div class="section-card-header">
-                <div class="section-icon">👥</div>
-                <div class="layer-badge" id="badge-segmentos" style="font-size:10px; padding:2px 8px; border-radius:20px; background:var(--bg3); color:var(--text3); font-family:'DM Mono',monospace;">Vacío</div>
-              </div>
-              <div class="section-name">Segmentos + Proceso de venta</div>
-              <div class="section-desc" style="font-size:11px;">Perfil del cliente ideal, embudo, motivadores, frenos de compra.</div>
-              <div class="section-footer">
-                <div class="progress-bar-container"><div class="progress-bar-fill" id="bar-segmentos" style="width:0%"></div></div>
-                <span class="tag role-estrategia">🔵 Kike</span>
-              </div>
-            </div>
-          </div>
+        <!-- badges ocultos para loadAllFields -->
+        <div style="display:none;">
+          <div id="badge-adn"></div><div id="badge-segmentos"></div>
+          <div id="badge-objetivos"></div><div id="badge-validacion"></div>
+          <div id="badge-rendimiento"></div><div id="badge-creativos"></div>
+          <div id="bar-adn"></div><div id="bar-segmentos"></div>
+          <div id="bar-objetivos"></div><div id="bar-validacion"></div>
+          <div id="bar-rendimiento"></div><div id="bar-creativos"></div>
+          <div id="capa1-dot"></div>
         </div>
 
-        <!-- CAPA 2: OBJETIVOS Y ESTRATEGIA -->
-        <div style="margin-bottom:10px;">
-          <div style="font-size:10px; font-family:'DM Mono',monospace; color:var(--text3); letter-spacing:0.08em; text-transform:uppercase; margin-bottom:8px; padding-left:2px;">Capa 2 · Objetivos y Estrategia · Mensual</div>
-          <div class="sections-grid" style="grid-template-columns: repeat(2, 1fr); gap:10px;">
-            <div class="section-card" onclick="navigate('objetivos')" style="position:relative;">
-              <div class="section-card-header">
-                <div class="section-icon">🎯</div>
-                <div class="layer-badge" id="badge-objetivos" style="font-size:10px; padding:2px 8px; border-radius:20px; background:var(--bg3); color:var(--text3); font-family:'DM Mono',monospace;">Vacío</div>
-              </div>
-              <div class="section-name">Metas + KPIs</div>
-              <div class="section-desc" style="font-size:11px;">Objetivo central, CAC objetivo, CAC máximo, LTV, presupuesto.</div>
-              <div class="section-footer">
-                <div class="progress-bar-container"><div class="progress-bar-fill" id="bar-objetivos" style="width:0%"></div></div>
-                <span class="tag role-estrategia">🔵 Kike</span>
-              </div>
-            </div>
-
-            <div class="section-card" onclick="navigate('validacion')" style="position:relative;">
-              <div class="section-card-header">
-                <div class="section-icon">⚖️</div>
-                <div class="layer-badge" id="badge-validacion" style="font-size:10px; padding:2px 8px; border-radius:20px; background:var(--bg3); color:var(--text3); font-family:'DM Mono',monospace;">Vacío</div>
-              </div>
-              <div class="section-name">Validación + Restricciones</div>
-              <div class="section-desc" style="font-size:11px;">Coherencia CAC vs histórico, cuellos de botella, restricciones activas.</div>
-              <div class="section-footer">
-                <div class="progress-bar-container"><div class="progress-bar-fill" id="bar-validacion" style="width:0%"></div></div>
-                <span class="tag role-estrategia">🔵 Kike</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- CAPA 3: PERFORMANCE OPERATIVO -->
-        <div style="margin-bottom:10px;">
-          <div style="font-size:10px; font-family:'DM Mono',monospace; color:var(--text3); letter-spacing:0.08em; text-transform:uppercase; margin-bottom:8px; padding-left:2px;">Capa 3 · Performance Operativo · Semanal</div>
-          <div class="sections-grid" style="grid-template-columns: repeat(2, 1fr); gap:10px;">
-            <div class="section-card" onclick="navigate('rendimiento')" style="position:relative;">
-              <div class="section-card-header">
-                <div class="section-icon">📊</div>
-                <div class="layer-badge" id="badge-rendimiento" style="font-size:10px; padding:2px 8px; border-radius:20px; background:var(--bg3); color:var(--text3); font-family:'DM Mono',monospace;">Vacío</div>
-              </div>
-              <div class="section-name">Rendimiento + Campañas</div>
-              <div class="section-desc" style="font-size:11px;">CAC histórico, campañas activas, métricas clave, análisis diario.</div>
-              <div class="section-footer">
-                <div class="progress-bar-container"><div class="progress-bar-fill" id="bar-rendimiento" style="width:0%"></div></div>
-                <span class="tag role-operativo">🟢 Mario</span>
-              </div>
-            </div>
-
-            <div class="section-card" onclick="navigate('creativos')" style="position:relative; opacity:0.7;">
-              <div class="section-card-header">
-                <div class="section-icon">🎨</div>
-                <div class="layer-badge" id="badge-creativos" style="font-size:10px; padding:2px 8px; border-radius:20px; background:var(--bg3); color:var(--text3); font-family:'DM Mono',monospace;">Vacío</div>
-              </div>
-              <div class="section-name">Insights creativos + Winning Ads</div>
-              <div class="section-desc" style="font-size:11px;">Ads ganadores, ángulos, hooks, aprendizajes creativos.</div>
-              <div class="section-footer">
-                <div class="progress-bar-container"><div class="progress-bar-fill" id="bar-creativos" style="width:0%"></div></div>
-                <span class="tag role-estrategia">🔵 Kike</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- PENDIENTES RÁPIDOS para Kike -->
-        <div id="exp-pendientes-panel" style="display:none; margin-top:16px; background:var(--bg2); border:1px solid var(--border1); border-radius:12px; padding:14px 16px;">
-          <div style="font-size:12px; font-weight:600; color:var(--text1); margin-bottom:10px;">⚠️ Campos pendientes para completar el expediente</div>
+        <!-- RECORDATORIO: campos pendientes del expediente — solo si hay algo -->
+        <div id="exp-pendientes-panel" style="display:none; margin-top:32px; padding:12px 16px; border:1px solid var(--border); border-radius:10px; background:transparent; opacity:0.7;">
+          <div style="font-size:11px; color:var(--text3); font-family:'DM Mono',monospace; margin-bottom:8px; letter-spacing:0.03em;">📋 Expediente · campos pendientes</div>
           <div id="exp-pendientes-list" style="display:flex; flex-wrap:wrap; gap:6px;"></div>
         </div>
+
+        <!-- SECCIÓN EXPEDIENTE (tab 2) -->
+        <div id="expediente-section" style="display:none;">
+          <div style="font-family:'DM Sans',sans-serif; font-weight:600; font-size:20px; margin-bottom:4px; letter-spacing:-0.3px;">📁 Expediente</div>
+          <div style="font-size:12px; color:var(--text3); font-family:'DM Mono',monospace; margin-bottom:24px;" id="exp-completitud-label">—</div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px;">
+            <div class="section-card" onclick="navigate('adn')"><div class="section-card-header"><div class="section-icon">🧬</div><div class="layer-badge" id="badge-adn">—</div></div><div class="section-name">ADN del negocio</div><div class="section-footer"><div class="progress-bar-container"><div class="progress-bar-fill" id="bar-adn" style="width:0%"></div></div></div></div>
+            <div class="section-card" onclick="navigate('segmentos')"><div class="section-card-header"><div class="section-icon">👥</div><div class="layer-badge" id="badge-segmentos">—</div></div><div class="section-name">Segmentos</div><div class="section-footer"><div class="progress-bar-container"><div class="progress-bar-fill" id="bar-segmentos" style="width:0%"></div></div></div></div>
+            <div class="section-card" onclick="navigate('objetivos')"><div class="section-card-header"><div class="section-icon">🎯</div><div class="layer-badge" id="badge-objetivos">—</div></div><div class="section-name">Objetivos</div><div class="section-footer"><div class="progress-bar-container"><div class="progress-bar-fill" id="bar-objetivos" style="width:0%"></div></div></div></div>
+            <div class="section-card" onclick="navigate('rendimiento')"><div class="section-card-header"><div class="section-icon">📊</div><div class="layer-badge" id="badge-rendimiento">—</div></div><div class="section-name">Rendimiento</div><div class="section-footer"><div class="progress-bar-container"><div class="progress-bar-fill" id="bar-rendimiento" style="width:0%"></div></div></div></div>
+            <div class="section-card" onclick="navigate('validacion')"><div class="section-card-header"><div class="section-icon">✅</div><div class="layer-badge" id="badge-validacion">—</div></div><div class="section-name">Validación</div><div class="section-footer"><div class="progress-bar-container"><div class="progress-bar-fill" id="bar-validacion" style="width:0%"></div></div></div></div>
+            <div class="section-card" onclick="navigate('creativos')"><div class="section-card-header"><div class="section-icon">🎨</div><div class="layer-badge" id="badge-creativos">—</div></div><div class="section-name">Creativos</div><div class="section-footer"><div class="progress-bar-container"><div class="progress-bar-fill" id="bar-creativos" style="width:0%"></div></div></div></div>
+            <div class="section-card" onclick="navigate('vault')"><div class="section-card-header"><div class="section-icon">🏆</div></div><div class="section-name">Winning Ads Vault</div></div>
+            <div class="section-card" onclick="navigate('decisiones')"><div class="section-card-header"><div class="section-icon">📝</div></div><div class="section-name">Decisiones</div></div>
+          </div>
+          <div id="capa1-dot" style="display:none;"></div>
+        </div>
+
+        <!-- SECCIÓN ANÁLISIS (tab 3) -->
+        <div id="analisis-section" style="display:none;"></div>
+
       </div>
+    </div>
     </div>
 
     <!-- SECCIÓN: ADN -->
@@ -3823,7 +3730,7 @@ function navigate(view) {
     navItems[navMap[view]].classList.add('active');
   }
 
-  if (view === 'dashboard') { updateDashboard(); loadHistorialIfExists(); }
+  if (view === 'dashboard') { updateDashboard(); navigateTab('semana'); }
   if (view === 'vault') renderVault();
   if (view === 'decisiones') renderDecisiones();
   if (view === 'adn') initAIPanel('adn');
@@ -4046,6 +3953,11 @@ function updateGlobalCompletitud() {
     el.textContent = globalPct + '% completo (' + totalFilled + '/' + totalReq + ' campos requeridos)';
     el.style.color = globalPct === 100 ? '#34d399' : globalPct > 50 ? '#fbbf24' : 'var(--text3)';
   }
+  // Actualizar badge sidebar tab
+  const tabBadge = document.getElementById('tab-exp-badge');
+  if (tabBadge) tabBadge.textContent = globalPct + '%';
+  const expLabel = document.getElementById('exp-completitud-label');
+  if (expLabel) expLabel.textContent = globalPct + '% completo (' + totalFilled + '/' + totalReq + ' campos)';
 
   // Panel de pendientes
   updatePendientesPanel(client);
@@ -4754,6 +4666,163 @@ function loadHistorialIfExists() {
   document.getElementById('semaforo-historial-section').style.display = 'block';
   renderHistorial();
 }
+
+// ── NAVEGACIÓN DE TABS (3 tabs de cliente) ──────────────────────────────────
+function navigateTab(tab) {
+  // Ocultar/mostrar secciones
+  const isAnalisis = tab === 'analisis';
+  const isExpediente = tab === 'expediente';
+  const isSemana = tab === 'semana';
+
+  // Tarjetas de KPIs: solo visibles en "Esta semana"
+  const kpisEl = document.getElementById('semaforo-cards');
+  if (kpisEl) kpisEl.style.display = isSemana ? '' : 'none';
+
+  // Sección de expediente
+  const expSection = document.getElementById('expediente-section');
+  if (expSection) expSection.style.display = isExpediente ? '' : 'none';
+
+  // Sección de análisis
+  const analisisSection = document.getElementById('analisis-section');
+  if (analisisSection) {
+    analisisSection.style.display = isAnalisis ? '' : 'none';
+    if (isAnalisis) loadAnalisis();
+  }
+
+  // Recordatorio pendientes: solo en "Esta semana" al fondo
+  const pendPanel = document.getElementById('exp-pendientes-panel');
+  if (pendPanel) pendPanel.style.display = isSemana ? '' : 'none';
+
+  // Actualizar tabs activos
+  ['semana','expediente','analisis'].forEach(t => {
+    const el = document.getElementById('tab-' + t);
+    if (el) el.classList.toggle('active', t === tab);
+  });
+
+  window._currentTab = tab;
+}
+
+// ── ANÁLISIS: resumen Claude + tendencia ─────────────────────────────────────
+async function loadAnalisis() {
+  const client = window._currentClient;
+  if (!client) return;
+  const container = document.getElementById('analisis-section');
+  if (!container) return;
+
+  // Si ya tiene contenido reciente, no recargar
+  if (container.dataset.loadedFor === client.id) return;
+
+  container.innerHTML = `
+    <div style="font-family:'DM Sans',sans-serif; font-weight:600; font-size:20px; margin-bottom:4px; letter-spacing:-0.3px;">🧠 Análisis</div>
+    <div style="font-size:12px; color:var(--text3); font-family:'DM Mono',monospace; margin-bottom:24px;">${client.nombre || client.id} · basado en historial de semáforo</div>
+
+    <div id="analisis-tendencia" style="margin-bottom:24px;"></div>
+    <div id="analisis-claude" style="background:var(--bg2); border:1px solid var(--border); border-radius:12px; padding:20px; font-size:14px; line-height:1.6; color:var(--text2); font-family:'DM Sans',sans-serif; min-height:120px;">
+      <span style="color:var(--text3); font-size:12px; font-family:'DM Mono',monospace;">Generando análisis...</span>
+    </div>
+  `;
+
+  // Cargar historial desde Firestore
+  const history = await loadHistorialData(client.id);
+  
+  // Renderizar tendencia
+  renderTendencia(history, document.getElementById('analisis-tendencia'));
+
+  // Generar resumen con Claude
+  if (history.length >= 2) {
+    await generarResumenClaude(client, history);
+  } else {
+    document.getElementById('analisis-claude').innerHTML = 
+      '<span style="color:var(--text3); font-size:12px; font-family:'DM Mono',monospace;">Se necesitan al menos 2 semanas de datos para generar un análisis.</span>';
+  }
+
+  container.dataset.loadedFor = client.id;
+}
+
+async function loadHistorialData(clientId) {
+  try {
+    const { db } = window._optixCore || {};
+    if (!db) return [];
+    const { collection, getDocs, orderBy, query, limit } = await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js');
+    const workspace = window._currentWorkspace || 'optimizads';
+    const ref = collection(db, `workspaces/${workspace}/data/clients/${clientId}/semaforoHistory`);
+    const q = query(ref, orderBy('fechaCierre', 'desc'), limit(12));
+    const snap = await getDocs(q);
+    return snap.docs.map(d => ({ id: d.id, ...d.data() })).reverse();
+  } catch(e) {
+    console.warn('loadHistorialData:', e);
+    return [];
+  }
+}
+
+function renderTendencia(history, container) {
+  if (!container || history.length < 2) {
+    if (container) container.innerHTML = '';
+    return;
+  }
+  const maxCAC = Math.max(...history.map(h => parseFloat(h.cacActual) || 0));
+  const rows = history.map(h => {
+    const cac = parseFloat(h.cacActual) || 0;
+    const pct = maxCAC > 0 ? (cac / maxCAC * 100) : 0;
+    const color = h.resultadoSemaforo === 'verde' ? 'var(--accent)' : h.resultadoSemaforo === 'amarillo' ? '#f59e0b' : '#ef4444';
+    const fecha = h.fechaCierre ? new Date(h.fechaCierre.seconds ? h.fechaCierre.seconds*1000 : h.fechaCierre).toLocaleDateString('es-MX',{month:'short',day:'numeric'}) : h.id;
+    return `<div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
+      <div style="font-size:10px; color:var(--text3); font-family:'DM Mono',monospace; min-width:52px;">${fecha}</div>
+      <div style="flex:1; background:var(--bg3); border-radius:4px; height:8px; overflow:hidden;">
+        <div style="width:${pct}%; height:100%; background:${color}; border-radius:4px; transition:width 0.4s;"></div>
+      </div>
+      <div style="font-size:11px; color:var(--text2); font-family:'DM Mono',monospace; min-width:80px; text-align:right;">$${cac.toLocaleString('es-MX')} CAC</div>
+      <div style="width:8px; height:8px; border-radius:50%; background:${color};"></div>
+    </div>`;
+  }).join('');
+  container.innerHTML = `
+    <div style="font-family:'DM Sans',sans-serif; font-weight:600; font-size:14px; margin-bottom:12px; color:var(--text1);">Tendencia de CAC · últimas ${history.length} semanas</div>
+    ${rows}
+  `;
+}
+
+async function generarResumenClaude(client, history) {
+  const el = document.getElementById('analisis-claude');
+  if (!el) return;
+  try {
+    const resumen = history.map(h => {
+      const fecha = h.fechaCierre ? new Date(h.fechaCierre.seconds ? h.fechaCierre.seconds*1000 : h.fechaCierre).toLocaleDateString('es-MX') : h.id;
+      return `Semana ${fecha}: CAC $${h.cacActual||'?'} MXN, inversión $${h.inversion||'?'} MXN, cierres ${h.cierres||'?'}, semáforo ${h.resultadoSemaforo||'?'}`;
+    }).join('
+');
+
+    const prompt = `Eres el analista senior de OptimizAds. Analiza estas ${history.length} semanas del cliente "${client.nombre || client.id}" (${client.industria || 'sin industria'}):
+
+${resumen}
+
+CAC objetivo: $${client.cacObjetivo || 'no definido'} MXN por cierre.
+
+En 3-4 oraciones cortas, directas, sin preamble:
+1. Tendencia real del CAC (sube, baja, se estabiliza)
+2. La semana más notable y por qué
+3. Una señal de alerta o punto positivo concreto
+4. Una recomendación accionable para la siguiente semana
+
+Responde solo el análisis, sin títulos ni viñetas.`;
+
+    const response = await fetch('https://optix-proxy.anwarhsg.workers.dev', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 300,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+    const data = await response.json();
+    const text = data?.content?.[0]?.text || 'No se pudo generar el análisis.';
+    el.innerHTML = `<div style="font-size:13px; line-height:1.7; color:var(--text1);">${text}</div>
+      <div style="margin-top:12px; font-size:10px; color:var(--text3); font-family:'DM Mono',monospace;">🧠 Generado por Optix · basado en ${history.length} semanas</div>`;
+  } catch(e) {
+    el.innerHTML = '<span style="color:var(--text3); font-size:12px;">Error generando análisis.</span>';
+  }
+}
+
 
 function loadEnPagos() {
   // Eliminar el EnPagos placeholder del DEFAULT_CLIENTS si existe
