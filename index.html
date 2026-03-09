@@ -876,6 +876,7 @@
     padding: 20px;
   }
 
+  /* ── ACCORDION FIELD-GROUP ── */
   .field-group-title {
     font-family: 'Syne', sans-serif;
     font-weight: 700;
@@ -884,9 +885,43 @@
     display: flex;
     align-items: center;
     gap: 8px;
+    cursor: pointer;
+    user-select: none;
   }
 
   .field-group-title .icon { font-size: 18px; }
+  .field-group-title::after {
+    content: '▾';
+    margin-left: auto;
+    font-size: 12px;
+    color: var(--text3);
+    transition: transform 0.2s;
+  }
+  .field-group.collapsed .field-group-title::after {
+    transform: rotate(-90deg);
+  }
+  .field-group-body {
+    transition: all 0.2s;
+  }
+  .field-group.collapsed .field-group-body {
+    display: none;
+  }
+  .field-group-preview {
+    font-size: 12px;
+    color: var(--text3);
+    margin-top: 4px;
+    font-family: 'DM Mono', monospace;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 85%;
+  }
+  .field-group.collapsed .field-group-preview {
+    display: block;
+  }
+  .field-group:not(.collapsed) .field-group-preview {
+    display: none;
+  }
 
   /* ── AI CHAT PANEL ── */
   .ai-panel {
@@ -1975,8 +2010,9 @@
                 <span style="font-size:11px; color:var(--text2);">🔴 Campos <strong>requeridos</strong> activan el semáforo de completitud · 🔵 Opcionales enriquecen el contexto</span>
               </div>
 
-              <div class="field-group">
-                <div class="field-group-title"><span class="icon">🏢</span> Datos generales</div>
+              <div class="field-group collapsed">
+                <div class="field-group-title"><span class="icon">🏢</span> Datos generales<span class="field-group-preview" id="fg-preview-1"></span></div>
+                <div class="field-group-body">
                 <div class="form-group">
                   <label class="form-label">Nombre del negocio <span style="color:var(--accent);font-size:10px;">● requerido</span></label>
                   <input id="adn-nombre" class="form-input" type="text" placeholder="Nombre oficial o como lo conocemos" oninput="autoSave('adn')">
@@ -2005,10 +2041,11 @@
                     <input id="adn-presupuesto-men" class="form-input" type="text" placeholder="ej. $75,000 MXN Meta Ads" oninput="autoSave('adn')">
                   </div>
                 </div>
-              </div>
+              </div></div>
 
-              <div class="field-group">
-                <div class="field-group-title"><span class="icon">📞</span> Contactos clave <span style="font-size:10px; color:var(--text3); font-weight:400;">(nombre · puesto · email · teléfono)</span></div>
+              <div class="field-group collapsed">
+                <div class="field-group-title"><span class="icon">📞</span> Contactos clave <span style="font-size:10px; color:var(--text3); font-weight:400;">(nombre · puesto · email · teléfono)</span><span class="field-group-preview" id="fg-preview-2"></span></div>
+                <div class="field-group-body">
                 <div class="form-group">
                   <label class="form-label">Contacto principal / decisor <span style="color:var(--accent);font-size:10px;">● requerido</span></label>
                   <input id="adn-contacto1" class="form-input" type="text" placeholder="ej. Pepe López · Dueño · pepe@enpagos.com.mx · 81-XXXX-XXXX" oninput="autoSave('adn')">
@@ -2025,10 +2062,11 @@
                   <label class="form-label">Otros contactos</label>
                   <input id="adn-contacto4" class="form-input" type="text" placeholder="ej. Mauricio (cierres), Brian (contenido)" oninput="autoSave('adn')">
                 </div>
-              </div>
+              </div></div>
 
-              <div class="field-group">
-                <div class="field-group-title"><span class="icon">💰</span> Proceso de venta</div>
+              <div class="field-group collapsed">
+                <div class="field-group-title"><span class="icon">💰</span> Proceso de venta<span class="field-group-preview" id="fg-preview-3"></span></div>
+                <div class="field-group-body">
                 <div class="form-group">
                   <label class="form-label">Embudo de ventas (paso a paso) <span style="color:var(--accent);font-size:10px;">● requerido</span></label>
                   <textarea id="adn-embudo" class="form-textarea" placeholder="ej. Lead por Meta WhatsApp → bot Patagon pre-califica → vendedor en Bixis → preautorización buró → cierre → entrega" oninput="autoSave('adn')"></textarea>
@@ -2051,10 +2089,11 @@
                   <label class="form-label">Protocolo / script de cierre</label>
                   <textarea id="adn-protocolo" class="form-textarea" placeholder="¿Qué pasos sigue el vendedor? ¿Tiene script? ¿Cómo hace la verificación?" oninput="autoSave('adn')"></textarea>
                 </div>
-              </div>
+              </div></div>
 
-              <div class="field-group">
-                <div class="field-group-title"><span class="icon">📣</span> Campañas y diferenciadores</div>
+              <div class="field-group collapsed">
+                <div class="field-group-title"><span class="icon">📣</span> Campañas y diferenciadores<span class="field-group-preview" id="fg-preview-4"></span></div>
+                <div class="field-group-body">
                 <div class="form-group">
                   <label class="form-label">Canales activos y tipo de campaña <span style="color:var(--accent);font-size:10px;">● requerido</span></label>
                   <textarea id="adn-campanas" class="form-textarea" placeholder="ej. Meta Ads (WhatsApp, leads), Google Ads (búsqueda, solo Mty)" oninput="autoSave('adn')"></textarea>
@@ -2071,10 +2110,11 @@
                   <label class="form-label">Principales objeciones de compra <span style="color:var(--accent);font-size:10px;">● requerido</span></label>
                   <textarea id="adn-objeciones" class="form-textarea" placeholder="¿Qué frena al prospecto de convertirse en cliente?" oninput="autoSave('adn')"></textarea>
                 </div>
-              </div>
+              </div></div>
 
-              <div class="field-group">
-                <div class="field-group-title"><span class="icon">🔗</span> Fuentes de data</div>
+              <div class="field-group collapsed">
+                <div class="field-group-title"><span class="icon">🔗</span> Fuentes de data<span class="field-group-preview" id="fg-preview-5"></span></div>
+                <div class="field-group-body">
                 <div class="form-group">
                   <label class="form-label">Carpeta Google Drive</label>
                   <input id="adn-drive" class="form-input" type="text" placeholder="URL de la carpeta del cliente" oninput="autoSave('adn')">
@@ -2089,7 +2129,7 @@
                     <input id="adn-semanal" class="form-input" type="text" placeholder="URL" oninput="autoSave('adn')">
                   </div>
                 </div>
-              </div>
+              </div></div>
             </div>
           </div>
 
@@ -2135,8 +2175,9 @@
         <div class="section-detail active">
           <div class="section-form-area">
             <div class="fields-container">
-              <div class="field-group">
-                <div class="field-group-title"><span class="icon">📌</span> Metas principales</div>
+              <div class="field-group collapsed">
+                <div class="field-group-title"><span class="icon">📌</span> Metas principales<span class="field-group-preview" id="fg-preview-6"></span></div>
+                <div class="field-group-body">
                 <div class="form-group">
                   <label class="form-label">Objetivo principal de marketing <span style="color:var(--accent);font-size:10px;">● requerido</span></label>
                   <textarea id="obj-principal" class="form-textarea" placeholder="ej. Llegar a 30 cierres/mes a CAC menor a $2,400 MXN para Q2 2026" oninput="autoSave('objetivos')"></textarea>
@@ -2193,10 +2234,11 @@
                   <label class="form-label">Plataformas activas</label>
                   <input id="obj-plataformas" class="form-input" type="text" placeholder="ej. Meta Ads (principal), Google Ads (prueba Mty)" oninput="autoSave('objetivos')">
                 </div>
-              </div>
+              </div></div>
 
-              <div class="field-group">
-                <div class="field-group-title"><span class="icon">📈</span> Plan y campañas activas</div>
+              <div class="field-group collapsed">
+                <div class="field-group-title"><span class="icon">📈</span> Plan y campañas activas<span class="field-group-preview" id="fg-preview-7"></span></div>
+                <div class="field-group-body">
                 <div class="form-group">
                   <label class="form-label">Campañas activas (nombre · objetivo · presupuesto) <span style="color:var(--accent);font-size:10px;">● requerido</span></label>
                   <textarea id="obj-plan" class="form-textarea" placeholder="ej.&#10;Campaña Mty Vitrinas · leads WhatsApp · $23,261&#10;Campaña GDL Enfriadores · leads WhatsApp · $10,882&#10;Google Ads Mty · búsqueda · $7,500" oninput="autoSave('objetivos')"></textarea>
@@ -2213,15 +2255,16 @@
                   <label class="form-label">Objetivos a largo plazo (3–6 meses)</label>
                   <textarea id="obj-largo" class="form-textarea" placeholder="ej. Llegar a $130K/mes inversión, abrir 6 ciudades nuevas, activar Google Ads nacional" oninput="autoSave('objetivos')"></textarea>
                 </div>
-              </div>
+              </div></div>
 
-              <div class="field-group">
-                <div class="field-group-title"><span class="icon">🚫</span> Restricciones de campaña</div>
+              <div class="field-group collapsed">
+                <div class="field-group-title"><span class="icon">🚫</span> Restricciones de campaña<span class="field-group-preview" id="fg-preview-8"></span></div>
+                <div class="field-group-body">
                 <div class="form-group">
                   <label class="form-label">Restricciones activas (geográficas, operativas, temporalidad)</label>
                   <textarea id="obj-restricciones-camp" class="form-textarea" placeholder="ej. Máquinas de hielo requieren técnico local · Temporada baja oct–dic solo ticket alto · Aumentar presupuesto máx 20-30% por ciclo" oninput="autoSave('objetivos')"></textarea>
                 </div>
-              </div>
+              </div></div>
             </div>
           </div>
 
@@ -2267,8 +2310,9 @@
         <div class="section-detail active">
           <div class="section-form-area">
             <div class="fields-container">
-              <div class="field-group">
-                <div class="field-group-title"><span class="icon">📉</span> Rendimiento general</div>
+              <div class="field-group collapsed">
+                <div class="field-group-title"><span class="icon">📉</span> Rendimiento general<span class="field-group-preview" id="fg-preview-9"></span></div>
+                <div class="field-group-body">
                 <div class="form-group">
                   <label class="form-label">Resumen de rendimiento actual</label>
                   <textarea id="rend-resumen" class="form-textarea" placeholder="¿Cómo va el cliente hoy? CAC actual, leads por semana, tendencia..." oninput="autoSave('rendimiento')"></textarea>
@@ -2293,10 +2337,11 @@
                     <input id="rend-mejor-ad" class="form-input" type="text" placeholder="Nombre o descripción del top ad" oninput="autoSave('rendimiento')">
                   </div>
                 </div>
-              </div>
+              </div></div>
 
-              <div class="field-group">
-                <div class="field-group-title"><span class="icon">📋</span> Análisis de campañas</div>
+              <div class="field-group collapsed">
+                <div class="field-group-title"><span class="icon">📋</span> Análisis de campañas<span class="field-group-preview" id="fg-preview-10"></span></div>
+                <div class="field-group-body">
                 <div class="form-group">
                   <label class="form-label">Campañas activas y su rendimiento</label>
                   <textarea id="rend-campanas" class="form-textarea" placeholder="Lista las campañas activas, su CAC individual, y estado (activa/pausada)" oninput="autoSave('rendimiento')" style="min-height:120px;"></textarea>
@@ -2305,10 +2350,11 @@
                   <label class="form-label">Insights estratégicos / aprendizajes</label>
                   <textarea id="rend-insights" class="form-textarea" placeholder="¿Qué has aprendido de este cliente? ¿Qué funciona y qué no?" oninput="autoSave('rendimiento')"></textarea>
                 </div>
-              </div>
+              </div></div>
 
-              <div class="field-group">
-                <div class="field-group-title"><span class="icon">🔗</span> Links de análisis</div>
+              <div class="field-group collapsed">
+                <div class="field-group-title"><span class="icon">🔗</span> Links de análisis<span class="field-group-preview" id="fg-preview-11"></span></div>
+                <div class="field-group-body">
                 <div class="form-group">
                   <label class="form-label">Daily Analysis Sheet (URL)</label>
                   <input id="rend-daily" class="form-input" type="text" placeholder="URL del Google Sheet" oninput="autoSave('rendimiento')">
@@ -2317,7 +2363,7 @@
                   <label class="form-label">Presentación semanal más reciente (URL)</label>
                   <input id="rend-pres" class="form-input" type="text" placeholder="URL" oninput="autoSave('rendimiento')">
                 </div>
-              </div>
+              </div></div>
             </div>
           </div>
 
@@ -2363,8 +2409,9 @@
         <div class="section-detail active">
           <div class="section-form-area">
             <div class="fields-container">
-              <div class="field-group">
-                <div class="field-group-title"><span class="icon">🎭</span> Segmentos principales</div>
+              <div class="field-group collapsed">
+                <div class="field-group-title"><span class="icon">🎭</span> Segmentos principales<span class="field-group-preview" id="fg-preview-12"></span></div>
+                <div class="field-group-body">
                 <div class="form-group">
                   <label class="form-label">Segmento principal (primario)</label>
                   <input id="seg-1-nombre" class="form-input" type="text" placeholder="ej. Mujeres 28-45 en Monterrey" oninput="autoSave('segmentos')">
@@ -2382,10 +2429,11 @@
                   <label class="form-label">Motivadores del segmento secundario</label>
                   <textarea id="seg-2-motivadores" class="form-textarea" placeholder="¿Qué los mueve a comprar?" oninput="autoSave('segmentos')"></textarea>
                 </div>
-              </div>
+              </div></div>
 
-              <div class="field-group">
-                <div class="field-group-title"><span class="icon">🧠</span> Comportamiento y decisión de compra</div>
+              <div class="field-group collapsed">
+                <div class="field-group-title"><span class="icon">🧠</span> Comportamiento y decisión de compra<span class="field-group-preview" id="fg-preview-13"></span></div>
+                <div class="field-group-body">
                 <div class="form-group">
                   <label class="form-label">¿Cómo toma la decisión de compra el cliente ideal?</label>
                   <textarea id="seg-decision" class="form-textarea" placeholder="ej. Ve el anuncio → busca en Google → revisa reseñas → manda WhatsApp → agenda" oninput="autoSave('segmentos')"></textarea>
@@ -2398,15 +2446,16 @@
                   <label class="form-label">Canales donde está la audiencia</label>
                   <textarea id="seg-canales" class="form-textarea" placeholder="ej. Instagram (reels), Facebook (grupos locales), WhatsApp" oninput="autoSave('segmentos')"></textarea>
                 </div>
-              </div>
+              </div></div>
 
-              <div class="field-group">
-                <div class="field-group-title"><span class="icon">💡</span> Insights estratégicos del segmento</div>
+              <div class="field-group collapsed">
+                <div class="field-group-title"><span class="icon">💡</span> Insights estratégicos del segmento<span class="field-group-preview" id="fg-preview-14"></span></div>
+                <div class="field-group-body">
                 <div class="form-group">
                   <label class="form-label">¿Qué insights hemos descubierto sobre esta audiencia?</label>
                   <textarea id="seg-insights" class="form-textarea" placeholder="Aprendizajes de campañas pasadas sobre qué funciona con este segmento" oninput="autoSave('segmentos')"></textarea>
                 </div>
-              </div>
+              </div></div>
             </div>
           </div>
 
@@ -2452,8 +2501,9 @@
         <div class="section-detail active">
           <div class="section-form-area">
             <div class="fields-container">
-              <div class="field-group">
-                <div class="field-group-title"><span class="icon">🔍</span> Coherencia metas vs realidad</div>
+              <div class="field-group collapsed">
+                <div class="field-group-title"><span class="icon">🔍</span> Coherencia metas vs realidad<span class="field-group-preview" id="fg-preview-15"></span></div>
+                <div class="field-group-body">
                 <div class="form-group">
                   <label class="form-label">¿Los objetivos del cliente son alcanzables con el presupuesto actual?</label>
                   <textarea id="val-coherencia" class="form-textarea" placeholder="Análisis de coherencia entre lo que el cliente quiere y lo que el presupuesto permite lograr" oninput="autoSave('validacion')"></textarea>
@@ -2462,10 +2512,11 @@
                   <label class="form-label">Restricciones o limitantes identificadas</label>
                   <textarea id="val-restricciones" class="form-textarea" placeholder="ej. Presupuesto bajo para el nicho, competencia muy fuerte, producto de alto ticket difícil de vender en frío" oninput="autoSave('validacion')"></textarea>
                 </div>
-              </div>
+              </div></div>
 
-              <div class="field-group">
-                <div class="field-group-title"><span class="icon">🎯</span> Propósito y dirección de campaña</div>
+              <div class="field-group collapsed">
+                <div class="field-group-title"><span class="icon">🎯</span> Propósito y dirección de campaña<span class="field-group-preview" id="fg-preview-16"></span></div>
+                <div class="field-group-body">
                 <div class="form-group">
                   <label class="form-label">Objetivo validado y acordado con el cliente</label>
                   <textarea id="val-objetivo" class="form-textarea" placeholder="El objetivo final acordado, ya validado y realista" oninput="autoSave('validacion')"></textarea>
@@ -2474,10 +2525,11 @@
                   <label class="form-label">Expectativas del cliente (lo que espera ver)</label>
                   <textarea id="val-expectativas" class="form-textarea" placeholder="¿Qué métricas o resultados le importan más al cliente?" oninput="autoSave('validacion')"></textarea>
                 </div>
-              </div>
+              </div></div>
 
-              <div class="field-group">
-                <div class="field-group-title"><span class="icon">✍️</span> Confirmación y resultado</div>
+              <div class="field-group collapsed">
+                <div class="field-group-title"><span class="icon">✍️</span> Confirmación y resultado<span class="field-group-preview" id="fg-preview-17"></span></div>
+                <div class="field-group-body">
                 <div class="form-group">
                   <label class="form-label">¿Quién validó y cuándo?</label>
                   <input id="val-quien" class="form-input" type="text" placeholder="ej. Kike + Anwar · 10 marzo 2026" oninput="autoSave('validacion')">
@@ -2486,7 +2538,7 @@
                   <label class="form-label">Resultado final de la validación</label>
                   <textarea id="val-resultado" class="form-textarea" placeholder="Conclusión: ¿se ajustaron los objetivos? ¿se aumentó el presupuesto? ¿se redefinió el CAC?" oninput="autoSave('validacion')"></textarea>
                 </div>
-              </div>
+              </div></div>
             </div>
           </div>
 
@@ -2532,8 +2584,9 @@
         <div class="section-detail active">
           <div class="section-form-area">
             <div class="fields-container">
-              <div class="field-group">
-                <div class="field-group-title"><span class="icon">📋</span> Brief semanal de creativos</div>
+              <div class="field-group collapsed">
+                <div class="field-group-title"><span class="icon">📋</span> Brief semanal de creativos<span class="field-group-preview" id="fg-preview-18"></span></div>
+                <div class="field-group-body">
                 <div class="form-row">
                   <div class="form-group">
                     <label class="form-label">Ángulo ganador esta semana</label>
@@ -2580,16 +2633,17 @@
                   <label class="form-label">Instrucciones adicionales para el diseñador</label>
                   <textarea id="cre-instrucciones" class="form-textarea" placeholder="Colores, referencias, estilo visual, qué evitar..." oninput="autoSave('creativos')"></textarea>
                 </div>
-              </div>
+              </div></div>
 
-              <div class="field-group">
-                <div class="field-group-title"><span class="icon">📤</span> Brief generado</div>
+              <div class="field-group collapsed">
+                <div class="field-group-title"><span class="icon">📤</span> Brief generado<span class="field-group-preview" id="fg-preview-19"></span></div>
+                <div class="field-group-body">
                 <div id="brief-preview" style="background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:16px; font-size:13px; color:var(--text2); min-height:120px; font-family:'DM Mono',monospace; line-height:1.7; white-space:pre-wrap;">El brief aparecerá aquí cuando Claude lo genere →</div>
                 <div style="display:flex; gap:10px; margin-top:12px;">
                   <button class="btn btn-primary" style="font-size:12px;" onclick="generateBrief()">✨ Generar brief con Claude</button>
                   <button class="btn btn-ghost" style="font-size:12px;" onclick="copyBrief()">Copiar brief</button>
                 </div>
-              </div>
+              </div></div>
             </div>
           </div>
 
@@ -3735,7 +3789,20 @@ function navigate(view) {
     navItems[navMap[view]].classList.add('active');
   }
 
-  if (view === 'dashboard') { updateDashboard(); navigateTab('semana'); }
+  // Sincronizar sidebar tabs con la vista actual
+  ['semana','expediente','analisis'].forEach(t => {
+    const el = document.getElementById('tab-' + t);
+    if (el) el.classList.remove('active');
+  });
+  if (view === 'dashboard') {
+    updateDashboard();
+    navigateTab('semana');
+    document.getElementById('tab-semana')?.classList.add('active');
+  } else if (['adn','objetivos','rendimiento','segmentos','validacion','creativos'].includes(view)) {
+    document.getElementById('tab-expediente')?.classList.add('active');
+  } else if (view === 'analisis-view') {
+    document.getElementById('tab-analisis')?.classList.add('active');
+  }
   if (view === 'vault') renderVault();
   if (view === 'decisiones') renderDecisiones();
   if (view === 'adn') initAIPanel('adn');
@@ -3879,6 +3946,38 @@ function loadAllFields() {
 
   // Load semaforo
   loadSemaforo();
+
+  // Actualizar previews de accordion
+  updateFieldGroupPreviews();
+}
+
+// ACCORDION: toggle y preview
+function initFieldGroupAccordion() {
+  document.querySelectorAll('.field-group-title').forEach(title => {
+    title.addEventListener('click', function() {
+      const group = this.closest('.field-group');
+      if (!group) return;
+      group.classList.toggle('collapsed');
+    });
+  });
+}
+
+function updateFieldGroupPreviews() {
+  document.querySelectorAll('.field-group').forEach(group => {
+    const previewEl = group.querySelector('.field-group-preview');
+    if (!previewEl) return;
+    const inputs = group.querySelectorAll('input.form-input, textarea.form-textarea');
+    let previewText = '';
+    for (const inp of inputs) {
+      if (inp.value && inp.value.trim()) {
+        previewText = inp.value.trim();
+        break;
+      }
+    }
+    previewEl.textContent = previewText
+      ? (previewText.length > 60 ? previewText.substring(0, 60) + '...' : previewText)
+      : 'Sin datos';
+  });
 }
 
 function updateProgress(section) {
@@ -4674,6 +4773,18 @@ function loadHistorialIfExists() {
 
 // ── NAVEGACIÓN DE TABS (3 tabs de cliente) ──────────────────────────────────
 function navigateTab(tab) {
+  // Si no estamos en el dashboard, volver primero
+  const dashView = document.getElementById('view-dashboard');
+  if (dashView && dashView.style.display === 'none') {
+    // Volver al dashboard sin recursión
+    currentView = 'dashboard';
+    document.querySelectorAll('[id^="view-"]').forEach(v => v.style.display = 'none');
+    dashView.style.display = 'flex';
+    dashView.style.flexDirection = 'column';
+    updateDashboard();
+    loadAllFields();
+  }
+
   // Ocultar/mostrar secciones
   const isAnalisis = tab === 'analisis';
   const isExpediente = tab === 'expediente';
@@ -4686,6 +4797,7 @@ function navigateTab(tab) {
   // Sección de expediente
   const expSection = document.getElementById('expediente-section');
   if (expSection) expSection.style.display = isExpediente ? '' : 'none';
+  if (isExpediente) { initFieldGroupAccordion(); updateFieldGroupPreviews(); }
 
   // Sección de análisis
   const analisisSection = document.getElementById('analisis-section');
@@ -4708,371 +4820,40 @@ function navigateTab(tab) {
 }
 
 // ── ANÁLISIS: resumen Claude + tendencia ─────────────────────────────────────
-// ── DATOS CONTEXTUALES POR CLIENTE ────────────────────────────────────────────
-// Contexto hardcodeado por cliente para enriquecer el análisis con Claude.
-// Cuando un cliente tenga su propio expediente en Firestore, se puede leer de ahí.
-const CLIENT_CONTEXT = {
-  'enpagos-real': {
-    embudo: 'Lead Meta (WhatsApp) → bot Patagon pre-califica → vendedor Bixis → preautorización buró → cierre → entrega.',
-    objetivo_cac: '$2,170–$2,400 MXN',
-    objetivo_tasa_conv: '6.65% prospecto→preaut',
-    cuello_botella: 'La tasa prospecto→preaut está en ~2.4% vs objetivo 6.65%. El costo/lead es aceptable ($17). El filtro de buró rompe el embudo. La tasa preaut→cierre (11%) está bien.',
-    contexto_historico: 'Mejor mes: Jul 2025 — 267 preaut a $243/preaut, CAC $2,170, 30 cierres, $2.1M venta. Peor período: Nov-Dic 2025 — CAC $12K-$15K por canibalizacion de anuncios + curva Bixis + rechazo buró. Mejor semana 2026: 16-22 Feb — 31 preaut a $588, tasa 2.67%, 3 cierres.',
-    razones_descarte: 'Prospecto foráneo (no local), no tiene negocio establecido, no contesta el seguimiento.',
-    ciudades: 'Monterrey (principal), Saltillo, Torreón (4.18% conv pero 0 cierres = problema de ventas), Querétaro, Guadalajara, Guanajuato. Nuevas Mar 2026: AGS, SLP, San Miguel.',
-    impacto_mejora: 'Cada +1pt de tasa conv = +44 preaut/mes → +5 cierres × $65K = +$325K venta mensual.',
-  }
-};
-
-// ── DATOS HISTÓRICOS HARDCODEADOS POR CLIENTE ────────────────────────────────
-// Para clientes con data real documentada. Se usa si Firestore no tiene historial.
-const CLIENT_HARDCODED_HISTORY = {
-  'enpagos-real': {
-    mensual: [
-      { label:'Jul 25', preaut:267, costPreaut:243, cierres:30, cac:2170, inversion:65000, venta:2134820 },
-      { label:'Ago 25', preaut:196, costPreaut:329, cierres:20, cac:3225, inversion:65000, venta:1064424 },
-      { label:'Sep 25', preaut:191, costPreaut:371, cierres:18, cac:3946, inversion:72000, venta:1120449 },
-      { label:'Oct 25', preaut:180, costPreaut:390, cierres:19, cac:3702, inversion:70000, venta:1357334 },
-      { label:'Nov 25', preaut:149, costPreaut:505, cierres:6,  cac:12552,inversion:75000, venta:399361  },
-      { label:'Dic 25', preaut:129, costPreaut:587, cierres:5,  cac:15165,inversion:75000, venta:351161  },
-      { label:'Ene 26', preaut:96,  costPreaut:753, cierres:12, cac:6025, inversion:72000, venta:665477  },
-      { label:'Feb 26', preaut:92,  costPreaut:707, cierres:10, cac:6508, inversion:65000, venta:624641  },
-    ],
-    semanal: [
-      { label:'26E-1F', prospectos:873,  preaut:17, tasa:1.95, cierres:2, inversion:16843 },
-      { label:'2-8F',   prospectos:734,  preaut:13, tasa:1.77, cierres:2, inversion:14025 },
-      { label:'9-15F',  prospectos:853,  preaut:20, tasa:2.34, cierres:0, inversion:15356 },
-      { label:'16-22F', prospectos:1160, preaut:31, tasa:2.67, cierres:3, inversion:18246 },
-      { label:'23F-1M', prospectos:1038, preaut:22, tasa:2.12, cierres:1, inversion:15991 },
-      { label:'2-8M',   prospectos:858,  preaut:11, tasa:1.28, cierres:0, inversion:10803 },
-    ],
-    cacObjetivo: 2400,
-    costPreautObjetivo: 550,
-  }
-};
-
 async function loadAnalisis() {
   const client = window._currentClient;
   if (!client) return;
   const container = document.getElementById('analisis-section');
   if (!container) return;
 
-  // Destruir charts anteriores si existen
-  if (window._analisisCharts) {
-    window._analisisCharts.forEach(c => { try { c.destroy(); } catch(e){} });
-    window._analisisCharts = [];
-  }
+  // Si ya tiene contenido reciente, no recargar
+  if (container.dataset.loadedFor === client.id) return;
 
-  // Resetear para permitir regénerar
-  container.dataset.loadedFor = '';
-
-  // Cargar Chart.js si no está disponible
-  if (!window.Chart) {
-    await new Promise((res, rej) => {
-      const s = document.createElement('script');
-      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js';
-      s.onload = res; s.onerror = rej;
-      document.head.appendChild(s);
-    });
-  }
-
-  // Cargar historial desde Firestore
-  const firestoreHistory = await loadHistorialData(client.id);
-
-  // Datos hardcodeados del cliente (si existen)
-  const hardcoded = CLIENT_HARDCODED_HISTORY[client.id] || null;
-  const hasFirestore = firestoreHistory.length >= 2;
-  const hasHardcoded = hardcoded && hardcoded.mensual.length >= 2;
-
-  // Renderizar estado inicial (idle)
   container.innerHTML = `
-    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; flex-wrap:wrap; gap:12px;">
-      <div>
-        <div style="font-family:'DM Sans',sans-serif; font-weight:700; font-size:18px; letter-spacing:-0.3px; color:var(--text1);">🧠 Análisis — ${client.nombre || client.id}</div>
-        <div style="font-size:11px; color:var(--text3); font-family:'DM Mono',monospace; margin-top:2px;">
-          ${hasFirestore ? firestoreHistory.length + ' semanas en historial' : hasHardcoded ? 'Data histórica disponible' : 'Sin historial aún'}
-        </div>
-      </div>
-      <button id="btn-generar-analisis" onclick="ejecutarAnalisis()" style="
-        background:var(--accent); color:#000; border:none; border-radius:8px;
-        padding:10px 20px; font-family:'DM Mono',monospace; font-size:12px; font-weight:600;
-        cursor:pointer; display:flex; align-items:center; gap:8px; transition:opacity 0.15s;
-      " onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
-        <span>⚡</span> Generar análisis
-      </button>
-    </div>
+    <div style="font-family:'DM Sans',sans-serif; font-weight:600; font-size:20px; margin-bottom:4px; letter-spacing:-0.3px;">🧠 Análisis</div>
+    <div style="font-size:12px; color:var(--text3); font-family:'DM Mono',monospace; margin-bottom:24px;">${client.nombre || client.id} · basado en historial de semáforo</div>
 
-    <div id="analisis-graficas" style="display:none; margin-bottom:24px;">
-      <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
-        <div style="background:var(--bg2); border:1px solid var(--border); border-radius:12px; padding:16px;">
-          <div style="font-size:11px; font-weight:600; color:var(--text2); margin-bottom:12px; font-family:'DM Mono',monospace;">CAC mensual · MXN</div>
-          <canvas id="chart-cac" height="160"></canvas>
-        </div>
-        <div style="background:var(--bg2); border:1px solid var(--border); border-radius:12px; padding:16px;">
-          <div style="font-size:11px; font-weight:600; color:var(--text2); margin-bottom:12px; font-family:'DM Mono',monospace;">Tasa conv. semanal · %</div>
-          <canvas id="chart-tasa" height="160"></canvas>
-        </div>
-      </div>
-    </div>
-
-    <div id="analisis-claude-box" style="background:var(--bg2); border:1px solid var(--border); border-radius:12px; padding:20px; min-height:100px; display:flex; align-items:center; justify-content:center;">
-      <div style="text-align:center; color:var(--text3);">
-        <div style="font-size:24px; margin-bottom:8px;">⚡</div>
-        <div style="font-size:12px; font-family:'DM Mono',monospace;">Presiona "Generar análisis" para ver el diagnóstico de este cliente</div>
-      </div>
+    <div id="analisis-tendencia" style="margin-bottom:24px;"></div>
+    <div id="analisis-claude" style="background:var(--bg2); border:1px solid var(--border); border-radius:12px; padding:20px; font-size:14px; line-height:1.6; color:var(--text2); font-family:'DM Sans',sans-serif; min-height:120px;">
+      <span style="color:var(--text3); font-size:12px; font-family:'DM Mono',monospace;">Generando análisis...</span>
     </div>
   `;
 
-  // Guardar refs para la ejecución posterior
-  window._analisisState = { client, firestoreHistory, hardcoded };
-}
+  // Cargar historial desde Firestore
+  const history = await loadHistorialData(client.id);
+  
+  // Renderizar tendencia
+  renderTendencia(history, document.getElementById('analisis-tendencia'));
 
-async function ejecutarAnalisis() {
-  const btn = document.getElementById('btn-generar-analisis');
-  const graficasEl = document.getElementById('analisis-graficas');
-  const claudeBox = document.getElementById('analisis-claude-box');
-  if (!btn || !graficasEl || !claudeBox) return;
-
-  const { client, firestoreHistory, hardcoded } = window._analisisState || {};
-  if (!client) return;
-
-  // Estado: cargando
-  btn.disabled = true;
-  btn.innerHTML = '<span style="animation:spin 1s linear infinite;display:inline-block;">⏳</span> Analizando...';
-  claudeBox.innerHTML = `<div style="display:flex; align-items:center; gap:10px; color:var(--text3); font-family:'DM Mono',monospace; font-size:12px;">
-    <span style="animation:spin 1s linear infinite;display:inline-block;font-size:16px;">⚙️</span> Claude está procesando los datos...
-  </div>`;
-
-  if (!document.getElementById('spin-style')) {
-    const st = document.createElement('style');
-    st.id = 'spin-style';
-    st.textContent = '@keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }';
-    document.head.appendChild(st);
-  }
-
-  // ── GRÁFICAS ────────────────────────────────────────────────
-  if (!window._analisisCharts) window._analisisCharts = [];
-
-  const chartGrid = Chart.defaults;
-  chartGrid.color = '#4a5568';
-  chartGrid.font.family = "'DM Mono', monospace";
-  chartGrid.font.size = 10;
-
-  const gridStyle = { color: 'rgba(255,255,255,0.04)', drawBorder: false };
-
-  // Determinar fuente de datos para gráficas
-  const mensualData = hardcoded ? hardcoded.mensual : null;
-  const semanalData = hardcoded ? hardcoded.semanal : null;
-
-  graficasEl.style.display = 'block';
-
-  // Chart 1: CAC mensual
-  if (mensualData) {
-    const ctxCAC = document.getElementById('chart-cac');
-    if (ctxCAC) {
-      const cacObj = hardcoded.cacObjetivo;
-      const c1 = new Chart(ctxCAC, {
-        type: 'bar',
-        data: {
-          labels: mensualData.map(d => d.label),
-          datasets: [
-            {
-              label: 'CAC',
-              data: mensualData.map(d => d.cac),
-              backgroundColor: mensualData.map(d => d.cac <= cacObj ? 'rgba(0,229,160,0.7)' : d.cac <= cacObj*2 ? 'rgba(255,180,0,0.6)' : 'rgba(255,69,96,0.6)'),
-              borderColor: mensualData.map(d => d.cac <= cacObj ? '#00e5a0' : d.cac <= cacObj*2 ? '#ffb400' : '#ff4560'),
-              borderWidth: 1,
-              borderRadius: 4,
-            },
-            {
-              label: 'Objetivo',
-              data: mensualData.map(() => cacObj),
-              type: 'line',
-              borderColor: 'rgba(0,229,160,0.4)',
-              borderDash: [4, 4],
-              borderWidth: 1.5,
-              pointRadius: 0,
-              tension: 0,
-            }
-          ]
-        },
-        options: {
-          responsive: true,
-          plugins: {
-            legend: { labels: { color: '#4a5568', usePointStyle: true, padding: 10 } },
-            tooltip: {
-              backgroundColor: '#0d1017', borderColor: '#1f2a3d', borderWidth: 1,
-              callbacks: { label: ctx => `$${ctx.raw.toLocaleString('es-MX')} MXN` }
-            }
-          },
-          scales: {
-            x: { grid: gridStyle, ticks: { color: '#4a5568', maxRotation: 0 } },
-            y: { grid: gridStyle, ticks: { color: '#4a5568', callback: v => '$'+v.toLocaleString('es-MX') } }
-          }
-        }
-      });
-      window._analisisCharts.push(c1);
-    }
-  } else if (firestoreHistory.length >= 2) {
-    // Gráfica desde Firestore
-    const ctxCAC = document.getElementById('chart-cac');
-    if (ctxCAC) {
-      const labels = firestoreHistory.map(h => {
-        const d = h.fechaCierre ? new Date(h.fechaCierre.seconds ? h.fechaCierre.seconds*1000 : h.fechaCierre) : null;
-        return d ? d.toLocaleDateString('es-MX',{month:'short',day:'numeric'}) : h.id;
-      });
-      const cacVals = firestoreHistory.map(h => parseFloat(h.cacActual) || 0);
-      const c1 = new Chart(ctxCAC, {
-        type: 'bar',
-        data: {
-          labels,
-          datasets: [{
-            label: 'CAC',
-            data: cacVals,
-            backgroundColor: cacVals.map(v => v <= 2400 ? 'rgba(0,229,160,0.7)' : v <= 5000 ? 'rgba(255,180,0,0.6)' : 'rgba(255,69,96,0.6)'),
-            borderRadius: 4,
-          }]
-        },
-        options: {
-          responsive: true,
-          plugins: { legend: { display: false } },
-          scales: {
-            x: { grid: gridStyle, ticks: { color: '#4a5568' } },
-            y: { grid: gridStyle, ticks: { color: '#4a5568', callback: v => '$'+v.toLocaleString('es-MX') } }
-          }
-        }
-      });
-      window._analisisCharts.push(c1);
-    }
-  }
-
-  // Chart 2: Tasa de conversión semanal
-  if (semanalData) {
-    const ctxTasa = document.getElementById('chart-tasa');
-    if (ctxTasa) {
-      const c2 = new Chart(ctxTasa, {
-        type: 'line',
-        data: {
-          labels: semanalData.map(d => d.label),
-          datasets: [
-            {
-              label: 'Tasa %',
-              data: semanalData.map(d => d.tasa),
-              borderColor: '#4f8ef7',
-              backgroundColor: 'rgba(79,142,247,0.08)',
-              borderWidth: 2,
-              pointBackgroundColor: semanalData.map(d => d.tasa >= 2.5 ? '#00e5a0' : d.tasa < 1.5 ? '#ff4560' : '#ffb400'),
-              pointRadius: 5,
-              tension: 0.35,
-              fill: true,
-            },
-            {
-              label: 'Objetivo (6.65%)',
-              data: semanalData.map(() => 6.65),
-              borderColor: 'rgba(0,229,160,0.3)',
-              borderDash: [4,4],
-              borderWidth: 1.5,
-              pointRadius: 0,
-              tension: 0,
-            }
-          ]
-        },
-        options: {
-          responsive: true,
-          plugins: {
-            legend: { labels: { color: '#4a5568', usePointStyle: true, padding: 10 } },
-            tooltip: {
-              backgroundColor: '#0d1017', borderColor: '#1f2a3d', borderWidth: 1,
-              callbacks: { label: ctx => ctx.raw + '%' }
-            }
-          },
-          scales: {
-            x: { grid: gridStyle, ticks: { color: '#4a5568' } },
-            y: { grid: gridStyle, ticks: { color: '#4a5568', callback: v => v + '%' }, min: 0 }
-          }
-        }
-      });
-      window._analisisCharts.push(c2);
-    }
-  }
-
-  // ── TEXTO CLAUDE ─────────────────────────────────────────────
-  const ctx = CLIENT_CONTEXT[client.id];
-  const hist = hardcoded ? hardcoded.mensual : firestoreHistory;
-
-  let dataStr = '';
-  if (hardcoded) {
-    dataStr = hardcoded.mensual.map(d =>
-      `${d.label}: ${d.preaut} preaut, costo/preaut $${d.costPreaut}, ${d.cierres} cierres, CAC $${d.cac.toLocaleString('es-MX')}, inversión $${d.inversion.toLocaleString('es-MX')}, venta $${d.venta.toLocaleString('es-MX')}`
-    ).join('\n');
-    if (hardcoded.semanal) {
-      dataStr += '\n\nÚltimas semanas:\n' + hardcoded.semanal.map(s =>
-        `${s.label}: ${s.prospectos} prospectos, ${s.preaut} preaut, tasa ${s.tasa}%, ${s.cierres} cierres, inv $${s.inversion.toLocaleString('es-MX')}`
-      ).join('\n');
-    }
+  // Generar resumen con Claude
+  if (history.length >= 2) {
+    await generarResumenClaude(client, history);
   } else {
-    dataStr = firestoreHistory.map(h => {
-      const f = h.fechaCierre ? new Date(h.fechaCierre.seconds ? h.fechaCierre.seconds*1000 : h.fechaCierre).toLocaleDateString('es-MX') : h.id;
-      return `${f}: CAC $${h.cacActual||'?'}, inversión $${h.inversion||'?'}, cierres ${h.cierres||'?'}, semáforo ${h.resultadoSemaforo||'?'}`;
-    }).join('\n');
+    document.getElementById('analisis-claude').innerHTML = 
+      '<span style="color:var(--text3); font-size:12px; font-family:\'DM Mono\',monospace;">Se necesitan al menos 2 semanas de datos para generar un análisis.</span>';
   }
 
-  const ctxExtra = ctx ? `
-CONTEXTO DEL CLIENTE:
-- Embudo: ${ctx.embudo}
-- CAC objetivo: ${ctx.objetivo_cac}
-- Tasa conversión objetivo: ${ctx.objetivo_tasa_conv}
-- Cuello de botella identificado: ${ctx.cuello_botella}
-- Contexto histórico: ${ctx.contexto_historico}
-- Razones de descarte de leads: ${ctx.razones_descarte}
-- Ciudades activas: ${ctx.ciudades}
-- Impacto de mejorar conversión: ${ctx.impacto_mejora}
-` : '';
-
-  const prompt = `Eres el analista senior de OptimizAds. Genera un diagnóstico ejecutivo directo para el account manager (Kike) sobre el cliente "${client.nombre || client.id}".
-
-DATOS:
-${dataStr}
-${ctxExtra}
-Responde con este formato exacto en HTML simple (solo <p>, <strong>, <span style="color:...">):
-
-<p><strong>Situación actual:</strong> [1-2 oraciones sobre dónde está el cliente hoy vs objetivo]</p>
-<p><strong>El problema real:</strong> [identifica el cuello de botella principal con números específicos]</p>
-<p><strong>Lo que está funcionando:</strong> [1 cosa concreta positiva con dato]</p>
-<p><strong>Acción inmediata:</strong> [1 sola acción concreta para esta semana, con métrica esperada]</p>
-
-Sé directo, usa números reales, sin relleno.`;
-
-  try {
-    const response = await fetch('https://optix-proxy.anwarhsg.workers.dev', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 400,
-        messages: [{ role: 'user', content: prompt }]
-      })
-    });
-    const data = await response.json();
-    const text = data?.content?.[0]?.text || 'No se pudo generar el análisis.';
-
-    const fuente = hardcoded ? 'data histórica documentada' : `${firestoreHistory.length} semanas en Firestore`;
-    claudeBox.innerHTML = `
-      <div style="font-size:13px; line-height:1.8; color:var(--text1); font-family:'DM Sans',sans-serif;">
-        ${text}
-      </div>
-      <div style="margin-top:16px; padding-top:12px; border-top:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
-        <div style="font-size:10px; color:var(--text3); font-family:'DM Mono',monospace;">🧠 Generado por Claude · ${fuente}</div>
-        <button onclick="ejecutarAnalisis()" style="background:transparent; border:1px solid var(--border); color:var(--text3); border-radius:6px; padding:4px 10px; font-family:'DM Mono',monospace; font-size:10px; cursor:pointer;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text3)'">↻ Regenerar</button>
-      </div>
-    `;
-  } catch(e) {
-    claudeBox.innerHTML = '<span style="color:var(--text3); font-size:12px; font-family:\'DM Mono\',monospace;">Error generando análisis. Revisa la conexión.</span>';
-  }
-
-  // Restaurar botón
-  btn.disabled = false;
-  btn.innerHTML = '<span>⚡</span> Generar análisis';
+  container.dataset.loadedFor = client.id;
 }
 
 async function loadHistorialData(clientId) {
@@ -5091,7 +4872,72 @@ async function loadHistorialData(clientId) {
   }
 }
 
-function renderTendencia() {} // deprecated — reemplazada por gráficas Chart.js
+function renderTendencia(history, container) {
+  if (!container || history.length < 2) {
+    if (container) container.innerHTML = '';
+    return;
+  }
+  const maxCAC = Math.max(...history.map(h => parseFloat(h.cacActual) || 0));
+  const rows = history.map(h => {
+    const cac = parseFloat(h.cacActual) || 0;
+    const pct = maxCAC > 0 ? (cac / maxCAC * 100) : 0;
+    const color = h.resultadoSemaforo === 'verde' ? 'var(--accent)' : h.resultadoSemaforo === 'amarillo' ? '#f59e0b' : '#ef4444';
+    const fecha = h.fechaCierre ? new Date(h.fechaCierre.seconds ? h.fechaCierre.seconds*1000 : h.fechaCierre).toLocaleDateString('es-MX',{month:'short',day:'numeric'}) : h.id;
+    return `<div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
+      <div style="font-size:10px; color:var(--text3); font-family:'DM Mono',monospace; min-width:52px;">${fecha}</div>
+      <div style="flex:1; background:var(--bg3); border-radius:4px; height:8px; overflow:hidden;">
+        <div style="width:${pct}%; height:100%; background:${color}; border-radius:4px; transition:width 0.4s;"></div>
+      </div>
+      <div style="font-size:11px; color:var(--text2); font-family:'DM Mono',monospace; min-width:80px; text-align:right;">$${cac.toLocaleString('es-MX')} CAC</div>
+      <div style="width:8px; height:8px; border-radius:50%; background:${color};"></div>
+    </div>`;
+  }).join('');
+  container.innerHTML = `
+    <div style="font-family:'DM Sans',sans-serif; font-weight:600; font-size:14px; margin-bottom:12px; color:var(--text1);">Tendencia de CAC · últimas ${history.length} semanas</div>
+    ${rows}
+  `;
+}
+
+async function generarResumenClaude(client, history) {
+  const el = document.getElementById('analisis-claude');
+  if (!el) return;
+  try {
+    const resumen = history.map(h => {
+      const fecha = h.fechaCierre ? new Date(h.fechaCierre.seconds ? h.fechaCierre.seconds*1000 : h.fechaCierre).toLocaleDateString('es-MX') : h.id;
+      return `Semana ${fecha}: CAC $${h.cacActual||'?'} MXN, inversión $${h.inversion||'?'} MXN, cierres ${h.cierres||'?'}, semáforo ${h.resultadoSemaforo||'?'}`;
+    }).join('\n');
+
+    const prompt = `Eres el analista senior de OptimizAds. Analiza estas ${history.length} semanas del cliente "${client.nombre || client.id}" (${client.industria || 'sin industria'}):
+
+${resumen}
+
+CAC objetivo: $${client.cacObjetivo || 'no definido'} MXN por cierre.
+
+En 3-4 oraciones cortas, directas, sin preamble:
+1. Tendencia real del CAC (sube, baja, se estabiliza)
+2. La semana más notable y por qué
+3. Una señal de alerta o punto positivo concreto
+4. Una recomendación accionable para la siguiente semana
+
+Responde solo el análisis, sin títulos ni viñetas.`;
+
+    const response = await fetch('https://optix-proxy.anwarhsg.workers.dev', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 300,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+    const data = await response.json();
+    const text = data?.content?.[0]?.text || 'No se pudo generar el análisis.';
+    el.innerHTML = `<div style="font-size:13px; line-height:1.7; color:var(--text1);">${text}</div>
+      <div style="margin-top:12px; font-size:10px; color:var(--text3); font-family:'DM Mono',monospace;">🧠 Generado por Optix · basado en ${history.length} semanas</div>`;
+  } catch(e) {
+    el.innerHTML = '<span style="color:var(--text3); font-size:12px;">Error generando análisis.</span>';
+  }
+}
 
 
 function loadEnPagos() {
