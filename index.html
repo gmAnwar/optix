@@ -911,6 +911,26 @@
   .field-group.collapsed .field-group-title::after {
     transform: rotate(-90deg);
   }
+  /* Chips de métrica principal */
+  .metrica-chip {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    color: var(--text2);
+    border-radius: 20px;
+    padding: 5px 14px;
+    font-size: 12px;
+    font-family: 'DM Sans', sans-serif;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .metrica-chip:hover { border-color: var(--accent); color: var(--accent); }
+  .metrica-chip.active {
+    background: rgba(0,229,160,0.12);
+    border-color: var(--accent);
+    color: var(--accent);
+    font-weight: 600;
+  }
+
   .field-group-body {
     transition: all 0.2s;
   }
@@ -2186,6 +2206,56 @@
         <div class="section-detail active">
           <div class="section-form-area">
             <div class="fields-container">
+              <!-- MÉTRICA PRINCIPAL -->
+              <div class="field-group collapsed" style="border-left: 2px solid var(--accent);">
+                <div class="field-group-title"><span class="icon">🎯</span> Métrica principal del cliente<span class="field-group-preview" id="fg-preview-metrica"></span> <span style="font-size:10px; color:var(--accent); font-family:'DM Mono',monospace; margin-left:8px;">● requerido</span></div>
+                <div class="field-group-body">
+                <div class="form-group">
+                  <label class="form-label">¿Cuál es el KPI que gobierna la evaluación de esta cuenta? <span style="color:var(--accent);font-size:10px;">● requerido</span></label>
+                  <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px;" id="metrica-chips">
+                    <button type="button" class="metrica-chip" data-val="cac" onclick="selectMetrica(this)">CAC</button>
+                    <button type="button" class="metrica-chip" data-val="roas" onclick="selectMetrica(this)">ROAS</button>
+                    <button type="button" class="metrica-chip" data-val="cierres" onclick="selectMetrica(this)">Cierres / mes</button>
+                    <button type="button" class="metrica-chip" data-val="citas" onclick="selectMetrica(this)">Citas agendadas</button>
+                    <button type="button" class="metrica-chip" data-val="cpl" onclick="selectMetrica(this)">CPL</button>
+                    <button type="button" class="metrica-chip" data-val="costo_preaut" onclick="selectMetrica(this)">Costo por preautorizado</button>
+                    <button type="button" class="metrica-chip" data-val="otro" onclick="selectMetrica(this)">Otro</button>
+                  </div>
+                  <input type="hidden" id="obj-metrica-tipo" oninput="autoSave('objetivos')">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Descripción / contexto de la métrica</label>
+                  <textarea id="obj-metrica-desc" class="form-textarea" placeholder="ej. Usamos CAC porque el cliente paga comisión por cierre. El objetivo es mantenerse por debajo de $2,400 MXN." oninput="autoSave('objetivos')" rows="2"></textarea>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Valor objetivo de la métrica (referencia general)</label>
+                  <input id="obj-metrica-valor" class="form-input" type="text" placeholder="ej. $2,400 MXN máximo / 3.5x ROAS mínimo / 30 cierres/mes" oninput="autoSave('objetivos')">
+                </div>
+                </div>
+              </div>
+
+              <!-- OBJETIVOS MENSUALES 2026 -->
+              <div class="field-group collapsed">
+                <div class="field-group-title"><span class="icon">📅</span> Objetivos mensuales 2026<span class="field-group-preview" id="fg-preview-obj2026"></span></div>
+                <div class="field-group-body">
+                <div style="font-size:11px; color:var(--text3); font-family:'DM Mono',monospace; margin-bottom:12px;">Los valores se expresan en la métrica principal definida arriba.</div>
+                <div style="overflow-x:auto;">
+                <table style="width:100%; border-collapse:collapse; font-size:12px;" id="tabla-objetivos-2026">
+                  <thead>
+                    <tr style="border-bottom:1px solid var(--border);">
+                      <th style="text-align:left; padding:6px 8px; color:var(--text3); font-family:'DM Mono',monospace; font-weight:500; font-size:10px;">MES</th>
+                      <th style="text-align:left; padding:6px 8px; color:var(--text3); font-family:'DM Mono',monospace; font-weight:500; font-size:10px;">OBJETIVO</th>
+                      <th style="text-align:left; padding:6px 8px; color:var(--text3); font-family:'DM Mono',monospace; font-weight:500; font-size:10px;">PRESUPUESTO</th>
+                      <th style="text-align:left; padding:6px 8px; color:var(--text3); font-family:'DM Mono',monospace; font-weight:500; font-size:10px;">NOTA</th>
+                    </tr>
+                  </thead>
+                  <tbody id="tbody-obj2026">
+                  </tbody>
+                </table>
+                </div>
+                </div>
+              </div>
+
               <div class="field-group collapsed">
                 <div class="field-group-title"><span class="icon">📌</span> Metas principales<span class="field-group-preview" id="fg-preview-6"></span></div>
                 <div class="field-group-body">
@@ -3817,7 +3887,11 @@ function navigate(view) {
   if (view === 'vault') renderVault();
   if (view === 'decisiones') renderDecisiones();
   if (view === 'adn') initAIPanel('adn');
-  if (view === 'objetivos') initAIPanel('objetivos');
+  if (view === 'objetivos') {
+    initAIPanel('objetivos');
+    const client = getClient();
+    if (client) loadMetricaYObjetivos(client.objetivos || {});
+  }
   if (view === 'rendimiento') initAIPanel('rendimiento');
   if (view === 'segmentos') initAIPanel('segmentos');
   if (view === 'validacion') initAIPanel('validacion');
@@ -3934,6 +4008,16 @@ function autoSave(section) {
     const key = f.replace(/-/g, '_');
     client[section][key] = el.value;
   });
+  // Campos extra de objetivos (métrica + tabla 2026)
+  if (section === 'objetivos') {
+    if (!client.objetivos) client.objetivos = {};
+    client.objetivos.metricaTipo = document.getElementById('obj-metrica-tipo')?.value || '';
+    client.objetivos.metricaDesc = document.getElementById('obj-metrica-desc')?.value || '';
+    client.objetivos.metricaValor = document.getElementById('obj-metrica-valor')?.value || '';
+    client.objetivos.objetivosMensuales2026 = getObjetivosMensuales();
+    // Actualizar previews de métrica
+    loadMetricaYObjetivos(client.objetivos);
+  }
   saveClients();
   updateProgress(section);
 }
@@ -3958,8 +4042,107 @@ function loadAllFields() {
   // Load semaforo
   loadSemaforo();
 
+  // Cargar métrica principal y objetivos 2026
+  loadMetricaYObjetivos(client.objetivos || {});
+
   // Actualizar previews de accordion
   updateFieldGroupPreviews();
+}
+
+// ── MÉTRICA PRINCIPAL ──────────────────────────────────────────────────────
+
+const MESES_2026 = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+const MESES_LABEL = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+
+function selectMetrica(el) {
+  document.querySelectorAll('.metrica-chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('obj-metrica-tipo').value = el.dataset.val;
+  autoSave('objetivos');
+}
+
+function renderTablaObjetivos(data) {
+  const tbody = document.getElementById('tbody-obj2026');
+  if (!tbody) return;
+  const obj2026 = data?.objetivosMensuales2026 || {};
+  const mesActual = new Date().getMonth(); // 0-based
+  tbody.innerHTML = MESES_2026.map((mes, i) => {
+    const d = obj2026[mes] || {};
+    const isActual = i === mesActual;
+    const rowStyle = isActual ? 'background:rgba(0,229,160,0.04);' : '';
+    const labelStyle = isActual ? 'color:var(--accent); font-weight:700;' : 'color:var(--text2);';
+    return `<tr style="border-bottom:1px solid var(--border); ${rowStyle}">
+      <td style="padding:7px 8px; font-family:'DM Mono',monospace; font-size:11px; ${labelStyle} white-space:nowrap;">
+        ${MESES_LABEL[i]}${isActual ? ' ◀' : ''}
+      </td>
+      <td style="padding:4px 6px;">
+        <input class="form-input" style="font-size:12px; padding:5px 8px;" 
+          id="obj2026-${mes}-objetivo" type="text" 
+          placeholder="ej. 30 cierres" 
+          value="${d.objetivo || ''}"
+          oninput="autoSave('objetivos')">
+      </td>
+      <td style="padding:4px 6px;">
+        <input class="form-input" style="font-size:12px; padding:5px 8px;" 
+          id="obj2026-${mes}-presupuesto" type="text" 
+          placeholder="ej. $90,000" 
+          value="${d.presupuesto || ''}"
+          oninput="autoSave('objetivos')">
+      </td>
+      <td style="padding:4px 6px;">
+        <input class="form-input" style="font-size:12px; padding:5px 8px;" 
+          id="obj2026-${mes}-nota" type="text" 
+          placeholder="ej. temporada alta" 
+          value="${d.nota || ''}"
+          oninput="autoSave('objetivos')">
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function loadMetricaYObjetivos(data) {
+  // Restaurar chip activo
+  const tipo = data?.metricaTipo || '';
+  document.querySelectorAll('.metrica-chip').forEach(c => {
+    c.classList.toggle('active', c.dataset.val === tipo);
+  });
+  const tipoEl = document.getElementById('obj-metrica-tipo');
+  if (tipoEl) tipoEl.value = tipo;
+
+  // Descripción y valor
+  const descEl = document.getElementById('obj-metrica-desc');
+  const valorEl = document.getElementById('obj-metrica-valor');
+  if (descEl) descEl.value = data?.metricaDesc || '';
+  if (valorEl) valorEl.value = data?.metricaValor || '';
+
+  // Tabla de objetivos
+  renderTablaObjetivos(data);
+
+  // Preview del field-group de métrica
+  const prevMetrica = document.getElementById('fg-preview-metrica');
+  if (prevMetrica) {
+    prevMetrica.textContent = tipo ? `· ${tipo.toUpperCase()}${data?.metricaValor ? ' · ' + data.metricaValor : ''}` : '';
+  }
+
+  // Preview del field-group de objetivos 2026
+  const mesActual = MESES_2026[new Date().getMonth()];
+  const prevObj = document.getElementById('fg-preview-obj2026');
+  if (prevObj) {
+    const obj = data?.objetivosMensuales2026?.[mesActual];
+    prevObj.textContent = obj?.objetivo ? `· ${MESES_LABEL[new Date().getMonth()]}: ${obj.objetivo}` : '';
+  }
+}
+
+// Extender autoSave para capturar los campos nuevos de objetivos
+function getObjetivosMensuales() {
+  const result = {};
+  MESES_2026.forEach(mes => {
+    const obj = document.getElementById(`obj2026-${mes}-objetivo`)?.value?.trim() || '';
+    const pres = document.getElementById(`obj2026-${mes}-presupuesto`)?.value?.trim() || '';
+    const nota = document.getElementById(`obj2026-${mes}-nota`)?.value?.trim() || '';
+    if (obj || pres || nota) result[mes] = { objetivo: obj, presupuesto: pres, nota };
+  });
+  return result;
 }
 
 // ACCORDION: toggle y preview
