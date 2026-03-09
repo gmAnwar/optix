@@ -822,6 +822,17 @@
     margin-bottom: 14px;
   }
 
+  .section-preview {
+    font-size: 11px;
+    color: var(--text3);
+    font-family: 'DM Mono', monospace;
+    padding: 0 12px 6px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-height: 18px;
+  }
+
   .section-footer {
     display: flex;
     align-items: center;
@@ -1971,12 +1982,12 @@
           <div style="font-family:'DM Sans',sans-serif; font-weight:600; font-size:20px; margin-bottom:4px; letter-spacing:-0.3px;">📁 Expediente</div>
           <div style="font-size:12px; color:var(--text3); font-family:'DM Mono',monospace; margin-bottom:24px;" id="exp-completitud-label">—</div>
           <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px;">
-            <div class="section-card" onclick="navigate('adn')"><div class="section-card-header"><div class="section-icon">🧬</div><div class="layer-badge" id="badge-adn">—</div></div><div class="section-name">ADN del negocio</div><div class="section-footer"><div class="progress-bar-container"><div class="progress-bar-fill" id="bar-adn" style="width:0%"></div></div></div></div>
-            <div class="section-card" onclick="navigate('segmentos')"><div class="section-card-header"><div class="section-icon">👥</div><div class="layer-badge" id="badge-segmentos">—</div></div><div class="section-name">Segmentos</div><div class="section-footer"><div class="progress-bar-container"><div class="progress-bar-fill" id="bar-segmentos" style="width:0%"></div></div></div></div>
-            <div class="section-card" onclick="navigate('objetivos')"><div class="section-card-header"><div class="section-icon">🎯</div><div class="layer-badge" id="badge-objetivos">—</div></div><div class="section-name">Objetivos</div><div class="section-footer"><div class="progress-bar-container"><div class="progress-bar-fill" id="bar-objetivos" style="width:0%"></div></div></div></div>
-            <div class="section-card" onclick="navigate('rendimiento')"><div class="section-card-header"><div class="section-icon">📊</div><div class="layer-badge" id="badge-rendimiento">—</div></div><div class="section-name">Rendimiento</div><div class="section-footer"><div class="progress-bar-container"><div class="progress-bar-fill" id="bar-rendimiento" style="width:0%"></div></div></div></div>
-            <div class="section-card" onclick="navigate('validacion')"><div class="section-card-header"><div class="section-icon">✅</div><div class="layer-badge" id="badge-validacion">—</div></div><div class="section-name">Validación</div><div class="section-footer"><div class="progress-bar-container"><div class="progress-bar-fill" id="bar-validacion" style="width:0%"></div></div></div></div>
-            <div class="section-card" onclick="navigate('creativos')"><div class="section-card-header"><div class="section-icon">🎨</div><div class="layer-badge" id="badge-creativos">—</div></div><div class="section-name">Creativos</div><div class="section-footer"><div class="progress-bar-container"><div class="progress-bar-fill" id="bar-creativos" style="width:0%"></div></div></div></div>
+            <div class="section-card" onclick="navigate('adn')"><div class="section-card-header"><div class="section-icon">🧬</div><div class="layer-badge" id="badge-adn">—</div></div><div class="section-name">ADN del negocio</div><div class="section-preview" id="prev-adn">—</div><div class="section-footer"><div class="progress-bar-container"><div class="progress-bar-fill" id="bar-adn" style="width:0%"></div></div></div></div>
+            <div class="section-card" onclick="navigate('segmentos')"><div class="section-card-header"><div class="section-icon">👥</div><div class="layer-badge" id="badge-segmentos">—</div></div><div class="section-name">Segmentos</div><div class="section-preview" id="prev-segmentos">—</div><div class="section-footer"><div class="progress-bar-container"><div class="progress-bar-fill" id="bar-segmentos" style="width:0%"></div></div></div></div>
+            <div class="section-card" onclick="navigate('objetivos')"><div class="section-card-header"><div class="section-icon">🎯</div><div class="layer-badge" id="badge-objetivos">—</div></div><div class="section-name">Objetivos</div><div class="section-preview" id="prev-objetivos">—</div><div class="section-footer"><div class="progress-bar-container"><div class="progress-bar-fill" id="bar-objetivos" style="width:0%"></div></div></div></div>
+            <div class="section-card" onclick="navigate('rendimiento')"><div class="section-card-header"><div class="section-icon">📊</div><div class="layer-badge" id="badge-rendimiento">—</div></div><div class="section-name">Rendimiento</div><div class="section-preview" id="prev-rendimiento">—</div><div class="section-footer"><div class="progress-bar-container"><div class="progress-bar-fill" id="bar-rendimiento" style="width:0%"></div></div></div></div>
+            <div class="section-card" onclick="navigate('validacion')"><div class="section-card-header"><div class="section-icon">✅</div><div class="layer-badge" id="badge-validacion">—</div></div><div class="section-name">Validación</div><div class="section-preview" id="prev-validacion">—</div><div class="section-footer"><div class="progress-bar-container"><div class="progress-bar-fill" id="bar-validacion" style="width:0%"></div></div></div></div>
+            <div class="section-card" onclick="navigate('creativos')"><div class="section-card-header"><div class="section-icon">🎨</div><div class="layer-badge" id="badge-creativos">—</div></div><div class="section-name">Creativos</div><div class="section-preview" id="prev-creativos">—</div><div class="section-footer"><div class="progress-bar-container"><div class="progress-bar-fill" id="bar-creativos" style="width:0%"></div></div></div></div>
             <div class="section-card" onclick="navigate('vault')"><div class="section-card-header"><div class="section-icon">🏆</div></div><div class="section-name">Winning Ads Vault</div></div>
             <div class="section-card" onclick="navigate('decisiones')"><div class="section-card-header"><div class="section-icon">📝</div></div><div class="section-name">Decisiones</div></div>
           </div>
@@ -3953,12 +3964,14 @@ function loadAllFields() {
 
 // ACCORDION: toggle y preview
 function initFieldGroupAccordion() {
+  // Usar onclick directo para evitar listeners duplicados
   document.querySelectorAll('.field-group-title').forEach(title => {
-    title.addEventListener('click', function() {
+    title.onclick = function(e) {
+      // No propagar si se hizo click en un input dentro del title
       const group = this.closest('.field-group');
       if (!group) return;
       group.classList.toggle('collapsed');
-    });
+    };
   });
 }
 
@@ -4028,6 +4041,22 @@ function updateProgress(section) {
   if (prog) {
     prog.textContent = pct === 100 ? '✅ Completo' : pct > 0 ? pct + '%' : 'Vacío';
     prog.className = 'section-progress' + (pct === 100 ? ' complete' : '');
+  }
+
+  // Preview en section-card (primer campo con valor)
+  const prevEl = document.getElementById('prev-' + section);
+  if (prevEl) {
+    const firstFilled = allFields.find(f => {
+      const key = f.replace(/-/g, '_');
+      return data[key] && data[key].toString().trim() !== '';
+    });
+    if (firstFilled) {
+      const key = firstFilled.replace(/-/g, '_');
+      const val = data[key].toString().trim();
+      prevEl.textContent = val.length > 40 ? val.substring(0, 40) + '…' : val;
+    } else {
+      prevEl.textContent = 'Sin datos';
+    }
   }
 
   // Actualizar completitud global
@@ -4819,42 +4848,211 @@ function navigateTab(tab) {
   window._currentTab = tab;
 }
 
-// ── ANÁLISIS: resumen Claude + tendencia ─────────────────────────────────────
+// ── ANÁLISIS: botón idle + gráficas + Claude ────────────────────────────────
+
+// Primer campo con data hardcodeada para EnPagos
+const CLIENT_HARDCODED_HISTORY = {
+  enpagos: {
+    monthly: [
+      { mes: 'Jul 25', cac: 2840, cierres: 18, inversion: 51120, tasa: 3.1 },
+      { mes: 'Ago 25', cac: 3200, cierres: 15, inversion: 48000, tasa: 2.8 },
+      { mes: 'Sep 25', cac: 2650, cierres: 22, inversion: 58300, tasa: 3.4 },
+      { mes: 'Oct 25', cac: 3100, cierres: 19, inversion: 58900, tasa: 3.0 },
+      { mes: 'Nov 25', cac: 2900, cierres: 21, inversion: 60900, tasa: 3.2 },
+      { mes: 'Dic 25', cac: 3400, cierres: 14, inversion: 47600, tasa: 2.5 },
+      { mes: 'Ene 26', cac: 3800, cierres: 16, inversion: 60800, tasa: 2.4 },
+      { mes: 'Feb 26', cac: 4200, cierres: 17, inversion: 71400, tasa: 2.42 }
+    ],
+    weekly: [
+      { semana: '27 Ene', preaut: 18, costo_preaut: 722, tasa: 2.1 },
+      { semana: '3 Feb', preaut: 21, costo_preaut: 619, tasa: 2.3 },
+      { semana: '10 Feb', preaut: 24, costo_preaut: 542, tasa: 2.5 },
+      { semana: '17 Feb', preaut: 31, costo_preaut: 588, tasa: 3.1 },
+      { semana: '24 Feb', preaut: 19, costo_preaut: 710, tasa: 2.2 },
+      { semana: '3 Mar', preaut: 22, costo_preaut: 645, tasa: 2.42 }
+    ]
+  }
+};
+
+const CLIENT_CONTEXT = {
+  enpagos: {
+    embudo: 'Lead ($17 CPL) → Prospecto contactado → Preautorizado (2.42%) → Cierre (8% de preaut)',
+    cuello: 'La tasa prospecto→preautorizado está en 2.42% vs objetivo 6.65%. El costo por lead está bien ($17), el problema está en el filtro de buró y calificación crediticia.',
+    razones_descarte: 'Buró negativo (40%), ingresos insuficientes (30%), zona geográfica fuera de cobertura (20%), sin comprobante de ingresos (10%)',
+    historico: 'Mejor mes fue Sep 25 con $2,650 CAC y 22 cierres. Desde Ene 26 el CAC subió 58% por caída en tasa de conversión.',
+    impacto_mejora: 'Pasar de 2.42% a 4% de tasa = CAC cae de $4,200 a $2,550. A 6.65% = CAC cae a $1,532 (objetivo cumplido).'
+  }
+};
+
+function getClientContext(clientId) {
+  const id = (clientId || '').toLowerCase();
+  for (const key of Object.keys(CLIENT_CONTEXT)) {
+    if (id.includes(key)) return CLIENT_CONTEXT[key];
+  }
+  return null;
+}
+
+function getClientHistory(clientId) {
+  const id = (clientId || '').toLowerCase();
+  for (const key of Object.keys(CLIENT_HARDCODED_HISTORY)) {
+    if (id.includes(key)) return CLIENT_HARDCODED_HISTORY[key];
+  }
+  return null;
+}
+
 async function loadAnalisis() {
   const client = window._currentClient;
   if (!client) return;
   const container = document.getElementById('analisis-section');
   if (!container) return;
 
-  // Si ya tiene contenido reciente, no recargar
+  // Hardcoded history para clientes con data documentada
+  const hardHistory = getClientHistory(client.id || client.nombre || '');
+
+  // Historial de Firestore
+  let firestoreHistory = [];
+  try { firestoreHistory = await loadHistorialData(client.id); } catch(e) {}
+
+  const hasData = hardHistory || firestoreHistory.length >= 2;
+
+  // Si ya está renderizado con botón, no sobreescribir
   if (container.dataset.loadedFor === client.id) return;
 
   container.innerHTML = `
     <div style="font-family:'DM Sans',sans-serif; font-weight:600; font-size:20px; margin-bottom:4px; letter-spacing:-0.3px;">🧠 Análisis</div>
-    <div style="font-size:12px; color:var(--text3); font-family:'DM Mono',monospace; margin-bottom:24px;">${client.nombre || client.id} · basado en historial de semáforo</div>
+    <div style="font-size:12px; color:var(--text3); font-family:'DM Mono',monospace; margin-bottom:24px;">${client.nombre || client.id}</div>
 
-    <div id="analisis-tendencia" style="margin-bottom:24px;"></div>
-    <div id="analisis-claude" style="background:var(--bg2); border:1px solid var(--border); border-radius:12px; padding:20px; font-size:14px; line-height:1.6; color:var(--text2); font-family:'DM Sans',sans-serif; min-height:120px;">
-      <span style="color:var(--text3); font-size:12px; font-family:'DM Mono',monospace;">Generando análisis...</span>
+    ${hasData ? `
+    <div id="analisis-graficas" style="margin-bottom:24px;"></div>
+    <div style="text-align:center; margin-bottom:20px;">
+      <button id="btn-ejecutar-analisis" onclick="ejecutarAnalisis()" style="background:var(--accent); color:#000; border:none; border-radius:10px; padding:12px 28px; font-size:14px; font-weight:700; cursor:pointer; font-family:'DM Sans',sans-serif; letter-spacing:-0.2px;">⚡ Generar análisis</button>
     </div>
+    <div id="analisis-claude" style="display:none;"></div>
+    ` : `
+    <div style="background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:32px; text-align:center;">
+      <div style="font-size:24px; margin-bottom:12px;">📊</div>
+      <div style="font-family:'DM Sans',sans-serif; font-weight:600; font-size:14px; margin-bottom:8px; color:var(--text1);">Sin datos de historial</div>
+      <div style="font-size:12px; color:var(--text3); font-family:'DM Mono',monospace;">Cierra la primera semana con el botón "Cerrar semana"<br>para comenzar a generar análisis.</div>
+    </div>
+    `}
   `;
 
-  // Cargar historial desde Firestore
-  const history = await loadHistorialData(client.id);
-  
-  // Renderizar tendencia
-  renderTendencia(history, document.getElementById('analisis-tendencia'));
-
-  // Generar resumen con Claude
-  if (history.length >= 2) {
-    await generarResumenClaude(client, history);
-  } else {
-    document.getElementById('analisis-claude').innerHTML = 
-      '<span style="color:var(--text3); font-size:12px; font-family:\'DM Mono\',monospace;">Se necesitan al menos 2 semanas de datos para generar un análisis.</span>';
+  if (hasData) {
+    renderGraficasAnalisis(hardHistory, firestoreHistory, client);
   }
 
   container.dataset.loadedFor = client.id;
 }
+
+function renderGraficasAnalisis(hardHistory, firestoreHistory, client) {
+  const container = document.getElementById('analisis-graficas');
+  if (!container) return;
+
+  const monthly = hardHistory?.monthly || [];
+  const cacObj = parseFloat(client.cacObjetivo) || 2000;
+
+  if (monthly.length === 0) {
+    container.innerHTML = '';
+    return;
+  }
+
+  container.innerHTML = `
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+      <div style="background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:16px;">
+        <div style="font-family:'DM Sans',sans-serif; font-weight:600; font-size:13px; margin-bottom:14px; color:var(--text1);">CAC mensual</div>
+        <canvas id="chart-cac" height="160"></canvas>
+      </div>
+      <div style="background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:16px;">
+        <div style="font-family:'DM Sans',sans-serif; font-weight:600; font-size:13px; margin-bottom:14px; color:var(--text1);">Tasa de conversión semanal</div>
+        <canvas id="chart-tasa" height="160"></canvas>
+      </div>
+    </div>
+  `;
+
+  // Cargar Chart.js y renderizar
+  if (typeof Chart === 'undefined') {
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js';
+    script.onload = () => renderCharts(monthly, hardHistory?.weekly || [], cacObj);
+    document.head.appendChild(script);
+  } else {
+    renderCharts(monthly, hardHistory?.weekly || [], cacObj);
+  }
+}
+
+function renderCharts(monthly, weekly, cacObj) {
+  // Destruir charts previos si existen
+  ['chart-cac', 'chart-tasa'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el && el._chartInstance) el._chartInstance.destroy();
+  });
+
+  // Chart 1: CAC mensual
+  const cacEl = document.getElementById('chart-cac');
+  if (cacEl && monthly.length) {
+    const bgColors = monthly.map(m => {
+      const ratio = m.cac / cacObj;
+      return ratio <= 1.1 ? 'rgba(0,229,160,0.7)' : ratio <= 1.5 ? 'rgba(251,191,36,0.7)' : 'rgba(239,68,68,0.7)';
+    });
+    const chartInstance = new Chart(cacEl, {
+      type: 'bar',
+      data: {
+        labels: monthly.map(m => m.mes),
+        datasets: [
+          { data: monthly.map(m => m.cac), backgroundColor: bgColors, borderRadius: 4, label: 'CAC' },
+          { data: monthly.map(() => cacObj), type: 'line', borderColor: 'rgba(0,229,160,0.4)', borderDash: [4,4], borderWidth: 1.5, pointRadius: 0, label: 'Objetivo', tension: 0 }
+        ]
+      },
+      options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { ticks: { color: '#888', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.05)' } }, x: { ticks: { color: '#888', font: { size: 10 } }, grid: { display: false } } } }
+    });
+    cacEl._chartInstance = chartInstance;
+  }
+
+  // Chart 2: Tasa conversión semanal
+  const tasaEl = document.getElementById('chart-tasa');
+  if (tasaEl && weekly.length) {
+    const tasaObj = 6.65;
+    const pointColors = weekly.map(w => w.tasa >= tasaObj ? 'rgba(0,229,160,1)' : w.tasa >= 4 ? 'rgba(251,191,36,1)' : 'rgba(239,68,68,1)');
+    const chartInstance = new Chart(tasaEl, {
+      type: 'line',
+      data: {
+        labels: weekly.map(w => w.semana),
+        datasets: [
+          { data: weekly.map(w => w.tasa), borderColor: 'rgba(139,92,246,0.8)', tension: 0.3, pointBackgroundColor: pointColors, pointRadius: 5, label: 'Tasa %', fill: false },
+          { data: weekly.map(() => tasaObj), borderColor: 'rgba(0,229,160,0.35)', borderDash: [4,4], borderWidth: 1.5, pointRadius: 0, label: 'Objetivo 6.65%', tension: 0, fill: false }
+        ]
+      },
+      options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { ticks: { color: '#888', font: { size: 10 }, callback: v => v + '%' }, grid: { color: 'rgba(255,255,255,0.05)' } }, x: { ticks: { color: '#888', font: { size: 10 } }, grid: { display: false } } } }
+    });
+    tasaEl._chartInstance = chartInstance;
+  }
+}
+
+async function ejecutarAnalisis() {
+  const client = window._currentClient;
+  if (!client) return;
+
+  const btn = document.getElementById('btn-ejecutar-analisis');
+  if (btn) { btn.textContent = '⏳ Analizando...'; btn.disabled = true; }
+
+  const claudeEl = document.getElementById('analisis-claude');
+  if (claudeEl) {
+    claudeEl.style.display = 'block';
+    claudeEl.innerHTML = '<div style="color:var(--text3); font-size:12px; font-family:DM Mono,monospace; padding:20px;">Generando diagnóstico...</div>';
+  }
+
+  const hardHistory = getClientHistory(client.id || client.nombre || '');
+  const firestoreHistory = await loadHistorialData(client.id).catch(() => []);
+  const context = getClientContext(client.id || client.nombre || '');
+
+  await generarResumenClaude(client, firestoreHistory, hardHistory, context);
+
+  if (btn) {
+    btn.textContent = '↻ Regenerar';
+    btn.disabled = false;
+  }
+}
+
 
 async function loadHistorialData(clientId) {
   try {
@@ -4898,44 +5096,69 @@ function renderTendencia(history, container) {
   `;
 }
 
-async function generarResumenClaude(client, history) {
+async function generarResumenClaude(client, firestoreHistory, hardHistory, context) {
   const el = document.getElementById('analisis-claude');
   if (!el) return;
   try {
-    const resumen = history.map(h => {
-      const fecha = h.fechaCierre ? new Date(h.fechaCierre.seconds ? h.fechaCierre.seconds*1000 : h.fechaCierre).toLocaleDateString('es-MX') : h.id;
-      return `Semana ${fecha}: CAC $${h.cacActual||'?'} MXN, inversión $${h.inversion||'?'} MXN, cierres ${h.cierres||'?'}, semáforo ${h.resultadoSemaforo||'?'}`;
-    }).join('\n');
+    // Construir resumen con data de Firestore
+    let resumenFirestore = '';
+    if (firestoreHistory && firestoreHistory.length >= 2) {
+      resumenFirestore = firestoreHistory.map(h => {
+        const fecha = h.fechaCierre ? new Date(h.fechaCierre.seconds ? h.fechaCierre.seconds*1000 : h.fechaCierre).toLocaleDateString('es-MX') : h.id;
+        const nota = [h.notaCambios, h.notaTrabas, h.notaPlan].filter(Boolean).join(' / ');
+        return `Semana ${fecha}: CAC $${h.cacActual||'?'}, inversión $${h.inversion||'?'}, cierres ${h.cierres||'?'}, semáforo ${h.resultadoSemaforo||'?'}${nota ? ' | Nota: ' + nota : ''}`;
+      }).join('\n');
+    }
 
-    const prompt = `Eres el analista senior de OptimizAds. Analiza estas ${history.length} semanas del cliente "${client.nombre || client.id}" (${client.industria || 'sin industria'}):
+    // Contexto del expediente + data hardcodeada
+    let contextBlock = '';
+    if (context) {
+      contextBlock = `\nCONTEXTO DEL CLIENTE:\nEmbudo: ${context.embudo}\nCuello de botella: ${context.cuello}\nRazones de descarte: ${context.razones_descarte}\nHistórico: ${context.historico}\nImpacto de mejora: ${context.impacto_mejora}`;
+    }
 
-${resumen}
+    let hardBlock = '';
+    if (hardHistory?.monthly?.length) {
+      hardBlock = `\nDATA MENSUAL (${hardHistory.monthly.length} meses):\n` +
+        hardHistory.monthly.map(m => `${m.mes}: CAC $${m.cac}, cierres ${m.cierres}, tasa ${m.tasa}%`).join('\n');
+    }
 
-CAC objetivo: $${client.cacObjetivo || 'no definido'} MXN por cierre.
+    const prompt = `Eres el analista senior de OptimizAds. Analiza al cliente "${client.nombre || client.id}" (${client.industria || 'sin industria'}).
 
-En 3-4 oraciones cortas, directas, sin preamble:
-1. Tendencia real del CAC (sube, baja, se estabiliza)
-2. La semana más notable y por qué
-3. Una señal de alerta o punto positivo concreto
-4. Una recomendación accionable para la siguiente semana
+CAC objetivo: $${client.cacObjetivo || '2,000'} MXN.
+${contextBlock}
+${hardBlock}
+${resumenFirestore ? '\nHISTORIAL SEMANAL RECIENTE:\n' + resumenFirestore : ''}
 
-Responde solo el análisis, sin títulos ni viñetas.`;
+Responde EXACTAMENTE en este formato HTML, sin texto fuera de él:
+<div class="diag-bloque"><span class="diag-label">Situación actual</span><p>...</p></div>
+<div class="diag-bloque"><span class="diag-label">El problema real</span><p>...</p></div>
+<div class="diag-bloque"><span class="diag-label">Lo que está funcionando</span><p>...</p></div>
+<div class="diag-bloque"><span class="diag-label">Acción inmediata</span><p>...</p></div>
+
+Cada bloque: 2-3 oraciones. Específico con números. Sin preamble.`;
 
     const response = await fetch('https://optix-proxy.anwarhsg.workers.dev', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
-        max_tokens: 300,
+        max_tokens: 600,
         messages: [{ role: 'user', content: prompt }]
       })
     });
     const data = await response.json();
     const text = data?.content?.[0]?.text || 'No se pudo generar el análisis.';
-    el.innerHTML = `<div style="font-size:13px; line-height:1.7; color:var(--text1);">${text}</div>
-      <div style="margin-top:12px; font-size:10px; color:var(--text3); font-family:'DM Mono',monospace;">🧠 Generado por Optix · basado en ${history.length} semanas</div>`;
+    el.innerHTML = `
+      <style>
+        .diag-bloque { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:14px 16px; margin-bottom:10px; }
+        .diag-label { font-family:'DM Mono',monospace; font-size:10px; color:var(--accent); text-transform:uppercase; letter-spacing:1px; display:block; margin-bottom:6px; }
+        .diag-bloque p { font-size:13px; line-height:1.65; color:var(--text1); margin:0; }
+      </style>
+      ${text}
+      <div style="margin-top:8px; font-size:10px; color:var(--text3); font-family:'DM Mono',monospace; text-align:right;">🧠 Optix · ${new Date().toLocaleDateString('es-MX')}</div>`;
   } catch(e) {
-    el.innerHTML = '<span style="color:var(--text3); font-size:12px;">Error generando análisis.</span>';
+    const el2 = document.getElementById('analisis-claude');
+    if (el2) el2.innerHTML = '<span style="color:var(--text3); font-size:12px;">Error generando análisis. Intenta de nuevo.</span>';
   }
 }
 
