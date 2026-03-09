@@ -3846,6 +3846,13 @@ function openClient(id) {
   currentClientId = id;
   showScreen('app');
   const client = getClient();
+  window._currentClient = client;
+  // Limpiar caché de análisis para que se regenere con este cliente
+  const analisisContainer = document.getElementById('analisis-section');
+  if (analisisContainer) {
+    analisisContainer.dataset.loadedFor = '';
+    analisisContainer.innerHTML = '';
+  }
   document.getElementById('sidebar-client-name').textContent = client.nombre;
   document.getElementById('dash-subtitle').textContent = `Semáforo semanal · ${client.industria || 'cliente'}`;
   navigate('dashboard');
@@ -5015,7 +5022,11 @@ function navigateTab(tab) {
   const analisisSection = document.getElementById('analisis-section');
   if (analisisSection) {
     analisisSection.style.display = isAnalisis ? '' : 'none';
-    if (isAnalisis) loadAnalisis();
+    if (isAnalisis) {
+      // Asegurar que _currentClient esté seteado
+      if (!window._currentClient) window._currentClient = getClient();
+      loadAnalisis();
+    }
   }
 
   // Recordatorio pendientes: solo en "Esta semana" al fondo
