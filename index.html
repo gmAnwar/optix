@@ -26,13 +26,13 @@
     fbSaveClients, fbLoadClients, fbOnClientsChange,
     fbSaveClientData, fbLoadClientData,
     State, setState, WORKSPACE, isFeatureEnabled
-  } = await import('./modules/core.js');
+  } = await import('/modules/core.js');
   
   // 2. Audit Log — depende de core
-  const { Audit, log: auditLog, getRecentLogs } = await import('./modules/audit.js');
+  const { Audit, log: auditLog, getRecentLogs } = await import('/modules/audit.js');
   
   // 3. Integraciones — depende de core  
-  const { emit, OptixEvents, loadConnectors } = await import('./modules/integraciones.js');
+  const { emit, OptixEvents, loadConnectors } = await import('/modules/integraciones.js');
   
   // Cargar conectores del workspace (async, no bloquea)
   loadConnectors().catch(e => console.warn('[Init] Conectores no cargaron:', e.message));
