@@ -6391,7 +6391,8 @@ async function sendGlobalChatMessage() {
   btn.disabled = false;
   messagesEl.scrollTop = messagesEl.scrollHeight;
 }
-</script>
+
+function toggleTheme() {
   const isLight = document.body.classList.toggle('light-mode');
   const icon = isLight ? '☀️' : '🌙';
   const t1 = document.getElementById('theme-toggle');
