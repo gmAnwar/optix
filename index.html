@@ -132,19 +132,7 @@
 
   /* ── THEME TOGGLE BUTTON ─────────────────── */
   #theme-toggle {
-    position: fixed;
-    bottom: 24px;
-    right: 24px;
-    z-index: 9999;
-    width: 44px;
-    height: 44px;
-    border-radius: 50%;
-    border: 1.5px solid var(--border2);
-    background: var(--surface2);
-    color: var(--text2);
-    cursor: pointer;
-    display: flex;
-    align-items: center;
+    display: none;ems: center;
     justify-content: center;
     font-size: 18px;
     transition: all 0.2s;
@@ -1885,7 +1873,18 @@
     </nav>
 
     <div class="sidebar-footer">
-      <button class="btn btn-ghost" style="width:100%; font-size:12px;" onclick="goHome()">
+      <div style="display:flex; gap:6px; align-items:center; margin-bottom:8px;">
+        <button class="btn btn-ghost" style="flex:1; font-size:12px;" onclick="goHome()">← Cambiar cliente</button>
+        <button onclick="toggleTheme()" title="Cambiar tema" id="theme-toggle-sidebar"
+          style="width:30px; height:30px; border-radius:8px; border:1px solid var(--border2); background:var(--surface2); cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:13px; flex-shrink:0; padding:0;">🌙</button>
+        <div title="Powered by Claude · Anthropic"
+          style="width:30px; height:30px; border-radius:8px; border:1px solid var(--border2); background:var(--surface2); display:flex; align-items:center; justify-content:center; flex-shrink:0; opacity:0.6;">
+          <svg width="14" height="14" viewBox="0 0 50 50" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M32.8 6.5L25 24.1 17.2 6.5C14.1 7.8 11.4 9.9 9.3 12.6L20.6 25 9.3 37.4C11.4 40.1 14.1 42.2 17.2 43.5L25 25.9l7.8 17.6c3.1-1.3 5.8-3.4 7.9-6.1L29.4 25l11.3-12.4C38.6 9.9 35.9 7.8 32.8 6.5z" fill="var(--text2)"/>
+          </svg>
+        </div>
+      </div>
+      <button class="btn" style="display:none;" onclick="goHome()">
         ← Cambiar cliente
       </button>
     </div>
@@ -6296,7 +6295,11 @@ function gcalResetBtn() {
 <script>
 function toggleTheme() {
   const isLight = document.body.classList.toggle('light-mode');
-  document.getElementById('theme-toggle').textContent = isLight ? '☀️' : '🌙';
+  const icon = isLight ? '☀️' : '🌙';
+  const t1 = document.getElementById('theme-toggle');
+  const t2 = document.getElementById('theme-toggle-sidebar');
+  if (t1) t1.textContent = icon;
+  if (t2) t2.textContent = icon;
   try { localStorage.setItem('oa-theme', isLight ? 'light' : 'dark'); } catch(e) {}
 }
 
