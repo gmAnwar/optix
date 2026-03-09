@@ -1795,82 +1795,113 @@
           <div id="semaforo-historial-table" style="overflow-x:auto;">
           </div>
         </div>
-        <div style="font-family:'DM Sans',sans-serif; font-weight:600; font-size:16px; letter-spacing:-0.1px; margin-bottom:16px;">Expediente del cliente</div>
-        <div class="sections-grid">
-          <div class="section-card" onclick="navigate('adn')">
-            <div class="section-card-header">
-              <div class="section-icon">🧬</div>
-              <div class="section-progress" id="prog-adn">Vacío</div>
-            </div>
-            <div class="section-name">ADN del Negocio</div>
-            <div class="section-desc">Estructura, proceso de venta, tipos de campaña y forma de conversión.</div>
-            <div class="section-footer">
-              <div class="progress-bar-container">
-                <div class="progress-bar-fill" id="bar-adn" style="width:0%"></div>
-              </div>
-              <span class="tag role-estrategia">🔵 Kike</span>
-            </div>
-          </div>
+        <!-- EXPEDIENTE 3 CAPAS -->
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
+          <div style="font-family:'DM Sans',sans-serif; font-weight:600; font-size:16px; letter-spacing:-0.1px;">Expediente del cliente</div>
+          <div style="font-size:11px; color:var(--text3); font-family:'DM Mono',monospace;" id="exp-completitud-global">—</div>
+        </div>
 
-          <div class="section-card" onclick="navigate('objetivos')">
-            <div class="section-card-header">
-              <div class="section-icon">🎯</div>
-              <div class="section-progress" id="prog-objetivos">Vacío</div>
-            </div>
-            <div class="section-name">Objetivos de Marketing</div>
-            <div class="section-desc">Metas, KPIs, presupuesto, plan actual y objetivos a largo plazo.</div>
-            <div class="section-footer">
-              <div class="progress-bar-container">
-                <div class="progress-bar-fill" id="bar-objetivos" style="width:0%"></div>
+        <!-- CAPA 1: ADN -->
+        <div style="margin-bottom:10px;">
+          <div style="font-size:10px; font-family:'DM Mono',monospace; color:var(--text3); letter-spacing:0.08em; text-transform:uppercase; margin-bottom:8px; padding-left:2px;">Capa 1 · ADN del Cliente · Onboarding</div>
+          <div class="sections-grid" style="grid-template-columns: repeat(2, 1fr); gap:10px;">
+            <div class="section-card" onclick="navigate('adn')" style="position:relative;">
+              <div class="section-card-header">
+                <div class="section-icon">🧬</div>
+                <div class="layer-badge" id="badge-adn" style="font-size:10px; padding:2px 8px; border-radius:20px; background:var(--bg3); color:var(--text3); font-family:'DM Mono',monospace;">Vacío</div>
               </div>
-              <span class="tag role-estrategia">🔵 Kike</span>
+              <div class="section-name">Datos generales + Contactos</div>
+              <div class="section-desc" style="font-size:11px;">Nombre, industria, contactos con email y teléfono, modelo de negocio.</div>
+              <div class="section-footer">
+                <div class="progress-bar-container"><div class="progress-bar-fill" id="bar-adn" style="width:0%"></div></div>
+                <span class="tag role-estrategia">Anwar</span>
+              </div>
+              <div id="capa1-dot" style="position:absolute; top:12px; right:12px; width:8px; height:8px; border-radius:50%; background:var(--text3);"></div>
             </div>
-          </div>
 
-          <div class="section-card" onclick="navigate('rendimiento')">
-            <div class="section-card-header">
-              <div class="section-icon">📊</div>
-              <div class="section-progress" id="prog-rendimiento">Vacío</div>
-            </div>
-            <div class="section-name">Rendimiento Histórico</div>
-            <div class="section-desc">Análisis de campañas activas y pasadas, CAC histórico, insights.</div>
-            <div class="section-footer">
-              <div class="progress-bar-container">
-                <div class="progress-bar-fill" id="bar-rendimiento" style="width:0%"></div>
+            <div class="section-card" onclick="navigate('segmentos')" style="position:relative;">
+              <div class="section-card-header">
+                <div class="section-icon">👥</div>
+                <div class="layer-badge" id="badge-segmentos" style="font-size:10px; padding:2px 8px; border-radius:20px; background:var(--bg3); color:var(--text3); font-family:'DM Mono',monospace;">Vacío</div>
               </div>
-              <span class="tag role-operativo">🟢 Mario</span>
+              <div class="section-name">Segmentos + Proceso de venta</div>
+              <div class="section-desc" style="font-size:11px;">Perfil del cliente ideal, embudo, motivadores, frenos de compra.</div>
+              <div class="section-footer">
+                <div class="progress-bar-container"><div class="progress-bar-fill" id="bar-segmentos" style="width:0%"></div></div>
+                <span class="tag role-estrategia">🔵 Kike</span>
+              </div>
             </div>
           </div>
+        </div>
 
-          <div class="section-card" onclick="navigate('segmentos')">
-            <div class="section-card-header">
-              <div class="section-icon">👥</div>
-              <div class="section-progress" id="prog-segmentos">Vacío</div>
-            </div>
-            <div class="section-name">Segmentos de Cliente</div>
-            <div class="section-desc">Análisis de audiencias, perfil demográfico, comportamiento de compra.</div>
-            <div class="section-footer">
-              <div class="progress-bar-container">
-                <div class="progress-bar-fill" id="bar-segmentos" style="width:0%"></div>
+        <!-- CAPA 2: OBJETIVOS Y ESTRATEGIA -->
+        <div style="margin-bottom:10px;">
+          <div style="font-size:10px; font-family:'DM Mono',monospace; color:var(--text3); letter-spacing:0.08em; text-transform:uppercase; margin-bottom:8px; padding-left:2px;">Capa 2 · Objetivos y Estrategia · Mensual</div>
+          <div class="sections-grid" style="grid-template-columns: repeat(2, 1fr); gap:10px;">
+            <div class="section-card" onclick="navigate('objetivos')" style="position:relative;">
+              <div class="section-card-header">
+                <div class="section-icon">🎯</div>
+                <div class="layer-badge" id="badge-objetivos" style="font-size:10px; padding:2px 8px; border-radius:20px; background:var(--bg3); color:var(--text3); font-family:'DM Mono',monospace;">Vacío</div>
               </div>
-              <span class="tag role-estrategia">🔵 Kike</span>
+              <div class="section-name">Metas + KPIs</div>
+              <div class="section-desc" style="font-size:11px;">Objetivo central, CAC objetivo, CAC máximo, LTV, presupuesto.</div>
+              <div class="section-footer">
+                <div class="progress-bar-container"><div class="progress-bar-fill" id="bar-objetivos" style="width:0%"></div></div>
+                <span class="tag role-estrategia">🔵 Kike</span>
+              </div>
             </div>
-          </div>
 
-          <div class="section-card" onclick="navigate('validacion')">
-            <div class="section-card-header">
-              <div class="section-icon">✅</div>
-              <div class="section-progress" id="prog-validacion">Vacío</div>
-            </div>
-            <div class="section-name">Validación de Objetivos</div>
-            <div class="section-desc">Coherencia entre metas y resultados, propósito y restricciones de campaña.</div>
-            <div class="section-footer">
-              <div class="progress-bar-container">
-                <div class="progress-bar-fill" id="bar-validacion" style="width:0%"></div>
+            <div class="section-card" onclick="navigate('validacion')" style="position:relative;">
+              <div class="section-card-header">
+                <div class="section-icon">⚖️</div>
+                <div class="layer-badge" id="badge-validacion" style="font-size:10px; padding:2px 8px; border-radius:20px; background:var(--bg3); color:var(--text3); font-family:'DM Mono',monospace;">Vacío</div>
               </div>
-              <span class="tag role-estrategia">🔵 Kike</span>
+              <div class="section-name">Validación + Restricciones</div>
+              <div class="section-desc" style="font-size:11px;">Coherencia CAC vs histórico, cuellos de botella, restricciones activas.</div>
+              <div class="section-footer">
+                <div class="progress-bar-container"><div class="progress-bar-fill" id="bar-validacion" style="width:0%"></div></div>
+                <span class="tag role-estrategia">🔵 Kike</span>
+              </div>
             </div>
           </div>
+        </div>
+
+        <!-- CAPA 3: PERFORMANCE OPERATIVO -->
+        <div style="margin-bottom:10px;">
+          <div style="font-size:10px; font-family:'DM Mono',monospace; color:var(--text3); letter-spacing:0.08em; text-transform:uppercase; margin-bottom:8px; padding-left:2px;">Capa 3 · Performance Operativo · Semanal</div>
+          <div class="sections-grid" style="grid-template-columns: repeat(2, 1fr); gap:10px;">
+            <div class="section-card" onclick="navigate('rendimiento')" style="position:relative;">
+              <div class="section-card-header">
+                <div class="section-icon">📊</div>
+                <div class="layer-badge" id="badge-rendimiento" style="font-size:10px; padding:2px 8px; border-radius:20px; background:var(--bg3); color:var(--text3); font-family:'DM Mono',monospace;">Vacío</div>
+              </div>
+              <div class="section-name">Rendimiento + Campañas</div>
+              <div class="section-desc" style="font-size:11px;">CAC histórico, campañas activas, métricas clave, análisis diario.</div>
+              <div class="section-footer">
+                <div class="progress-bar-container"><div class="progress-bar-fill" id="bar-rendimiento" style="width:0%"></div></div>
+                <span class="tag role-operativo">🟢 Mario</span>
+              </div>
+            </div>
+
+            <div class="section-card" onclick="navigate('creativos')" style="position:relative; opacity:0.7;">
+              <div class="section-card-header">
+                <div class="section-icon">🎨</div>
+                <div class="layer-badge" id="badge-creativos" style="font-size:10px; padding:2px 8px; border-radius:20px; background:var(--bg3); color:var(--text3); font-family:'DM Mono',monospace;">Vacío</div>
+              </div>
+              <div class="section-name">Insights creativos + Winning Ads</div>
+              <div class="section-desc" style="font-size:11px;">Ads ganadores, ángulos, hooks, aprendizajes creativos.</div>
+              <div class="section-footer">
+                <div class="progress-bar-container"><div class="progress-bar-fill" id="bar-creativos" style="width:0%"></div></div>
+                <span class="tag role-estrategia">🔵 Kike</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- PENDIENTES RÁPIDOS para Kike -->
+        <div id="exp-pendientes-panel" style="display:none; margin-top:16px; background:var(--bg2); border:1px solid var(--border1); border-radius:12px; padding:14px 16px;">
+          <div style="font-size:12px; font-weight:600; color:var(--text1); margin-bottom:10px;">⚠️ Campos pendientes para completar el expediente</div>
+          <div id="exp-pendientes-list" style="display:flex; flex-wrap:wrap; gap:6px;"></div>
         </div>
       </div>
     </div>
@@ -1890,59 +1921,106 @@
         <div class="section-detail active">
           <div class="section-form-area">
             <div class="fields-container">
+              <!-- CAMPO REQUERIDO badge -->
+              <div style="display:flex; align-items:center; gap:8px; margin-bottom:16px; padding:10px 14px; background:var(--bg2); border-radius:8px; border-left:3px solid var(--accent);">
+                <span style="font-size:11px; color:var(--text2);">🔴 Campos <strong>requeridos</strong> activan el semáforo de completitud · 🔵 Opcionales enriquecen el contexto</span>
+              </div>
+
               <div class="field-group">
                 <div class="field-group-title"><span class="icon">🏢</span> Datos generales</div>
                 <div class="form-group">
-                  <label class="form-label">Nombre del negocio</label>
+                  <label class="form-label">Nombre del negocio <span style="color:var(--accent);font-size:10px;">● requerido</span></label>
                   <input id="adn-nombre" class="form-input" type="text" placeholder="Nombre oficial o como lo conocemos" oninput="autoSave('adn')">
                 </div>
                 <div class="form-row">
                   <div class="form-group">
-                    <label class="form-label">Industria / vertical</label>
-                    <input id="adn-industria" class="form-input" type="text" placeholder="ej. Clínica estética" oninput="autoSave('adn')">
+                    <label class="form-label">Industria / vertical <span style="color:var(--accent);font-size:10px;">● requerido</span></label>
+                    <input id="adn-industria" class="form-input" type="text" placeholder="ej. Financiamiento de equipos comerciales" oninput="autoSave('adn')">
                   </div>
                   <div class="form-group">
-                    <label class="form-label">Ciudad / mercado</label>
-                    <input id="adn-ciudad" class="form-input" type="text" placeholder="ej. Monterrey, México" oninput="autoSave('adn')">
+                    <label class="form-label">Ciudad / mercados activos <span style="color:var(--accent);font-size:10px;">● requerido</span></label>
+                    <input id="adn-ciudad" class="form-input" type="text" placeholder="ej. Monterrey, Guadalajara, Saltillo" oninput="autoSave('adn')">
                   </div>
                 </div>
                 <div class="form-group">
-                  <label class="form-label">Descripción del negocio</label>
-                  <textarea id="adn-descripcion" class="form-textarea" placeholder="¿Qué vende, a quién, cómo opera?" oninput="autoSave('adn')"></textarea>
+                  <label class="form-label">Descripción del negocio <span style="color:var(--accent);font-size:10px;">● requerido</span></label>
+                  <textarea id="adn-descripcion" class="form-textarea" placeholder="¿Qué vende, a quién, modelo de negocio, cómo opera?" oninput="autoSave('adn')"></textarea>
+                </div>
+                <div class="form-row">
+                  <div class="form-group">
+                    <label class="form-label">Sitio web</label>
+                    <input id="adn-web" class="form-input" type="text" placeholder="ej. enpagos.com.mx" oninput="autoSave('adn')">
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Presupuesto mensual <span style="color:var(--accent);font-size:10px;">● requerido</span></label>
+                    <input id="adn-presupuesto-men" class="form-input" type="text" placeholder="ej. $75,000 MXN Meta Ads" oninput="autoSave('adn')">
+                  </div>
+                </div>
+              </div>
+
+              <div class="field-group">
+                <div class="field-group-title"><span class="icon">📞</span> Contactos clave <span style="font-size:10px; color:var(--text3); font-weight:400;">(nombre · puesto · email · teléfono)</span></div>
+                <div class="form-group">
+                  <label class="form-label">Contacto principal / decisor <span style="color:var(--accent);font-size:10px;">● requerido</span></label>
+                  <input id="adn-contacto1" class="form-input" type="text" placeholder="ej. Pepe López · Dueño · pepe@enpagos.com.mx · 81-XXXX-XXXX" oninput="autoSave('adn')">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Contacto estrategia / números</label>
+                  <input id="adn-contacto2" class="form-input" type="text" placeholder="ej. Alan Vázquez · Estrategia · alan@enpagos.com.mx · 81-XXXX-XXXX" oninput="autoSave('adn')">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Contacto ventas / operativo</label>
+                  <input id="adn-contacto3" class="form-input" type="text" placeholder="ej. Luis Martínez · Líder ventas · luis@enpagos.com.mx · 81-XXXX-XXXX" oninput="autoSave('adn')">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Otros contactos</label>
+                  <input id="adn-contacto4" class="form-input" type="text" placeholder="ej. Mauricio (cierres), Brian (contenido)" oninput="autoSave('adn')">
                 </div>
               </div>
 
               <div class="field-group">
                 <div class="field-group-title"><span class="icon">💰</span> Proceso de venta</div>
                 <div class="form-group">
-                  <label class="form-label">¿Cómo cierra una venta? (embudo actual)</label>
-                  <textarea id="adn-embudo" class="form-textarea" placeholder="ej. Lead llega por WhatsApp → lo atiende la asesora → agenda cita → cierra en la cita" oninput="autoSave('adn')"></textarea>
+                  <label class="form-label">Embudo de ventas (paso a paso) <span style="color:var(--accent);font-size:10px;">● requerido</span></label>
+                  <textarea id="adn-embudo" class="form-textarea" placeholder="ej. Lead por Meta WhatsApp → bot Patagon pre-califica → vendedor en Bixis → preautorización buró → cierre → entrega" oninput="autoSave('adn')"></textarea>
                 </div>
                 <div class="form-row">
                   <div class="form-group">
-                    <label class="form-label">Ticket promedio</label>
-                    <input id="adn-ticket" class="form-input" type="text" placeholder="ej. $8,000 MXN" oninput="autoSave('adn')">
+                    <label class="form-label">Ticket promedio <span style="color:var(--accent);font-size:10px;">● requerido</span></label>
+                    <input id="adn-ticket" class="form-input" type="text" placeholder="ej. $65,000 MXN" oninput="autoSave('adn')">
                   </div>
                   <div class="form-group">
-                    <label class="form-label">Tasa de cierre aprox.</label>
-                    <input id="adn-cierre" class="form-input" type="text" placeholder="ej. 30% de leads calificados" oninput="autoSave('adn')">
+                    <label class="form-label">Tasa de cierre (preaut → venta) <span style="color:var(--accent);font-size:10px;">● requerido</span></label>
+                    <input id="adn-cierre" class="form-input" type="text" placeholder="ej. 11% de preautorizados" oninput="autoSave('adn')">
                   </div>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Herramientas del proceso de venta</label>
+                  <input id="adn-herramientas" class="form-input" type="text" placeholder="ej. WhatsApp, Patagon (calificación), Bixis (CRM), buró de crédito" oninput="autoSave('adn')">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Protocolo / script de cierre</label>
+                  <textarea id="adn-protocolo" class="form-textarea" placeholder="¿Qué pasos sigue el vendedor? ¿Tiene script? ¿Cómo hace la verificación?" oninput="autoSave('adn')"></textarea>
                 </div>
               </div>
 
               <div class="field-group">
                 <div class="field-group-title"><span class="icon">📣</span> Campañas y diferenciadores</div>
                 <div class="form-group">
-                  <label class="form-label">Tipos de campaña activas</label>
-                  <textarea id="adn-campanas" class="form-textarea" placeholder="ej. Generación de leads por WhatsApp, tráfico a landing, retargeting" oninput="autoSave('adn')"></textarea>
+                  <label class="form-label">Canales activos y tipo de campaña <span style="color:var(--accent);font-size:10px;">● requerido</span></label>
+                  <textarea id="adn-campanas" class="form-textarea" placeholder="ej. Meta Ads (WhatsApp, leads), Google Ads (búsqueda, solo Mty)" oninput="autoSave('adn')"></textarea>
                 </div>
                 <div class="form-group">
-                  <label class="form-label">Principales diferenciadores vs competencia</label>
-                  <textarea id="adn-diferenciadores" class="form-textarea" placeholder="¿Por qué un cliente escoge a este cliente y no a otro?" oninput="autoSave('adn')"></textarea>
+                  <label class="form-label">Principales diferenciadores vs competencia <span style="color:var(--accent);font-size:10px;">● requerido</span></label>
+                  <textarea id="adn-diferenciadores" class="form-textarea" placeholder="¿Por qué escogen a este cliente y no a Atrato, MercadoPago u otro?" oninput="autoSave('adn')"></textarea>
                 </div>
                 <div class="form-group">
-                  <label class="form-label">Principales objeciones de compra</label>
-                  <textarea id="adn-objeciones" class="form-textarea" placeholder="¿Qué frena a un cliente potencial de comprar?" oninput="autoSave('adn')"></textarea>
+                  <label class="form-label">Competidores principales</label>
+                  <textarea id="adn-competidores" class="form-textarea" placeholder="ej. Atrato (fintech), MercadoPago (línea de crédito), marcas con 12 MSI" oninput="autoSave('adn')"></textarea>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Principales objeciones de compra <span style="color:var(--accent);font-size:10px;">● requerido</span></label>
+                  <textarea id="adn-objeciones" class="form-textarea" placeholder="¿Qué frena al prospecto de convertirse en cliente?" oninput="autoSave('adn')"></textarea>
                 </div>
               </div>
 
@@ -1954,11 +2032,11 @@
                 </div>
                 <div class="form-row">
                   <div class="form-group">
-                    <label class="form-label">Presentación mensual</label>
+                    <label class="form-label">Presentación / reporte mensual</label>
                     <input id="adn-mensual" class="form-input" type="text" placeholder="URL" oninput="autoSave('adn')">
                   </div>
                   <div class="form-group">
-                    <label class="form-label">Presentación semanal</label>
+                    <label class="form-label">Presentación / análisis semanal</label>
                     <input id="adn-semanal" class="form-input" type="text" placeholder="URL" oninput="autoSave('adn')">
                   </div>
                 </div>
@@ -1998,8 +2076,8 @@
       <div class="content-header">
         <div class="content-header-top">
           <div>
-            <div class="content-title">🎯 Objetivos de Marketing</div>
-            <div class="content-subtitle">Capa 1 · Expediente base · <span class="tag role-estrategia" style="display:inline-flex">🔵 Estrategia</span></div>
+            <div class="content-title">🎯 Objetivos y Estrategia</div>
+            <div class="content-subtitle">Capa 2 · Revisión mensual · <span class="tag role-estrategia" style="display:inline-flex">🔵 Kike</span></div>
           </div>
           <button class="btn btn-ghost" style="font-size:12px;" onclick="navigate('dashboard')">← Dashboard</button>
         </div>
@@ -2011,44 +2089,88 @@
               <div class="field-group">
                 <div class="field-group-title"><span class="icon">📌</span> Metas principales</div>
                 <div class="form-group">
-                  <label class="form-label">Objetivo principal de marketing</label>
-                  <textarea id="obj-principal" class="form-textarea" placeholder="ej. Generar 40 leads calificados por mes a un CAC máximo de $350 MXN" oninput="autoSave('objetivos')"></textarea>
+                  <label class="form-label">Objetivo principal de marketing <span style="color:var(--accent);font-size:10px;">● requerido</span></label>
+                  <textarea id="obj-principal" class="form-textarea" placeholder="ej. Llegar a 30 cierres/mes a CAC menor a $2,400 MXN para Q2 2026" oninput="autoSave('objetivos')"></textarea>
                 </div>
                 <div class="form-row">
                   <div class="form-group">
-                    <label class="form-label">CAC objetivo</label>
-                    <input id="obj-cac" class="form-input" type="text" placeholder="ej. $350 MXN" oninput="autoSave('objetivos')">
+                    <label class="form-label">CAC objetivo <span style="color:var(--accent);font-size:10px;">● requerido</span></label>
+                    <input id="obj-cac" class="form-input" type="text" placeholder="ej. $2,170–$2,400 MXN" oninput="autoSave('objetivos')">
                   </div>
                   <div class="form-group">
-                    <label class="form-label">Leads objetivo / mes</label>
-                    <input id="obj-leads" class="form-input" type="text" placeholder="ej. 40 leads/mes" oninput="autoSave('objetivos')">
+                    <label class="form-label">CAC máximo / punto de equilibrio <span style="color:var(--accent);font-size:10px;">● requerido</span></label>
+                    <input id="obj-cac-max" class="form-input" type="text" placeholder="ej. $X MXN (definido por Alan)" oninput="autoSave('objetivos')">
                   </div>
                 </div>
                 <div class="form-row">
                   <div class="form-group">
-                    <label class="form-label">Presupuesto mensual</label>
-                    <input id="obj-presupuesto" class="form-input" type="text" placeholder="ej. $15,000 MXN" oninput="autoSave('objetivos')">
+                    <label class="form-label">Leads / prospectos objetivo por mes <span style="color:var(--accent);font-size:10px;">● requerido</span></label>
+                    <input id="obj-leads" class="form-input" type="text" placeholder="ej. 4,018 prospectos/mes" oninput="autoSave('objetivos')">
                   </div>
                   <div class="form-group">
-                    <label class="form-label">Plataformas activas</label>
-                    <input id="obj-plataformas" class="form-input" type="text" placeholder="ej. Meta (FB + IG)" oninput="autoSave('objetivos')">
+                    <label class="form-label">Cierres objetivo por mes <span style="color:var(--accent);font-size:10px;">● requerido</span></label>
+                    <input id="obj-cierres" class="form-input" type="text" placeholder="ej. 30 cierres/mes" oninput="autoSave('objetivos')">
                   </div>
+                </div>
+                <div class="form-row">
+                  <div class="form-group">
+                    <label class="form-label">Presupuesto mensual actual <span style="color:var(--accent);font-size:10px;">● requerido</span></label>
+                    <input id="obj-presupuesto" class="form-input" type="text" placeholder="ej. $75,000 MXN" oninput="autoSave('objetivos')">
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">Presupuesto máximo disponible</label>
+                    <input id="obj-presupuesto-max" class="form-input" type="text" placeholder="ej. $130,000 MXN en temporada alta" oninput="autoSave('objetivos')">
+                  </div>
+                </div>
+                <div class="form-row">
+                  <div class="form-group">
+                    <label class="form-label">Ticket promedio</label>
+                    <input id="obj-ticket" class="form-input" type="text" placeholder="ej. $65,000 MXN" oninput="autoSave('objetivos')">
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label">LTV estimado (valor de vida del cliente)</label>
+                    <input id="obj-ltv" class="form-input" type="text" placeholder="ej. $X — 1 compra promedio, o calcular" oninput="autoSave('objetivos')">
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Meta anual de ventas</label>
+                  <input id="obj-meta-anual" class="form-input" type="text" placeholder="ej. $34–35 millones MXN en 2026" oninput="autoSave('objetivos')">
+                </div>
+                <div class="form-group">
+                  <label class="form-label">KPIs de éxito (métricas clave a monitorear) <span style="color:var(--accent);font-size:10px;">● requerido</span></label>
+                  <textarea id="obj-kpis" class="form-textarea" placeholder="ej. CAC, costo/preautorizado, % prospecto→preaut, % preaut→cierre, costo/prospecto" oninput="autoSave('objetivos')"></textarea>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Plataformas activas</label>
+                  <input id="obj-plataformas" class="form-input" type="text" placeholder="ej. Meta Ads (principal), Google Ads (prueba Mty)" oninput="autoSave('objetivos')">
                 </div>
               </div>
 
               <div class="field-group">
-                <div class="field-group-title"><span class="icon">📈</span> Plan y alineación estratégica</div>
+                <div class="field-group-title"><span class="icon">📈</span> Plan y campañas activas</div>
                 <div class="form-group">
-                  <label class="form-label">Plan de marketing actual</label>
-                  <textarea id="obj-plan" class="form-textarea" placeholder="¿Qué está haciendo hoy el cliente? ¿Qué estamos haciendo nosotros?" oninput="autoSave('objetivos')"></textarea>
+                  <label class="form-label">Campañas activas (nombre · objetivo · presupuesto) <span style="color:var(--accent);font-size:10px;">● requerido</span></label>
+                  <textarea id="obj-plan" class="form-textarea" placeholder="ej.&#10;Campaña Mty Vitrinas · leads WhatsApp · $23,261&#10;Campaña GDL Enfriadores · leads WhatsApp · $10,882&#10;Google Ads Mty · búsqueda · $7,500" oninput="autoSave('objetivos')"></textarea>
                 </div>
                 <div class="form-group">
-                  <label class="form-label">Objetivos a largo plazo (3-6 meses)</label>
-                  <textarea id="obj-largo" class="form-textarea" placeholder="¿Hacia dónde quiere crecer el cliente?" oninput="autoSave('objetivos')"></textarea>
+                  <label class="form-label">Cuellos de botella actuales <span style="color:var(--accent);font-size:10px;">● requerido</span></label>
+                  <textarea id="obj-cuellos" class="form-textarea" placeholder="ej. Tasa prospecto→preaut baja (2.4% vs 6.65% objetivo). Problema en el filtro de buró, no en Meta." oninput="autoSave('objetivos')"></textarea>
                 </div>
                 <div class="form-group">
-                  <label class="form-label">KPIs secundarios a monitorear</label>
-                  <textarea id="obj-kpis" class="form-textarea" placeholder="ej. CTR, CPM, tasa de cierre, % leads calificados" oninput="autoSave('objetivos')"></textarea>
+                  <label class="form-label">Acciones correctivas en curso</label>
+                  <textarea id="obj-acciones" class="form-textarea" placeholder="ej. Simplificar flujo Patagon a 3 preguntas, agregar landing para Google, filtros pre-vendedor" oninput="autoSave('objetivos')"></textarea>
+                </div>
+                <div class="form-group">
+                  <label class="form-label">Objetivos a largo plazo (3–6 meses)</label>
+                  <textarea id="obj-largo" class="form-textarea" placeholder="ej. Llegar a $130K/mes inversión, abrir 6 ciudades nuevas, activar Google Ads nacional" oninput="autoSave('objetivos')"></textarea>
+                </div>
+              </div>
+
+              <div class="field-group">
+                <div class="field-group-title"><span class="icon">🚫</span> Restricciones de campaña</div>
+                <div class="form-group">
+                  <label class="form-label">Restricciones activas (geográficas, operativas, temporalidad)</label>
+                  <textarea id="obj-restricciones-camp" class="form-textarea" placeholder="ej. Máquinas de hielo requieren técnico local · Temporada baja oct–dic solo ticket alto · Aumentar presupuesto máx 20-30% por ciclo" oninput="autoSave('objetivos')"></textarea>
                 </div>
               </div>
             </div>
@@ -3439,12 +3561,22 @@ function createClient() {
 // FIELDS
 // ══════════════════════════════════════════
 const fieldMap = {
-  adn: ['nombre','industria','ciudad','descripcion','embudo','ticket','cierre','campanas','diferenciadores','objeciones','drive','mensual','semanal'],
-  objetivos: ['principal','cac','leads','presupuesto','plataformas','plan','largo','kpis'],
+  adn: ['nombre','industria','ciudad','descripcion','presupuesto-men','contacto1','embudo','ticket','cierre','campanas','diferenciadores','objeciones','web','herramientas','protocolo','competidores','contacto2','contacto3','contacto4','drive','mensual','semanal'],
+  objetivos: ['principal','cac','cac-max','leads','cierres','presupuesto','kpis','plan','cuellos','largo','presupuesto-max','ticket','ltv','meta-anual','plataformas','acciones','restricciones-camp'],
   rendimiento: ['resumen','cac30','leads','gasto','mejor-ad','campanas','insights','daily','pres'],
   segmentos: ['1-nombre','1-motivadores','2-nombre','2-motivadores','decision','tiempo','canales','insights'],
   validacion: ['coherencia','restricciones','objetivo','expectativas','quien','resultado'],
   creativos: ['angulo','tipo','formato','cac','hook','cta','instrucciones']
+};
+
+// Campos REQUERIDOS por sección (los que activan el semáforo de completitud)
+const requiredFields = {
+  adn: ['nombre','industria','ciudad','descripcion','presupuesto-men','contacto1','embudo','ticket','cierre','campanas','diferenciadores','objeciones'],
+  objetivos: ['principal','cac','cac-max','leads','cierres','presupuesto','kpis','plan','cuellos'],
+  rendimiento: ['resumen','cac30','leads','gasto','campanas','insights'],
+  segmentos: ['1-nombre','1-motivadores','2-nombre','2-motivadores','decision'],
+  validacion: ['coherencia','restricciones','objetivo'],
+  creativos: ['angulo','tipo','hook','cta']
 };
 
 function autoSave(section) {
@@ -3452,10 +3584,12 @@ function autoSave(section) {
   if (!client) return;
   if (!client[section]) client[section] = {};
   const fields = fieldMap[section];
+  const prefix = section.substring(0,3);
   fields.forEach(f => {
-    const el = document.getElementById(section === 'rendimiento' && f === 'mejor-ad' ? 'rend-mejor-ad' : section.substring(0,3) + '-' + f)
-              || document.getElementById(section.substring(0,3) + '-' + f)
-              || document.getElementById(section + '-' + f);
+    // Intentar múltiples variantes del ID
+    const el = document.getElementById(prefix + '-' + f)
+            || document.getElementById(section + '-' + f)
+            || document.getElementById(f);
     if (!el) return;
     const key = f.replace(/-/g, '_');
     client[section][key] = el.value;
@@ -3467,14 +3601,15 @@ function autoSave(section) {
 function loadAllFields() {
   const client = getClient();
   if (!client) return;
+  const prefix3 = s => s.substring(0,3);
 
   Object.keys(fieldMap).forEach(section => {
     const data = client[section] || {};
     fieldMap[section].forEach(f => {
       const key = f.replace(/-/g, '_');
-      const prefix = section.substring(0,3);
-      const elId = `${prefix}-${f}`;
-      const el = document.getElementById(elId);
+      const el = document.getElementById(prefix3(section) + '-' + f)
+              || document.getElementById(section + '-' + f)
+              || document.getElementById(f);
       if (el && data[key] !== undefined) el.value = data[key];
     });
     updateProgress(section);
@@ -3488,19 +3623,129 @@ function updateProgress(section) {
   const client = getClient();
   if (!client) return;
   const data = client[section] || {};
-  const fields = fieldMap[section];
-  const filled = fields.filter(f => {
+  
+  // Calcular con todos los campos para la barra
+  const allFields = fieldMap[section];
+  const allFilled = allFields.filter(f => {
     const key = f.replace(/-/g, '_');
     return data[key] && data[key].toString().trim() !== '';
   }).length;
-  const pct = Math.round((filled / fields.length) * 100);
+  const pct = Math.round((allFilled / allFields.length) * 100);
 
+  // Calcular completitud con campos REQUERIDOS para el semáforo
+  const reqFields = requiredFields[section] || allFields;
+  const reqFilled = reqFields.filter(f => {
+    const key = f.replace(/-/g, '_');
+    return data[key] && data[key].toString().trim() !== '';
+  }).length;
+  const reqPct = Math.round((reqFilled / reqFields.length) * 100);
+
+  // Barra de progreso
   const bar = document.getElementById('bar-' + section);
-  const prog = document.getElementById('prog-' + section);
   if (bar) bar.style.width = pct + '%';
+
+  // Badge de completitud (nuevo sistema de capas)
+  const badge = document.getElementById('badge-' + section);
+  if (badge) {
+    if (reqPct === 100) {
+      badge.textContent = '✅ Completo';
+      badge.style.background = '#0d3d2a';
+      badge.style.color = '#34d399';
+    } else if (reqPct > 0) {
+      badge.textContent = reqPct + '% requeridos';
+      badge.style.background = '#3a2c0a';
+      badge.style.color = '#fbbf24';
+    } else {
+      badge.textContent = 'Vacío';
+      badge.style.background = 'var(--bg3)';
+      badge.style.color = 'var(--text3)';
+    }
+  }
+
+  // Badge legacy (por compatibilidad con vistas que usan prog-)
+  const prog = document.getElementById('prog-' + section);
   if (prog) {
     prog.textContent = pct === 100 ? '✅ Completo' : pct > 0 ? pct + '%' : 'Vacío';
     prog.className = 'section-progress' + (pct === 100 ? ' complete' : '');
+  }
+
+  // Actualizar completitud global
+  updateGlobalCompletitud();
+}
+
+function updateGlobalCompletitud() {
+  const client = getClient();
+  if (!client) return;
+  
+  const sections = ['adn','objetivos','rendimiento','segmentos','validacion'];
+  let totalReq = 0, totalFilled = 0;
+  
+  sections.forEach(section => {
+    const data = client[section] || {};
+    const reqFields = requiredFields[section] || [];
+    totalReq += reqFields.length;
+    totalFilled += reqFields.filter(f => {
+      const key = f.replace(/-/g, '_');
+      return data[key] && data[key].toString().trim() !== '';
+    }).length;
+  });
+
+  const globalPct = totalReq > 0 ? Math.round((totalFilled / totalReq) * 100) : 0;
+  const el = document.getElementById('exp-completitud-global');
+  if (el) {
+    el.textContent = globalPct + '% completo (' + totalFilled + '/' + totalReq + ' campos requeridos)';
+    el.style.color = globalPct === 100 ? '#34d399' : globalPct > 50 ? '#fbbf24' : 'var(--text3)';
+  }
+
+  // Panel de pendientes
+  updatePendientesPanel(client);
+}
+
+function updatePendientesPanel(client) {
+  const panel = document.getElementById('exp-pendientes-panel');
+  const list = document.getElementById('exp-pendientes-list');
+  if (!panel || !list) return;
+
+  const pendientes = [];
+  const labelMap = {
+    'adn.nombre': 'Nombre cliente', 'adn.industria': 'Industria', 'adn.ciudad': 'Ciudad/mercados',
+    'adn.descripcion': 'Descripción negocio', 'adn.presupuesto-men': 'Presupuesto mensual',
+    'adn.contacto1': 'Contacto principal (email+tel)', 'adn.embudo': 'Embudo de ventas',
+    'adn.ticket': 'Ticket promedio', 'adn.cierre': 'Tasa de cierre',
+    'adn.campanas': 'Campañas activas', 'adn.diferenciadores': 'Diferenciadores',
+    'adn.objeciones': 'Objeciones de compra',
+    'objetivos.principal': 'Objetivo principal', 'objetivos.cac': 'CAC objetivo',
+    'objetivos.cac-max': 'CAC máximo ⚠️', 'objetivos.leads': 'Leads objetivo/mes',
+    'objetivos.cierres': 'Cierres objetivo/mes', 'objetivos.presupuesto': 'Presupuesto',
+    'objetivos.kpis': 'KPIs clave', 'objetivos.plan': 'Campañas activas detalle',
+    'objetivos.cuellos': 'Cuellos de botella',
+    'segmentos.1-nombre': 'Segmento 1', 'segmentos.1-motivadores': 'Motivadores seg.1',
+    'segmentos.2-nombre': 'Segmento 2', 'segmentos.2-motivadores': 'Motivadores seg.2',
+    'segmentos.decision': 'Decisión de compra',
+    'rendimiento.resumen': 'Resumen rendimiento', 'rendimiento.cac30': 'CAC últimos 30 días',
+    'rendimiento.campanas': 'Análisis campañas', 'rendimiento.insights': 'Insights clave',
+    'validacion.coherencia': 'Validación coherencia', 'validacion.restricciones': 'Restricciones',
+    'validacion.objetivo': 'Viabilidad objetivo'
+  };
+
+  Object.keys(requiredFields).forEach(section => {
+    const data = client[section] || {};
+    requiredFields[section].forEach(f => {
+      const key = f.replace(/-/g, '_');
+      if (!data[key] || data[key].toString().trim() === '') {
+        const mapKey = section + '.' + f;
+        pendientes.push({ section, field: f, label: labelMap[mapKey] || f });
+      }
+    });
+  });
+
+  if (pendientes.length === 0) {
+    panel.style.display = 'none';
+  } else {
+    panel.style.display = 'block';
+    list.innerHTML = pendientes.map(p =>
+      `<span onclick="navigate('${p.section}')" style="cursor:pointer; font-size:11px; padding:4px 10px; border-radius:20px; background:var(--bg3); color:var(--text2); border:1px solid var(--border1); font-family:'DM Mono',monospace; transition:all 0.15s;" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border1)'">${p.label}</span>`
+    ).join('');
   }
 }
 
