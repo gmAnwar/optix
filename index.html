@@ -159,7 +159,7 @@
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
 
-  html { font-size: clamp(15px, 1vw + 0.5rem, 18px); }
+  html { font-size: clamp(13px, 0.9vw + 0.4rem, 17px); }
   body {
     font-family: 'DM Sans', sans-serif;
     background: var(--bg);
@@ -1833,7 +1833,7 @@
         <div class="content-header-top">
           <div class="content-title">Dashboard</div>
           <div style="display:flex; gap:8px;">
-            <button class="btn btn-ghost" style="font-size:12px; padding:8px 16px;" onclick="openNotaCierreModal()">📅 Cerrar semana</button>
+            <button class="btn btn-ghost" style="font-size:12px; padding:8px 16px;" onclick="closeWeek()">📅 Cerrar semana</button>
             <button class="btn btn-primary" style="font-size:12px; padding:8px 16px;" onclick="openNewClientModal()">+ Nuevo cliente</button>
           </div>
         </div>
@@ -2709,35 +2709,6 @@
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('modal-vault')">Cancelar</button>
       <button class="btn btn-primary" onclick="addVaultEntry()">Guardar en Vault →</button>
-    </div>
-  </div>
-</div>
-
-<!-- MODAL: NOTA DE CIERRE -->
-<div id="modal-nota-cierre" class="modal-overlay">
-  <div class="modal" style="max-width:520px;">
-    <div class="modal-title">📅 Cerrar semana</div>
-    <div class="modal-sub">Tres preguntas rápidas. Esto le da contexto a Claude para que el análisis sea útil, no solo números.</div>
-    <div style="display:flex; flex-direction:column; gap:16px; margin-top:20px;">
-      <div>
-        <label class="form-label" style="font-size:13px; font-weight:600; color:var(--text1); margin-bottom:6px; display:block;">1. ¿Qué cambió esta semana?</label>
-        <div style="font-size:11px; color:var(--text3); font-family:'DM Mono',monospace; margin-bottom:8px;">Segmentación, creativos, presupuesto, configuración de campañas</div>
-        <textarea id="nota-cambios" class="form-textarea" rows="2" placeholder="ej. Cambié la segmentación de intereses a lookalike, pausé el ad de testimonial que llevaba 3 semanas..." style="font-size:13px;" oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px';"></textarea>
-      </div>
-      <div>
-        <label class="form-label" style="font-size:13px; font-weight:600; color:var(--text1); margin-bottom:6px; display:block;">2. ¿Qué está trabando los resultados?</label>
-        <div style="font-size:11px; color:var(--text3); font-family:'DM Mono',monospace; margin-bottom:8px;">Puede ser interno (creativos, presupuesto) o externo (cliente, ventas, temporada)</div>
-        <textarea id="nota-trabas" class="form-textarea" rows="2" placeholder="ej. El equipo de ventas no está siguiendo los leads a tiempo, tenemos un cierre por semana en lugar de los 7 objetivo..." style="font-size:13px;" oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px';"></textarea>
-      </div>
-      <div>
-        <label class="form-label" style="font-size:13px; font-weight:600; color:var(--text1); margin-bottom:6px; display:block;">3. ¿Cuál es el plan concreto para la siguiente semana?</label>
-        <div style="font-size:11px; color:var(--text3); font-family:'DM Mono',monospace; margin-bottom:8px;">Una o dos acciones específicas, no intenciones</div>
-        <textarea id="nota-plan" class="form-textarea" rows="2" placeholder="ej. Lanzar 2 nuevos creativos de video el martes, aumentar presupuesto 20% si CAC baja de $2,000 al miércoles..." style="font-size:13px;" oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px';"></textarea>
-      </div>
-    </div>
-    <div class="modal-actions" style="margin-top:24px;">
-      <button class="btn btn-ghost" onclick="closeModal('modal-nota-cierre')">Cancelar</button>
-      <button class="btn btn-primary" onclick="closeWeekWithNota()">Cerrar semana →</button>
     </div>
   </div>
 </div>
@@ -4545,31 +4516,7 @@ function showToast(msg, icon = '✅') {
 // ══════════════════════════════════════════
 // HISTORIAL DE SEMÁFORO
 // ══════════════════════════════════════════
-function openNotaCierreModal() {
-  // Limpiar campos
-  ['nota-cambios','nota-trabas','nota-plan'].forEach(id => {
-    const el = document.getElementById(id);
-    if (el) { el.value = ''; el.style.height = 'auto'; }
-  });
-  document.getElementById('modal-nota-cierre').classList.add('open');
-}
-
-function closeWeekWithNota() {
-  const cambios = document.getElementById('nota-cambios')?.value?.trim() || '';
-  const trabas  = document.getElementById('nota-trabas')?.value?.trim()  || '';
-  const plan    = document.getElementById('nota-plan')?.value?.trim()    || '';
-
-  // Al menos un campo requerido
-  if (!cambios && !trabas && !plan) {
-    showToast('Llena al menos una pregunta para cerrar la semana', '⚠️');
-    return;
-  }
-
-  closeModal('modal-nota-cierre');
-  closeWeek({ notaCambios: cambios, notaTrabas: trabas, notaPlan: plan });
-}
-
-function closeWeek(nota = {}) {
+function closeWeek() {
   const client = getClient();
   if (!client) return;
 
@@ -4585,11 +4532,7 @@ function closeWeek(nota = {}) {
     sensacion_nota: client.sem_sensacion_nota || '',
     comm: client.sem_comm || 'gray',
     comm_count: client.sem_comm_count || 0,
-    semaforo_final: calcSemaforoFinal(client),
-    // Nota de cierre
-    notaCambios: nota.notaCambios || '',
-    notaTrabas:  nota.notaTrabas  || '',
-    notaPlan:    nota.notaPlan    || '',
+    semaforo_final: calcSemaforoFinal(client)
   };
 
   if (!client.sem_history) client.sem_history = [];
@@ -4765,49 +4708,371 @@ function navigateTab(tab) {
 }
 
 // ── ANÁLISIS: resumen Claude + tendencia ─────────────────────────────────────
+// ── DATOS CONTEXTUALES POR CLIENTE ────────────────────────────────────────────
+// Contexto hardcodeado por cliente para enriquecer el análisis con Claude.
+// Cuando un cliente tenga su propio expediente en Firestore, se puede leer de ahí.
+const CLIENT_CONTEXT = {
+  'enpagos-real': {
+    embudo: 'Lead Meta (WhatsApp) → bot Patagon pre-califica → vendedor Bixis → preautorización buró → cierre → entrega.',
+    objetivo_cac: '$2,170–$2,400 MXN',
+    objetivo_tasa_conv: '6.65% prospecto→preaut',
+    cuello_botella: 'La tasa prospecto→preaut está en ~2.4% vs objetivo 6.65%. El costo/lead es aceptable ($17). El filtro de buró rompe el embudo. La tasa preaut→cierre (11%) está bien.',
+    contexto_historico: 'Mejor mes: Jul 2025 — 267 preaut a $243/preaut, CAC $2,170, 30 cierres, $2.1M venta. Peor período: Nov-Dic 2025 — CAC $12K-$15K por canibalizacion de anuncios + curva Bixis + rechazo buró. Mejor semana 2026: 16-22 Feb — 31 preaut a $588, tasa 2.67%, 3 cierres.',
+    razones_descarte: 'Prospecto foráneo (no local), no tiene negocio establecido, no contesta el seguimiento.',
+    ciudades: 'Monterrey (principal), Saltillo, Torreón (4.18% conv pero 0 cierres = problema de ventas), Querétaro, Guadalajara, Guanajuato. Nuevas Mar 2026: AGS, SLP, San Miguel.',
+    impacto_mejora: 'Cada +1pt de tasa conv = +44 preaut/mes → +5 cierres × $65K = +$325K venta mensual.',
+  }
+};
+
+// ── DATOS HISTÓRICOS HARDCODEADOS POR CLIENTE ────────────────────────────────
+// Para clientes con data real documentada. Se usa si Firestore no tiene historial.
+const CLIENT_HARDCODED_HISTORY = {
+  'enpagos-real': {
+    mensual: [
+      { label:'Jul 25', preaut:267, costPreaut:243, cierres:30, cac:2170, inversion:65000, venta:2134820 },
+      { label:'Ago 25', preaut:196, costPreaut:329, cierres:20, cac:3225, inversion:65000, venta:1064424 },
+      { label:'Sep 25', preaut:191, costPreaut:371, cierres:18, cac:3946, inversion:72000, venta:1120449 },
+      { label:'Oct 25', preaut:180, costPreaut:390, cierres:19, cac:3702, inversion:70000, venta:1357334 },
+      { label:'Nov 25', preaut:149, costPreaut:505, cierres:6,  cac:12552,inversion:75000, venta:399361  },
+      { label:'Dic 25', preaut:129, costPreaut:587, cierres:5,  cac:15165,inversion:75000, venta:351161  },
+      { label:'Ene 26', preaut:96,  costPreaut:753, cierres:12, cac:6025, inversion:72000, venta:665477  },
+      { label:'Feb 26', preaut:92,  costPreaut:707, cierres:10, cac:6508, inversion:65000, venta:624641  },
+    ],
+    semanal: [
+      { label:'26E-1F', prospectos:873,  preaut:17, tasa:1.95, cierres:2, inversion:16843 },
+      { label:'2-8F',   prospectos:734,  preaut:13, tasa:1.77, cierres:2, inversion:14025 },
+      { label:'9-15F',  prospectos:853,  preaut:20, tasa:2.34, cierres:0, inversion:15356 },
+      { label:'16-22F', prospectos:1160, preaut:31, tasa:2.67, cierres:3, inversion:18246 },
+      { label:'23F-1M', prospectos:1038, preaut:22, tasa:2.12, cierres:1, inversion:15991 },
+      { label:'2-8M',   prospectos:858,  preaut:11, tasa:1.28, cierres:0, inversion:10803 },
+    ],
+    cacObjetivo: 2400,
+    costPreautObjetivo: 550,
+  }
+};
+
 async function loadAnalisis() {
   const client = window._currentClient;
   if (!client) return;
   const container = document.getElementById('analisis-section');
   if (!container) return;
 
-  // Si ya tiene contenido reciente, no recargar
-  if (container.dataset.loadedFor === client.id) return;
+  // Destruir charts anteriores si existen
+  if (window._analisisCharts) {
+    window._analisisCharts.forEach(c => { try { c.destroy(); } catch(e){} });
+    window._analisisCharts = [];
+  }
 
+  // Resetear para permitir regénerar
+  container.dataset.loadedFor = '';
+
+  // Cargar Chart.js si no está disponible
+  if (!window.Chart) {
+    await new Promise((res, rej) => {
+      const s = document.createElement('script');
+      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js';
+      s.onload = res; s.onerror = rej;
+      document.head.appendChild(s);
+    });
+  }
+
+  // Cargar historial desde Firestore
+  const firestoreHistory = await loadHistorialData(client.id);
+
+  // Datos hardcodeados del cliente (si existen)
+  const hardcoded = CLIENT_HARDCODED_HISTORY[client.id] || null;
+  const hasFirestore = firestoreHistory.length >= 2;
+  const hasHardcoded = hardcoded && hardcoded.mensual.length >= 2;
+
+  // Renderizar estado inicial (idle)
   container.innerHTML = `
-    <div style="font-family:'DM Sans',sans-serif; font-weight:600; font-size:20px; margin-bottom:4px; letter-spacing:-0.3px;">🧠 Análisis</div>
-    <div style="font-size:12px; color:var(--text3); font-family:'DM Mono',monospace; margin-bottom:24px;">${client.nombre || client.id} · basado en historial de semáforo</div>
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; flex-wrap:wrap; gap:12px;">
+      <div>
+        <div style="font-family:'DM Sans',sans-serif; font-weight:700; font-size:18px; letter-spacing:-0.3px; color:var(--text1);">🧠 Análisis — ${client.nombre || client.id}</div>
+        <div style="font-size:11px; color:var(--text3); font-family:'DM Mono',monospace; margin-top:2px;">
+          ${hasFirestore ? firestoreHistory.length + ' semanas en historial' : hasHardcoded ? 'Data histórica disponible' : 'Sin historial aún'}
+        </div>
+      </div>
+      <button id="btn-generar-analisis" onclick="ejecutarAnalisis()" style="
+        background:var(--accent); color:#000; border:none; border-radius:8px;
+        padding:10px 20px; font-family:'DM Mono',monospace; font-size:12px; font-weight:600;
+        cursor:pointer; display:flex; align-items:center; gap:8px; transition:opacity 0.15s;
+      " onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
+        <span>⚡</span> Generar análisis
+      </button>
+    </div>
 
-    <div id="analisis-tendencia" style="margin-bottom:24px;"></div>
-    <div id="analisis-claude" style="background:var(--bg2); border:1px solid var(--border); border-radius:12px; padding:20px; font-size:14px; line-height:1.6; color:var(--text2); font-family:'DM Sans',sans-serif; min-height:120px;">
-      <span style="color:var(--text3); font-size:12px; font-family:'DM Mono',monospace;">Generando análisis...</span>
+    <div id="analisis-graficas" style="display:none; margin-bottom:24px;">
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
+        <div style="background:var(--bg2); border:1px solid var(--border); border-radius:12px; padding:16px;">
+          <div style="font-size:11px; font-weight:600; color:var(--text2); margin-bottom:12px; font-family:'DM Mono',monospace;">CAC mensual · MXN</div>
+          <canvas id="chart-cac" height="160"></canvas>
+        </div>
+        <div style="background:var(--bg2); border:1px solid var(--border); border-radius:12px; padding:16px;">
+          <div style="font-size:11px; font-weight:600; color:var(--text2); margin-bottom:12px; font-family:'DM Mono',monospace;">Tasa conv. semanal · %</div>
+          <canvas id="chart-tasa" height="160"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <div id="analisis-claude-box" style="background:var(--bg2); border:1px solid var(--border); border-radius:12px; padding:20px; min-height:100px; display:flex; align-items:center; justify-content:center;">
+      <div style="text-align:center; color:var(--text3);">
+        <div style="font-size:24px; margin-bottom:8px;">⚡</div>
+        <div style="font-size:12px; font-family:'DM Mono',monospace;">Presiona "Generar análisis" para ver el diagnóstico de este cliente</div>
+      </div>
     </div>
   `;
 
-  // Cargar historial desde Firestore
-  const history = await loadHistorialData(client.id);
-  
-  // Renderizar tendencia
-  renderTendencia(history, document.getElementById('analisis-tendencia'));
+  // Guardar refs para la ejecución posterior
+  window._analisisState = { client, firestoreHistory, hardcoded };
+}
 
-  // Generar resumen con Claude
-  if (history.length >= 2) {
-    await generarResumenClaude(client, history);
-  } else if (history.length === 1) {
-    document.getElementById('analisis-claude').innerHTML =
-      `<div style="color:var(--text3); font-size:13px; font-family:'DM Mono',monospace; line-height:1.6;">
-        <div style="margin-bottom:12px;">✅ Primera semana registrada.</div>
-        <div>Cierra una semana más para que Claude pueda analizar tendencias y darte recomendaciones concretas.</div>
-      </div>`;
-  } else {
-    document.getElementById('analisis-claude').innerHTML =
-      `<div style="color:var(--text3); font-size:13px; font-family:'DM Mono',monospace; line-height:1.6;">
-        <div style="margin-bottom:12px;">📭 Sin historial todavía.</div>
-        <div>Cierra la primera semana usando el botón <strong style="color:var(--text2);">📅 Cerrar semana</strong> en el dashboard.<br>A partir de 2 semanas, Claude genera análisis de tendencias automáticamente.</div>
-      </div>`;
+async function ejecutarAnalisis() {
+  const btn = document.getElementById('btn-generar-analisis');
+  const graficasEl = document.getElementById('analisis-graficas');
+  const claudeBox = document.getElementById('analisis-claude-box');
+  if (!btn || !graficasEl || !claudeBox) return;
+
+  const { client, firestoreHistory, hardcoded } = window._analisisState || {};
+  if (!client) return;
+
+  // Estado: cargando
+  btn.disabled = true;
+  btn.innerHTML = '<span style="animation:spin 1s linear infinite;display:inline-block;">⏳</span> Analizando...';
+  claudeBox.innerHTML = `<div style="display:flex; align-items:center; gap:10px; color:var(--text3); font-family:'DM Mono',monospace; font-size:12px;">
+    <span style="animation:spin 1s linear infinite;display:inline-block;font-size:16px;">⚙️</span> Claude está procesando los datos...
+  </div>`;
+
+  if (!document.getElementById('spin-style')) {
+    const st = document.createElement('style');
+    st.id = 'spin-style';
+    st.textContent = '@keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }';
+    document.head.appendChild(st);
   }
 
-  container.dataset.loadedFor = client.id;
+  // ── GRÁFICAS ────────────────────────────────────────────────
+  if (!window._analisisCharts) window._analisisCharts = [];
+
+  const chartGrid = Chart.defaults;
+  chartGrid.color = '#4a5568';
+  chartGrid.font.family = "'DM Mono', monospace";
+  chartGrid.font.size = 10;
+
+  const gridStyle = { color: 'rgba(255,255,255,0.04)', drawBorder: false };
+
+  // Determinar fuente de datos para gráficas
+  const mensualData = hardcoded ? hardcoded.mensual : null;
+  const semanalData = hardcoded ? hardcoded.semanal : null;
+
+  graficasEl.style.display = 'block';
+
+  // Chart 1: CAC mensual
+  if (mensualData) {
+    const ctxCAC = document.getElementById('chart-cac');
+    if (ctxCAC) {
+      const cacObj = hardcoded.cacObjetivo;
+      const c1 = new Chart(ctxCAC, {
+        type: 'bar',
+        data: {
+          labels: mensualData.map(d => d.label),
+          datasets: [
+            {
+              label: 'CAC',
+              data: mensualData.map(d => d.cac),
+              backgroundColor: mensualData.map(d => d.cac <= cacObj ? 'rgba(0,229,160,0.7)' : d.cac <= cacObj*2 ? 'rgba(255,180,0,0.6)' : 'rgba(255,69,96,0.6)'),
+              borderColor: mensualData.map(d => d.cac <= cacObj ? '#00e5a0' : d.cac <= cacObj*2 ? '#ffb400' : '#ff4560'),
+              borderWidth: 1,
+              borderRadius: 4,
+            },
+            {
+              label: 'Objetivo',
+              data: mensualData.map(() => cacObj),
+              type: 'line',
+              borderColor: 'rgba(0,229,160,0.4)',
+              borderDash: [4, 4],
+              borderWidth: 1.5,
+              pointRadius: 0,
+              tension: 0,
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { labels: { color: '#4a5568', usePointStyle: true, padding: 10 } },
+            tooltip: {
+              backgroundColor: '#0d1017', borderColor: '#1f2a3d', borderWidth: 1,
+              callbacks: { label: ctx => `$${ctx.raw.toLocaleString('es-MX')} MXN` }
+            }
+          },
+          scales: {
+            x: { grid: gridStyle, ticks: { color: '#4a5568', maxRotation: 0 } },
+            y: { grid: gridStyle, ticks: { color: '#4a5568', callback: v => '$'+v.toLocaleString('es-MX') } }
+          }
+        }
+      });
+      window._analisisCharts.push(c1);
+    }
+  } else if (firestoreHistory.length >= 2) {
+    // Gráfica desde Firestore
+    const ctxCAC = document.getElementById('chart-cac');
+    if (ctxCAC) {
+      const labels = firestoreHistory.map(h => {
+        const d = h.fechaCierre ? new Date(h.fechaCierre.seconds ? h.fechaCierre.seconds*1000 : h.fechaCierre) : null;
+        return d ? d.toLocaleDateString('es-MX',{month:'short',day:'numeric'}) : h.id;
+      });
+      const cacVals = firestoreHistory.map(h => parseFloat(h.cacActual) || 0);
+      const c1 = new Chart(ctxCAC, {
+        type: 'bar',
+        data: {
+          labels,
+          datasets: [{
+            label: 'CAC',
+            data: cacVals,
+            backgroundColor: cacVals.map(v => v <= 2400 ? 'rgba(0,229,160,0.7)' : v <= 5000 ? 'rgba(255,180,0,0.6)' : 'rgba(255,69,96,0.6)'),
+            borderRadius: 4,
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { grid: gridStyle, ticks: { color: '#4a5568' } },
+            y: { grid: gridStyle, ticks: { color: '#4a5568', callback: v => '$'+v.toLocaleString('es-MX') } }
+          }
+        }
+      });
+      window._analisisCharts.push(c1);
+    }
+  }
+
+  // Chart 2: Tasa de conversión semanal
+  if (semanalData) {
+    const ctxTasa = document.getElementById('chart-tasa');
+    if (ctxTasa) {
+      const c2 = new Chart(ctxTasa, {
+        type: 'line',
+        data: {
+          labels: semanalData.map(d => d.label),
+          datasets: [
+            {
+              label: 'Tasa %',
+              data: semanalData.map(d => d.tasa),
+              borderColor: '#4f8ef7',
+              backgroundColor: 'rgba(79,142,247,0.08)',
+              borderWidth: 2,
+              pointBackgroundColor: semanalData.map(d => d.tasa >= 2.5 ? '#00e5a0' : d.tasa < 1.5 ? '#ff4560' : '#ffb400'),
+              pointRadius: 5,
+              tension: 0.35,
+              fill: true,
+            },
+            {
+              label: 'Objetivo (6.65%)',
+              data: semanalData.map(() => 6.65),
+              borderColor: 'rgba(0,229,160,0.3)',
+              borderDash: [4,4],
+              borderWidth: 1.5,
+              pointRadius: 0,
+              tension: 0,
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { labels: { color: '#4a5568', usePointStyle: true, padding: 10 } },
+            tooltip: {
+              backgroundColor: '#0d1017', borderColor: '#1f2a3d', borderWidth: 1,
+              callbacks: { label: ctx => ctx.raw + '%' }
+            }
+          },
+          scales: {
+            x: { grid: gridStyle, ticks: { color: '#4a5568' } },
+            y: { grid: gridStyle, ticks: { color: '#4a5568', callback: v => v + '%' }, min: 0 }
+          }
+        }
+      });
+      window._analisisCharts.push(c2);
+    }
+  }
+
+  // ── TEXTO CLAUDE ─────────────────────────────────────────────
+  const ctx = CLIENT_CONTEXT[client.id];
+  const hist = hardcoded ? hardcoded.mensual : firestoreHistory;
+
+  let dataStr = '';
+  if (hardcoded) {
+    dataStr = hardcoded.mensual.map(d =>
+      `${d.label}: ${d.preaut} preaut, costo/preaut $${d.costPreaut}, ${d.cierres} cierres, CAC $${d.cac.toLocaleString('es-MX')}, inversión $${d.inversion.toLocaleString('es-MX')}, venta $${d.venta.toLocaleString('es-MX')}`
+    ).join('\n');
+    if (hardcoded.semanal) {
+      dataStr += '\n\nÚltimas semanas:\n' + hardcoded.semanal.map(s =>
+        `${s.label}: ${s.prospectos} prospectos, ${s.preaut} preaut, tasa ${s.tasa}%, ${s.cierres} cierres, inv $${s.inversion.toLocaleString('es-MX')}`
+      ).join('\n');
+    }
+  } else {
+    dataStr = firestoreHistory.map(h => {
+      const f = h.fechaCierre ? new Date(h.fechaCierre.seconds ? h.fechaCierre.seconds*1000 : h.fechaCierre).toLocaleDateString('es-MX') : h.id;
+      return `${f}: CAC $${h.cacActual||'?'}, inversión $${h.inversion||'?'}, cierres ${h.cierres||'?'}, semáforo ${h.resultadoSemaforo||'?'}`;
+    }).join('\n');
+  }
+
+  const ctxExtra = ctx ? `
+CONTEXTO DEL CLIENTE:
+- Embudo: ${ctx.embudo}
+- CAC objetivo: ${ctx.objetivo_cac}
+- Tasa conversión objetivo: ${ctx.objetivo_tasa_conv}
+- Cuello de botella identificado: ${ctx.cuello_botella}
+- Contexto histórico: ${ctx.contexto_historico}
+- Razones de descarte de leads: ${ctx.razones_descarte}
+- Ciudades activas: ${ctx.ciudades}
+- Impacto de mejorar conversión: ${ctx.impacto_mejora}
+` : '';
+
+  const prompt = `Eres el analista senior de OptimizAds. Genera un diagnóstico ejecutivo directo para el account manager (Kike) sobre el cliente "${client.nombre || client.id}".
+
+DATOS:
+${dataStr}
+${ctxExtra}
+Responde con este formato exacto en HTML simple (solo <p>, <strong>, <span style="color:...">):
+
+<p><strong>Situación actual:</strong> [1-2 oraciones sobre dónde está el cliente hoy vs objetivo]</p>
+<p><strong>El problema real:</strong> [identifica el cuello de botella principal con números específicos]</p>
+<p><strong>Lo que está funcionando:</strong> [1 cosa concreta positiva con dato]</p>
+<p><strong>Acción inmediata:</strong> [1 sola acción concreta para esta semana, con métrica esperada]</p>
+
+Sé directo, usa números reales, sin relleno.`;
+
+  try {
+    const response = await fetch('https://optix-proxy.anwarhsg.workers.dev', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 400,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+    const data = await response.json();
+    const text = data?.content?.[0]?.text || 'No se pudo generar el análisis.';
+
+    const fuente = hardcoded ? 'data histórica documentada' : `${firestoreHistory.length} semanas en Firestore`;
+    claudeBox.innerHTML = `
+      <div style="font-size:13px; line-height:1.8; color:var(--text1); font-family:'DM Sans',sans-serif;">
+        ${text}
+      </div>
+      <div style="margin-top:16px; padding-top:12px; border-top:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+        <div style="font-size:10px; color:var(--text3); font-family:'DM Mono',monospace;">🧠 Generado por Claude · ${fuente}</div>
+        <button onclick="ejecutarAnalisis()" style="background:transparent; border:1px solid var(--border); color:var(--text3); border-radius:6px; padding:4px 10px; font-family:'DM Mono',monospace; font-size:10px; cursor:pointer;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text3)'">↻ Regenerar</button>
+      </div>
+    `;
+  } catch(e) {
+    claudeBox.innerHTML = '<span style="color:var(--text3); font-size:12px; font-family:\'DM Mono\',monospace;">Error generando análisis. Revisa la conexión.</span>';
+  }
+
+  // Restaurar botón
+  btn.disabled = false;
+  btn.innerHTML = '<span>⚡</span> Generar análisis';
 }
 
 async function loadHistorialData(clientId) {
@@ -4826,77 +5091,7 @@ async function loadHistorialData(clientId) {
   }
 }
 
-function renderTendencia(history, container) {
-  if (!container || history.length < 2) {
-    if (container) container.innerHTML = '';
-    return;
-  }
-  const maxCAC = Math.max(...history.map(h => parseFloat(h.cacActual) || 0));
-  const rows = history.map(h => {
-    const cac = parseFloat(h.cacActual) || 0;
-    const pct = maxCAC > 0 ? (cac / maxCAC * 100) : 0;
-    const color = h.resultadoSemaforo === 'verde' ? 'var(--accent)' : h.resultadoSemaforo === 'amarillo' ? '#f59e0b' : '#ef4444';
-    const fecha = h.fechaCierre ? new Date(h.fechaCierre.seconds ? h.fechaCierre.seconds*1000 : h.fechaCierre).toLocaleDateString('es-MX',{month:'short',day:'numeric'}) : h.id;
-    return `<div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
-      <div style="font-size:10px; color:var(--text3); font-family:'DM Mono',monospace; min-width:52px;">${fecha}</div>
-      <div style="flex:1; background:var(--bg3); border-radius:4px; height:8px; overflow:hidden;">
-        <div style="width:${pct}%; height:100%; background:${color}; border-radius:4px; transition:width 0.4s;"></div>
-      </div>
-      <div style="font-size:11px; color:var(--text2); font-family:'DM Mono',monospace; min-width:80px; text-align:right;">$${cac.toLocaleString('es-MX')} CAC</div>
-      <div style="width:8px; height:8px; border-radius:50%; background:${color};"></div>
-    </div>`;
-  }).join('');
-  container.innerHTML = `
-    <div style="font-family:'DM Sans',sans-serif; font-weight:600; font-size:14px; margin-bottom:12px; color:var(--text1);">Tendencia de CAC · últimas ${history.length} semanas</div>
-    ${rows}
-  `;
-}
-
-async function generarResumenClaude(client, history) {
-  const el = document.getElementById('analisis-claude');
-  if (!el) return;
-  try {
-    const resumen = history.map(h => {
-      const fecha = h.fechaCierre ? new Date(h.fechaCierre.seconds ? h.fechaCierre.seconds*1000 : h.fechaCierre).toLocaleDateString('es-MX') : h.id;
-      const nota = [
-        h.notaCambios ? `Cambios: ${h.notaCambios}` : '',
-        h.notaTrabas  ? `Trabas: ${h.notaTrabas}`   : '',
-        h.notaPlan    ? `Plan sig. semana: ${h.notaPlan}` : '',
-      ].filter(Boolean).join(' | ');
-      return `Semana ${fecha}: CAC $${h.cacActual||'?'} MXN, inversión $${h.inversion||'?'} MXN, cierres ${h.cierres||'?'}, semáforo ${h.resultadoSemaforo||'?'}${nota ? `\n  → ${nota}` : ''}`;
-    }).join('\n');
-
-    const prompt = `Eres el analista senior de OptimizAds. Analiza estas ${history.length} semanas del cliente "${client.nombre || client.id}" (${client.industria || 'sin industria'}):
-
-${resumen}
-
-CAC objetivo: $${client.cacObjetivo || 'no definido'} MXN por cierre.
-
-En 3-4 oraciones cortas, directas, sin preamble:
-1. Tendencia real del CAC (sube, baja, se estabiliza) y qué la explica según el contexto de Kike
-2. La semana más notable y por qué
-3. Una señal de alerta o punto positivo concreto basado en los números Y el contexto
-4. Una recomendación accionable para la siguiente semana, considerando el plan que Kike ya tiene
-
-Responde solo el análisis, sin títulos ni viñetas.`;
-
-    const response = await fetch('https://optix-proxy.anwarhsg.workers.dev', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 300,
-        messages: [{ role: 'user', content: prompt }]
-      })
-    });
-    const data = await response.json();
-    const text = data?.content?.[0]?.text || 'No se pudo generar el análisis.';
-    el.innerHTML = `<div style="font-size:13px; line-height:1.7; color:var(--text1);">${text}</div>
-      <div style="margin-top:12px; font-size:10px; color:var(--text3); font-family:'DM Mono',monospace;">🧠 Generado por Optix · basado en ${history.length} semanas</div>`;
-  } catch(e) {
-    el.innerHTML = '<span style="color:var(--text3); font-size:12px;">Error generando análisis.</span>';
-  }
-}
+function renderTendencia() {} // deprecated — reemplazada por gráficas Chart.js
 
 
 function loadEnPagos() {
