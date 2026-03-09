@@ -159,7 +159,7 @@
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
 
-  html { font-size: clamp(13px, 0.9vw + 0.4rem, 17px); }
+  html { font-size: clamp(15px, 1vw + 0.5rem, 18px); }
   body {
     font-family: 'DM Sans', sans-serif;
     background: var(--bg);
@@ -1833,7 +1833,7 @@
         <div class="content-header-top">
           <div class="content-title">Dashboard</div>
           <div style="display:flex; gap:8px;">
-            <button class="btn btn-ghost" style="font-size:12px; padding:8px 16px;" onclick="closeWeek()">📅 Cerrar semana</button>
+            <button class="btn btn-ghost" style="font-size:12px; padding:8px 16px;" onclick="openNotaCierreModal()">📅 Cerrar semana</button>
             <button class="btn btn-primary" style="font-size:12px; padding:8px 16px;" onclick="openNewClientModal()">+ Nuevo cliente</button>
           </div>
         </div>
@@ -2709,6 +2709,35 @@
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('modal-vault')">Cancelar</button>
       <button class="btn btn-primary" onclick="addVaultEntry()">Guardar en Vault →</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: NOTA DE CIERRE -->
+<div id="modal-nota-cierre" class="modal-overlay">
+  <div class="modal" style="max-width:520px;">
+    <div class="modal-title">📅 Cerrar semana</div>
+    <div class="modal-sub">Tres preguntas rápidas. Esto le da contexto a Claude para que el análisis sea útil, no solo números.</div>
+    <div style="display:flex; flex-direction:column; gap:16px; margin-top:20px;">
+      <div>
+        <label class="form-label" style="font-size:13px; font-weight:600; color:var(--text1); margin-bottom:6px; display:block;">1. ¿Qué cambió esta semana?</label>
+        <div style="font-size:11px; color:var(--text3); font-family:'DM Mono',monospace; margin-bottom:8px;">Segmentación, creativos, presupuesto, configuración de campañas</div>
+        <textarea id="nota-cambios" class="form-textarea" rows="2" placeholder="ej. Cambié la segmentación de intereses a lookalike, pausé el ad de testimonial que llevaba 3 semanas..." style="font-size:13px;" oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px';"></textarea>
+      </div>
+      <div>
+        <label class="form-label" style="font-size:13px; font-weight:600; color:var(--text1); margin-bottom:6px; display:block;">2. ¿Qué está trabando los resultados?</label>
+        <div style="font-size:11px; color:var(--text3); font-family:'DM Mono',monospace; margin-bottom:8px;">Puede ser interno (creativos, presupuesto) o externo (cliente, ventas, temporada)</div>
+        <textarea id="nota-trabas" class="form-textarea" rows="2" placeholder="ej. El equipo de ventas no está siguiendo los leads a tiempo, tenemos un cierre por semana en lugar de los 7 objetivo..." style="font-size:13px;" oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px';"></textarea>
+      </div>
+      <div>
+        <label class="form-label" style="font-size:13px; font-weight:600; color:var(--text1); margin-bottom:6px; display:block;">3. ¿Cuál es el plan concreto para la siguiente semana?</label>
+        <div style="font-size:11px; color:var(--text3); font-family:'DM Mono',monospace; margin-bottom:8px;">Una o dos acciones específicas, no intenciones</div>
+        <textarea id="nota-plan" class="form-textarea" rows="2" placeholder="ej. Lanzar 2 nuevos creativos de video el martes, aumentar presupuesto 20% si CAC baja de $2,000 al miércoles..." style="font-size:13px;" oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px';"></textarea>
+      </div>
+    </div>
+    <div class="modal-actions" style="margin-top:24px;">
+      <button class="btn btn-ghost" onclick="closeModal('modal-nota-cierre')">Cancelar</button>
+      <button class="btn btn-primary" onclick="closeWeekWithNota()">Cerrar semana →</button>
     </div>
   </div>
 </div>
@@ -4516,7 +4545,31 @@ function showToast(msg, icon = '✅') {
 // ══════════════════════════════════════════
 // HISTORIAL DE SEMÁFORO
 // ══════════════════════════════════════════
-function closeWeek() {
+function openNotaCierreModal() {
+  // Limpiar campos
+  ['nota-cambios','nota-trabas','nota-plan'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) { el.value = ''; el.style.height = 'auto'; }
+  });
+  document.getElementById('modal-nota-cierre').classList.add('open');
+}
+
+function closeWeekWithNota() {
+  const cambios = document.getElementById('nota-cambios')?.value?.trim() || '';
+  const trabas  = document.getElementById('nota-trabas')?.value?.trim()  || '';
+  const plan    = document.getElementById('nota-plan')?.value?.trim()    || '';
+
+  // Al menos un campo requerido
+  if (!cambios && !trabas && !plan) {
+    showToast('Llena al menos una pregunta para cerrar la semana', '⚠️');
+    return;
+  }
+
+  closeModal('modal-nota-cierre');
+  closeWeek({ notaCambios: cambios, notaTrabas: trabas, notaPlan: plan });
+}
+
+function closeWeek(nota = {}) {
   const client = getClient();
   if (!client) return;
 
@@ -4532,7 +4585,11 @@ function closeWeek() {
     sensacion_nota: client.sem_sensacion_nota || '',
     comm: client.sem_comm || 'gray',
     comm_count: client.sem_comm_count || 0,
-    semaforo_final: calcSemaforoFinal(client)
+    semaforo_final: calcSemaforoFinal(client),
+    // Nota de cierre
+    notaCambios: nota.notaCambios || '',
+    notaTrabas:  nota.notaTrabas  || '',
+    notaPlan:    nota.notaPlan    || '',
   };
 
   if (!client.sem_history) client.sem_history = [];
@@ -4736,9 +4793,18 @@ async function loadAnalisis() {
   // Generar resumen con Claude
   if (history.length >= 2) {
     await generarResumenClaude(client, history);
+  } else if (history.length === 1) {
+    document.getElementById('analisis-claude').innerHTML =
+      `<div style="color:var(--text3); font-size:13px; font-family:'DM Mono',monospace; line-height:1.6;">
+        <div style="margin-bottom:12px;">✅ Primera semana registrada.</div>
+        <div>Cierra una semana más para que Claude pueda analizar tendencias y darte recomendaciones concretas.</div>
+      </div>`;
   } else {
-    document.getElementById('analisis-claude').innerHTML = 
-      '<span style="color:var(--text3); font-size:12px; font-family:\'DM Mono\',monospace;">Se necesitan al menos 2 semanas de datos para generar un análisis.</span>';
+    document.getElementById('analisis-claude').innerHTML =
+      `<div style="color:var(--text3); font-size:13px; font-family:'DM Mono',monospace; line-height:1.6;">
+        <div style="margin-bottom:12px;">📭 Sin historial todavía.</div>
+        <div>Cierra la primera semana usando el botón <strong style="color:var(--text2);">📅 Cerrar semana</strong> en el dashboard.<br>A partir de 2 semanas, Claude genera análisis de tendencias automáticamente.</div>
+      </div>`;
   }
 
   container.dataset.loadedFor = client.id;
@@ -4792,7 +4858,12 @@ async function generarResumenClaude(client, history) {
   try {
     const resumen = history.map(h => {
       const fecha = h.fechaCierre ? new Date(h.fechaCierre.seconds ? h.fechaCierre.seconds*1000 : h.fechaCierre).toLocaleDateString('es-MX') : h.id;
-      return `Semana ${fecha}: CAC $${h.cacActual||'?'} MXN, inversión $${h.inversion||'?'} MXN, cierres ${h.cierres||'?'}, semáforo ${h.resultadoSemaforo||'?'}`;
+      const nota = [
+        h.notaCambios ? `Cambios: ${h.notaCambios}` : '',
+        h.notaTrabas  ? `Trabas: ${h.notaTrabas}`   : '',
+        h.notaPlan    ? `Plan sig. semana: ${h.notaPlan}` : '',
+      ].filter(Boolean).join(' | ');
+      return `Semana ${fecha}: CAC $${h.cacActual||'?'} MXN, inversión $${h.inversion||'?'} MXN, cierres ${h.cierres||'?'}, semáforo ${h.resultadoSemaforo||'?'}${nota ? `\n  → ${nota}` : ''}`;
     }).join('\n');
 
     const prompt = `Eres el analista senior de OptimizAds. Analiza estas ${history.length} semanas del cliente "${client.nombre || client.id}" (${client.industria || 'sin industria'}):
@@ -4802,10 +4873,10 @@ ${resumen}
 CAC objetivo: $${client.cacObjetivo || 'no definido'} MXN por cierre.
 
 En 3-4 oraciones cortas, directas, sin preamble:
-1. Tendencia real del CAC (sube, baja, se estabiliza)
+1. Tendencia real del CAC (sube, baja, se estabiliza) y qué la explica según el contexto de Kike
 2. La semana más notable y por qué
-3. Una señal de alerta o punto positivo concreto
-4. Una recomendación accionable para la siguiente semana
+3. Una señal de alerta o punto positivo concreto basado en los números Y el contexto
+4. Una recomendación accionable para la siguiente semana, considerando el plan que Kike ya tiene
 
 Responde solo el análisis, sin títulos ni viñetas.`;
 
