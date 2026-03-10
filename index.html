@@ -1486,13 +1486,51 @@
 <!-- ══════════════════════════════════════════ -->
 <!-- SCREEN: ROL (selector de vista) -->
 <!-- ══════════════════════════════════════════ -->
-<div id="screen-rol" class="screen active" style="align-items:center; justify-content:center; background:var(--bg); position:relative; overflow:hidden;">
+<!-- ══════════════════════════════════════════ -->
+<!-- SCREEN: AGENCIA (selector OptimizAds / Taco) -->
+<!-- ══════════════════════════════════════════ -->
+<div id="screen-agencia" class="screen active" style="align-items:center; justify-content:center; background:var(--bg); position:relative; overflow:hidden;">
+  <div class="home-bg"></div>
+  <div class="home-grid"></div>
+  <div style="position:relative; z-index:1; text-align:center; padding:40px 24px; max-width:640px; margin:0 auto;">
+    <div class="logo-mark" style="justify-content:center; margin-bottom:16px;">
+      <div class="logo-icon" style="background:var(--accent);color:#000;font-family:'Syne',sans-serif;">X</div>
+      <div class="logo-text">Opti<span>x</span></div>
+    </div>
+    <div style="font-family:'DM Mono',monospace; font-size:11px; color:var(--text3); letter-spacing:.16em; text-transform:uppercase; margin-bottom:48px;">Selecciona tu agencia</div>
+
+    <div style="display:grid; grid-template-columns:repeat(2,1fr); gap:20px; max-width:520px; margin:0 auto;">
+
+      <!-- OPTIMIZADS -->
+      <div onclick="selectAgencia('optimizads')" style="background:var(--surface); border:1px solid var(--border); border-radius:20px; padding:36px 24px; cursor:pointer; transition:all 0.25s; text-align:center;" onmouseover="this.style.borderColor='var(--accent)';this.style.background='var(--surface2)';this.style.transform='translateY(-4px)'" onmouseout="this.style.borderColor='var(--border)';this.style.background='var(--surface)';this.style.transform='translateY(0)'">
+        <div style="font-size:44px; margin-bottom:20px;">⚡</div>
+        <div style="font-family:'DM Sans',sans-serif; font-weight:800; font-size:18px; margin-bottom:8px; color:var(--accent); letter-spacing:-0.3px;">OptimizAds</div>
+        <div style="font-family:'DM Mono',monospace; font-size:10px; color:var(--text3); letter-spacing:.1em; text-transform:uppercase;">México</div>
+      </div>
+
+      <!-- TACO AGENCY -->
+      <div onclick="selectAgencia('taco')" style="background:var(--surface); border:1px solid var(--border); border-radius:20px; padding:36px 24px; cursor:pointer; transition:all 0.25s; text-align:center;" onmouseover="this.style.borderColor='#DACD34';this.style.background='var(--surface2)';this.style.transform='translateY(-4px)'" onmouseout="this.style.borderColor='var(--border)';this.style.background='var(--surface)';this.style.transform='translateY(0)'">
+        <div style="font-size:44px; margin-bottom:20px;">🌮</div>
+        <div style="font-family:'DM Sans',sans-serif; font-weight:800; font-size:18px; margin-bottom:8px; color:#DACD34; letter-spacing:-0.3px;">Taco Agency</div>
+        <div style="font-family:'DM Mono',monospace; font-size:10px; color:var(--text3); letter-spacing:.1em; text-transform:uppercase; margin-top:4px;">USA</div>
+      </div>
+
+    </div>
+
+    <div style="margin-top:40px; font-family:'DM Mono',monospace; font-size:10px; color:var(--text3); opacity:0.4; letter-spacing:.08em;">v4.0</div>
+  </div>
+</div>
+
+<div id="screen-rol" class="screen" style="align-items:center; justify-content:center; background:var(--bg); position:relative; overflow:hidden;">
   <div class="home-bg"></div>
   <div class="home-grid"></div>
   <div style="position:relative; z-index:1; text-align:center; padding:40px 24px; max-width:760px; margin:0 auto;">
-    <div class="logo-mark" style="justify-content:center; margin-bottom:48px;">
+    <div class="logo-mark" style="justify-content:center; margin-bottom:12px; cursor:pointer;" onclick="showScreen('agencia')" title="Cambiar agencia">
       <div class="logo-icon" style="background:var(--accent);color:#000;font-family:'Syne',sans-serif;">X</div>
       <div class="logo-text">Opti<span>x</span></div>
+    </div>
+    <div style="margin-bottom:36px;">
+      <span id="agencia-badge-rol" style="display:inline-flex; align-items:center; gap:6px; font-family:'DM Mono',monospace; font-size:11px; color:var(--text2); background:var(--surface); border:1px solid var(--border); padding:4px 14px; border-radius:20px; cursor:pointer;" onclick="showScreen('agencia')" title="Cambiar agencia">—</span>
     </div>
     
     <div style="display:grid; grid-template-columns:repeat(2,1fr); gap:16px; max-width:560px; margin:0 auto;">
@@ -1536,7 +1574,7 @@
 <div id="screen-direccion" class="screen" style="flex-direction:column; background:var(--bg); min-height:100vh;">
   <!-- Header -->
   <div style="display:flex; align-items:center; justify-content:space-between; padding:20px 32px; border-bottom:1px solid var(--border); background:var(--surface); flex-shrink:0;">
-    <div class="logo-mark" style="margin:0;cursor:pointer;" onclick="showScreen('rol')" title="Ir al inicio">
+    <div class="logo-mark" style="margin:0;cursor:pointer;" onclick="showScreen('agencia')" title="Ir al inicio">
       <div class="logo-icon" style="width:32px;height:32px;font-size:13px;background:var(--accent);color:#000;">X</div>
       <div class="logo-text" style="font-size:18px;">Opti<span>x</span></div>
     </div>
@@ -1657,7 +1695,7 @@
 <div id="screen-junior" class="screen" style="flex-direction:column; background:var(--bg); min-height:100vh;">
   <!-- Header -->
   <div style="display:flex; align-items:center; justify-content:space-between; padding:16px 28px; border-bottom:1px solid var(--border); background:var(--surface); flex-shrink:0;">
-    <div class="logo-mark" style="margin:0;cursor:pointer;" onclick="showScreen('rol')" title="Ir al inicio">
+    <div class="logo-mark" style="margin:0;cursor:pointer;" onclick="showScreen('agencia')" title="Ir al inicio">
       <div class="logo-icon" style="width:32px;height:32px;font-size:13px;background:var(--accent);color:#000;">X</div>
       <div class="logo-text" style="font-size:18px;">Opti<span>x</span></div>
     </div>
@@ -1788,7 +1826,7 @@
   <!-- NAVBAR -->
   <div style="display:flex; align-items:center; justify-content:space-between; padding:14px 28px; border-bottom:1px solid var(--border); background:var(--surface); flex-shrink:0;">
     <div style="display:flex; align-items:center; gap:16px;">
-      <div class="logo-mark" style="margin:0;cursor:pointer;" onclick="showScreen('rol')">
+      <div class="logo-mark" style="margin:0;cursor:pointer;" onclick="showScreen('agencia')">
         <div class="logo-icon" style="width:28px;height:28px;font-size:11px;background:var(--accent);color:#000;">X</div>
         <div class="logo-text" style="font-size:16px;">Opti<span>x</span></div>
       </div>
@@ -1879,7 +1917,7 @@
   <!-- NAVBAR -->
   <div style="display:flex; align-items:center; justify-content:space-between; padding:14px 28px; border-bottom:1px solid var(--border); background:var(--surface); flex-shrink:0;">
     <div style="display:flex; align-items:center; gap:16px;">
-      <div class="logo-mark" style="margin:0;cursor:pointer;" onclick="showScreen('rol')">
+      <div class="logo-mark" style="margin:0;cursor:pointer;" onclick="showScreen('agencia')">
         <div class="logo-icon" style="width:28px;height:28px;font-size:11px;background:var(--accent);color:#000;">X</div>
         <div class="logo-text" style="font-size:16px;">Opti<span>x</span></div>
       </div>
@@ -3022,7 +3060,20 @@ async function init() {
   }
   // Siempre recargar EnPagos con datos frescos
   loadEnPagos();
-  showScreen('rol');
+
+  // URL routing — /optimizads o /taco saltan directo a roles
+  const path = window.location.pathname.replace(/\/$/, '');
+  const lastAgencia = localStorage.getItem('oa-last-agencia');
+  if (path === '/optimizads' || path === '/agency') {
+    selectAgencia('optimizads');
+  } else if (path === '/taco') {
+    selectAgencia('taco');
+  } else if (lastAgencia && AGENCIA_CONFIG[lastAgencia]) {
+    // Recordar última agencia usada
+    selectAgencia(lastAgencia);
+  } else {
+    showScreen('agencia');
+  }
   // Escuchar cambios en tiempo real de Firebase
   if (window._fbOnClientsChange) {
     window._fbOnClientsChange((fbClients) => {
@@ -3032,6 +3083,49 @@ async function init() {
         loadEnPagos();
       }
     });
+  }
+}
+
+// ══════════════════════════════════════════
+// AGENCIA SELECTOR
+// ══════════════════════════════════════════
+let currentAgencia = null;
+
+const AGENCIA_CONFIG = {
+  optimizads: {
+    nombre: 'OptimizAds',
+    color: 'var(--accent)',
+    emoji: '⚡',
+    workspaceId: 'optimizads'
+  },
+  taco: {
+    nombre: 'Taco Agency',
+    color: '#f97316',
+    emoji: '🌮',
+    workspaceId: 'taco'
+  }
+};
+
+function selectAgencia(id) {
+  currentAgencia = id;
+  localStorage.setItem('oa-last-agencia', id);
+  if (window._OptixCore && window._OptixCore.WORKSPACE) {
+    window._OptixCore.WORKSPACE.id = AGENCIA_CONFIG[id].workspaceId;
+  }
+  const path = id === 'optimizads' ? '/optimizads' : '/taco';
+  if (window.location.pathname !== path) {
+    history.pushState({ agencia: id }, '', path);
+  }
+  const badge = document.getElementById('agencia-badge-rol');
+  if (badge) {
+    const cfg = AGENCIA_CONFIG[id];
+    badge.innerHTML = `<span style="color:${cfg.color}">${cfg.emoji}</span> ${cfg.nombre}`;
+    badge.style.display = 'inline-flex';
+  }
+  if (id === 'optimizads') {
+    enterAs('direccion');
+  } else {
+    showScreen('rol');
   }
 }
 
