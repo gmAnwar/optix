@@ -3063,7 +3063,7 @@ async function init(workspaceId) {
   // Cargar clientes desde Firebase primero, fallback a defaults del workspace
   if (window._fbLoadClients) {
     try {
-      showToast('Sincronizando...', '☁️');
+      if (wsId === 'optimizads') showToast('Sincronizando...', '☁️');
       const fbClients = await window._fbLoadClients();
       if (fbClients && fbClients.length > 0) {
         // Filtrar solo clientes del workspace actual
@@ -3085,13 +3085,15 @@ async function init(workspaceId) {
   // Primer load — siempre mostrar pantalla de agencia
   showScreen('agencia');
 
-  // Escuchar cambios en tiempo real de Firebase
+  // Escuchar cambios en tiempo real de Firebase (solo se registra una vez)
   if (window._fbOnClientsChange) {
     window._fbOnClientsChange((fbClients) => {
       if (fbClients && fbClients.length > 0) {
-        const wsClients = fbClients.filter(c => c.workspaceId === (currentAgencia || 'optimizads'));
+        const wsId = currentAgencia || 'optimizads';
+        const wsClients = fbClients.filter(c => c.workspaceId === wsId);
         if (wsClients.length > 0) clients = wsClients;
-        if (currentAgencia === 'optimizads') loadEnPagos();
+        // Solo cargar EnPagos si estamos en OptimizAds
+        if (wsId === 'optimizads') loadEnPagos();
       }
     });
   }
