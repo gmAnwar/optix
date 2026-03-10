@@ -3122,11 +3122,7 @@ function selectAgencia(id) {
     badge.innerHTML = `<span style="color:${cfg.color}">${cfg.emoji}</span> ${cfg.nombre}`;
     badge.style.display = 'inline-flex';
   }
-  if (id === 'optimizads') {
-    enterAs('direccion');
-  } else {
-    showScreen('rol');
-  }
+  showScreen('rol');
 }
 
 // ══════════════════════════════════════════
