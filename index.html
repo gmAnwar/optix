@@ -3030,14 +3030,24 @@ const CLAUDE_PROXY_URL = 'https://optix-claude.anwarhsg.workers.dev';
 // En SaaS multi-tenant: viene del auth. Por ahora hardcoded.
 const WORKSPACE_ID = window._OptixCore?.WORKSPACE?.id || 'optimizads';
 
-const DEFAULT_CLIENTS = [
-  { id: 'enpagos', workspaceId: WORKSPACE_ID, nombre: 'EnPagos', semaforo: { general: 'green' }, nicho: 'Fintech', presupuesto: 50000, plataformas: ['Meta'] },
-  { id: 'favio', workspaceId: WORKSPACE_ID, nombre: 'Favio', semaforo: { general: 'yellow' }, nicho: 'Clínica estética', presupuesto: 20000, plataformas: ['Meta'] },
-  { id: 'bodygreen', workspaceId: WORKSPACE_ID, nombre: 'Bodygreen', semaforo: { general: 'green' }, nicho: 'Clínica estética', presupuesto: 25000, plataformas: ['Meta'] },
-  { id: 'divisas', workspaceId: WORKSPACE_ID, nombre: 'Divisas La Rioja', semaforo: { general: 'red' }, nicho: 'Finanzas', presupuesto: 15000, plataformas: ['Meta'] },
-  { id: 'inmobili', workspaceId: WORKSPACE_ID, nombre: 'Inmobili', semaforo: { general: 'gray' }, nicho: 'Inmobiliaria', presupuesto: 10000, plataformas: ['Meta'] },
+const DEFAULT_CLIENTS_OPTIMIZADS = [
+  { id: 'enpagos', workspaceId: 'optimizads', nombre: 'EnPagos', semaforo: { general: 'green' }, nicho: 'Fintech', presupuesto: 50000, plataformas: ['Meta'] },
+  { id: 'favio', workspaceId: 'optimizads', nombre: 'Favio', semaforo: { general: 'yellow' }, nicho: 'Clínica estética', presupuesto: 20000, plataformas: ['Meta'] },
+  { id: 'bodygreen', workspaceId: 'optimizads', nombre: 'Bodygreen', semaforo: { general: 'green' }, nicho: 'Clínica estética', presupuesto: 25000, plataformas: ['Meta'] },
+  { id: 'divisas', workspaceId: 'optimizads', nombre: 'Divisas La Rioja', semaforo: { general: 'red' }, nicho: 'Finanzas', presupuesto: 15000, plataformas: ['Meta'] },
+  { id: 'inmobili', workspaceId: 'optimizads', nombre: 'Inmobili', semaforo: { general: 'gray' }, nicho: 'Inmobiliaria', presupuesto: 10000, plataformas: ['Meta'] },
 ];
-let clients = JSON.parse(localStorage.getItem('oa-clients') || 'null') || DEFAULT_CLIENTS;
+
+const DEFAULT_CLIENTS_TACO = [
+  { id: 'tuyo-health', workspaceId: 'taco', nombre: 'Tuyo Health', semaforo: { general: 'green' }, nicho: 'Health & Wellness', presupuesto: 0, plataformas: ['Meta', 'Google'] },
+];
+
+function getDefaultClients(wsId) {
+  if (wsId === 'taco') return DEFAULT_CLIENTS_TACO;
+  return DEFAULT_CLIENTS_OPTIMIZADS;
+}
+
+let clients = JSON.parse(localStorage.getItem('oa-clients') || 'null') || DEFAULT_CLIENTS_OPTIMIZADS;
 let currentClientId = null;
 let currentView = 'dashboard';
 let currentRol = null;
@@ -3047,23 +3057,33 @@ const AIConversations = {};
 // ══════════════════════════════════════════
 // INIT
 // ══════════════════════════════════════════
-async function init() {
-  // Cargar clientes desde Firebase primero, fallback a localStorage
+async function init(workspaceId) {
+  const wsId = workspaceId || 'optimizads';
+
+  // Cargar clientes desde Firebase primero, fallback a defaults del workspace
   if (window._fbLoadClients) {
     try {
       showToast('Sincronizando...', '☁️');
       const fbClients = await window._fbLoadClients();
       if (fbClients && fbClients.length > 0) {
-        clients = fbClients;
+        // Filtrar solo clientes del workspace actual
+        const wsClients = fbClients.filter(c => c.workspaceId === wsId);
+        clients = wsClients.length > 0 ? wsClients : getDefaultClients(wsId);
       }
     } catch(e) { console.warn('Firebase load failed, using local data'); }
   }
-  // Siempre recargar EnPagos con datos frescos
-  loadEnPagos();
 
-  // URL routing — /optimizads o /taco saltan directo a roles
+  // Solo recargar EnPagos si estamos en OptimizAds
+  if (wsId === 'optimizads') loadEnPagos();
+
+  // Si init fue llamado desde selectAgencia, mostrar screen-rol
+  if (workspaceId) {
+    showScreen('rol');
+    return;
+  }
+
+  // Primer load — URL routing
   const path = window.location.pathname.replace(/\/$/, '');
-  const lastAgencia = localStorage.getItem('oa-last-agencia');
   if (path === '/optimizads' || path === '/agency') {
     selectAgencia('optimizads');
   } else if (path === '/taco') {
@@ -3071,13 +3091,14 @@ async function init() {
   } else {
     showScreen('agencia');
   }
+
   // Escuchar cambios en tiempo real de Firebase
   if (window._fbOnClientsChange) {
     window._fbOnClientsChange((fbClients) => {
       if (fbClients && fbClients.length > 0) {
-        clients = fbClients;
-        // Recargar EnPagos para mantener datos frescos
-        loadEnPagos();
+        const wsClients = fbClients.filter(c => c.workspaceId === (currentAgencia || 'optimizads'));
+        if (wsClients.length > 0) clients = wsClients;
+        if (currentAgencia === 'optimizads') loadEnPagos();
       }
     });
   }
@@ -3118,7 +3139,9 @@ function selectAgencia(id) {
     badge.innerHTML = `<span style="color:${cfg.color}">${cfg.emoji}</span> ${cfg.nombre}`;
     badge.style.display = 'inline-flex';
   }
-  showScreen('rol');
+  // Resetear clientes al workspace correcto y re-inicializar
+  clients = getDefaultClients(id);
+  init(id);
 }
 
 // ══════════════════════════════════════════
@@ -4277,7 +4300,7 @@ function createClient() {
   const client = {
     // Identificación
     id: 'client-' + Date.now(),
-    workspaceId: window._OptixCore?.WORKSPACE?.id || 'optimizads', // Multi-workspace desde el inicio
+    workspaceId: currentAgencia === 'taco' ? 'taco' : 'optimizads', // Multi-workspace desde el inicio
     nombre,
     // Datos básicos
     industria: document.getElementById('nc-industria').value,
@@ -5222,7 +5245,7 @@ function closeWeek() {
       clientId: client.id,
       clientName: client.nombre,
       week: snap?.semana || getWeekLabel(),
-      workspaceId: window._OptixCore?.WORKSPACE?.id || 'optimizads',
+      workspaceId: currentAgencia === 'taco' ? 'taco' : 'optimizads',
     });
   }
 
