@@ -3082,15 +3082,8 @@ async function init(workspaceId) {
     return;
   }
 
-  // Primer load — URL routing
-  const path = window.location.pathname.replace(/\/$/, '');
-  if (path === '/optimizads' || path === '/agency') {
-    selectAgencia('optimizads');
-  } else if (path === '/taco') {
-    selectAgencia('taco');
-  } else {
-    showScreen('agencia');
-  }
+  // Primer load — siempre mostrar pantalla de agencia
+  showScreen('agencia');
 
   // Escuchar cambios en tiempo real de Firebase
   if (window._fbOnClientsChange) {
@@ -3128,10 +3121,6 @@ function selectAgencia(id) {
   currentAgencia = id;
   if (window._OptixCore && window._OptixCore.WORKSPACE) {
     window._OptixCore.WORKSPACE.id = AGENCIA_CONFIG[id].workspaceId;
-  }
-  const path = id === 'optimizads' ? '/optimizads' : '/taco';
-  if (window.location.pathname !== path) {
-    history.pushState({ agencia: id }, '', path);
   }
   const badge = document.getElementById('agencia-badge-rol');
   if (badge) {
