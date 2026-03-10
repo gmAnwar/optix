@@ -1793,9 +1793,9 @@
     <div style="display:flex; align-items:center; gap:10px;">
       <div id="sen-fecha" style="font-family:'DM Mono',monospace; font-size:10px; color:var(--text3);"></div>
       <div style="display:flex;gap:2px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:3px;">
-        <button onclick="enterAs('direccion')" style="background:transparent;color:var(--text3);font-size:11px;padding:4px 10px;border-radius:6px;border:none;cursor:pointer;font-family:'DM Mono',monospace;transition:all 0.2s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text3)'">⚡ Dir</button>
-        <button style="background:var(--accent);color:#000;font-size:11px;padding:4px 10px;border-radius:6px;border:none;cursor:default;font-family:'DM Mono',monospace;font-weight:600;">★ Sr</button>
-        <button onclick="enterAs('junior')" style="background:transparent;color:var(--text3);font-size:11px;padding:4px 10px;border-radius:6px;border:none;cursor:pointer;font-family:'DM Mono',monospace;transition:all 0.2s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text3)'">▲ Jr</button>
+        <button onclick="enterAs('direccion')" style="background:transparent;color:var(--text3);font-size:11px;padding:4px 10px;border-radius:6px;border:none;cursor:pointer;font-family:'DM Mono',monospace;transition:all 0.2s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text3)'">⚡ Dirección</button>
+        <button style="background:var(--accent);color:#000;font-size:11px;padding:4px 10px;border-radius:6px;border:none;cursor:default;font-family:'DM Mono',monospace;font-weight:600;">★ Senior</button>
+        <button onclick="enterAs('junior')" style="background:transparent;color:var(--text3);font-size:11px;padding:4px 10px;border-radius:6px;border:none;cursor:pointer;font-family:'DM Mono',monospace;transition:all 0.2s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text3)'">▲ Junior</button>
       </div>
     </div>
   </div>
@@ -3228,9 +3228,87 @@ function renderSeniorLunes() {
             onblur="this.style.borderColor='var(--border)'"
           >${objSemana}</textarea>
         </div>
+        <div>
+          <div style="font-size:10px; color:var(--text3); font-family:'DM Mono',monospace; margin-bottom:6px;">SCREENSHOTS — arrastra o selecciona imágenes</div>
+          <div id="screenshots-${c.id}"
+            ondragover="event.preventDefault(); this.style.borderColor='var(--accent)'"
+            ondragleave="this.style.borderColor='var(--border)'"
+            ondrop="handleScreenshotDrop(event, '${c.id}')"
+            style="border:1.5px dashed var(--border); border-radius:8px; padding:8px 10px; min-height:44px; cursor:pointer; transition:border-color 0.15s; display:flex; flex-wrap:wrap; gap:8px; align-items:center;"
+            onclick="document.getElementById('ss-input-${c.id}').click()">
+            <span style="font-size:10px; color:var(--text3); font-family:'DM Mono',monospace;" id="ss-hint-${c.id}">+ Agregar screenshot</span>
+            <input type="file" id="ss-input-${c.id}" accept="image/*" multiple style="display:none" onchange="handleScreenshotSelect(event, '${c.id}')">
+          </div>
+        </div>
       </div>
     </div>`;
   }).join('');
+}
+
+
+// ── SCREENSHOTS EN REVISIÓN LUNES ────────────────────
+const _lunesScreenshots = {}; // clientId → [dataURL, ...]
+
+function handleScreenshotDrop(event, clientId) {
+  event.preventDefault();
+  const files = [...event.dataTransfer.files].filter(f => f.type.startsWith('image/'));
+  addScreenshots(clientId, files);
+  document.getElementById('screenshots-' + clientId).style.borderColor = 'var(--border)';
+}
+
+function handleScreenshotSelect(event, clientId) {
+  const files = [...event.target.files].filter(f => f.type.startsWith('image/'));
+  addScreenshots(clientId, files);
+  event.target.value = '';
+}
+
+function addScreenshots(clientId, files) {
+  if (!_lunesScreenshots[clientId]) _lunesScreenshots[clientId] = [];
+  files.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      _lunesScreenshots[clientId].push(e.target.result);
+      renderScreenshots(clientId);
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function renderScreenshots(clientId) {
+  const container = document.getElementById('screenshots-' + clientId);
+  const hint = document.getElementById('ss-hint-' + clientId);
+  if (!container) return;
+  const imgs = _lunesScreenshots[clientId] || [];
+  // Limpiar imgs previas (mantener input y hint)
+  container.querySelectorAll('.ss-thumb').forEach(el => el.remove());
+  if (hint) hint.style.display = imgs.length ? 'none' : 'inline';
+  imgs.forEach((src, i) => {
+    const wrap = document.createElement('div');
+    wrap.className = 'ss-thumb';
+    wrap.style.cssText = 'position:relative; display:inline-block;';
+    const img = document.createElement('img');
+    img.src = src;
+    img.style.cssText = 'width:72px; height:52px; object-fit:cover; border-radius:6px; border:1px solid var(--border); cursor:pointer;';
+    img.onclick = (e) => { e.stopPropagation(); openScreenshotPreview(src); };
+    const del = document.createElement('button');
+    del.textContent = '✕';
+    del.style.cssText = 'position:absolute; top:-4px; right:-4px; width:16px; height:16px; border-radius:50%; background:#ef4444; border:none; color:#fff; font-size:9px; cursor:pointer; display:flex; align-items:center; justify-content:center; padding:0; line-height:1;';
+    del.onclick = (e) => { e.stopPropagation(); _lunesScreenshots[clientId].splice(i,1); renderScreenshots(clientId); };
+    wrap.appendChild(img);
+    wrap.appendChild(del);
+    container.insertBefore(wrap, container.querySelector('input'));
+  });
+}
+
+function openScreenshotPreview(src) {
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:99999;display:flex;align-items:center;justify-content:center;cursor:zoom-out;';
+  overlay.onclick = () => overlay.remove();
+  const img = document.createElement('img');
+  img.src = src;
+  img.style.cssText = 'max-width:90vw;max-height:90vh;border-radius:8px;box-shadow:0 0 40px rgba(0,0,0,0.5);';
+  overlay.appendChild(img);
+  document.body.appendChild(overlay);
 }
 
 function saveDiagnosticoSemana(clientId, valor) {
@@ -3281,19 +3359,36 @@ async function enviarReporteSlack() {
   const texto = document.getElementById('sen-reporte-text')?.textContent;
   if (!texto) return;
 
+  const btn = document.querySelector('[onclick="enviarReporteSlack()"]');
+  if (btn) { btn.textContent = '⏳ Enviando...'; btn.disabled = true; }
+
   try {
-    if (window.OptixIntegraciones?.emit && window.OptixIntegraciones?.OptixEvents) {
-      await window.OptixIntegraciones.emit('REPORTE_SEMANAL_ENVIADO', {
-        texto,
-        timestamp: new Date().toISOString(),
-        enviado_por: 'Kike'
-      });
-    }
-    showToast('Reporte enviado a Anwar', '📤');
+    // Enviar DM a Anwar (U052K7CCA8J) vía Cloudflare Worker con MCP Slack
+    const response = await fetch('https://optix-proxy.anwarhsg.workers.dev', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'slack_dm',
+        user_id: 'U052K7CCA8J',
+        text: texto
+      })
+    });
+    // Si el worker no soporta slack_dm todavía, fallback a copiar
+    if (!response.ok) throw new Error('worker_no_slack');
+    showToast('Reporte enviado a Anwar por Slack ✅', '📤');
     document.getElementById('sen-reporte-preview').style.display = 'none';
   } catch(e) {
-    showToast('Error al enviar. Copia el texto manualmente.', '⚠️');
+    // Fallback: copiar al clipboard
+    try {
+      await navigator.clipboard.writeText(texto);
+      showToast('Worker sin Slack aún — texto copiado al portapapeles', '📋');
+    } catch(e2) {
+      showToast('Copia el texto manualmente con Ctrl+A → Ctrl+C', '⚠️');
+    }
+    if (btn) { btn.textContent = '✅ Confirmar y enviar'; btn.disabled = false; }
+    return;
   }
+  if (btn) { btn.textContent = '✅ Confirmar y enviar'; btn.disabled = false; }
 }
 
 function openClientAsSenior(id) {
