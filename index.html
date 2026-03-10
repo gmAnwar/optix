@@ -3465,16 +3465,16 @@ async function enviarReporteSlack() {
   if (btn) { btn.textContent = '⏳ Enviando...'; btn.disabled = true; }
 
   const WORKER = 'https://optix-proxy.anwarhsg.workers.dev';
-  const DM_CHANNEL = 'D052CK0U3F0';
+  const CANAL = 'C0AL272JH9P'; // #objetivos-semanales
 
   try {
-    // 1. Enviar texto del reporte
+    // 1. Enviar texto del reporte al canal #objetivos-semanales
     const response = await fetch(WORKER, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         action: 'slack_dm',
-        user_id: 'U052K7CCA8J',
+        user_id: CANAL,
         text: texto
       })
     });
@@ -3508,7 +3508,7 @@ async function enviarReporteSlack() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               action: 'slack_file_upload',
-              channel: DM_CHANNEL,
+              channel: CANAL,
               filename,
               base64,
               mime,
