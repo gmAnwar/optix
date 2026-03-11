@@ -5719,6 +5719,18 @@ function renderCampanas(data, config) {
 
     const color = plataformaColors[plataforma] || 'var(--accent)';
 
+    // Filtrar filas sin ningún dato útil — antes del header para usar el conteo
+    const hasSpend = campanas.some(r => parseFloat(r.mtd) > 0);
+    const hasBudget = campanas.some(r => parseFloat(r.budget) > 0);
+    const campanasFiltradas = campanas.filter(row => {
+      const spend = parseFloat(row.mtd) || 0;
+      const budget = parseFloat(row.budget) || 0;
+      const cac = parseFloat(row.cac_rx) || 0;
+      const hasRealCacRow = row.cac_rx && row.cac_rx !== 'No Sale' && row.cac_rx !== '$ -' && row.cac_rx !== '' && cac > 0;
+      return spend > 0 || budget > 0 || hasRealCacRow;
+    });
+    if (campanasFiltradas.length === 0) return;
+
     const bloque = document.createElement('div');
     bloque.style.cssText = 'background:var(--surface); border:1px solid var(--border); border-radius:14px; overflow:hidden; display:flex; flex-direction:column;';
 
@@ -5728,7 +5740,7 @@ function renderCampanas(data, config) {
         <div style="display:flex; align-items:center; gap:10px;">
           <div style="width:8px; height:8px; border-radius:50%; background:${color}; flex-shrink:0;"></div>
           <span style="font-weight:600; font-size:14px;">${plataforma}</span>
-          <span style="font-size:11px; color:var(--text3); font-family:'DM Mono',monospace;">${campanas.length} campañas</span>
+          <span style="font-size:11px; color:var(--text3); font-family:'DM Mono',monospace;">${campanasFiltradas.length} campañas</span>
         </div>
         <div style="display:flex; gap:12px; align-items:center;">
           ${totalBudget > 0 ? `<div style="text-align:right;"><div style="font-size:10px; color:var(--text3); font-family:'DM Mono',monospace;">Budget</div><div style="font-size:12px; font-weight:600;">$${totalBudget.toFixed(0)}</div></div>` : ''}
@@ -5738,11 +5750,7 @@ function renderCampanas(data, config) {
       </div>
     `;
 
-    // Detectar si hay datos de spend/budget en este bloque
-    const hasSpend = campanas.some(r => parseFloat(r.mtd) > 0);
-    const hasBudget = campanas.some(r => parseFloat(r.budget) > 0);
-
-    const rowsHtml = campanas.map((row, i) => {
+    const rowsHtml = campanasFiltradas.map((row, i) => {
       const cac = parseFloat(row.cac_rx) || null;
       const budget = parseFloat(row.budget) || 0;
       const spend = parseFloat(row.mtd) || 0;
@@ -5763,7 +5771,7 @@ function renderCampanas(data, config) {
       const cols = '1fr' + (hasBudget ? ' 56px' : '') + (hasSpend ? ' 70px' : '') + ' 64px';
 
       return `
-        <div style="padding:9px 14px; border-bottom:${i < campanas.length - 1 ? '1px solid var(--border)' : 'none'}; display:grid; grid-template-columns:${cols}; gap:8px; align-items:center;">
+        <div style="padding:9px 14px; border-bottom:${i < campanasFiltradas.length - 1 ? '1px solid var(--border)' : 'none'}; display:grid; grid-template-columns:${cols}; gap:8px; align-items:center;">
           <div style="min-width:0;">
             <div style="font-size:12px; color:var(--text1); font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${row.name}">${row.name || '—'}</div>
             ${row.type ? `<span style="font-size:10px; color:var(--text3); font-family:'DM Mono',monospace;">${row.type}${row.lang ? ' · ' + row.lang : ''}</span>` : ''}
