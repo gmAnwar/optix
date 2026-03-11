@@ -2004,6 +2004,9 @@
         <span>📁</span><span>Expediente</span>
         <span class="tab-badge" id="tab-exp-badge">—</span>
       </div>
+      <div class="client-tab" id="tab-campanas" onclick="navigateTab('campanas')">
+        <span>📊</span><span>Campañas</span>
+      </div>
       <div class="client-tab" id="tab-analisis" onclick="navigateTab('analisis')">
         <span>🧠</span><span>Análisis</span>
       </div>
@@ -2153,6 +2156,50 @@
 
         <!-- SECCIÓN ANÁLISIS (tab 3) -->
         <div id="analisis-section" style="display:none;"></div>
+
+        <!-- SECCIÓN CAMPAÑAS (tab 4) -->
+        <div id="campanas-section" style="display:none;">
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:20px;">
+            <div>
+              <div style="font-family:'DM Sans',sans-serif; font-weight:600; font-size:20px; margin-bottom:2px; letter-spacing:-0.3px;">📊 Campañas</div>
+              <div style="font-size:11px; color:var(--text3); font-family:'DM Mono',monospace;" id="campanas-updated-label">—</div>
+            </div>
+            <button onclick="loadCampanas(true)" id="campanas-refresh-btn" style="background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:6px 12px; font-size:12px; color:var(--text2); cursor:pointer; display:flex; align-items:center; gap:6px;">
+              <span id="campanas-refresh-icon">↻</span> Actualizar
+            </button>
+          </div>
+
+          <!-- KPIs globales -->
+          <div id="campanas-kpis" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(130px,1fr)); gap:10px; margin-bottom:24px;"></div>
+
+          <!-- Progress del mes -->
+          <div id="campanas-progress-bar" style="margin-bottom:24px; display:none;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+              <span style="font-size:11px; color:var(--text3); font-family:'DM Mono',monospace;">Progreso del mes</span>
+              <span style="font-size:11px; color:var(--text2); font-family:'DM Mono',monospace;" id="campanas-days-left"></span>
+            </div>
+            <div style="background:var(--border); border-radius:100px; height:6px; overflow:hidden;">
+              <div id="campanas-progress-fill" style="height:100%; border-radius:100px; background:var(--accent); transition:width 0.5s;"></div>
+            </div>
+            <div style="display:flex; justify-content:space-between; margin-top:4px;">
+              <span style="font-size:10px; color:var(--text3); font-family:'DM Mono',monospace;" id="campanas-spend-label"></span>
+              <span style="font-size:10px; color:var(--text3); font-family:'DM Mono',monospace;" id="campanas-budget-label"></span>
+            </div>
+          </div>
+
+          <!-- Bloques por plataforma -->
+          <div id="campanas-plataformas" style="display:flex; flex-direction:column; gap:20px;"></div>
+
+          <!-- Estado vacío / loading -->
+          <div id="campanas-empty" style="display:none; text-align:center; padding:60px 20px; color:var(--text3);">
+            <div style="font-size:32px; margin-bottom:12px;">📊</div>
+            <div style="font-size:14px; font-weight:500; margin-bottom:6px;">No hay datos disponibles</div>
+            <div style="font-size:12px;">Solo disponible para clientes con sheet conectado</div>
+          </div>
+          <div id="campanas-loading" style="display:none; text-align:center; padding:60px 20px; color:var(--text3);">
+            <div style="font-size:12px; font-family:'DM Mono',monospace; animation: pulse 1.5s infinite;">Cargando campañas...</div>
+          </div>
+        </div>
 
       </div>
     </div>
@@ -5382,17 +5429,256 @@ function navigateTab(tab) {
     }
   }
 
+  // Sección de campañas
+  const isCampanas = tab === 'campanas';
+  const campanasSection = document.getElementById('campanas-section');
+  if (campanasSection) {
+    campanasSection.style.display = isCampanas ? '' : 'none';
+    if (isCampanas) loadCampanas();
+  }
+
   // Recordatorio pendientes: solo en "Esta semana" al fondo
   const pendPanel = document.getElementById('exp-pendientes-panel');
   if (pendPanel) pendPanel.style.display = isSemana ? '' : 'none';
 
   // Actualizar tabs activos
-  ['semana','expediente','analisis'].forEach(t => {
+  ['semana','expediente','analisis','campanas'].forEach(t => {
     const el = document.getElementById('tab-' + t);
     if (el) el.classList.toggle('active', t === tab);
   });
 
   window._currentTab = tab;
+}
+
+// ── CAMPAÑAS: vista por plataforma desde Google Sheets ──────────────────────
+
+// Mapa de sheet IDs por cliente
+const CLIENT_SHEET_CONFIG = {
+  'tuyo-health': {
+    sheetId: '1ta9m0tLxO_4T-CiQYWsu6knXIzZ2UTLewNg4aAEwS7M',
+    sheetName: 'Combined March AdSpend',
+    gid: '261590823',
+    cacObjetivo: { google: 400, meta: 150, tiktok: 200 }
+  }
+};
+
+// Cache de datos de campañas
+window._campanasCache = {};
+window._campanasLoading = false;
+
+async function loadCampanas(forceRefresh = false) {
+  const client = window._currentClient || getClient();
+  if (!client) return;
+
+  const config = CLIENT_SHEET_CONFIG[client.id];
+
+  const section = document.getElementById('campanas-section');
+  const emptyEl = document.getElementById('campanas-empty');
+  const loadingEl = document.getElementById('campanas-loading');
+  const plataformasEl = document.getElementById('campanas-plataformas');
+  const kpisEl = document.getElementById('campanas-kpis');
+
+  if (!config) {
+    if (loadingEl) loadingEl.style.display = 'none';
+    if (emptyEl) emptyEl.style.display = '';
+    return;
+  }
+
+  // Si hay cache y no es force refresh, usar cache
+  const cacheKey = client.id;
+  if (!forceRefresh && window._campanasCache[cacheKey]) {
+    renderCampanas(window._campanasCache[cacheKey], config);
+    return;
+  }
+
+  // Mostrar loading
+  if (loadingEl) loadingEl.style.display = '';
+  if (emptyEl) emptyEl.style.display = 'none';
+  if (plataformasEl) plataformasEl.innerHTML = '';
+  if (kpisEl) kpisEl.innerHTML = '';
+
+  // Animar botón
+  const refreshIcon = document.getElementById('campanas-refresh-icon');
+  if (refreshIcon) {
+    refreshIcon.style.animation = 'spin 1s linear infinite';
+    refreshIcon.style.display = 'inline-block';
+  }
+
+  try {
+    // Fetch via Worker (para mantener la API key segura)
+    const response = await fetch('https://optix-proxy.anwarhsg.workers.dev', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'fetch_sheet',
+        sheetId: config.sheetId,
+        sheetName: config.sheetName
+      })
+    });
+
+    if (!response.ok) throw new Error('sheet_error');
+    const data = await response.json();
+
+    if (data.rows && data.rows.length > 0) {
+      window._campanasCache[cacheKey] = data;
+      renderCampanas(data, config);
+      const updLabel = document.getElementById('campanas-updated-label');
+      if (updLabel) updLabel.textContent = 'Actualizado ' + new Date().toLocaleTimeString('es-MX', {hour:'2-digit', minute:'2-digit'});
+    } else {
+      throw new Error('no_data');
+    }
+  } catch (err) {
+    console.error('loadCampanas error:', err);
+    if (loadingEl) loadingEl.style.display = 'none';
+    if (emptyEl) {
+      emptyEl.style.display = '';
+      emptyEl.querySelector('div:nth-child(2)').textContent = 'Error al cargar datos';
+      emptyEl.querySelector('div:nth-child(3)').textContent = err.message;
+    }
+  } finally {
+    if (refreshIcon) refreshIcon.style.animation = '';
+  }
+}
+
+function renderCampanas(data, config) {
+  const loadingEl = document.getElementById('campanas-loading');
+  const plataformasEl = document.getElementById('campanas-plataformas');
+  const kpisEl = document.getElementById('campanas-kpis');
+  const progressBar = document.getElementById('campanas-progress-bar');
+
+  if (loadingEl) loadingEl.style.display = 'none';
+
+  const rows = data.rows || [];
+  const kpis = data.kpis || {};
+
+  // --- KPIs globales ---
+  if (kpisEl) {
+    const kpiList = [
+      { label: 'CAC Meta', value: kpis.cac_meta, color: '#1877F2' },
+      { label: 'CAC Google', value: kpis.cac_google, color: '#EA4335' },
+      { label: 'CAC Rx', value: kpis.cac_rx, color: 'var(--accent)' },
+      { label: 'Rx/Day', value: kpis.rx_day, color: 'var(--accent)', isInt: true }
+    ].filter(k => k.value != null && k.value !== '');
+
+    kpisEl.innerHTML = kpiList.map(k => `
+      <div style="background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:12px 14px;">
+        <div style="font-size:10px; color:var(--text3); font-family:'DM Mono',monospace; margin-bottom:4px; text-transform:uppercase; letter-spacing:0.5px;">${k.label}</div>
+        <div style="font-size:18px; font-weight:700; color:${k.color}; font-family:'DM Mono',monospace;">${k.isInt ? k.value : '$' + parseFloat(k.value).toFixed(0)}</div>
+      </div>
+    `).join('');
+  }
+
+  // --- Progress bar del mes ---
+  if (progressBar && kpis.days_left != null) {
+    const daysLeft = parseInt(kpis.days_left) || 0;
+    const totalDays = 31; // Marzo
+    const progress = Math.min(100, Math.round(((totalDays - daysLeft) / totalDays) * 100));
+    progressBar.style.display = '';
+    document.getElementById('campanas-days-left').textContent = daysLeft + ' días restantes';
+    document.getElementById('campanas-progress-fill').style.width = progress + '%';
+
+    if (kpis.total_spend != null && kpis.total_budget != null) {
+      document.getElementById('campanas-spend-label').textContent = 'Gastado: $' + parseFloat(kpis.total_spend).toFixed(0);
+      document.getElementById('campanas-budget-label').textContent = 'Budget: $' + parseFloat(kpis.total_budget).toFixed(0);
+    }
+  }
+
+  // --- Agrupar campañas por plataforma ---
+  const byPlataforma = {};
+  rows.forEach(row => {
+    const ch = (row.channel || 'Other').trim();
+    if (!byPlataforma[ch]) byPlataforma[ch] = [];
+    byPlataforma[ch].push(row);
+  });
+
+  const plataformaOrder = ['Google', 'Meta', 'TikTok'];
+  const orderedKeys = [
+    ...plataformaOrder.filter(p => byPlataforma[p]),
+    ...Object.keys(byPlataforma).filter(p => !plataformaOrder.includes(p))
+  ];
+
+  const plataformaColors = {
+    'Google': '#EA4335',
+    'Meta': '#1877F2',
+    'TikTok': '#000000'
+  };
+
+  if (!plataformasEl) return;
+  plataformasEl.innerHTML = '';
+
+  orderedKeys.forEach(plataforma => {
+    const campanas = byPlataforma[plataforma];
+    const cacObj = (config.cacObjetivo || {})[plataforma.toLowerCase()] || null;
+
+    // Totales del bloque
+    const totalBudget = campanas.reduce((s, r) => s + (parseFloat(r.budget) || 0), 0);
+    const totalSpend = campanas.reduce((s, r) => s + (parseFloat(r.mtd) || 0), 0);
+    const totalRx = campanas.reduce((s, r) => s + (parseInt(r.rx) || 0), 0);
+
+    const color = plataformaColors[plataforma] || 'var(--accent)';
+
+    const bloque = document.createElement('div');
+    bloque.style.cssText = 'background:var(--surface); border:1px solid var(--border); border-radius:14px; overflow:hidden;';
+
+    // Header del bloque
+    const headerHtml = `
+      <div style="padding:14px 16px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between;">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <div style="width:8px; height:8px; border-radius:50%; background:${color}; flex-shrink:0;"></div>
+          <span style="font-weight:600; font-size:14px;">${plataforma}</span>
+          <span style="font-size:11px; color:var(--text3); font-family:'DM Mono',monospace;">${campanas.length} campañas</span>
+        </div>
+        <div style="display:flex; gap:16px; align-items:center;">
+          ${totalBudget > 0 ? `<div style="text-align:right;"><div style="font-size:10px; color:var(--text3); font-family:'DM Mono',monospace;">Budget</div><div style="font-size:13px; font-weight:600;">$${totalBudget.toFixed(0)}</div></div>` : ''}
+          ${totalSpend > 0 ? `<div style="text-align:right;"><div style="font-size:10px; color:var(--text3); font-family:'DM Mono',monospace;">Spend MTD</div><div style="font-size:13px; font-weight:600;">$${totalSpend.toFixed(0)}</div></div>` : ''}
+          ${totalRx > 0 ? `<div style="text-align:right;"><div style="font-size:10px; color:var(--text3); font-family:'DM Mono',monospace;">Rx</div><div style="font-size:13px; font-weight:600;">${totalRx}</div></div>` : ''}
+        </div>
+      </div>
+    `;
+
+    // Filas de campañas
+    const rowsHtml = campanas.map((row, i) => {
+      const cac = parseFloat(row.cac_rx) || null;
+      const budget = parseFloat(row.budget) || 0;
+      const spend = parseFloat(row.mtd) || 0;
+      const rx = parseInt(row.rx) || 0;
+
+      let cacStatus = 'neutral';
+      if (cac && cacObj) {
+        cacStatus = cac <= cacObj ? 'ok' : 'alert';
+      }
+
+      const noSale = row.cac_rx === 'No Sale' || row.cac_rx === '';
+      const cacDisplay = noSale ? '<span style="color:var(--text3); font-size:11px;">No Sale</span>' :
+        cac ? `<span style="font-family:'DM Mono',monospace; font-size:13px; font-weight:600; color:${cacStatus === 'alert' ? '#FF453A' : cacStatus === 'ok' ? '#30D158' : 'var(--text1)'}">$${cac.toFixed(0)}</span>` : '—';
+
+      const spendPct = budget > 0 ? Math.min(100, Math.round((spend / budget) * 100)) : null;
+
+      return `
+        <div style="padding:10px 16px; border-bottom:${i < campanas.length - 1 ? '1px solid var(--border)' : 'none'}; display:grid; grid-template-columns:1fr auto auto auto; gap:12px; align-items:center;">
+          <div>
+            <div style="font-size:12px; color:var(--text1); font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:300px;" title="${row.name}">${row.name || '—'}</div>
+            ${row.type ? `<span style="font-size:10px; color:var(--text3); font-family:'DM Mono',monospace;">${row.type}${row.lang ? ' · ' + row.lang : ''}${row.state ? ' · ' + row.state : ''}</span>` : ''}
+          </div>
+          <div style="text-align:right; min-width:60px;">
+            <div style="font-size:10px; color:var(--text3); font-family:'DM Mono',monospace; margin-bottom:2px;">Budget</div>
+            <div style="font-size:12px; font-weight:500;">$${budget > 0 ? budget.toFixed(0) : '—'}</div>
+          </div>
+          <div style="text-align:right; min-width:70px;">
+            <div style="font-size:10px; color:var(--text3); font-family:'DM Mono',monospace; margin-bottom:2px;">Spend MTD</div>
+            <div style="font-size:12px; font-weight:500; ${spendPct && spendPct > 90 ? 'color:#FF9F0A;' : ''}">$${spend > 0 ? spend.toFixed(0) : '—'}</div>
+          </div>
+          <div style="text-align:right; min-width:60px;">
+            <div style="font-size:10px; color:var(--text3); font-family:'DM Mono',monospace; margin-bottom:2px;">CAC Rx</div>
+            <div>${cacDisplay}</div>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    bloque.innerHTML = headerHtml + rowsHtml;
+    plataformasEl.appendChild(bloque);
+  });
 }
 
 // ── ANÁLISIS: módulos con checks + análisis profundo ─────────────────────
