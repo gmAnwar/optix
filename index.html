@@ -2188,7 +2188,7 @@
           </div>
 
           <!-- Bloques por plataforma -->
-          <div id="campanas-plataformas" style="display:flex; flex-direction:column; gap:20px;"></div>
+          <div id="campanas-plataformas" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(320px,1fr)); gap:16px; align-items:start;"></div>
 
           <!-- Estado vacío / loading -->
           <div id="campanas-empty" style="display:none; text-align:center; padding:60px 20px; color:var(--text3);">
@@ -5637,41 +5637,39 @@ function renderCampanas(data, config) {
     `;
 
     // Filas de campañas
+    // Detectar si hay datos de spend/budget en este bloque
+    const hasSpend = campanas.some(r => parseFloat(r.mtd) > 0);
+    const hasBudget = campanas.some(r => parseFloat(r.budget) > 0);
+
     const rowsHtml = campanas.map((row, i) => {
       const cac = parseFloat(row.cac_rx) || null;
       const budget = parseFloat(row.budget) || 0;
       const spend = parseFloat(row.mtd) || 0;
-      const rx = parseInt(row.rx) || 0;
 
       let cacStatus = 'neutral';
       if (cac && cacObj) {
         cacStatus = cac <= cacObj ? 'ok' : 'alert';
       }
 
-      const noSale = row.cac_rx === 'No Sale' || row.cac_rx === '';
-      const cacDisplay = noSale ? '<span style="color:var(--text3); font-size:11px;">No Sale</span>' :
-        cac ? `<span style="font-family:'DM Mono',monospace; font-size:13px; font-weight:600; color:${cacStatus === 'alert' ? '#FF453A' : cacStatus === 'ok' ? '#30D158' : 'var(--text1)'}">$${cac.toFixed(0)}</span>` : '—';
+      const noSale = row.cac_rx === 'No Sale' || row.cac_rx === '$ -' || row.cac_rx === '';
+      const cacDisplay = noSale
+        ? '<span style="color:var(--text3); font-size:11px;">No Sale</span>'
+        : cac
+          ? `<span style="font-family:\'DM Mono\',monospace; font-size:13px; font-weight:600; color:${cacStatus === 'alert' ? '#FF453A' : cacStatus === 'ok' ? '#30D158' : 'var(--text2)'}">\$${cac.toFixed(0)}</span>`
+          : '<span style="color:var(--text3);">—</span>';
 
-      const spendPct = budget > 0 ? Math.min(100, Math.round((spend / budget) * 100)) : null;
+      // Columnas dinámicas: siempre nombre + CAC; budget/spend solo si existen
+      const cols = '1fr' + (hasBudget ? ' 56px' : '') + (hasSpend ? ' 70px' : '') + ' 64px';
 
       return `
-        <div style="padding:10px 16px; border-bottom:${i < campanas.length - 1 ? '1px solid var(--border)' : 'none'}; display:grid; grid-template-columns:1fr auto auto auto; gap:12px; align-items:center;">
-          <div>
-            <div style="font-size:12px; color:var(--text1); font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:300px;" title="${row.name}">${row.name || '—'}</div>
-            ${row.type ? `<span style="font-size:10px; color:var(--text3); font-family:'DM Mono',monospace;">${row.type}${row.lang ? ' · ' + row.lang : ''}${row.state ? ' · ' + row.state : ''}</span>` : ''}
+        <div style="padding:9px 14px; border-bottom:${i < campanas.length - 1 ? '1px solid var(--border)' : 'none'}; display:grid; grid-template-columns:${cols}; gap:8px; align-items:center;">
+          <div style="min-width:0;">
+            <div style="font-size:12px; color:var(--text1); font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${row.name}">${row.name || '—'}</div>
+            ${row.type ? `<span style="font-size:10px; color:var(--text3); font-family:'DM Mono',monospace;">${row.type}${row.lang ? ' · ' + row.lang : ''}</span>` : ''}
           </div>
-          <div style="text-align:right; min-width:60px;">
-            <div style="font-size:10px; color:var(--text3); font-family:'DM Mono',monospace; margin-bottom:2px;">Budget</div>
-            <div style="font-size:12px; font-weight:500;">$${budget > 0 ? budget.toFixed(0) : '—'}</div>
-          </div>
-          <div style="text-align:right; min-width:70px;">
-            <div style="font-size:10px; color:var(--text3); font-family:'DM Mono',monospace; margin-bottom:2px;">Spend MTD</div>
-            <div style="font-size:12px; font-weight:500; ${spendPct && spendPct > 90 ? 'color:#FF9F0A;' : ''}">$${spend > 0 ? spend.toFixed(0) : '—'}</div>
-          </div>
-          <div style="text-align:right; min-width:60px;">
-            <div style="font-size:10px; color:var(--text3); font-family:'DM Mono',monospace; margin-bottom:2px;">CAC Rx</div>
-            <div>${cacDisplay}</div>
-          </div>
+          ${hasBudget ? `<div style="text-align:right;"><div style="font-size:10px; color:var(--text3); font-family:'DM Mono',monospace; margin-bottom:1px;">Bud.</div><div style="font-size:11px; font-weight:500;">${budget > 0 ? '\$' + budget.toFixed(0) : '—'}</div></div>` : ''}
+          ${hasSpend ? `<div style="text-align:right;"><div style="font-size:10px; color:var(--text3); font-family:'DM Mono',monospace; margin-bottom:1px;">MTD</div><div style="font-size:11px; font-weight:500;">${spend > 0 ? '\$' + spend.toFixed(0) : '—'}</div></div>` : ''}
+          <div style="text-align:right;"><div style="font-size:10px; color:var(--text3); font-family:'DM Mono',monospace; margin-bottom:1px;">CAC Rx</div><div>${cacDisplay}</div></div>
         </div>
       `;
     }).join('');
