@@ -5743,8 +5743,8 @@ function renderCampanas(data, config) {
             <div style="font-size:12px; color:var(--text1); font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${row.name}">${row.name || '—'}</div>
             ${row.type ? `<span style="font-size:10px; color:var(--text3); font-family:'DM Mono',monospace;">${row.type}${row.lang ? ' · ' + row.lang : ''}</span>` : ''}
           </div>
-          ${hasBudget ? `<div style="text-align:right;"><div style="font-size:10px; color:var(--text3); font-family:'DM Mono',monospace; margin-bottom:1px;">Bud.</div><div style="font-size:11px; font-weight:500;">${budget > 0 ? '\$' + budget.toFixed(0) : '—'}</div></div>` : ''}
-          ${hasSpend ? `<div style="text-align:right;"><div style="font-size:10px; color:var(--text3); font-family:'DM Mono',monospace; margin-bottom:1px;">MTD</div><div style="font-size:11px; font-weight:500;">${spend > 0 ? '\$' + spend.toFixed(0) : '—'}</div></div>` : ''}
+          ${hasBudget ? `<div style="text-align:right;"><div style="font-size:10px; color:var(--text3); font-family:'DM Mono',monospace; margin-bottom:1px;">Bud.</div><div style="font-size:11px; font-weight:500;">${budget > 0 ? '\$' + budget.toFixed(0) : ''}</div></div>` : ''}
+          ${hasSpend ? `<div style="text-align:right;"><div style="font-size:10px; color:var(--text3); font-family:'DM Mono',monospace; margin-bottom:1px;">MTD</div><div style="font-size:11px; font-weight:500;">${spend > 0 ? '\$' + spend.toFixed(0) : ''}</div></div>` : ''}
           <div style="text-align:right;"><div style="font-size:10px; color:var(--text3); font-family:'DM Mono',monospace; margin-bottom:1px;">CAC Rx</div><div>${cacDisplay}</div></div>
         </div>
       `;
