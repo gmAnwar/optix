@@ -509,7 +509,7 @@
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    z-index: 100;
+    z-index: 200;
     font-size: 10px;
     color: var(--text2);
     transition: background 0.15s, color 0.15s;
@@ -525,6 +525,8 @@
   .sidebar-wrap {
     position: relative;
     flex-shrink: 0;
+    overflow: visible;
+    z-index: 10;
   }
 
   .sidebar-logo {
@@ -5711,10 +5713,6 @@ function renderCampanas(data, config) {
       </div>
     `;
 
-    // Contenedor scrolleable de campañas
-    const rowsContainer = `<div style="overflow-y:auto; max-height:420px;">${rowsHtml}</div>`;
-
-    // Filas de campañas
     // Detectar si hay datos de spend/budget en este bloque
     const hasSpend = campanas.some(r => parseFloat(r.mtd) > 0);
     const hasBudget = campanas.some(r => parseFloat(r.budget) > 0);
@@ -5751,6 +5749,9 @@ function renderCampanas(data, config) {
         </div>
       `;
     }).join('');
+
+    // Contenedor scrolleable de campañas
+    const rowsContainer = `<div style="overflow-y:auto; max-height:420px;">${rowsHtml}</div>`;
 
     bloque.innerHTML = headerHtml + rowsContainer;
     plataformasEl.appendChild(bloque);
