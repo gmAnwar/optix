@@ -3198,7 +3198,24 @@ async function init(workspaceId) {
     return;
   }
 
-  // Primer load — siempre mostrar pantalla de agencia
+  // Primer load — restaurar agencia si la hay guardada, si no mostrar pantalla de agencia
+  const savedAgencia = localStorage.getItem('oa-last-agencia');
+  if (savedAgencia && AGENCIA_CONFIG[savedAgencia]) {
+    // Restaurar silenciosamente y mostrar screen-rol
+    currentAgencia = savedAgencia;
+    const badge = document.getElementById('agencia-badge-rol');
+    if (badge) {
+      const cfg = AGENCIA_CONFIG[savedAgencia];
+      badge.innerHTML = `<span style="color:${cfg.color}">${cfg.emoji}</span> ${cfg.nombre}`;
+      badge.style.display = 'inline-flex';
+    }
+    const aurisCard = document.getElementById('card-aurisiq');
+    if (aurisCard) aurisCard.style.display = savedAgencia === 'taco' ? 'none' : '';
+    showScreen('rol');
+    return;
+  }
+
+  // Sin agencia guardada — mostrar selección de agencia
   showScreen('agencia');
 
   // Escuchar cambios en tiempo real de Firebase (solo se registra una vez)
@@ -3237,6 +3254,7 @@ const AGENCIA_CONFIG = {
 
 function selectAgencia(id) {
   currentAgencia = id;
+  try { localStorage.setItem('oa-last-agencia', id); } catch(e) {}
   if (window._OptixCore && window._OptixCore.WORKSPACE) {
     window._OptixCore.WORKSPACE.id = AGENCIA_CONFIG[id].workspaceId;
   }
@@ -5691,6 +5709,13 @@ function renderCampanas(data, config) {
     const totalBudget = campanas.reduce((s, r) => s + (parseFloat(r.budget) || 0), 0);
     const totalSpend = campanas.reduce((s, r) => s + (parseFloat(r.mtd) || 0), 0);
     const totalRx = campanas.reduce((s, r) => s + (parseInt(r.rx) || 0), 0);
+
+    // Ocultar bloques sin ningún dato numérico real (sin MTD, sin CAC numérico)
+    const hasRealCac = campanas.some(r => {
+      const v = (r.cac_rx || '').trim();
+      return v && v !== 'No Sale' && v !== '$ -' && v !== '—' && !isNaN(parseFloat(v));
+    });
+    if (totalSpend === 0 && totalBudget === 0 && totalRx === 0 && !hasRealCac) return;
 
     const color = plataformaColors[plataforma] || 'var(--accent)';
 
