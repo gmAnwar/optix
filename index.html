@@ -5723,13 +5723,9 @@ function renderCampanas(data, config) {
     // Filtrar filas sin ningún dato útil — antes del header para usar el conteo
     const hasSpend = campanas.some(r => parseFloat(r.mtd) > 0);
     const hasBudget = campanas.some(r => parseFloat(r.budget) > 0);
-    const campanasFiltradas = campanas.filter(row => {
-      const spend = parseFloat(row.mtd) || 0;
-      const budget = parseFloat(row.budget) || 0;
-      const cac = parseFloat(row.cac_rx) || 0;
-      const hasRealCacRow = row.cac_rx && row.cac_rx !== 'No Sale' && row.cac_rx !== '$ -' && row.cac_rx !== '' && cac > 0;
-      return spend > 0 || budget > 0 || hasRealCacRow;
-    });
+    // FILTRO: solo MTD > 0
+    const campanasFiltradas = campanas.filter(row => (parseFloat(row.mtd) || 0) > 0);
+
     if (campanasFiltradas.length === 0) return;
 
     const bloque = document.createElement('div');
