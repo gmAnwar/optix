@@ -5654,7 +5654,7 @@ function renderCampanas(data, config) {
       { label: 'CAC Meta', value: kpis.cac_meta, color: '#1877F2' },
       { label: 'CAC Rx', value: kpis.cac_rx, color: 'var(--accent)' },
       { label: 'CAC CP', value: kpis.cac_cp, color: 'var(--text2)' },
-      { label: 'Rx/Day', value: (() => { const totalRx = rows.reduce((s,r) => s + (parseInt(r.rx)||0), 0); const d = new Date().getDate()-1; return d > 0 ? (totalRx/d).toFixed(1) : null; })(), color: 'var(--accent)', isInt: true }
+      { label: 'Rx/Day', value: data.kpis?.rx_day || null, color: 'var(--accent)', isInt: true }
     ].filter(k => k.value != null && k.value !== '');
 
     kpisEl.innerHTML = kpiList.map(k => `
