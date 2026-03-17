@@ -1525,6 +1525,137 @@
   .senior-kpi-val { font-family:'DM Mono',monospace; font-size:13px; font-weight:600; }
   .senior-kpi-lbl { font-size:10px; color:var(--text3); margin-top:2px; }
 
+  /* ── MÓDULO TAREAS ────────────────────────────────── */
+  .tareas-area {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    margin-bottom: 12px;
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
+  .tareas-area:hover { border-color: var(--border2); }
+  .tareas-area-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 14px 16px;
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.15s;
+  }
+  .tareas-area-header:hover { background: var(--surface2); }
+  .tareas-area-arrow {
+    font-size: 11px;
+    color: var(--text3);
+    transition: transform 0.2s;
+    flex-shrink: 0;
+  }
+  .tareas-area.collapsed .tareas-area-arrow { transform: rotate(-90deg); }
+  .tareas-area-nombre {
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 700;
+    font-size: 13px;
+    flex: 1;
+    letter-spacing: -0.1px;
+  }
+  .tareas-area-count {
+    font-size: 10px;
+    font-family: 'DM Mono', monospace;
+    color: var(--text3);
+    background: var(--surface2);
+    padding: 2px 8px;
+    border-radius: 20px;
+  }
+  .tareas-area-count.has-pending {
+    background: rgba(0,229,160,0.1);
+    color: var(--accent);
+  }
+  .tareas-area-body {
+    padding: 4px 16px 12px;
+  }
+  .tareas-area.collapsed .tareas-area-body { display: none; }
+  .tarea-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 9px 10px;
+    border-radius: 8px;
+    transition: background 0.15s;
+    cursor: default;
+  }
+  .tarea-item:hover { background: var(--surface2); }
+  .tarea-check {
+    width: 17px;
+    height: 17px;
+    border-radius: 5px;
+    border: 2px solid var(--border2);
+    flex-shrink: 0;
+    margin-top: 1px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+    background: transparent;
+  }
+  .tarea-check.done {
+    background: var(--accent);
+    border-color: var(--accent);
+  }
+  .tarea-texto {
+    font-size: 13px;
+    line-height: 1.45;
+    flex: 1;
+    color: var(--text1);
+    transition: color 0.15s;
+  }
+  .tarea-texto.done {
+    color: var(--text3);
+    text-decoration: line-through;
+  }
+  .tarea-delete {
+    opacity: 0;
+    background: none;
+    border: none;
+    color: var(--text3);
+    cursor: pointer;
+    font-size: 13px;
+    padding: 0 3px;
+    border-radius: 4px;
+    transition: all 0.15s;
+    flex-shrink: 0;
+  }
+  .tarea-item:hover .tarea-delete { opacity: 1; }
+  .tarea-delete:hover { background: rgba(239,68,68,0.1); color: var(--red); }
+  .tareas-add-btn {
+    width: 100%;
+    background: transparent;
+    border: 1px dashed var(--border2);
+    color: var(--text3);
+    font-size: 12px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    text-align: left;
+    font-family: 'DM Sans', sans-serif;
+    transition: all 0.2s;
+    margin-top: 4px;
+  }
+  .tareas-add-btn:hover { border-color: var(--accent); color: var(--accent); background: rgba(0,229,160,0.04); }
+  .tareas-inline-input {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--accent);
+    border-radius: 8px;
+    padding: 8px 12px;
+    color: var(--text1);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 13px;
+    outline: none;
+    margin-top: 4px;
+  }
+
   /* ── TABS DE CLIENTE ──────────────────────────────── */
   .client-tab {
     border-radius: 10px;
@@ -2077,6 +2208,10 @@
       </div>
       <div class="client-tab" id="tab-analisis" onclick="navigateTab('analisis')">
         <span>🧠</span><span>Análisis</span>
+      </div>
+      <div class="client-tab" id="tab-tareas" onclick="navigateTab('tareas')" style="display:none;">
+        <span>✅</span><span>Tareas</span>
+        <span class="tab-badge" id="tab-tareas-badge"></span>
       </div>
     </nav>
 
@@ -3076,6 +3211,25 @@
 
   </div><!-- /main-content -->
 </div><!-- /screen-app -->
+
+<!-- ══════════════════════════════════════════ -->
+<!-- VIEW: TAREAS — módulo PARA (Áreas → Tareas) -->
+<!-- Solo visible para wsId = optimizads -->
+<!-- ══════════════════════════════════════════ -->
+<div id="view-tareas" style="display:none; flex-direction:column;">
+  <div class="content-header">
+    <div class="content-header-top">
+      <div>
+        <div class="content-title">✅ Tareas</div>
+        <div class="content-subtitle" id="tareas-subtitle">Revisión semanal · áreas y proyectos</div>
+      </div>
+      <button onclick="tareasAddArea()" class="btn btn-ghost" style="font-size:12px;">＋ Nueva área</button>
+    </div>
+  </div>
+  <div class="content-body" id="tareas-body" style="max-width:720px;">
+    <!-- Renderizado dinámico por renderTareas() -->
+  </div>
+</div>
 
 <!-- MODAL: VAULT -->
 <div id="modal-vault" class="modal-overlay">
@@ -4367,6 +4521,10 @@ function openClient(id) {
   // Tab Campañas solo para clientes de Taco
   const tabCampanas = document.getElementById('tab-campanas');
   if (tabCampanas) tabCampanas.style.display = client.id === 'tuyo-health' ? '' : 'none';
+  // Tab Tareas solo para optimizads (no depende del cliente, depende del workspace)
+  const tabTareas = document.getElementById('tab-tareas');
+  if (tabTareas) tabTareas.style.display = (currentAgencia === 'optimizads' || !currentAgencia) ? '' : 'none';
+  tareasUpdateBadge();
   navigate('dashboard');
   loadAllFields();
 }
@@ -5549,12 +5707,25 @@ function navigateTab(tab) {
     if (isCampanas) loadCampanas();
   }
 
+  // Sección de tareas
+  const isTareas = tab === 'tareas';
+  const tareasView = document.getElementById('view-tareas');
+  if (tareasView) {
+    // view-tareas es un view independiente, no una sección del dashboard
+    // Al seleccionar tareas, cambiamos a esa vista directamente
+    if (isTareas) {
+      document.querySelectorAll('[id^="view-"]').forEach(v => v.style.display = 'none');
+      tareasView.style.display = 'flex';
+      renderTareas();
+    }
+  }
+
   // Recordatorio pendientes: solo en "Esta semana" al fondo
   const pendPanel = document.getElementById('exp-pendientes-panel');
   if (pendPanel) pendPanel.style.display = isSemana ? '' : 'none';
 
   // Actualizar tabs activos
-  ['semana','expediente','analisis','campanas'].forEach(t => {
+  ['semana','expediente','analisis','campanas','tareas'].forEach(t => {
     const el = document.getElementById('tab-' + t);
     if (el) el.classList.toggle('active', t === tab);
   });
@@ -6369,6 +6540,244 @@ function toggleAIPanel(btn) {
     const reopen = document.getElementById('ai-reopen-btn');
     if (reopen) reopen.style.display = 'none';
   }
+}
+
+// ══════════════════════════════════════════
+// MÓDULO TAREAS — v1.0 · 17 Mar 2026
+// Arquitectura: PARA simplificado (Áreas → Tareas)
+// Storage: localStorage bajo tareas_v1_{wsId}
+// Solo visible para wsId = optimizads
+// Fase 1: áreas + tareas + checkbox
+// Fase 2 (pending): fechas, Calendar, asignar a persona
+// Fase 3 (pending): Firestore + login
+// ══════════════════════════════════════════
+
+function tareasGetKey() {
+  const wsId = currentAgencia || 'optimizads';
+  return 'tareas_v1_' + wsId;
+}
+
+function tareasLoad() {
+  try {
+    const raw = localStorage.getItem(tareasGetKey());
+    if (raw) return JSON.parse(raw);
+  } catch(e) {}
+  // Defaults con áreas del contexto de Anwar
+  return {
+    areas: [
+      { id: 'area-optimizads', nombre: 'OptimizAds', collapsed: false, orden: 0, tareas: [] },
+      { id: 'area-taco',       nombre: 'Taco Agency', collapsed: false, orden: 1, tareas: [] },
+      { id: 'area-marca',      nombre: 'Marca Personal', collapsed: false, orden: 2, tareas: [] },
+    ]
+  };
+}
+
+function tareasSave(data) {
+  try {
+    localStorage.setItem(tareasGetKey(), JSON.stringify(data));
+  } catch(e) { console.warn('tareasSave error', e); }
+}
+
+// Contar pendientes globales para el badge del sidebar
+function tareasCountPending() {
+  const data = tareasLoad();
+  return data.areas.reduce((total, a) => total + a.tareas.filter(t => !t.completado).length, 0);
+}
+
+function tareasUpdateBadge() {
+  const n = tareasCountPending();
+  const badge = document.getElementById('tab-tareas-badge');
+  if (badge) badge.textContent = n > 0 ? n + ' pendientes' : '';
+}
+
+// ── RENDER ──────────────────────────────────────────
+function renderTareas() {
+  const container = document.getElementById('tareas-body');
+  if (!container) return;
+
+  const data = tareasLoad();
+  const subtitle = document.getElementById('tareas-subtitle');
+  const now = new Date();
+  const lunes = new Date(now); lunes.setDate(now.getDate() - ((now.getDay() + 6) % 7));
+  const dom = new Date(lunes); dom.setDate(lunes.getDate() + 6);
+  const fmt = d => d.toLocaleDateString('es-MX', { day:'numeric', month:'short' });
+  const totalPending = tareasCountPending();
+  const totalAll = data.areas.reduce((s, a) => s + a.tareas.length, 0);
+  const totalDone = totalAll - totalPending;
+  if (subtitle) subtitle.textContent = `Semana ${fmt(lunes)}–${fmt(dom)} · ${totalDone}/${totalAll} completadas`;
+
+  if (data.areas.length === 0) {
+    container.innerHTML = `
+      <div style="text-align:center; padding:60px 40px; color:var(--text3);">
+        <div style="font-size:48px; margin-bottom:16px;">📋</div>
+        <div style="font-family:'Syne',sans-serif; font-weight:700; font-size:16px; color:var(--text2); margin-bottom:8px;">Sin áreas todavía</div>
+        <div style="font-size:13px; line-height:1.6; margin-bottom:24px;">Crea tu primera área para empezar a organizar tus pendientes.</div>
+        <button onclick="tareasAddArea()" class="btn btn-primary" style="font-size:13px;">＋ Nueva área</button>
+      </div>`;
+    return;
+  }
+
+  container.innerHTML = data.areas.map((area, aIdx) => {
+    const pendientes = area.tareas.filter(t => !t.completado).length;
+    const total = area.tareas.length;
+    const done = total - pendientes;
+    const isCollapsed = area.collapsed;
+
+    const tareasHTML = area.tareas.map((tarea, tIdx) => `
+      <div class="tarea-item" id="tarea-item-${area.id}-${tarea.id}">
+        <div class="tarea-check ${tarea.completado ? 'done' : ''}"
+             onclick="tareasToggle('${area.id}','${tarea.id}')"
+             title="${tarea.completado ? 'Marcar pendiente' : 'Marcar completada'}">
+          ${tarea.completado ? '<svg width="9" height="7" viewBox="0 0 9 7" fill="none"><polyline points="1,3.5 3.5,6 8,1" stroke="#000" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>' : ''}
+        </div>
+        <div class="tarea-texto ${tarea.completado ? 'done' : ''}">${escapeHtml(tarea.texto)}</div>
+        <button class="tarea-delete" onclick="tareasDeleteTarea('${area.id}','${tarea.id}')" title="Eliminar">✕</button>
+      </div>`).join('');
+
+    return `
+      <div class="tareas-area ${isCollapsed ? 'collapsed' : ''}" id="area-${area.id}">
+        <div class="tareas-area-header" onclick="tareasToggleArea('${area.id}')">
+          <span class="tareas-area-arrow">▾</span>
+          <span class="tareas-area-nombre">${escapeHtml(area.nombre)}</span>
+          <span class="tareas-area-count ${pendientes > 0 ? 'has-pending' : ''}">${pendientes > 0 ? pendientes + ' pendientes' : (total > 0 ? '✓ todo listo' : 'sin tareas')}</span>
+          <button onclick="event.stopPropagation(); tareasDeleteArea('${area.id}')"
+            style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:11px;padding:2px 6px;border-radius:4px;opacity:0;transition:opacity 0.15s;"
+            onmouseenter="this.style.opacity='1'" onmouseleave="this.style.opacity='0'"
+            title="Eliminar área">✕</button>
+        </div>
+        <div class="tareas-area-body">
+          ${tareasHTML}
+          <div id="input-container-${area.id}"></div>
+          <button class="tareas-add-btn" onclick="tareasShowInput('${area.id}')">＋ Agregar tarea</button>
+        </div>
+      </div>`;
+  }).join('');
+
+  tareasUpdateBadge();
+}
+
+// ── ACTIONS ──────────────────────────────────────────
+function tareasToggleArea(areaId) {
+  const data = tareasLoad();
+  const area = data.areas.find(a => a.id === areaId);
+  if (!area) return;
+  area.collapsed = !area.collapsed;
+  tareasSave(data);
+  renderTareas();
+}
+
+function tareasToggle(areaId, tareaId) {
+  const data = tareasLoad();
+  const area = data.areas.find(a => a.id === areaId);
+  if (!area) return;
+  const tarea = area.tareas.find(t => t.id === tareaId);
+  if (!tarea) return;
+  tarea.completado = !tarea.completado;
+  tarea.completadoAt = tarea.completado ? new Date().toISOString() : null;
+  tareasSave(data);
+  renderTareas();
+}
+
+function tareasShowInput(areaId) {
+  const container = document.getElementById('input-container-' + areaId);
+  if (!container) return;
+  // Si ya hay un input abierto, quitarlo
+  if (container.querySelector('.tareas-inline-input')) { container.innerHTML = ''; return; }
+  container.innerHTML = `
+    <input class="tareas-inline-input" id="new-tarea-input-${areaId}"
+      type="text" placeholder="Describe la tarea y presiona Enter..."
+      onkeydown="tareasHandleInputKey(event, '${areaId}')"
+      onblur="tareasBlurInput('${areaId}')">`;
+  setTimeout(() => document.getElementById('new-tarea-input-' + areaId)?.focus(), 50);
+}
+
+function tareasHandleInputKey(e, areaId) {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    const input = document.getElementById('new-tarea-input-' + areaId);
+    const texto = input?.value?.trim();
+    if (texto) tareasAddTarea(areaId, texto);
+    else { const c = document.getElementById('input-container-' + areaId); if(c) c.innerHTML = ''; }
+  }
+  if (e.key === 'Escape') {
+    const c = document.getElementById('input-container-' + areaId);
+    if (c) c.innerHTML = '';
+  }
+}
+
+function tareasBlurInput(areaId) {
+  // Pequeño delay para no colapsar antes de que Enter pueda guardar
+  setTimeout(() => {
+    const input = document.getElementById('new-tarea-input-' + areaId);
+    const texto = input?.value?.trim();
+    if (texto) tareasAddTarea(areaId, texto);
+    else { const c = document.getElementById('input-container-' + areaId); if(c) c.innerHTML = ''; }
+  }, 150);
+}
+
+function tareasAddTarea(areaId, texto) {
+  const data = tareasLoad();
+  const area = data.areas.find(a => a.id === areaId);
+  if (!area) return;
+  const tarea = {
+    id: 'tarea-' + Date.now(),
+    texto: texto.trim(),
+    completado: false,
+    completadoAt: null,
+    // Campos para Fase 2 (vacíos):
+    fecha: null,
+    calendarEventId: null,
+    asignadoA: null,
+    notas: null,
+    createdAt: new Date().toISOString()
+  };
+  area.tareas.push(tarea);
+  tareasSave(data);
+  renderTareas();
+}
+
+function tareasDeleteTarea(areaId, tareaId) {
+  const data = tareasLoad();
+  const area = data.areas.find(a => a.id === areaId);
+  if (!area) return;
+  area.tareas = area.tareas.filter(t => t.id !== tareaId);
+  tareasSave(data);
+  renderTareas();
+}
+
+function tareasAddArea() {
+  const nombre = prompt('Nombre del área (ej. EnPagos, Marca Personal, Personal):');
+  if (!nombre || !nombre.trim()) return;
+  const data = tareasLoad();
+  data.areas.push({
+    id: 'area-' + Date.now(),
+    nombre: nombre.trim(),
+    collapsed: false,
+    orden: data.areas.length,
+    tareas: []
+  });
+  tareasSave(data);
+  renderTareas();
+  showToast('Área creada', '✅');
+}
+
+function tareasDeleteArea(areaId) {
+  const data = tareasLoad();
+  const area = data.areas.find(a => a.id === areaId);
+  if (!area) return;
+  const tareaCount = area.tareas.length;
+  const msg = tareaCount > 0
+    ? `¿Eliminar el área "${area.nombre}" y sus ${tareaCount} tarea(s)?`
+    : `¿Eliminar el área "${area.nombre}"?`;
+  if (!confirm(msg)) return;
+  data.areas = data.areas.filter(a => a.id !== areaId);
+  tareasSave(data);
+  renderTareas();
+  showToast('Área eliminada', '🗑️');
+}
+
+function escapeHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
 if (document.readyState === 'loading') {
