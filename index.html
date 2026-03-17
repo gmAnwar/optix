@@ -1822,6 +1822,13 @@
         <div style="font-size:12px; color:var(--text3); line-height:1.5;">Análisis de conversaciones · scorecard · diagnóstico con IA</div>
       </div>
 
+      <!-- TAREAS — solo OptimizAds -->
+      <div id="card-tareas" onclick="enterAs('tareas')" style="background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:28px 20px; cursor:pointer; transition:all 0.25s; text-align:center;" onmouseover="this.style.borderColor='var(--accent)';this.style.background='var(--surface2)';this.style.transform='translateY(-4px)'" onmouseout="this.style.borderColor='var(--border)';this.style.background='var(--surface)';this.style.transform='translateY(0)'">
+        <div style="font-size:36px; margin-bottom:16px;">✅</div>
+        <div style="font-family:'DM Sans',sans-serif; font-weight:700; font-size:17px; margin-bottom:8px; color:var(--accent); letter-spacing:0;">Tareas</div>
+        <div style="font-size:12px; color:var(--text3); line-height:1.5;">Áreas · proyectos · pendientes semanales</div>
+      </div>
+
     </div>
   </div>
 </div>
@@ -3270,27 +3277,54 @@
       </div>
     </div>
 
-  <!-- ══════════════════════════════════════════ -->
-  <!-- VIEW: TAREAS — módulo PARA (Áreas → Proyectos → Tareas) -->
-  <!-- Solo visible para wsId = optimizads -->
-  <!-- ══════════════════════════════════════════ -->
-  <div id="view-tareas" style="display:none; flex-direction:column;">
-    <div class="content-header">
-      <div class="content-header-top">
-        <div>
-          <div class="content-title">✅ Tareas</div>
-          <div class="content-subtitle" id="tareas-subtitle">Revisión semanal · áreas y proyectos</div>
-        </div>
-        <button onclick="tareasAddArea()" class="btn btn-ghost" style="font-size:12px;">＋ Nueva área</button>
-      </div>
+  </div><!-- /main-content -->
+</div><!-- /screen-app -->
+
+<!-- ══════════════════════════════════════════ -->
+<!-- SCREEN: TAREAS — módulo PARA standalone   -->
+<!-- Nivel global: Área → Proyecto → Tarea     -->
+<!-- Solo OptimizAds · sin seleccionar cliente -->
+<!-- ══════════════════════════════════════════ -->
+<div id="screen-tareas" class="screen" style="flex-direction:column; background:var(--bg); min-height:100vh;">
+
+  <!-- Header -->
+  <div style="display:flex; align-items:center; justify-content:space-between; padding:16px 28px; border-bottom:1px solid var(--border); background:var(--surface); flex-shrink:0;">
+    <div class="logo-mark" style="margin:0; cursor:pointer;" onclick="showScreen('agencia')" title="Ir al inicio">
+      <div class="logo-icon" style="width:32px;height:32px;font-size:13px;background:var(--accent);color:#000;">X</div>
+      <div class="logo-text" style="font-size:18px;">Opti<span>x</span></div>
     </div>
-    <div class="content-body" id="tareas-body" style="max-width:720px;">
-      <!-- Renderizado dinámico por renderTareas() -->
+    <div style="display:flex; align-items:center; gap:8px;">
+      <button onclick="enterAs('direccion')" style="background:transparent;color:var(--text3);font-size:11px;padding:4px 10px;border-radius:6px;border:none;cursor:pointer;font-family:'DM Mono',monospace;transition:all 0.2s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text3)'">⚡ Dirección</button>
+      <button onclick="enterAs('senior')" style="background:transparent;color:var(--text3);font-size:11px;padding:4px 10px;border-radius:6px;border:none;cursor:pointer;font-family:'DM Mono',monospace;transition:all 0.2s;" onmouseover="this.style.color='#a78bfa'" onmouseout="this.style.color='var(--text3)'">★ Senior</button>
+      <button onclick="enterAs('junior')" style="background:transparent;color:var(--text3);font-size:11px;padding:4px 10px;border-radius:6px;border:none;cursor:pointer;font-family:'DM Mono',monospace;transition:all 0.2s;" onmouseover="this.style.color='var(--green)'" onmouseout="this.style.color='var(--text3)'">▲ Junior</button>
+      <button style="background:var(--accent);color:#000;font-size:11px;padding:4px 10px;border-radius:6px;border:none;cursor:default;font-family:'DM Mono',monospace;font-weight:600;">✅ Tareas</button>
     </div>
   </div>
 
-  </div><!-- /main-content -->
-</div><!-- /screen-app -->
+  <!-- Body -->
+  <div style="flex:1; overflow-y:auto; padding:32px 28px;">
+
+    <!-- Título + acciones -->
+    <div style="display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:28px; flex-wrap:wrap; gap:12px;">
+      <div>
+        <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:22px; color:var(--text); letter-spacing:-0.3px;">✅ Tareas</div>
+        <div id="tareas-subtitle" style="font-family:'DM Mono',monospace; font-size:11px; color:var(--text3); margin-top:4px;">Revisión semanal · áreas y proyectos</div>
+      </div>
+      <button onclick="tareasAddArea()" class="btn btn-ghost" style="font-size:12px; flex-shrink:0;">＋ Nueva área</button>
+    </div>
+
+    <!-- Grid de flashcards — responsivo -->
+    <div id="tareas-body" style="
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 16px;
+      align-items: start;
+    ">
+      <!-- Renderizado dinámico por renderTareas() -->
+    </div>
+
+  </div>
+</div>
 
 <!-- MODAL: VAULT -->
 <div id="modal-vault" class="modal-overlay">
@@ -3523,6 +3557,9 @@ function enterAs(rol) {
   } else if (rol === 'auris') {
     renderAuris();
     showScreen('auris');
+  } else if (rol === 'tareas') {
+    renderTareas();
+    showScreen('tareas');
   }
 }
 
@@ -5768,17 +5805,10 @@ function navigateTab(tab) {
     if (isCampanas) loadCampanas();
   }
 
-  // Sección de tareas
-  const isTareas = tab === 'tareas';
-  const tareasView = document.getElementById('view-tareas');
-  if (tareasView) {
-    // view-tareas es un view independiente, no una sección del dashboard
-    // Al seleccionar tareas, cambiamos a esa vista directamente
-    if (isTareas) {
-      document.querySelectorAll('[id^="view-"]').forEach(v => v.style.display = 'none');
-      tareasView.style.display = 'flex';
-      renderTareas();
-    }
+  // Sección de tareas — ahora es un screen global, redirigir
+  if (tab === 'tareas') {
+    enterAs('tareas');
+    return;
   }
 
   // Recordatorio pendientes: solo en "Esta semana" al fondo
