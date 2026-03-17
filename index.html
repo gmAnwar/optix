@@ -2255,7 +2255,25 @@
               <span style="font-size:10px; color:var(--text3); font-family:'DM Mono',monospace;" id="campanas-budget-label"></span>
             </div>
           </div>
+<!-- Barra de progreso Rx -->
+<div id="campanas-rx-bar" style="margin-bottom:24px; display:none;">
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+    <span style="font-size:11px; color:var(--text3); font-family:'DM Mono',monospace;">Rx del mes</span>
+    <span style="font-size:11px; color:var(--text2); font-family:'DM Mono',monospace;" id="campanas-rx-label"></span>
+  </div>
+  <div style="background:var(--border); border-radius:100px; height:6px; overflow:hidden;">
+    <div id="campanas-rx-fill" style="height:100%; border-radius:100px; background:#a78bfa; transition:width 0.5s;"></div>
+  </div>
+  <div style="display:flex; justify-content:space-between; margin-top:4px;">
+    <span style="font-size:10px; color:var(--text3); font-family:'DM Mono',monospace;" id="campanas-rx-pace"></span>
+    <span style="font-size:10px; color:var(--text3); font-family:'DM Mono',monospace;" id="campanas-rx-meta"></span>
+  </div>
+</div>
+```
 
+Luego en la función `renderCampanas`, **busca:**
+```
+if (progressBar && kpis.days_left != null) {
           <!-- Bloques por plataforma -->
           <div id="campanas-plataformas" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(300px,1fr)); gap:14px; align-items:start;"></div>
 
@@ -5679,7 +5697,24 @@ function renderCampanas(data, config) {
       document.getElementById('campanas-budget-label').textContent = 'Budget: $' + parseFloat(kpis.total_budget).toFixed(0);
     }
   }
-
+const rxBar = document.getElementById('campanas-rx-bar');
+if (rxBar && kpis.rx_day != null) {
+  const META_RX = 313;
+  const daysLeft = parseInt(kpis.days_left) || 0;
+  const totalDays = 31;
+  const diasTranscurridos = totalDays - daysLeft;
+  const rxActual = Math.round(parseFloat(kpis.rx_day) * diasTranscurridos);
+  const pctRx = Math.min(100, Math.round((rxActual / META_RX) * 100));
+  const rxFaltantes = META_RX - rxActual;
+  const rxNecesario = daysLeft > 0 ? (rxFaltantes / daysLeft).toFixed(1) : '—';
+  const colorPace = parseFloat(rxNecesario) <= parseFloat(kpis.rx_day) ? 'var(--green)' : '#f87171';
+  rxBar.style.display = '';
+  document.getElementById('campanas-rx-label').textContent = rxActual + ' / ' + META_RX + ' Rx';
+  document.getElementById('campanas-rx-fill').style.width = pctRx + '%';
+  document.getElementById('campanas-rx-fill').style.background = pctRx >= 80 ? 'var(--green)' : pctRx >= 50 ? '#f59e0b' : '#a78bfa';
+  document.getElementById('campanas-rx-pace').innerHTML = `<span style="color:${colorPace}">Necesitas ${rxNecesario} Rx/día</span> <span style="color:var(--text3)"> · vs ${kpis.rx_day} actual</span>`;
+  document.getElementById('campanas-rx-meta').textContent = rxActual + ' Rx acumulados';
+}
   // --- Agrupar campañas por plataforma ---
   const byPlataforma = {};
   rows.forEach(row => {
