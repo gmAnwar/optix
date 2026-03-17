@@ -3270,27 +3270,27 @@
       </div>
     </div>
 
-  </div><!-- /main-content -->
-</div><!-- /screen-app -->
-
-<!-- ══════════════════════════════════════════ -->
-<!-- VIEW: TAREAS — módulo PARA (Áreas → Tareas) -->
-<!-- Solo visible para wsId = optimizads -->
-<!-- ══════════════════════════════════════════ -->
-<div id="view-tareas" style="display:none; flex-direction:column;">
-  <div class="content-header">
-    <div class="content-header-top">
-      <div>
-        <div class="content-title">✅ Tareas</div>
-        <div class="content-subtitle" id="tareas-subtitle">Revisión semanal · áreas y proyectos</div>
+  <!-- ══════════════════════════════════════════ -->
+  <!-- VIEW: TAREAS — módulo PARA (Áreas → Proyectos → Tareas) -->
+  <!-- Solo visible para wsId = optimizads -->
+  <!-- ══════════════════════════════════════════ -->
+  <div id="view-tareas" style="display:none; flex-direction:column;">
+    <div class="content-header">
+      <div class="content-header-top">
+        <div>
+          <div class="content-title">✅ Tareas</div>
+          <div class="content-subtitle" id="tareas-subtitle">Revisión semanal · áreas y proyectos</div>
+        </div>
+        <button onclick="tareasAddArea()" class="btn btn-ghost" style="font-size:12px;">＋ Nueva área</button>
       </div>
-      <button onclick="tareasAddArea()" class="btn btn-ghost" style="font-size:12px;">＋ Nueva área</button>
+    </div>
+    <div class="content-body" id="tareas-body" style="max-width:720px;">
+      <!-- Renderizado dinámico por renderTareas() -->
     </div>
   </div>
-  <div class="content-body" id="tareas-body" style="max-width:720px;">
-    <!-- Renderizado dinámico por renderTareas() -->
-  </div>
-</div>
+
+  </div><!-- /main-content -->
+</div><!-- /screen-app -->
 
 <!-- MODAL: VAULT -->
 <div id="modal-vault" class="modal-overlay">
