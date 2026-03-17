@@ -5687,7 +5687,7 @@ function renderCampanas(data, config) {
     const totalDays = 31; // Marzo
     const progress = Math.min(100, Math.round(((totalDays - daysLeft) / totalDays) * 100));
     progressBar.style.display = '';
-    document.getElementById('campanas-days-left').textContent = daysLeft + ' días restantes';
+    document.getElementById('campanas-days-left').textContent = progress + '% · ' + daysLeft + ' días restantes';
     document.getElementById('campanas-progress-fill').style.width = progress + '%';
 
     if (kpis.total_spend != null && kpis.total_budget != null) {
@@ -5707,7 +5707,7 @@ if (rxBar && kpis.rx_day != null) {
   const rxNecesario = daysLeft > 0 ? (rxFaltantes / daysLeft).toFixed(1) : '—';
   const colorPace = parseFloat(rxNecesario) <= parseFloat(kpis.rx_day) ? 'var(--green)' : '#f87171';
   rxBar.style.display = '';
-  document.getElementById('campanas-rx-label').textContent = rxActual + ' / ' + META_RX + ' Rx';
+  document.getElementById('campanas-rx-label').textContent = rxActual + ' / ' + META_RX + ' Rx · ' + pctRx + '%';
   document.getElementById('campanas-rx-fill').style.width = pctRx + '%';
   document.getElementById('campanas-rx-fill').style.background = pctRx >= 80 ? 'var(--green)' : pctRx >= 50 ? '#f59e0b' : '#a78bfa';
   document.getElementById('campanas-rx-pace').innerHTML = `<span style="color:${colorPace}">Necesitas ${rxNecesario} Rx/día</span> <span style="color:var(--text3)"> · vs ${kpis.rx_day} actual</span>`;
