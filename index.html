@@ -1575,20 +1575,81 @@
     padding: 4px 16px 12px;
   }
   .tareas-area.collapsed .tareas-area-body { display: none; }
+
+  /* ── Nivel 2: Proyecto ── */
+  .tareas-proyecto {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-bottom: 8px;
+    overflow: hidden;
+    background: var(--bg);
+  }
+  .tareas-proyecto-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.15s;
+  }
+  .tareas-proyecto-header:hover { background: var(--surface2); }
+  .tareas-proyecto-arrow {
+    font-size: 10px;
+    color: var(--text3);
+    transition: transform 0.2s;
+    flex-shrink: 0;
+  }
+  .tareas-proyecto.collapsed .tareas-proyecto-arrow { transform: rotate(-90deg); }
+  .tareas-proyecto-nombre {
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 600;
+    font-size: 12px;
+    flex: 1;
+    color: var(--text2);
+  }
+  .tareas-proyecto-count {
+    font-size: 10px;
+    font-family: 'DM Mono', monospace;
+    color: var(--text3);
+  }
+  .tareas-proyecto-count.has-pending { color: var(--accent); }
+  .tareas-proyecto-body {
+    padding: 2px 12px 10px 12px;
+  }
+  .tareas-proyecto.collapsed .tareas-proyecto-body { display: none; }
+  .tareas-add-proyecto-btn {
+    width: 100%;
+    background: transparent;
+    border: 1px dashed var(--border);
+    color: var(--text3);
+    font-size: 11px;
+    padding: 7px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    text-align: left;
+    font-family: 'DM Sans', sans-serif;
+    transition: all 0.2s;
+    margin-top: 2px;
+    margin-bottom: 2px;
+  }
+  .tareas-add-proyecto-btn:hover { border-color: var(--accent); color: var(--accent); background: rgba(0,229,160,0.03); }
+
+  /* ── Nivel 3: Tarea ── */
   .tarea-item {
     display: flex;
     align-items: flex-start;
     gap: 10px;
-    padding: 9px 10px;
-    border-radius: 8px;
+    padding: 8px 8px;
+    border-radius: 6px;
     transition: background 0.15s;
     cursor: default;
   }
   .tarea-item:hover { background: var(--surface2); }
   .tarea-check {
-    width: 17px;
-    height: 17px;
-    border-radius: 5px;
+    width: 16px;
+    height: 16px;
+    border-radius: 4px;
     border: 2px solid var(--border2);
     flex-shrink: 0;
     margin-top: 1px;
@@ -1604,7 +1665,7 @@
     border-color: var(--accent);
   }
   .tarea-texto {
-    font-size: 13px;
+    font-size: 12.5px;
     line-height: 1.45;
     flex: 1;
     color: var(--text1);
@@ -1620,7 +1681,7 @@
     border: none;
     color: var(--text3);
     cursor: pointer;
-    font-size: 13px;
+    font-size: 12px;
     padding: 0 3px;
     border-radius: 4px;
     transition: all 0.15s;
@@ -1634,8 +1695,8 @@
     border: 1px dashed var(--border2);
     color: var(--text3);
     font-size: 12px;
-    padding: 8px 12px;
-    border-radius: 8px;
+    padding: 7px 10px;
+    border-radius: 6px;
     cursor: pointer;
     text-align: left;
     font-family: 'DM Sans', sans-serif;
@@ -1647,11 +1708,11 @@
     width: 100%;
     background: var(--surface2);
     border: 1px solid var(--accent);
-    border-radius: 8px;
-    padding: 8px 12px;
+    border-radius: 6px;
+    padding: 7px 10px;
     color: var(--text1);
     font-family: 'DM Sans', sans-serif;
-    font-size: 13px;
+    font-size: 12.5px;
     outline: none;
     margin-top: 4px;
   }
@@ -6543,31 +6604,88 @@ function toggleAIPanel(btn) {
 }
 
 // ══════════════════════════════════════════
-// MÓDULO TAREAS — v1.0 · 17 Mar 2026
-// Arquitectura: PARA simplificado (Áreas → Tareas)
-// Storage: localStorage bajo tareas_v1_{wsId}
+// MÓDULO TAREAS — v2.0 · 17 Mar 2026
+// Arquitectura: PARA 3 niveles (Área → Proyecto → Tarea)
+// Storage: localStorage bajo tareas_v2_{wsId}
 // Solo visible para wsId = optimizads
-// Fase 1: áreas + tareas + checkbox
+// Fase 1: áreas + proyectos + tareas + checkbox
 // Fase 2 (pending): fechas, Calendar, asignar a persona
-// Fase 3 (pending): Firestore + login
+// Fase 3 (pending): Firestore bajo workspaces/optimizads/tareas
 // ══════════════════════════════════════════
 
 function tareasGetKey() {
   const wsId = currentAgencia || 'optimizads';
-  return 'tareas_v1_' + wsId;
+  return 'tareas_v2_' + wsId;
+}
+
+// ── MIGRACIÓN v1 → v2 ─────────────────────────────
+// Si existen datos v1 (areas[].tareas[]), los migra a v2 (areas[].proyectos[].tareas[])
+// creando un proyecto "General" en cada área con las tareas existentes.
+function tareasMigrateV1(oldData) {
+  return {
+    areas: oldData.areas.map(area => ({
+      id: area.id,
+      nombre: area.nombre,
+      collapsed: area.collapsed || false,
+      orden: area.orden || 0,
+      proyectos: [
+        {
+          id: 'proy-' + area.id + '-general',
+          nombre: 'General',
+          collapsed: false,
+          orden: 0,
+          tareas: (area.tareas || []).map(t => ({ ...t }))
+        }
+      ]
+    }))
+  };
 }
 
 function tareasLoad() {
+  // 1. Intentar cargar v2
   try {
     const raw = localStorage.getItem(tareasGetKey());
     if (raw) return JSON.parse(raw);
   } catch(e) {}
-  // Defaults con áreas del contexto de Anwar
+
+  // 2. Si existe v1, migrar automáticamente
+  try {
+    const wsId = currentAgencia || 'optimizads';
+    const v1raw = localStorage.getItem('tareas_v1_' + wsId);
+    if (v1raw) {
+      const v1data = JSON.parse(v1raw);
+      if (v1data?.areas?.[0]?.tareas) {
+        const migrated = tareasMigrateV1(v1data);
+        tareasSave(migrated);
+        console.log('[Tareas] Migración v1→v2 completada');
+        return migrated;
+      }
+    }
+  } catch(e) {}
+
+  // 3. Defaults frescos con 3 niveles
   return {
     areas: [
-      { id: 'area-optimizads', nombre: 'OptimizAds', collapsed: false, orden: 0, tareas: [] },
-      { id: 'area-taco',       nombre: 'Taco Agency', collapsed: false, orden: 1, tareas: [] },
-      { id: 'area-marca',      nombre: 'Marca Personal', collapsed: false, orden: 2, tareas: [] },
+      {
+        id: 'area-optimizads', nombre: 'OptimizAds', collapsed: false, orden: 0,
+        proyectos: [
+          { id: 'proy-oa-marca',  nombre: 'Marca Personal', collapsed: false, orden: 0, tareas: [] },
+          { id: 'proy-oa-ops',    nombre: 'Operaciones',    collapsed: false, orden: 1, tareas: [] }
+        ]
+      },
+      {
+        id: 'area-taco', nombre: 'Taco Agency', collapsed: false, orden: 1,
+        proyectos: [
+          { id: 'proy-taco-usa', nombre: 'Clientes USA', collapsed: false, orden: 0, tareas: [] }
+        ]
+      },
+      {
+        id: 'area-marca', nombre: 'Marca Personal', collapsed: false, orden: 2,
+        proyectos: [
+          { id: 'proy-marca-funnel',    nombre: 'Funnel Diagnóstico Express', collapsed: false, orden: 0, tareas: [] },
+          { id: 'proy-marca-contenido', nombre: 'Contenido',                  collapsed: false, orden: 1, tareas: [] }
+        ]
+      }
     ]
   };
 }
@@ -6581,7 +6699,9 @@ function tareasSave(data) {
 // Contar pendientes globales para el badge del sidebar
 function tareasCountPending() {
   const data = tareasLoad();
-  return data.areas.reduce((total, a) => total + a.tareas.filter(t => !t.completado).length, 0);
+  return data.areas.reduce((total, area) =>
+    total + (area.proyectos || []).reduce((s, p) =>
+      s + (p.tareas || []).filter(t => !t.completado).length, 0), 0);
 }
 
 function tareasUpdateBadge() {
@@ -6602,7 +6722,8 @@ function renderTareas() {
   const dom = new Date(lunes); dom.setDate(lunes.getDate() + 6);
   const fmt = d => d.toLocaleDateString('es-MX', { day:'numeric', month:'short' });
   const totalPending = tareasCountPending();
-  const totalAll = data.areas.reduce((s, a) => s + a.tareas.length, 0);
+  const totalAll = data.areas.reduce((s, a) =>
+    s + (a.proyectos || []).reduce((sp, p) => sp + (p.tareas || []).length, 0), 0);
   const totalDone = totalAll - totalPending;
   if (subtitle) subtitle.textContent = `Semana ${fmt(lunes)}–${fmt(dom)} · ${totalDone}/${totalAll} completadas`;
 
@@ -6617,38 +6738,59 @@ function renderTareas() {
     return;
   }
 
-  container.innerHTML = data.areas.map((area, aIdx) => {
-    const pendientes = area.tareas.filter(t => !t.completado).length;
-    const total = area.tareas.length;
-    const done = total - pendientes;
-    const isCollapsed = area.collapsed;
+  container.innerHTML = data.areas.map(area => {
+    const proyectos = area.proyectos || [];
+    const pendientesArea = proyectos.reduce((s, p) => s + (p.tareas || []).filter(t => !t.completado).length, 0);
+    const totalArea = proyectos.reduce((s, p) => s + (p.tareas || []).length, 0);
 
-    const tareasHTML = area.tareas.map((tarea, tIdx) => `
-      <div class="tarea-item" id="tarea-item-${area.id}-${tarea.id}">
-        <div class="tarea-check ${tarea.completado ? 'done' : ''}"
-             onclick="tareasToggle('${area.id}','${tarea.id}')"
-             title="${tarea.completado ? 'Marcar pendiente' : 'Marcar completada'}">
-          ${tarea.completado ? '<svg width="9" height="7" viewBox="0 0 9 7" fill="none"><polyline points="1,3.5 3.5,6 8,1" stroke="#000" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>' : ''}
-        </div>
-        <div class="tarea-texto ${tarea.completado ? 'done' : ''}">${escapeHtml(tarea.texto)}</div>
-        <button class="tarea-delete" onclick="tareasDeleteTarea('${area.id}','${tarea.id}')" title="Eliminar">✕</button>
-      </div>`).join('');
+    const proyectosHTML = proyectos.map(proy => {
+      const pendientesProy = (proy.tareas || []).filter(t => !t.completado).length;
+      const totalProy = (proy.tareas || []).length;
+
+      const tareasHTML = (proy.tareas || []).map(tarea => `
+        <div class="tarea-item">
+          <div class="tarea-check ${tarea.completado ? 'done' : ''}"
+               onclick="tareasToggle('${area.id}','${proy.id}','${tarea.id}')"
+               title="${tarea.completado ? 'Marcar pendiente' : 'Marcar completada'}">
+            ${tarea.completado ? '<svg width="8" height="6" viewBox="0 0 9 7" fill="none"><polyline points="1,3.5 3.5,6 8,1" stroke="#000" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>' : ''}
+          </div>
+          <div class="tarea-texto ${tarea.completado ? 'done' : ''}">${escapeHtml(tarea.texto)}</div>
+          <button class="tarea-delete" onclick="tareasDeleteTarea('${area.id}','${proy.id}','${tarea.id}')" title="Eliminar">✕</button>
+        </div>`).join('');
+
+      return `
+        <div class="tareas-proyecto ${proy.collapsed ? 'collapsed' : ''}" id="proy-${proy.id}">
+          <div class="tareas-proyecto-header" onclick="tareasToggleProyecto('${area.id}','${proy.id}')">
+            <span class="tareas-proyecto-arrow">▾</span>
+            <span class="tareas-proyecto-nombre">${escapeHtml(proy.nombre)}</span>
+            <span class="tareas-proyecto-count ${pendientesProy > 0 ? 'has-pending' : ''}">${pendientesProy > 0 ? pendientesProy + ' pend.' : (totalProy > 0 ? '✓' : '')}</span>
+            <button onclick="event.stopPropagation(); tareasDeleteProyecto('${area.id}','${proy.id}')"
+              style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:10px;padding:1px 5px;border-radius:4px;opacity:0;transition:opacity 0.15s;margin-left:4px;"
+              onmouseenter="this.style.opacity='1'" onmouseleave="this.style.opacity='0'"
+              title="Eliminar proyecto">✕</button>
+          </div>
+          <div class="tareas-proyecto-body">
+            ${tareasHTML}
+            <div id="input-container-${proy.id}"></div>
+            <button class="tareas-add-btn" onclick="tareasShowInput('${area.id}','${proy.id}')">＋ Tarea</button>
+          </div>
+        </div>`;
+    }).join('');
 
     return `
-      <div class="tareas-area ${isCollapsed ? 'collapsed' : ''}" id="area-${area.id}">
+      <div class="tareas-area ${area.collapsed ? 'collapsed' : ''}" id="area-${area.id}">
         <div class="tareas-area-header" onclick="tareasToggleArea('${area.id}')">
           <span class="tareas-area-arrow">▾</span>
           <span class="tareas-area-nombre">${escapeHtml(area.nombre)}</span>
-          <span class="tareas-area-count ${pendientes > 0 ? 'has-pending' : ''}">${pendientes > 0 ? pendientes + ' pendientes' : (total > 0 ? '✓ todo listo' : 'sin tareas')}</span>
+          <span class="tareas-area-count ${pendientesArea > 0 ? 'has-pending' : ''}">${pendientesArea > 0 ? pendientesArea + ' pendientes' : (totalArea > 0 ? '✓ todo listo' : 'sin tareas')}</span>
           <button onclick="event.stopPropagation(); tareasDeleteArea('${area.id}')"
             style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:11px;padding:2px 6px;border-radius:4px;opacity:0;transition:opacity 0.15s;"
             onmouseenter="this.style.opacity='1'" onmouseleave="this.style.opacity='0'"
             title="Eliminar área">✕</button>
         </div>
         <div class="tareas-area-body">
-          ${tareasHTML}
-          <div id="input-container-${area.id}"></div>
-          <button class="tareas-add-btn" onclick="tareasShowInput('${area.id}')">＋ Agregar tarea</button>
+          ${proyectosHTML}
+          <button class="tareas-add-proyecto-btn" onclick="tareasAddProyecto('${area.id}')">＋ Proyecto</button>
         </div>
       </div>`;
   }).join('');
@@ -6656,7 +6798,7 @@ function renderTareas() {
   tareasUpdateBadge();
 }
 
-// ── ACTIONS ──────────────────────────────────────────
+// ── ACTIONS — ÁREA ───────────────────────────────────
 function tareasToggleArea(areaId) {
   const data = tareasLoad();
   const area = data.areas.find(a => a.id === areaId);
@@ -6666,95 +6808,19 @@ function tareasToggleArea(areaId) {
   renderTareas();
 }
 
-function tareasToggle(areaId, tareaId) {
-  const data = tareasLoad();
-  const area = data.areas.find(a => a.id === areaId);
-  if (!area) return;
-  const tarea = area.tareas.find(t => t.id === tareaId);
-  if (!tarea) return;
-  tarea.completado = !tarea.completado;
-  tarea.completadoAt = tarea.completado ? new Date().toISOString() : null;
-  tareasSave(data);
-  renderTareas();
-}
-
-function tareasShowInput(areaId) {
-  const container = document.getElementById('input-container-' + areaId);
-  if (!container) return;
-  // Si ya hay un input abierto, quitarlo
-  if (container.querySelector('.tareas-inline-input')) { container.innerHTML = ''; return; }
-  container.innerHTML = `
-    <input class="tareas-inline-input" id="new-tarea-input-${areaId}"
-      type="text" placeholder="Describe la tarea y presiona Enter..."
-      onkeydown="tareasHandleInputKey(event, '${areaId}')"
-      onblur="tareasBlurInput('${areaId}')">`;
-  setTimeout(() => document.getElementById('new-tarea-input-' + areaId)?.focus(), 50);
-}
-
-function tareasHandleInputKey(e, areaId) {
-  if (e.key === 'Enter') {
-    e.preventDefault();
-    const input = document.getElementById('new-tarea-input-' + areaId);
-    const texto = input?.value?.trim();
-    if (texto) tareasAddTarea(areaId, texto);
-    else { const c = document.getElementById('input-container-' + areaId); if(c) c.innerHTML = ''; }
-  }
-  if (e.key === 'Escape') {
-    const c = document.getElementById('input-container-' + areaId);
-    if (c) c.innerHTML = '';
-  }
-}
-
-function tareasBlurInput(areaId) {
-  // Pequeño delay para no colapsar antes de que Enter pueda guardar
-  setTimeout(() => {
-    const input = document.getElementById('new-tarea-input-' + areaId);
-    const texto = input?.value?.trim();
-    if (texto) tareasAddTarea(areaId, texto);
-    else { const c = document.getElementById('input-container-' + areaId); if(c) c.innerHTML = ''; }
-  }, 150);
-}
-
-function tareasAddTarea(areaId, texto) {
-  const data = tareasLoad();
-  const area = data.areas.find(a => a.id === areaId);
-  if (!area) return;
-  const tarea = {
-    id: 'tarea-' + Date.now(),
-    texto: texto.trim(),
-    completado: false,
-    completadoAt: null,
-    // Campos para Fase 2 (vacíos):
-    fecha: null,
-    calendarEventId: null,
-    asignadoA: null,
-    notas: null,
-    createdAt: new Date().toISOString()
-  };
-  area.tareas.push(tarea);
-  tareasSave(data);
-  renderTareas();
-}
-
-function tareasDeleteTarea(areaId, tareaId) {
-  const data = tareasLoad();
-  const area = data.areas.find(a => a.id === areaId);
-  if (!area) return;
-  area.tareas = area.tareas.filter(t => t.id !== tareaId);
-  tareasSave(data);
-  renderTareas();
-}
-
 function tareasAddArea() {
-  const nombre = prompt('Nombre del área (ej. EnPagos, Marca Personal, Personal):');
+  const nombre = prompt('Nombre del área (ej. EnPagos, Personal):');
   if (!nombre || !nombre.trim()) return;
   const data = tareasLoad();
+  const id = 'area-' + Date.now();
   data.areas.push({
-    id: 'area-' + Date.now(),
+    id,
     nombre: nombre.trim(),
     collapsed: false,
     orden: data.areas.length,
-    tareas: []
+    proyectos: [
+      { id: 'proy-' + id + '-general', nombre: 'General', collapsed: false, orden: 0, tareas: [] }
+    ]
   });
   tareasSave(data);
   renderTareas();
@@ -6765,15 +6831,147 @@ function tareasDeleteArea(areaId) {
   const data = tareasLoad();
   const area = data.areas.find(a => a.id === areaId);
   if (!area) return;
-  const tareaCount = area.tareas.length;
-  const msg = tareaCount > 0
-    ? `¿Eliminar el área "${area.nombre}" y sus ${tareaCount} tarea(s)?`
+  const totalTareas = (area.proyectos || []).reduce((s, p) => s + (p.tareas || []).length, 0);
+  const msg = totalTareas > 0
+    ? `¿Eliminar el área "${area.nombre}" con ${totalTareas} tarea(s)?`
     : `¿Eliminar el área "${area.nombre}"?`;
   if (!confirm(msg)) return;
   data.areas = data.areas.filter(a => a.id !== areaId);
   tareasSave(data);
   renderTareas();
   showToast('Área eliminada', '🗑️');
+}
+
+// ── ACTIONS — PROYECTO ───────────────────────────────
+function tareasToggleProyecto(areaId, proyId) {
+  const data = tareasLoad();
+  const area = data.areas.find(a => a.id === areaId);
+  if (!area) return;
+  const proy = (area.proyectos || []).find(p => p.id === proyId);
+  if (!proy) return;
+  proy.collapsed = !proy.collapsed;
+  tareasSave(data);
+  renderTareas();
+}
+
+function tareasAddProyecto(areaId) {
+  const nombre = prompt('Nombre del proyecto:');
+  if (!nombre || !nombre.trim()) return;
+  const data = tareasLoad();
+  const area = data.areas.find(a => a.id === areaId);
+  if (!area) return;
+  if (!area.proyectos) area.proyectos = [];
+  area.proyectos.push({
+    id: 'proy-' + Date.now(),
+    nombre: nombre.trim(),
+    collapsed: false,
+    orden: area.proyectos.length,
+    tareas: []
+  });
+  tareasSave(data);
+  renderTareas();
+  showToast('Proyecto creado', '✅');
+}
+
+function tareasDeleteProyecto(areaId, proyId) {
+  const data = tareasLoad();
+  const area = data.areas.find(a => a.id === areaId);
+  if (!area) return;
+  const proy = (area.proyectos || []).find(p => p.id === proyId);
+  if (!proy) return;
+  const tareaCount = (proy.tareas || []).length;
+  const msg = tareaCount > 0
+    ? `¿Eliminar el proyecto "${proy.nombre}" y sus ${tareaCount} tarea(s)?`
+    : `¿Eliminar el proyecto "${proy.nombre}"?`;
+  if (!confirm(msg)) return;
+  area.proyectos = area.proyectos.filter(p => p.id !== proyId);
+  tareasSave(data);
+  renderTareas();
+  showToast('Proyecto eliminado', '🗑️');
+}
+
+// ── ACTIONS — TAREA ──────────────────────────────────
+function tareasToggle(areaId, proyId, tareaId) {
+  const data = tareasLoad();
+  const area = data.areas.find(a => a.id === areaId);
+  if (!area) return;
+  const proy = (area.proyectos || []).find(p => p.id === proyId);
+  if (!proy) return;
+  const tarea = (proy.tareas || []).find(t => t.id === tareaId);
+  if (!tarea) return;
+  tarea.completado = !tarea.completado;
+  tarea.completadoAt = tarea.completado ? new Date().toISOString() : null;
+  tareasSave(data);
+  renderTareas();
+}
+
+function tareasShowInput(areaId, proyId) {
+  const container = document.getElementById('input-container-' + proyId);
+  if (!container) return;
+  if (container.querySelector('.tareas-inline-input')) { container.innerHTML = ''; return; }
+  container.innerHTML = `
+    <input class="tareas-inline-input" id="new-tarea-input-${proyId}"
+      type="text" placeholder="Describe la tarea y presiona Enter..."
+      onkeydown="tareasHandleInputKey(event,'${areaId}','${proyId}')"
+      onblur="tareasBlurInput('${areaId}','${proyId}')">`;
+  setTimeout(() => document.getElementById('new-tarea-input-' + proyId)?.focus(), 50);
+}
+
+function tareasHandleInputKey(e, areaId, proyId) {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    const input = document.getElementById('new-tarea-input-' + proyId);
+    const texto = input?.value?.trim();
+    if (texto) tareasAddTarea(areaId, proyId, texto);
+    else { const c = document.getElementById('input-container-' + proyId); if(c) c.innerHTML = ''; }
+  }
+  if (e.key === 'Escape') {
+    const c = document.getElementById('input-container-' + proyId);
+    if (c) c.innerHTML = '';
+  }
+}
+
+function tareasBlurInput(areaId, proyId) {
+  setTimeout(() => {
+    const input = document.getElementById('new-tarea-input-' + proyId);
+    const texto = input?.value?.trim();
+    if (texto) tareasAddTarea(areaId, proyId, texto);
+    else { const c = document.getElementById('input-container-' + proyId); if(c) c.innerHTML = ''; }
+  }, 150);
+}
+
+function tareasAddTarea(areaId, proyId, texto) {
+  const data = tareasLoad();
+  const area = data.areas.find(a => a.id === areaId);
+  if (!area) return;
+  const proy = (area.proyectos || []).find(p => p.id === proyId);
+  if (!proy) return;
+  const tarea = {
+    id: 'tarea-' + Date.now(),
+    texto: texto.trim(),
+    completado: false,
+    completadoAt: null,
+    fecha: null,           // Fase 2
+    calendarEventId: null, // Fase 2
+    asignadoA: null,       // Fase 2
+    notas: null,           // Fase 2
+    createdAt: new Date().toISOString()
+  };
+  if (!proy.tareas) proy.tareas = [];
+  proy.tareas.push(tarea);
+  tareasSave(data);
+  renderTareas();
+}
+
+function tareasDeleteTarea(areaId, proyId, tareaId) {
+  const data = tareasLoad();
+  const area = data.areas.find(a => a.id === areaId);
+  if (!area) return;
+  const proy = (area.proyectos || []).find(p => p.id === proyId);
+  if (!proy) return;
+  proy.tareas = (proy.tareas || []).filter(t => t.id !== tareaId);
+  tareasSave(data);
+  renderTareas();
 }
 
 function escapeHtml(str) {
