@@ -3189,8 +3189,7 @@ async function init(workspaceId) {
     } catch(e) { console.warn('Firebase load failed, using local data'); }
   }
 
-  // Solo recargar EnPagos si estamos en OptimizAds
-  if (wsId === 'optimizads') loadEnPagos();
+  
 
   // Si init fue llamado desde selectAgencia, mostrar screen-rol
   if (workspaceId) {
@@ -3225,8 +3224,7 @@ async function init(workspaceId) {
         const wsId = currentAgencia || 'optimizads';
         const wsClients = fbClients.filter(c => c.workspaceId === wsId);
         if (wsClients.length > 0) clients = wsClients;
-        // Solo cargar EnPagos si estamos en OptimizAds
-        if (wsId === 'optimizads') loadEnPagos();
+        
       }
     });
   }
@@ -6316,204 +6314,7 @@ Sin preamble. Solo el HTML.`;
 }
 
 
-function loadEnPagos() {
-  // Eliminar el EnPagos placeholder del DEFAULT_CLIENTS si existe
-  const placeholderIdx = clients.findIndex(c => c.id === 'enpagos');
-  if (placeholderIdx >= 0) clients.splice(placeholderIdx, 1);
 
-  // Si ya existe el real, reemplazar con versión actualizada
-  const existeIdx = clients.findIndex(c => c.id === 'enpagos-real');
-
-  const enpagos = {
-    id: 'enpagos-real',
-    nombre: 'EnPagos',
-    industria: 'Financiamiento de equipos comerciales',
-    account: 'Kike',
-    descripcion: 'Financiamiento B2C de equipos comerciales (vitrinas, enfriadores, máquinas de hielo, congeladores, freidoras, maquinaria). Modelo híbrido: 50% distribuidor + 50% financiera. Alianza directa con Torrey → precio único de lista en todas las ciudades. Ciudades activas: MTY, Saltillo, Torreón, QRO, GDL, Guanajuato. Expansión a AGS, SLP, San Miguel Allende Mar 2026.',
-    drive: 'https://docs.google.com/spreadsheets/d/1eoru9zXLj5JRJJ2TvPv7LNc-Zs98v4zu/edit',
-    daily_sheet: 'https://docs.google.com/spreadsheets/d/1Zr86DwDUkpkp7uGOWsWrMxcU-iBXl9rulSobzUeAAzw/edit',
-    presentacion: 'https://docs.google.com/presentation/d/1uOfq_HnkbgJ_9n82PP-_tFEvwZP2ybEW/edit',
-    mensual: '',
-    semanal: '',
-    cac_objetivo: '$2,170–$2,400 MXN por cierre',
-    facebook: 'https://www.facebook.com/enpagos',
-    instagram: 'https://www.instagram.com/enpagos',
-    sem_stars: 0,
-    sem_comm_count: 0,
-    sem_sensacion: 'gray',
-    sem_resultados: 'red',
-    sem_comm: 'gray',
-    sem_cac_actual: '$6,508 MXN (Feb 2026)',
-    sem_inv_actual: '$75,000 MXN',
-    sem_inv_programada: '$75,000 MXN',
-    sem_cierres_mes: '10 (Feb 2026)',
-    adn: {
-      nombre: 'EnPagos',
-      industria: 'Financiamiento de equipos comerciales a crédito',
-      ciudad: 'MTY, Saltillo, Torreón, QRO, GDL, Guanajuato | Próximo: AGS, SLP, San Miguel de Allende (Mar 2026), Tampico, Chihuahua, Hermosillo (Abr 2026)',
-      descripcion: 'Financiamiento B2C de equipos comerciales. Modelo híbrido: 50% distribuidor + 50% financiera. No tienen inventario propio, son sub-distribuidores de Torrey con precio único de lista en todas las ciudades. El equipo de verificación visita el negocio antes del cierre. Analogía de posicionamiento: EnPagos es para negocios lo que Coppel/Elektra es para familias.',
-      embudo: 'Lead Meta (WhatsApp) → bot Patagon pre-califica (3 preguntas: ¿tienes negocio?, ventas mensuales, ciudad) → vendedor da seguimiento en Bixis → tramita preautorización (buró) → cierre → entrega equipo',
-      ticket: 'Ticket promedio: ~$65,000 MXN. Vitrina carnicera puede generar +$100K/mes al cliente. Meta anual 2026: $34–35M MXN colocados. Ciudad rentable = mínimo $3M/año.',
-      cierre: 'Tasa preautorizado→cierre: 10–12% (aceptable). El cuello de botella NO es el cierre, es la tasa prospecto→preautorizado: 2.42% actual vs 6.65% objetivo. Razones de descarte: foráneo, no tiene negocio establecido, no contesta.',
-      campanas: 'Meta Ads (principal): mensajes a WhatsApp, campañas individuales por ciudad y tipo de equipo. Google Ads: prueba activa solo MTY ~$7-8K/mes, ~2 cierres/mes. Requiere landing page para escalar.',
-      diferenciadores: 'Trato humano y asesoría personalizada, plazo más largo que MercadoPago, recomendación del equipo correcto (no solo venden lo que piden), entrega en puerta, atención a garantías, visita de verificación al negocio. Mensaje: no es un gasto, es una inversión que se paga sola.',
-      objeciones: 'Rechazo por buró de crédito (estructural, no resoluble con campañas). Clientes con terminal MercadoPago con línea suficiente = competencia directa. Leads foráneos (no tiene distribuidor en su ciudad). Prospecto sin negocio establecido.',
-      drive: 'https://docs.google.com/spreadsheets/d/1eoru9zXLj5JRJJ2TvPv7LNc-Zs98v4zu/edit',
-      crm: 'Bixis — implementado Nov 2025, estabilizado Feb 2026. Cuando llegan 40-50 leads/día, nuevos tienen prioridad; leads +3 días sin contestar pasan a seguimiento automático.',
-      bot: 'Patagon — pre-califica vía WhatsApp. Acuerdo: simplificar a 3 preguntas básicas. Tasa High Quality: 10% vs 22% orgánico. Puede enviar leads calificados vía API a OptimizAds para optimizar campañas.',
-      contactos: 'Pepe/José López (dueño, decisor), Alan Vázquez (estrategia/números, CAC objetivo), Luis Martínez (líder ventas + verificación), Mauricio (cierres), Brian (contenido)'
-    },
-    objetivos: {
-      principal: 'CAC por cierre: $2,170–$2,400 MXN. Meta anual 2026: $34–35M MXN en colocación. Cuello de botella a resolver: tasa prospecto→preautorizado (2.42% actual → objetivo 6.65%).',
-      cac: '$2,170–$2,400 MXN por cierre | Costo/preaut objetivo: $244 MXN | Costo/prospecto objetivo: $16.20 MXN',
-      leads: 'Objetivo: 4,018 prospectos/mes. Récord de preautorizados: 267 (Jul 2025). Récord de cierres: 30 (Jul 2025) = $2.13M MXN en ventas.',
-      presupuesto: '$75,000 MXN/mes actual. Objetivo: escalar a $130K en temporada alta (Mar 2026), subiendo máximo 20-30% por ciclo. Solicitar $90K con proyección de embudo.',
-      plataformas: 'Meta (principal). Google Ads (prueba MTY, pendiente landing page para escalar y cotizar a OptimizAds).',
-      plan: 'Q1 2026: mejorar tasa prospecto→preaut de 2.42% a 6.65%. Abrir AGS, SLP, San Miguel Allende (Mar). Preparar Tampico, Chihuahua, Hermosillo (Abr). Implementar reporte semanal de cambios de campaña al equipo de ventas. Solicitar datos de rechazados/cancelados por ciudad a Pepe.',
-      largo: 'Meta anual $34–35M MXN. Escalar a $130K/mes presupuesto. Landing page + Google Ads. Cotizar manejo Google Ads a OptimizAds. Pipeline Make: Tactiq→Claude→Slack para automatizar análisis.',
-      kpis: 'CAC por cierre, costo/preautorizado, % prospecto→preaut (cuello de botella), % preaut→cierre, prospectos/mes, cierres/mes, venta total MXN por ciudad'
-    },
-    rendimiento: {
-      resumen: 'HISTÓRICO — 2024: 160 cierres, $10.4M MXN. 2025: 249 cierres (+55%), $16.2M MXN (+55%). RÉCORD: Jul 2025 = 30 cierres, CAC $2,170, $2.13M MXN. Q4 2025 fue el peor trimestre en 2 años (nov CAC $12,552 / dic CAC $15,165). Recuperación en curso: Feb 2026 = 10 cierres, CAC $6,508 (aún 3x objetivo).',
-      cac30: '$6,508 MXN por cierre (Feb 2026) — Objetivo: $2,170–$2,400',
-      leads: 'Feb 2026: 3,801 prospectos, 92 preaut (2.42% tasa), 10 cierres. Mejor semana 2026: 16-22 Feb = 31 preaut, 3 cierres, $588 costo/preaut.',
-      gasto: '$75,000 MXN/mes (Meta Ads) + ~$7-8K Google Ads MTY',
-      mejor_ad: 'Secuencia testimonial: cliente real con vitrina → equipos. Videos que arrancan con el cliente diciendo exactamente lo que el prospecto quiere escuchar. Los primeros 2 segundos son determinantes. Tráfico tibio (testimonios) funciona también como frío.',
-      campanas: 'Activas: MTY, Saltillo, Torreón (mejor tasa conv 4.18% en Ene 2026), QRO, GDL, Guanajuato. Por abrir: AGS, SLP, San Miguel (Mar). Próximas: Tampico, Chihuahua, Hermosillo (Abr).',
-      insights: 'El mensaje debe enfatizar el financiamiento, no el equipo ("no te vendemos una vitrina, te damos la vitrina pagando con lo que ya vendes"). Temporada alta Mar-Sep: pautar todo. Temporada baja Oct-Dic: solo ticket alto (vitrinas, enfriadores). NO hacer múltiples pruebas simultáneas en la misma ciudad (lección de Nov 2025).',
-      daily: 'https://docs.google.com/spreadsheets/d/1Zr86DwDUkpkp7uGOWsWrMxcU-iBXl9rulSobzUeAAzw/edit'
-    },
-    segmentos: {
-      '1_nombre': 'Dueño de negocio de alimentos/bebidas, local propio, 30-50 años',
-      '1_motivadores': 'Tiene negocio mínimo 6 meses, ventas +$150K/mes, quiere equipo para crecer pero no tiene capital de contado. El equipo (vitrina, enfriador) es una inversión que se paga sola. No es el que quiere emprender — es el que ya tiene negocio y quiere escalar.',
-      '2_nombre': 'Negocios en ciudades secundarias (Torreón, QRO, AGS, SLP)',
-      '2_motivadores': 'Mismo perfil, mercado menos competido, menor costo por lead. Torreón: mejor tasa de conversión a preaut (4.18% Ene 2026) aunque 0 cierres = problema en ventas, no en Meta.',
-      decision: 'Ve anuncio Meta (FB/IG) → manda WhatsApp → bot Patagon pre-califica → vendedor Bixis da seguimiento → preautorización → verificación del negocio → cierre → entrega.',
-      tiempo: 'No medido formalmente desde primer mensaje hasta cierre. Pendiente medir.',
-      canales: 'Facebook e Instagram (Meta). WhatsApp para pre-calificación (Patagon) y cierre (vendedores).',
-      insights: 'Segmento demográfico principal: Hombres y mujeres 35-54 años. Mujeres 35-54 = vitrinas. Hombres 35-44 = máquinas de hielo y enfriadores. El anuncio define la segmentación aunque la campaña sea abierta. Competencia directa: MercadoPago (terminal con línea de crédito), Atrato (fintech en marketplaces, conversión baja por buró), marcas con 12 MSI en tarjeta.'
-    },
-    validacion: {
-      coherencia: 'CAC objetivo real: $2,170–$2,400 por cierre. Feb 2026: CAC $6,508 = 3x el objetivo. El costo/lead es aceptable ($17 vs $16.20 objetivo). La tasa cierre/preaut es aceptable (10.87% vs 11.24% objetivo). El cuello de botella único: tasa prospecto→preaut = 2.42% vs 6.65% objetivo. Cada punto porcentual de mejora = ~44 preaut adicionales/mes = ~5 cierres más = $325K adicionales en ventas.',
-      restricciones: 'Buró de crédito: rechazo estructural no resoluble con campañas. Estacionalidad: Q4 (oct-dic) históricamente bajo. Bixis: ya estabilizado (Alan, Feb 2026). Patagon: calidad pre-calificación pendiente de mejora (simplificar flujo a 3 preguntas). No hacer múltiples pruebas simultáneas en misma ciudad.',
-      objetivo: 'Regresar CAC a $2,170-$2,400. Subir tasa prospecto→preaut de 2.42% a 6.65%. Meta anual: $34-35M MXN colocados. Ciudad rentable = $3M/año mínimo. Escalar presupuesto a $130K/mes en temporada alta.',
-      expectativas: 'Pepe (dueño): consistencia en ventas mensuales ($1.5M+/mes), recuperar niveles jul-oct 2025. Alan: CAC límite y deseado definidos por él con base en mejores meses 2025 + 20% margen. Luis: retroalimentación semanal de qué cambió en campañas y por qué. Planeación mensual anticipada (reunión un mes antes para decidir qué equipos pautar).',
-      quien: 'Anwar + Kike (estrategia) | Mario (operativo) | Ernesto (Google Ads freelance)',
-      resultado: 'Temporada alta Mar 2026: oportunidad de recuperar posición. Investigar qué cambió en semana 16-22 Feb (mejor semana del año: 31 preaut, 3 cierres, $588/preaut). Expansión agresiva de ciudades. Escalar presupuesto. Google Ads pendiente de landing page.'
-    },
-    vault: [
-      {
-        id: 1,
-        angulo: 'Secuencia testimonial universal — vitrina + equipos',
-        formato: 'Secuencia de imágenes',
-        hook: 'Primera imagen: cliente real con vitrina o enfriador. Resto: variedad de equipos. Los primeros 2 segundos son determinantes — arrancar con el cliente diciendo lo que el prospecto quiere escuchar.',
-        cac: '$2,170 MXN por cierre (Jul 2025 — mes récord)',
-        segmento: 'Mujeres 35-54, dueñas de negocios alimentos/bebidas. Campaña abierta.',
-        insight: 'AD GANADOR UNIVERSAL. Funciona en todas las ciudades y equipos. Costo/mensaje ~$7 MXN. Genera leads que preguntan también por otros equipos. El recorte al punto correcto del video mejora significativamente los costos.',
-        fecha: 'Desde Abr 2025 — activo'
-      },
-      {
-        id: 2,
-        angulo: 'Video testimonial corto (<15 seg) — tráfico tibio como frío',
-        formato: 'Video testimonial',
-        hook: 'Cliente real en 15 segundos con su equipo financiado. Arrancar en el momento exacto en que el cliente dice lo que el prospecto quiere escuchar.',
-        cac: 'Costo/mensaje $5.93 con audiencia 0-6 meses (mejor que tráfico frío puro)',
-        segmento: 'Todos los segmentos. Funciona como retargeting Y como frío desde el inicio.',
-        insight: 'Los anuncios de tráfico tibio (testimonios de retargeting 7+ días) funcionan también como tráfico frío. Esto redujo costo/mensaje en varias ciudades simultáneamente. Videos <15 seg superan a los largos.',
-        fecha: 'Desde Ago 2025 — activo'
-      },
-      {
-        id: 3,
-        angulo: 'Máquinas de hielo a crédito',
-        formato: 'Imagen estática con persona real y máquina de hielo',
-        hook: 'Tu máquina de hielo sin pago de contado — prepárate para el verano',
-        cac: 'CAC bajísimo en ese segmento. Nueva implementación en Torreón (semana 3 Mar 2026).',
-        segmento: 'Hombres 35-44, negocios alimentos y bebidas',
-        insight: 'Alta intención de compra. Temporada alta: verano. Ciclo vicioso en congeladores: no hay anuncios porque no hay testimonios, no hay testimonios porque no hay leads — hay que romperlo.',
-        fecha: 'Ago 2024 — activo, escalando a Torreón Mar 2026'
-      },
-      {
-        id: 4,
-        angulo: 'OA5 — Secuencia enfriador + vitrina + equipos (histórico)',
-        formato: 'Secuencia de imágenes',
-        hook: 'Primera imagen: enfriador + vitrina juntos. Resto: variedad de equipos.',
-        cac: '$37–51 MXN por lead en campaña CP',
-        segmento: 'Segmentación abierta + intereses',
-        insight: 'Ad histórico ganador en campaña CP. Generaba mayoría de resultados. La apertura con dos equipos amplía el público sin perder relevancia.',
-        fecha: 'Nov 2024'
-      }
-    ],
-    decisiones: [
-      {
-        id: 1,
-        texto: 'Migración a WhatsApp — salir de Messenger',
-        contexto: 'WhatsApp mostró mejor tasa de cierre que Messenger en todas las zonas.',
-        responsable: 'Kike + Anwar',
-        impacto: 'Mejora en tasa de cierre. Leads más calificados y con mayor intención.',
-        fecha: 'Jun 2024'
-      },
-      {
-        id: 2,
-        texto: 'Campañas individuales por tipo de equipo',
-        contexto: 'Campañas generales creaban canibalización. Separar por equipo permite controlar ticket y evitar competir contra nosotros mismos en la puja.',
-        responsable: 'Kike + Anwar',
-        impacto: 'Reducción de costos, mayor control de segmento y ticket. Empezó en Abr 2024.',
-        fecha: 'Abr 2024'
-      },
-      {
-        id: 3,
-        texto: 'Expansión: Guadalajara (Jul 25) + Guanajuato (Oct 25)',
-        contexto: 'GDL arrancó con 9 cierres a CAC $1,359 = mejor arranque histórico. GTO arrancó con 4 cierres a $2,384 CAC.',
-        responsable: 'Kike + Anwar',
-        impacto: 'GDL y GTO consolidados como ciudades activas con buen desempeño inicial.',
-        fecha: 'Jul 2025'
-      },
-      {
-        id: 4,
-        texto: 'Implementación Bixis (CRM)',
-        contexto: 'Implementado Nov 2025. Curva de aprendizaje ~3 meses. Alan confirma en Feb 2026 que ya está afinado y lo recomienda para este tipo de negocio.',
-        responsable: 'Equipo EnPagos + OptimizAds',
-        impacto: 'CRM estabilizado. Proceso: nuevos leads tienen prioridad, +3 días sin contacto pasan a seguimiento automático.',
-        fecha: 'Nov 2025 — estabilizado Feb 2026'
-      },
-      {
-        id: 5,
-        texto: 'Reestructura equipo de ventas EnPagos',
-        contexto: 'Se unificó en un solo equipo. Luis al frente (ventas + verificación), Alan en estrategia/números, Mauricio en cierres, Brian en contenido. Antes eran dos equipos separados.',
-        responsable: 'Pepe + Luis',
-        impacto: 'Mayor coherencia en proceso de ventas. Retroalimentación bidireccional con OptimizAds establecida.',
-        fecha: 'Ene 2026'
-      },
-      {
-        id: 6,
-        texto: 'Pivot 2026: calidad sobre cantidad en leads',
-        contexto: 'Q4 2025 = peor trimestre en 2 años. CAC nov $12,552 / dic $15,165. Tasa prospecto→preaut colapsó a 2.15%. Análisis: el problema NO es el costo/lead ni la tasa de cierre — es el filtro en preautorización.',
-        responsable: 'Anwar + Kike',
-        impacto: 'Estrategia 2026: filtros pre-vendedor (formularios, landing, bot Patagon simplificado). Objetivo: 6.65% tasa prospecto→preaut.',
-        fecha: 'Ene 2026'
-      },
-      {
-        id: 7,
-        texto: 'Expansión agresiva de ciudades Mar–Abr 2026',
-        contexto: 'Alan confirmó: AGS, SLP, San Miguel Allende arrancan Mar 2026 con estructura actual. Tampico, Chihuahua, Hermosillo en Abr (requieren distribuidores locales). Presupuesto objetivo: $130K/mes en temporada alta.',
-        responsable: 'Kike + Anwar',
-        impacto: 'Duplicar zonas de operación. Meta anual $34-35M MXN en colocación.',
-        fecha: 'Mar 2026'
-      }
-    ]
-  };
-
-  if (existeIdx >= 0) {
-    clients[existeIdx] = enpagos;
-    showToast('EnPagos actualizado al Mar 2026 ✓', '🔄');
-  } else {
-    clients.unshift(enpagos);
-    showToast('EnPagos cargado ✓', '🚀');
-  }
-
-  saveClients();
-  renderClientGrid();
-}
 
 
 function toggleAIPanel(btn) {
