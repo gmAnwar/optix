@@ -4363,7 +4363,7 @@ function openClient(id) {
     analisisContainer.innerHTML = '';
   }
   document.getElementById('sidebar-client-name').textContent = client.nombre;
-  document.getElementById('dash-subtitle').textContent = `Semáforo semanal · ${client.industria || 'cliente'}`;
+  document.getElementById('dash-subtitle').textContent = `Semáforo Mensual · ${client.industria || 'cliente'}`;
   // Tab Campañas solo para clientes de Taco
   const tabCampanas = document.getElementById('tab-campanas');
   if (tabCampanas) tabCampanas.style.display = client.id === 'tuyo-health' ? '' : 'none';
