@@ -3430,6 +3430,26 @@ const DEFAULT_CLIENTS_TACO = [
   { id: 'tuyo-health', workspaceId: 'taco', nombre: 'Tuyo Health', semaforo: { general: 'green' }, nicho: 'Health & Wellness', presupuesto: 0, plataformas: ['Meta', 'Google'] },
 ];
 
+// ── MERGE DE CLIENTES: defaults como base, Firestore sobreescribe ──────────
+// Los DEFAULT_CLIENTS son el catálogo de clientes activos (siempre aparecen).
+// Firestore guarda los datos del expediente (adn, objetivos, semáforos, etc.).
+// Si un cliente está en Firestore pero no en defaults, también aparece.
+function mergeClients(wsId, fbClients) {
+  const defaults = getDefaultClients(wsId);
+  const fbForWs  = fbClients.filter(c => c.workspaceId === wsId);
+
+  // Para cada default, sobreescribir con datos de Firestore si existen
+  const merged = defaults.map(def => {
+    const fb = fbForWs.find(c => c.id === def.id);
+    return fb ? { ...def, ...fb } : def;
+  });
+
+  // Clientes en Firestore que no están en los defaults (clientes nuevos)
+  const extras = fbForWs.filter(fb => !defaults.find(d => d.id === fb.id));
+
+  return [...merged, ...extras];
+}
+
 function getDefaultClients(wsId) {
   if (wsId === 'taco') return DEFAULT_CLIENTS_TACO;
   return DEFAULT_CLIENTS_OPTIMIZADS;
@@ -3448,17 +3468,19 @@ const AIConversations = {};
 async function init(workspaceId) {
   const wsId = workspaceId || 'optimizads';
 
-  // Cargar clientes desde Firebase primero, fallback a defaults del workspace
+  // Cargar clientes: defaults como base, Firestore sobreescribe por id
   if (window._fbLoadClients) {
     try {
       if (wsId === 'optimizads') showToast('Sincronizando...', '☁️');
       const fbClients = await window._fbLoadClients();
-      if (fbClients && fbClients.length > 0) {
-        // Filtrar solo clientes del workspace actual
-        const wsClients = fbClients.filter(c => c.workspaceId === wsId);
-        clients = wsClients.length > 0 ? wsClients : getDefaultClients(wsId);
-      }
-    } catch(e) { console.warn('Firebase load failed, using local data'); }
+      clients = mergeClients(wsId, fbClients || []);
+      showToast('Listo', '✅');
+    } catch(e) {
+      console.warn('Firebase load failed, using defaults');
+      clients = getDefaultClients(wsId);
+    }
+  } else {
+    clients = getDefaultClients(wsId);
   }
 
   
@@ -3492,12 +3514,8 @@ async function init(workspaceId) {
   // Escuchar cambios en tiempo real de Firebase (solo se registra una vez)
   if (window._fbOnClientsChange) {
     window._fbOnClientsChange((fbClients) => {
-      if (fbClients && fbClients.length > 0) {
-        const wsId = currentAgencia || 'optimizads';
-        const wsClients = fbClients.filter(c => c.workspaceId === wsId);
-        if (wsClients.length > 0) clients = wsClients;
-        
-      }
+      const activeWs = currentAgencia || 'optimizads';
+      clients = mergeClients(activeWs, fbClients || []);
     });
   }
 }
@@ -3584,20 +3602,17 @@ function selectWorkspaceAndEnter(wsId, destinoRol) {
   const modal = document.getElementById('workspace-selector-modal');
   if (modal) modal.remove();
 
-  // Filtrar clientes por workspace y setear agencia
+  // Setear agencia y cargar clientes del workspace con merge
   currentAgencia = wsId;
   localStorage.setItem('oa-agencia', wsId);
-  const wsClients = (window.clients || []).filter(c => c.workspaceId === wsId);
-  clients = wsClients;
-
-  // Reiniciar Firebase listener para este workspace
-  if (window._fbOnClientsChange) {
-    window._fbOnClientsChange(wsId, (fbClients) => {
-      const filtered = fbClients.filter(c => c.workspaceId === wsId);
-      clients = filtered.length > 0 ? filtered : clients;
-      if (destinoRol === 'senior') renderSeniorHome();
-      if (destinoRol === 'direccion') renderDireccion();
+  if (window._fbLoadClients) {
+    window._fbLoadClients().then(fbClients => {
+      clients = mergeClients(wsId, fbClients || []);
+    }).catch(() => {
+      clients = getDefaultClients(wsId);
     });
+  } else {
+    clients = mergeClients(wsId, []);
   }
 
   // Entrar al rol
