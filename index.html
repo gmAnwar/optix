@@ -2277,6 +2277,9 @@
       <div class="client-tab" id="tab-analisis" onclick="navigateTab('analisis')">
         <span>🧠</span><span>Análisis</span>
       </div>
+      <div class="client-tab" id="tab-recursos" onclick="navigateTab('recursos')">
+        📁 Recursos
+      </div>
       <div class="client-tab" id="tab-tareas" onclick="navigateTab('tareas')" style="display:none;">
         <span>✅</span><span>Tareas</span>
         <span class="tab-badge" id="tab-tareas-badge"></span>
@@ -2424,6 +2427,10 @@
             <div class="section-card" onclick="navigate('decisiones')"><div class="section-card-header"><div class="section-icon">📝</div></div><div class="section-name">Decisiones</div></div>
           </div>
           <div id="capa1-dot" style="display:none;"></div>
+        </div>
+
+        <!-- SECCIÓN RECURSOS (tab 4) -->
+        <div id="recursos-section" style="display:none; flex-direction:column; gap:20px; padding:4px 0;">
         </div>
 
         <!-- SECCIÓN ANÁLISIS (tab 3) -->
@@ -5805,6 +5812,14 @@ function navigateTab(tab) {
     if (isCampanas) loadCampanas();
   }
 
+  // Sección de recursos
+  const isRecursos = tab === 'recursos';
+  const recursosSection = document.getElementById('recursos-section');
+  if (recursosSection) {
+    recursosSection.style.display = isRecursos ? 'flex' : 'none';
+    if (isRecursos) renderRecursos();
+  }
+
   // Sección de tareas — ahora es un screen global, redirigir
   if (tab === 'tareas') {
     enterAs('tareas');
@@ -5816,7 +5831,7 @@ function navigateTab(tab) {
   if (pendPanel) pendPanel.style.display = isSemana ? '' : 'none';
 
   // Actualizar tabs activos
-  ['semana','expediente','analisis','campanas','tareas'].forEach(t => {
+  ['semana','expediente','analisis','campanas','recursos','tareas'].forEach(t => {
     const el = document.getElementById('tab-' + t);
     if (el) el.classList.toggle('active', t === tab);
   });
@@ -5827,6 +5842,21 @@ function navigateTab(tab) {
 // ── CAMPAÑAS: vista por plataforma desde Google Sheets ──────────────────────
 
 // Mapa de sheet IDs por cliente
+// Recursos por cliente — cada recurso es un { nombre, tipo, url, descripcion }
+const CLIENT_RECURSOS = {
+  'inmobili': [
+    {
+      id: 'plan-crecimiento-2026',
+      nombre: 'Plan de Crecimiento 2026',
+      tipo: 'html',
+      descripcion: 'Embudo actual, 3 iniciativas y simulador interactivo',
+      url: 'https://gmAnwar.github.io/optix/recursos/inmobili-plan.html',
+      fecha: '25 Mar 2026',
+      autor: 'OptimizAds'
+    }
+  ]
+};
+
 const CLIENT_SHEET_CONFIG = {
   'tuyo-health': {
     sheetId: '1ta9m0tLxO_4T-CiQYWsu6knXIzZ2UTLewNg4aAEwS7M',
@@ -6119,6 +6149,52 @@ const CLIENT_HARDCODED_HISTORY = {
       { ciudad: 'Guadalajara', tasa: 1.9, cac: 8400, cierres: 2 },
       { ciudad: 'Puebla', tasa: 1.2, cac: 12000, cierres: 1 }
     ]
+  },
+  inmobili: {
+    monthly: [
+      { mes: 'Mar 24', cac: 1889, costoMensaje: 82, captaciones: 23, inversion: 43446 },
+      { mes: 'Abr 24', cac: 2714, costoMensaje: 89, captaciones: 17, inversion: 46139 },
+      { mes: 'May 24', cac: 4195, costoMensaje: 73, captaciones: 11, inversion: 46148 },
+      { mes: 'Jun 24', cac: 3248, costoMensaje: 78, captaciones: 17, inversion: 55222 },
+      { mes: 'Jul 24', cac: 3214, costoMensaje: 85, captaciones: 21, inversion: 67499 },
+      { mes: 'Ago 24', cac: 3767, costoMensaje: 93, captaciones: 18, inversion: 67798 },
+      { mes: 'Sep 24', cac: 3327, costoMensaje: 68, captaciones: 21, inversion: 69857 },
+      { mes: 'Oct 24', cac: 3274, costoMensaje: 96, captaciones: 21, inversion: 68750 },
+      { mes: 'Nov 24', cac: 4774, costoMensaje: 110, captaciones: 10, inversion: 47740 },
+      { mes: 'Dic 24', cac: 18116, costoMensaje: 82, captaciones: 2, inversion: 36233 },
+      { mes: 'Ene 25', cac: 2726, costoMensaje: 89, captaciones: 17, inversion: 46348 },
+      { mes: 'Feb 25', cac: 6180, costoMensaje: 73, captaciones: 8, inversion: 49439 },
+      { mes: 'Mar 25', cac: 3620, costoMensaje: 71, captaciones: 15, inversion: 54298 },
+      { mes: 'Abr 25', cac: 2703, costoMensaje: 74, captaciones: 18, inversion: 46487 },
+      { mes: 'May 25', cac: 4809, costoMensaje: 99, captaciones: 17, inversion: 81746 },
+      { mes: 'Jun 25', cac: 5123, costoMensaje: 86, captaciones: 20, inversion: 102463 },
+      { mes: 'Jul 25', cac: 4588, costoMensaje: 91, captaciones: 21, inversion: 96340 },
+      { mes: 'Ago 25', cac: 3953, costoMensaje: 93, captaciones: 22, inversion: 86976 },
+      { mes: 'Sep 25', cac: 8023, costoMensaje: 68, captaciones: 10, inversion: 80232 },
+      { mes: 'Oct 25', cac: 6717, costoMensaje: 96, captaciones: 13, inversion: 87327 },
+      { mes: 'Nov 25', cac: 6105, costoMensaje: 110, captaciones: 15, inversion: 91574 },
+      { mes: 'Ene 26', cac: 3351, costoMensaje: 63, captaciones: 19, inversion: 63667 },
+      { mes: 'Feb 26', cac: 3864, costoMensaje: 76, captaciones: 22, inversion: 85014 }
+    ],
+    weekly: [
+      { semana: '2 Feb',  captaciones: 4, costoCap: 5232, mensajes: 278, inversion: 20930 },
+      { semana: '9 Feb',  captaciones: 7, costoCap: 3076, mensajes: 240, inversion: 21531 },
+      { semana: '16 Feb', captaciones: 6, costoCap: 3353, mensajes: 250, inversion: 20119 },
+      { semana: '23 Feb', captaciones: 5, costoCap: 4390, mensajes: 321, inversion: 21951 },
+      { semana: '2 Mar',  captaciones: 7, costoCap: 3186, mensajes: 296, inversion: 22302 }
+    ],
+    embudo: [
+      { etapa: 'Mensajes', valor: '830', pct: 100, color: '#4b5563' },
+      { etapa: 'Llamadas agendadas', valor: '217', pct: 26.1, color: '#1d4ed8' },
+      { etapa: 'Citas agendadas', valor: '41', pct: 19.1, color: '#dc2626' },
+      { etapa: 'Asistencias', valor: '35', pct: 85.4, color: '#059669' },
+      { etapa: 'Captaciones Meta', valor: '17', pct: 48.6, color: '#d97706' },
+      { etapa: 'Captaciones Orgánicas', valor: '~3', pct: null, color: '#16a34a' }
+    ],
+    sucursales: [
+      { ciudad: 'Gómez Palacio', cac: 6102, captaciones: 15, inversion: 91574 },
+      { ciudad: 'Torreón', cac: 7889, captaciones: 3, inversion: 23666 }
+    ]
   }
 };
 
@@ -6129,6 +6205,15 @@ const CLIENT_CONTEXT = {
     razones_descarte: 'Buró negativo (40%), ingresos insuficientes (30%), zona fuera de cobertura (20%), sin comprobante (10%)',
     historico: 'Mejor mes Sep 25: $2,650 CAC y 22 cierres. Desde Ene 26 el CAC subió 145% por caída en tasa de conversión.',
     impacto_mejora: 'Pasar de 2.42% a 4% de tasa = CAC cae a $2,550. A 6.65% = CAC cae a $1,532 (objetivo cumplido).'
+  },
+  inmobili: {
+    embudo: 'Mensaje (Meta WA) → Llamada agendada (26%) → Cita agendada (19%) → Asistencia (85%) → Captación (48%) + Orgánicas (~3/mes)',
+    cuello: 'Cuello 1: solo 19% de llamadas agenda cita — leads no califican por crédito/zona/ingresos, no se registra la razón. Cuello 2: 48% de asistencias cierra — 26% no acepta propuesta, principalmente por precio.',
+    modelo: 'B2C. Captación de propiedades para venta (casas/terrenos hasta $1.2M MXN). Comisión promedio $25K MXN por captación. Promesa: venta en 30 días. Sucursales: Gómez Palacio y Torreón (Durango).',
+    estacionalidad: 'Presupuesto baja a mediados de noviembre (cierran notarías). Diciembre al mínimo. Enero es mes alto históricamente.',
+    historico: 'Mejor mes julio 2024: $67K invertidos → 21 captaciones ($3,214 CAC). Canal llegó a su techo: junio 2025 con $102K → 20 captaciones ($5,123 CAC). El presupuesto creció 140% sin crecer captaciones.',
+    impacto_mejora: 'Mejorando tasa llamada→cita de 19% a 25% y cierre de 48% a 55% + orgánicas de 3 a 6/mes = ~31 captaciones sin subir presupuesto. Margen estimado $65K MXN por captación.',
+    cliente: 'Elizandro (dueño Inmobili). Objetivo 2026: 30 captaciones/mes.'
   }
 };
 
@@ -6146,6 +6231,59 @@ function getClientHistory(clientId) {
     if (id.includes(key)) return CLIENT_HARDCODED_HISTORY[key];
   }
   return null;
+}
+
+// ── RECURSOS POR CLIENTE ────────────────────────────────────────────────────
+function renderRecursos() {
+  const section = document.getElementById('recursos-section');
+  if (!section) return;
+  const clientId = (window._currentClient?.id || '').toLowerCase();
+
+  // Buscar recursos del cliente
+  let recursos = null;
+  for (const key of Object.keys(CLIENT_RECURSOS)) {
+    if (clientId.includes(key)) { recursos = CLIENT_RECURSOS[key]; break; }
+  }
+
+  if (!recursos || recursos.length === 0) {
+    section.innerHTML = `<div style="padding:40px;text-align:center;color:var(--text3);font-size:13px;">No hay recursos registrados para este cliente.</div>`;
+    return;
+  }
+
+  section.innerHTML = recursos.map(r => `
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;">
+      <div style="padding:20px 24px;display:flex;align-items:center;justify-content:space-between;gap:16px;">
+        <div style="display:flex;align-items:center;gap:14px;">
+          <div style="width:40px;height:40px;border-radius:10px;background:var(--accent2);opacity:0.15;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">
+            <span style="opacity:1;">📊</span>
+          </div>
+          <div>
+            <div style="font-size:14px;font-weight:700;color:var(--text1);">${r.nombre}</div>
+            <div style="font-size:12px;color:var(--text3);margin-top:2px;">${r.descripcion} · ${r.fecha} · ${r.autor}</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;flex-shrink:0;">
+          <button onclick="toggleRecursoPreview('${r.id}')"
+            style="background:var(--surface2);border:1px solid var(--border);color:var(--text2);font-size:12px;padding:7px 14px;border-radius:8px;cursor:pointer;font-family:'DM Sans',sans-serif;">
+            👁 Ver
+          </button>
+          <a href="${r.url}" target="_blank"
+            style="background:var(--accent2);color:#fff;font-size:12px;padding:7px 14px;border-radius:8px;cursor:pointer;text-decoration:none;font-family:'DM Sans',sans-serif;display:flex;align-items:center;">
+            ↗ Abrir
+          </a>
+        </div>
+      </div>
+      <div id="preview-${r.id}" style="display:none;border-top:1px solid var(--border);">
+        <iframe src="${r.url}" style="width:100%;height:640px;border:none;" loading="lazy"></iframe>
+      </div>
+    </div>
+  `).join('');
+}
+
+function toggleRecursoPreview(id) {
+  const el = document.getElementById('preview-' + id);
+  if (!el) return;
+  el.style.display = el.style.display === 'none' ? 'block' : 'none';
 }
 
 const MODULOS_ANALISIS = [
