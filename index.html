@@ -5850,7 +5850,7 @@ const CLIENT_RECURSOS = {
       nombre: 'Plan de Crecimiento 2026',
       tipo: 'html',
       descripcion: 'Embudo actual, 3 iniciativas y simulador interactivo',
-      url: 'https://gmAnwar.github.io/optix/recursos/inmobili-plan.html',
+      url: 'https://app.optix.com.mx/recursos/inmobili-plan.html',
       fecha: '25 Mar 2026',
       autor: 'OptimizAds'
     }
@@ -6273,8 +6273,8 @@ function renderRecursos() {
           </a>
         </div>
       </div>
-      <div id="preview-${r.id}" style="display:none;border-top:1px solid var(--border);">
-        <iframe src="${r.url}" style="width:100%;height:640px;border:none;" loading="lazy"></iframe>
+      <div id="preview-${r.id}" style="display:none;border-top:1px solid var(--border);background:#fff;">
+        <iframe src="${r.url}" style="width:100%;height:700px;border:none;" loading="eager"></iframe>
       </div>
     </div>
   `).join('');
