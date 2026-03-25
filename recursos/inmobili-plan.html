@@ -1,0 +1,965 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Inmobili — Plan de Crecimiento</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: #f8f8fb;
+    color: #1a1a2e;
+  }
+
+  .eyebrow {
+    font-size: 0.65rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 2.5px; color: #aaa; margin-bottom: 10px;
+  }
+  .section-title {
+    font-size: 2rem; font-weight: 900; color: #111;
+    letter-spacing: -0.5px; margin-bottom: 10px; line-height: 1.15;
+  }
+  .section-desc {
+    font-size: 0.92rem; color: #888; line-height: 1.7;
+    max-width: 560px; margin-bottom: 48px;
+  }
+  .section { padding: 72px 48px; max-width: 1060px; margin: 0 auto; }
+  .divider { height: 1px; background: #e8e8f0; margin: 0 48px; }
+
+  /* HERO */
+  .hero { padding: 88px 48px 72px; max-width: 760px; margin: 0 auto; text-align: center; }
+  .hero h1 { font-size: 3.2rem; font-weight: 900; line-height: 1.1; letter-spacing: -1.5px; color: #111; margin-bottom: 18px; }
+  .hero h1 span { color: #7c3aed; }
+  .hero p { font-size: 1rem; color: #888; line-height: 1.7; max-width: 480px; margin: 0 auto; }
+
+  /* ---- EMBUDO — tarjetas que se achican ---- */
+  .funnel-outer {
+    display: flex; flex-direction: column; align-items: center;
+    gap: 0; margin-bottom: 48px;
+  }
+  .funnel-step-wrap {
+    display: flex; align-items: stretch;
+    background: #fff; border: 1px solid #e8e8f0;
+    border-radius: 12px; overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    min-height: 72px;
+    /* El ancho lo pone el inline style de cada etapa */
+  }
+  .funnel-color-bar { flex-shrink: 0; border-radius: 0; width: 8px; }
+  .funnel-content {
+    flex: 1; display: flex; align-items: center;
+    padding: 14px 20px; gap: 12px; background: #fff;
+  }
+  .funnel-name {
+    font-size: 0.9rem; font-weight: 700; color: #111;
+    display: flex; flex-direction: column; gap: 5px; flex: 1; min-width: 0;
+  }
+  .funnel-name-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .funnel-right { display: flex; align-items: center; gap: 20px; flex-shrink: 0; margin-left: auto; }
+  .funnel-pct-block { text-align: right; }
+  .funnel-pct-inline { font-size: 1rem; font-weight: 800; display: block; }
+  .funnel-pct-sub-inline { font-size: 0.6rem; color: #aaa; display: block; }
+  .funnel-count { font-size: 1.7rem; font-weight: 900; white-space: nowrap; min-width: 36px; text-align: right; }
+
+  .funnel-connector {
+    display: flex; justify-content: center; align-items: center;
+    height: 18px; color: #ccc; font-size: 1rem;
+  }
+  .badge-bottleneck {
+    display: inline-flex; align-items: center;
+    font-size: 0.56rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.7px; padding: 2px 8px; border-radius: 20px;
+    white-space: nowrap; flex-shrink: 0;
+  }
+
+  /* ---- INSIGHT CARDS ---- */
+  .insight-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 8px; }
+  @media(max-width:680px){ .insight-grid { grid-template-columns: 1fr; } }
+  .fi-card { background: #fff; border: 1px solid #e8e8f0; border-radius: 14px; padding: 22px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); }
+  .fi-num { font-size: 2.4rem; font-weight: 900; margin-bottom: 4px; }
+  .fi-title { font-size: 0.82rem; font-weight: 700; color: #333; margin-bottom: 5px; }
+  .fi-desc { font-size: 0.75rem; color: #999; line-height: 1.5; }
+
+  /* ---- INICIATIVAS ---- */
+  .initiative { background: #fff; border: 1px solid #e8e8f0; border-radius: 18px; margin-bottom: 16px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
+  .initiative-header { padding: 28px 28px 0; display: flex; align-items: flex-start; gap: 18px; }
+  .initiative-num {
+    width: 40px; height: 40px; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.1rem; font-weight: 900; color: #fff;
+    flex-shrink: 0; margin-top: 2px;
+  }
+  .initiative-tag {
+    display: inline-block; font-size: 0.6rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 1px; padding: 3px 10px; border-radius: 20px; margin-bottom: 8px;
+  }
+  .initiative-title { font-size: 1.1rem; font-weight: 800; color: #111; line-height: 1.3; }
+  .initiative-body { padding: 16px 28px 0; }
+  .initiative-body p { font-size: 0.87rem; color: #666; line-height: 1.7; margin-bottom: 12px; max-width: 680px; }
+  .initiative-footer {
+    margin: 20px 28px 28px; background: #f8f8fb;
+    border-radius: 10px; padding: 14px 20px;
+    display: flex; gap: 32px; flex-wrap: wrap; border: 1px solid #e8e8f0;
+  }
+  .init-stat-label { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.5px; color: #aaa; margin-bottom: 3px; }
+  .init-stat-val { font-size: 1.05rem; font-weight: 800; }
+
+  /* ---- PROYECCIÓN ---- */
+  .projection-grid { display: grid; grid-template-columns: 1fr 56px 1fr; gap: 0; align-items: start; margin-bottom: 24px; }
+  @media(max-width:640px){ .projection-grid { grid-template-columns: 1fr; } }
+  .proj-col { background: #fff; border: 1px solid #e8e8f0; border-radius: 16px; padding: 24px; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
+  .proj-col.improved { border-color: #bbf7d0; }
+  .proj-col-title { font-size: 0.62rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: #aaa; margin-bottom: 18px; }
+  .proj-arrow { display: flex; align-items: center; justify-content: center; font-size: 1.4rem; color: #ddd; padding-top: 50px; }
+  .proj-step { display: flex; justify-content: space-between; align-items: center; padding: 11px 0; border-bottom: 1px solid #f0f0f5; gap: 10px; }
+  .proj-step:last-child { border-bottom: none; }
+  .ps-name { color: #888; font-size: 0.85rem; }
+  .ps-right { text-align: right; }
+  .ps-val { font-weight: 900; color: #111; font-size: 1.5rem; line-height: 1.1; }
+  .ps-val.good { color: #16a34a; }
+  .ps-val.bad { color: #ef4444; }
+  .ps-pct { font-size: 0.7rem; color: #bbb; margin-top: 1px; }
+  .total-box { margin-top: 16px; border-radius: 12px; padding: 20px; text-align: center; }
+  .total-box.now { background: #fff5f5; border: 1px solid #fecaca; }
+  .total-box.future { background: #f0fdf4; border: 1px solid #bbf7d0; }
+  .tb-label { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 1px; color: #aaa; margin-bottom: 5px; }
+  .tb-num { font-size: 3rem; font-weight: 900; letter-spacing: -1px; }
+  .total-box.now .tb-num { color: #ef4444; }
+  .total-box.future .tb-num { color: #16a34a; }
+  .tb-sub { font-size: 0.73rem; color: #aaa; margin-top: 3px; }
+
+  /* ---- SIMULADOR ---- */
+  .sim-card { background: #fff; border: 1px solid #e8e8f0; border-radius: 18px; padding: 36px; box-shadow: 0 1px 4px rgba(0,0,0,0.04); margin-bottom: 24px; }
+  .sim-header-row {
+    display: grid; grid-template-columns: 200px 1fr 90px 90px;
+    gap: 16px; margin-bottom: 8px; padding-bottom: 10px;
+    border-bottom: 1px solid #f0f0f5;
+  }
+  .sim-col-label { font-size: 0.62rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #ccc; }
+  .sim-row {
+    display: grid; grid-template-columns: 200px 1fr 90px 90px;
+    align-items: center; gap: 16px; padding: 14px 0;
+    border-bottom: 1px solid #f0f0f5;
+  }
+  .sim-row:last-child { border-bottom: none; }
+  .sim-label { font-size: 0.85rem; font-weight: 600; color: #333; }
+  .sim-label span { display: block; font-size: 0.68rem; font-weight: 400; color: #bbb; margin-top: 2px; }
+  input[type=range] {
+    width: 100%; appearance: none; height: 6px;
+    border-radius: 3px; background: #e8e8f0; outline: none; cursor: pointer;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    appearance: none; width: 20px; height: 20px; border-radius: 50%;
+    background: #7c3aed; cursor: pointer; box-shadow: 0 2px 6px rgba(124,58,237,0.3);
+  }
+  input[type=range]::-moz-range-thumb {
+    width: 20px; height: 20px; border-radius: 50%;
+    background: #7c3aed; cursor: pointer; border: none;
+  }
+  .sim-pct { text-align: center; font-size: 1rem; font-weight: 800; color: #333; }
+  .sim-count { text-align: right; font-size: 1rem; font-weight: 800; color: #7c3aed; }
+
+  /* Sección presupuesto del simulador */
+  .sim-section-header {
+    font-size: 0.62rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 1.5px; color: #bbb; padding: 16px 0 8px;
+    border-bottom: 1px solid #f0f0f5; grid-column: 1 / -1;
+  }
+  .sim-divider { height: 1px; background: #e8e8f0; margin: 8px 0; grid-column: 1 / -1; }
+
+  .sim-result { margin-top: 28px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  @media(max-width:640px){ .sim-result { grid-template-columns: 1fr; } }
+  .sim-res-card { border-radius: 12px; padding: 20px; text-align: center; }
+  .sim-res-card.base { background: #f8f8fb; border: 1px solid #e8e8f0; }
+  .sim-res-card.proj { background: #f0fdf4; border: 1px solid #bbf7d0; }
+  .sim-res-card.delta { background: #faf5ff; border: 1px solid #e9d5ff; }
+  .src-label { font-size: 0.62rem; text-transform: uppercase; letter-spacing: 1px; color: #aaa; margin-bottom: 6px; }
+  .src-num { font-size: 2.4rem; font-weight: 900; }
+  .src-sub { font-size: 0.72rem; color: #aaa; margin-top: 3px; }
+  .sim-res-card.base .src-num { color: #333; }
+  .sim-res-card.proj .src-num { color: #16a34a; }
+  .sim-res-card.delta .src-num { color: #7c3aed; }
+
+  .closing { background: #fff; border: 1px solid #e8e8f0; border-radius: 16px; padding: 36px; text-align: center; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
+  .closing h3 { font-size: 1.2rem; font-weight: 800; color: #111; margin-bottom: 10px; }
+  .closing p { font-size: 0.88rem; color: #888; line-height: 1.7; max-width: 560px; margin: 0 auto; }
+
+  @media(max-width:720px){
+    .section { padding: 48px 20px; }
+    .hero { padding: 60px 20px; }
+    .hero h1 { font-size: 2.2rem; }
+    .sim-header-row, .sim-row { grid-template-columns: 1fr 1fr; }
+    .divider { margin: 0 20px; }
+  }
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+</head>
+<body>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="eyebrow">Inmobili × OptimizAds — Plan 2026</div>
+  <h1>Cómo llegar a <span>30 propiedades</span> al mes</h1>
+  <p>El presupuesto ya llegó a su techo. El crecimiento viene de mejorar lo que ya entra, no de meter más dinero.</p>
+</div>
+
+<div class="divider"></div>
+
+<!-- 01 EMBUDO ACTUAL -->
+<div class="section">
+  <div class="eyebrow">01 — Estado actual</div>
+  <div class="section-title">El embudo hoy</div>
+  <div class="section-desc">Promedio mensual 2025. De cada 830 mensajes que entran, solo 17 se convierten en propiedades captadas.</div>
+
+  <!-- SVG embudo de fondo — líneas que convergen hacia abajo -->
+  <div style="position:relative;">
+  <svg id="funnelSvg" style="position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0;" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="funnelGrad" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#e8e8f0" stop-opacity="0.12"/>
+        <stop offset="100%" stop-color="#e8e8f0" stop-opacity="0.04"/>
+      </linearGradient>
+    </defs>
+    <!-- El polígono del embudo se calcula con JS al cargar -->
+    <polygon id="funnelPoly" fill="url(#funnelGrad)" stroke="none"/>
+    <!-- Líneas laterales del embudo -->
+    <line id="funnelLineL" stroke="#cbd5e1" stroke-width="2" stroke-dasharray="5,4"/>
+    <line id="funnelLineR" stroke="#cbd5e1" stroke-width="2" stroke-dasharray="5,4"/>
+  </svg>
+  <div class="funnel-outer" id="funnelOuter">
+
+    <!-- Mensajes -->
+    <div class="funnel-step-wrap" style="width:100%;">
+      <div class="funnel-color-bar" style="width:8px;background:#374151;"></div>
+      <div class="funnel-content">
+        <div class="funnel-name"><div class="funnel-name-row">📨 Mensajes recibidos</div></div>
+        <div class="funnel-right">
+          <div class="funnel-pct-block"><span class="funnel-pct-inline">100%</span><span class="funnel-pct-sub-inline">base</span></div>
+          <span class="funnel-count">830</span>
+        </div>
+      </div>
+    </div>
+    <div class="funnel-connector">↓</div>
+
+    <!-- Llamadas -->
+    <div class="funnel-step-wrap" style="width:94%;">
+      <div class="funnel-color-bar" style="width:8px;background:#1d4ed8;"></div>
+      <div class="funnel-content">
+        <div class="funnel-name"><div class="funnel-name-row">📞 Llamadas agendadas</div></div>
+        <div class="funnel-right">
+          <div class="funnel-pct-block"><span class="funnel-pct-inline" style="color:#1d4ed8;">26%</span><span class="funnel-pct-sub-inline">del anterior</span></div>
+          <span class="funnel-count" style="color:#1d4ed8;">217</span>
+        </div>
+      </div>
+    </div>
+    <div class="funnel-connector">↓</div>
+
+    <!-- Citas — CUELLO 1 -->
+    <div class="funnel-step-wrap" style="width:82%;">
+      <div class="funnel-color-bar" style="width:8px;background:#dc2626;"></div>
+      <div class="funnel-content">
+        <div class="funnel-name">
+          <div class="funnel-name-row">🗓 Citas agendadas</div>
+          <div><span class="badge-bottleneck" style="background:#fef2f2;border:1px solid #fecaca;color:#dc2626;">Cuello de botella 1 — Leads que no califican</span></div>
+        </div>
+        <div class="funnel-right">
+          <div class="funnel-pct-block"><span class="funnel-pct-inline" style="color:#dc2626;">19%</span><span class="funnel-pct-sub-inline">del anterior</span></div>
+          <span class="funnel-count" style="color:#dc2626;">41</span>
+        </div>
+      </div>
+    </div>
+    <div class="funnel-connector">↓</div>
+
+    <!-- Asistencias -->
+    <div class="funnel-step-wrap" style="width:68%;">
+      <div class="funnel-color-bar" style="width:8px;background:#059669;"></div>
+      <div class="funnel-content">
+        <div class="funnel-name"><div class="funnel-name-row">✅ Asistencias a cita</div></div>
+        <div class="funnel-right">
+          <div class="funnel-pct-block"><span class="funnel-pct-inline" style="color:#059669;">85%</span><span class="funnel-pct-sub-inline">del anterior</span></div>
+          <span class="funnel-count" style="color:#059669;">35</span>
+        </div>
+      </div>
+    </div>
+    <div class="funnel-connector">↓</div>
+
+    <!-- Captaciones — CUELLO 2 -->
+    <div class="funnel-step-wrap" style="width:56%;">
+      <div class="funnel-color-bar" style="width:8px;background:#d97706;"></div>
+      <div class="funnel-content">
+        <div class="funnel-name">
+          <div class="funnel-name-row">🏠 Propiedades captadas</div>
+          <div><span class="badge-bottleneck" style="background:#fffbeb;border:1px solid #fde68a;color:#d97706;">Cuello de botella 2 — Leads que no cierran</span></div>
+        </div>
+        <div class="funnel-right">
+          <div class="funnel-pct-block"><span class="funnel-pct-inline" style="color:#d97706;">48%</span><span class="funnel-pct-sub-inline">del anterior</span></div>
+          <span class="funnel-count" style="color:#d97706;">17</span>
+        </div>
+      </div>
+    </div>
+    <div class="funnel-connector">↓</div>
+
+    <!-- Orgánicas — CUELLO 3 -->
+    <div class="funnel-step-wrap" style="width:46%;" style="width:46%;">
+      <div class="funnel-color-bar" style="width:8px;background:#16a34a;"></div>
+      <div class="funnel-content">
+        <div class="funnel-name">
+          <div class="funnel-name-row">🌱 Orgánicas</div>
+          <div><span class="badge-bottleneck" style="background:#f0fdf4;border:1px solid #86efac;color:#16a34a;">Cuello de botella 3 — Sin proceso definido</span></div>
+        </div>
+        <div class="funnel-right">
+          <div class="funnel-pct-block"><span class="funnel-pct-inline" style="color:#16a34a;">sin proceso</span><span class="funnel-pct-sub-inline">no medidas</span></div>
+          <span class="funnel-count" style="color:#16a34a;">~3</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+  </div>
+  </div><!-- /funnel wrapper -->
+
+  <div class="insight-grid">
+    <div class="fi-card">
+      <div class="fi-num" style="color:#ef4444;">74%</div>
+      <div class="fi-title">Se pierden antes de la cita</div>
+      <div class="fi-desc">De cada 100 que llaman, solo 19 agendan visita. La gran mayoría no llega a ver una propiedad.</div>
+    </div>
+    <div class="fi-card">
+      <div class="fi-num" style="color:#ef4444;">26%</div>
+      <div class="fi-title">No aceptan la propuesta</div>
+      <div class="fi-desc">De los que llegan y califican, 1 de cada 4 no acepta. Principalmente por precio.</div>
+    </div>
+    <div class="fi-card">
+      <div class="fi-num" style="color:#ccc;">¿?</div>
+      <div class="fi-title">No sabemos por qué no califican</div>
+      <div class="fi-desc">Los requisitos que no cumplen los leads no se están registrando. Esa información se pierde en cada llamada.</div>
+    </div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- 02 INICIATIVAS -->
+<div class="section">
+  <div class="eyebrow">02 — Iniciativas</div>
+  <div class="section-title">Tres palancas de crecimiento</div>
+  <div class="section-desc">Cada iniciativa ataca directamente uno de los tres cuellos de botella del embudo.</div>
+
+  <!-- INICIATIVA 1 -->
+  <div class="initiative">
+    <div class="initiative-header">
+      <div class="initiative-num" style="background:#dc2626;">1</div>
+      <div>
+        <div class="initiative-tag" style="background:#fef2f2;color:#dc2626;border:1px solid #fecaca;">Cuello de botella 1 — Leads que no califican</div>
+        <div class="initiative-title">Entender por qué no califican para mejorar a quién le llegamos</div>
+      </div>
+    </div>
+    <div class="initiative-body">
+      <p>Hoy no tenemos visibilidad de los requisitos que no cumplen los leads. El equipo de ventas no los registra porque interrumpe su flujo de trabajo.</p>
+      <p>La solución es capturar esa información automáticamente de cada llamada, sin trabajo extra para el equipo. Con el tiempo acumulamos un historial: cuántos no tienen crédito vigente, cuántos están fuera de zona, cuántos no cumplen el perfil de ingresos.</p>
+      <p>Ese historial le dice a OptimizAds exactamente qué cambiar en los anuncios y segmentaciones. Si el 40% de los leads no tiene crédito vigente, filtramos ese perfil desde el anuncio. Llegan menos leads pero de mejor calidad. El embudo se limpia sin gastar más en pauta.</p>
+    </div>
+    <div class="initiative-footer">
+      <div><div class="init-stat-label">Impacto en</div><div class="init-stat-val" style="color:#7c3aed;">Llamada → Cita</div></div>
+      <div><div class="init-stat-label">Tasa actual</div><div class="init-stat-val" style="color:#ef4444;">19%</div></div>
+      <div><div class="init-stat-label">Objetivo</div><div class="init-stat-val" style="color:#16a34a;">25%</div></div>
+    </div>
+  </div>
+
+  <!-- INICIATIVA 2 -->
+  <div class="initiative">
+    <div class="initiative-header">
+      <div class="initiative-num" style="background:#d97706;">2</div>
+      <div>
+        <div class="initiative-tag" style="background:#fffbeb;color:#d97706;border:1px solid #fde68a;">Cuello de botella 2 — Leads que no cierran</div>
+        <div class="initiative-title">Detectar en qué punto se pierde el lead para mejorar el proceso de venta</div>
+      </div>
+    </div>
+    <div class="initiative-body">
+      <p>El 26% de los leads que llegan a cita y califican no acepta la propuesta. Principalmente por precio. Pero no sabemos en qué momento exacto de la conversación se pierde el lead ni qué argumento funciona mejor para cada perfil.</p>
+      <p>Con análisis de conversaciones, identificamos los patrones: qué dice el vendedor antes de que el lead rechace, qué argumentos llevan a cierre, qué diferencia tiene el mejor vendedor vs el resto. Eso se convierte en un proceso de venta más claro y replicable para todo el equipo.</p>
+    </div>
+    <div class="initiative-footer">
+      <div><div class="init-stat-label">Impacto en</div><div class="init-stat-val" style="color:#7c3aed;">Asistencia → Captación</div></div>
+      <div><div class="init-stat-label">Tasa actual</div><div class="init-stat-val" style="color:#ef4444;">48%</div></div>
+      <div><div class="init-stat-label">Objetivo</div><div class="init-stat-val" style="color:#16a34a;">55%</div></div>
+    </div>
+  </div>
+
+  <!-- INICIATIVA 3 -->
+  <div class="initiative">
+    <div class="initiative-header">
+      <div class="initiative-num" style="background:#16a34a;">3</div>
+      <div>
+        <div class="initiative-tag" style="background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0;">Cuello de botella 3 — Captaciones orgánicas sin proceso</div>
+        <div class="initiative-title">Convertir lo que ya pasa en un sistema que se pueda repetir</div>
+      </div>
+    </div>
+    <div class="initiative-body">
+      <p>En varios meses del año las captaciones orgánicas representaron una parte significativa del total. En enero 2026 fueron 9 de 28 totales (32%), en julio 2024 fueron 8 de 29 (28%), en marzo 2025 fueron 9 de 24 (37%). Pero sin consistencia y sin saber exactamente por qué ocurren.</p>
+      <p>La iniciativa es documentar de dónde viene cada captación orgánica y qué acción del equipo la generó. Referidos, redes sociales, presencia local, visitas directas. Lo que funcione necesita nombre y proceso para que se pueda replicar mes a mes.</p>
+      <p>Estas captaciones van por encima del techo de Meta, sin costo adicional de pauta.</p>
+    </div>
+    <div class="initiative-footer">
+      <div><div class="init-stat-label">Orgánicas hoy</div><div class="init-stat-val" style="color:#ef4444;">~3/mes</div></div>
+      <div><div class="init-stat-label">Potencial medido</div><div class="init-stat-val" style="color:#d97706;">hasta 9/mes</div></div>
+      <div><div class="init-stat-label">Objetivo conservador</div><div class="init-stat-val" style="color:#16a34a;">~6/mes</div></div>
+      <div><div class="init-stat-label">Costo en pauta</div><div class="init-stat-val" style="color:#16a34a;">$0</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- 03 PROYECCIÓN -->
+<div class="section">
+  <div class="eyebrow">03 — Proyección</div>
+  <div class="section-title">Cómo se vería el embudo mejorado</div>
+  <div class="section-desc">Con las tres iniciativas activas y el mismo volumen de mensajes actual.</div>
+
+  <div class="projection-grid">
+    <div class="proj-col">
+      <div class="proj-col-title">Hoy — Promedio 2025</div>
+      <div class="proj-step">
+        <span class="ps-name">Mensajes</span>
+        <div class="ps-right"><div class="ps-val">830</div></div>
+      </div>
+      <div class="proj-step">
+        <span class="ps-name">Llamadas agendadas</span>
+        <div class="ps-right"><div class="ps-val">217</div><div class="ps-pct">26%</div></div>
+      </div>
+      <div class="proj-step">
+        <span class="ps-name">Citas agendadas</span>
+        <div class="ps-right"><div class="ps-val bad">41</div><div class="ps-pct">19%</div></div>
+      </div>
+      <div class="proj-step">
+        <span class="ps-name">Asistencias</span>
+        <div class="ps-right"><div class="ps-val">35</div><div class="ps-pct">85%</div></div>
+      </div>
+      <div class="proj-step">
+        <span class="ps-name">Captadas Meta</span>
+        <div class="ps-right"><div class="ps-val bad">17</div><div class="ps-pct">48%</div></div>
+      </div>
+      <div class="proj-step">
+        <span class="ps-name">Orgánicas</span>
+        <div class="ps-right"><div class="ps-val" style="color:#ccc;">~3</div></div>
+      </div>
+      <div class="total-box now">
+        <div class="tb-label">Total captaciones</div>
+        <div class="tb-num">~20</div>
+        <div class="tb-sub">por mes</div>
+      </div>
+    </div>
+
+    <div class="proj-arrow">→</div>
+
+    <div class="proj-col improved">
+      <div class="proj-col-title">Con las iniciativas</div>
+      <div class="proj-step">
+        <span class="ps-name">Mensajes</span>
+        <div class="ps-right"><div class="ps-val">830</div><div class="ps-pct">igual</div></div>
+      </div>
+      <div class="proj-step">
+        <span class="ps-name">Llamadas agendadas</span>
+        <div class="ps-right"><div class="ps-val">217</div><div class="ps-pct">igual</div></div>
+      </div>
+      <div class="proj-step">
+        <span class="ps-name">Citas agendadas</span>
+        <div class="ps-right"><div class="ps-val good">54</div><div class="ps-pct">25% (+6 pts)</div></div>
+      </div>
+      <div class="proj-step">
+        <span class="ps-name">Asistencias</span>
+        <div class="ps-right"><div class="ps-val">46</div><div class="ps-pct">85%</div></div>
+      </div>
+      <div class="proj-step">
+        <span class="ps-name">Captadas Meta</span>
+        <div class="ps-right"><div class="ps-val good">25</div><div class="ps-pct">55% (+7 pts)</div></div>
+      </div>
+      <div class="proj-step">
+        <span class="ps-name">Orgánicas</span>
+        <div class="ps-right"><div class="ps-val good">~6</div><div class="ps-pct">con proceso</div></div>
+      </div>
+      <div class="total-box future">
+        <div class="tb-label">Total captaciones</div>
+        <div class="tb-num">~31</div>
+        <div class="tb-sub">sin subir presupuesto</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- 04 SIMULADOR -->
+<div class="section">
+  <div class="eyebrow">04 — Simulador</div>
+  <div class="section-title">¿Qué pasa si movemos cada etapa?</div>
+  <div class="section-desc">Ajusta presupuesto, costo por mensaje y las tasas de conversión de cada etapa para ver cuántas propiedades se captarían.</div>
+
+  <div class="sim-card">
+
+    <!-- Headers -->
+    <div class="sim-header-row">
+      <div class="sim-col-label">Etapa</div>
+      <div class="sim-col-label">Ajuste</div>
+      <div class="sim-col-label" style="text-align:center;">Valor</div>
+      <div class="sim-col-label" style="text-align:right;">Personas</div>
+    </div>
+
+    <!-- BLOQUE: PRESUPUESTO Y MENSAJES -->
+    <div style="font-size:0.62rem;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:#bbb;padding:14px 0 6px;border-bottom:1px solid #e8e8f0;margin-bottom:4px;">
+      Entrada — Presupuesto y volumen
+    </div>
+
+    <!-- Presupuesto -->
+    <div class="sim-row">
+      <div class="sim-label">💸 Presupuesto mensual<span>Base actual: $86K MXN</span></div>
+      <div><input type="range" id="sPpto" min="40" max="200" value="86" oninput="recalc()"></div>
+      <div class="sim-pct" id="vPpto" style="color:#333;">$86K</div>
+      <div class="sim-count" id="cPpto" style="color:#888;">—</div>
+    </div>
+
+    <!-- Costo por mensaje -->
+    <div class="sim-row">
+      <div class="sim-label">✉️ Costo por mensaje<span>Base actual: $86 MXN</span></div>
+      <div><input type="range" id="sCpm" min="40" max="200" value="86" oninput="recalc()"></div>
+      <div class="sim-pct" id="vCpm" style="color:#333;">$86</div>
+      <div class="sim-count" id="cMensajes">830</div>
+    </div>
+
+    <!-- BLOQUE: EMBUDO -->
+    <div style="font-size:0.62rem;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:#bbb;padding:14px 0 6px;border-bottom:1px solid #e8e8f0;margin-bottom:4px;margin-top:8px;">
+      Embudo — Tasas de conversión
+    </div>
+
+    <!-- Llamadas -->
+    <div class="sim-row">
+      <div class="sim-label">📞 Llamadas agendadas<span>Base actual: 26%</span></div>
+      <div><input type="range" id="s1" min="15" max="50" value="26" oninput="recalc()"></div>
+      <div class="sim-pct" id="v1">26%</div>
+      <div class="sim-count" id="c1">217</div>
+    </div>
+
+    <!-- Citas -->
+    <div class="sim-row">
+      <div class="sim-label">🗓 Citas agendadas<span>Base actual: 19%</span></div>
+      <div><input type="range" id="s2" min="10" max="50" value="19" oninput="recalc()"></div>
+      <div class="sim-pct" id="v2">19%</div>
+      <div class="sim-count" id="c2">41</div>
+    </div>
+
+    <!-- Asistencias -->
+    <div class="sim-row">
+      <div class="sim-label">✅ Asistencias<span>Base actual: 85%</span></div>
+      <div><input type="range" id="s3" min="50" max="100" value="85" oninput="recalc()"></div>
+      <div class="sim-pct" id="v3">85%</div>
+      <div class="sim-count" id="c3">35</div>
+    </div>
+
+    <!-- Captaciones -->
+    <div class="sim-row">
+      <div class="sim-label">🏠 Captaciones Meta<span>Base actual: 48%</span></div>
+      <div><input type="range" id="s4" min="20" max="90" value="48" oninput="recalc()"></div>
+      <div class="sim-pct" id="v4">48%</div>
+      <div class="sim-count" id="c4">17</div>
+    </div>
+
+    <!-- Orgánicas -->
+    <div class="sim-row">
+      <div class="sim-label">🌱 Orgánicas<span>Base actual: ~3/mes</span></div>
+      <div><input type="range" id="s5" min="0" max="20" value="3" oninput="recalc()"></div>
+      <div class="sim-pct" id="v5" style="color:#16a34a;">3</div>
+      <div class="sim-count" id="c5" style="color:#16a34a;">3</div>
+    </div>
+
+    <!-- Resultados: 5 tarjetas -->
+    <div class="sim-result" style="grid-template-columns: repeat(5,1fr);">
+      <div class="sim-res-card base">
+        <div class="src-label">Base actual</div>
+        <div class="src-num">~20</div>
+        <div class="src-sub">propiedades / mes</div>
+      </div>
+      <div class="sim-res-card proj">
+        <div class="src-label">Con tus ajustes</div>
+        <div class="src-num" id="totalResult">20</div>
+        <div class="src-sub">propiedades / mes</div>
+      </div>
+      <div class="sim-res-card delta">
+        <div class="src-label">Diferencia</div>
+        <div class="src-num" id="deltaResult">0</div>
+        <div class="src-sub" id="deltaLabel">propiedades más</div>
+      </div>
+      <div class="sim-res-card" style="background:#fff8f0;border:1px solid #fed7aa;">
+        <div class="src-label">CAC estimado</div>
+        <div class="src-num" id="cacResult" style="font-size:1.5rem;">$4,300</div>
+        <div class="src-sub">costo por propiedad</div>
+      </div>
+      <div class="sim-res-card" style="background:#f0fdf4;border:1px solid #bbf7d0;">
+        <div class="src-label">Utilidad estimada</div>
+        <div class="src-num" id="utilResult" style="color:#16a34a;font-size:1.4rem;">$1.2M</div>
+        <div class="src-sub" style="color:#86efac;">caps × $65K − inversión</div>
+      </div>
+    </div>
+
+    <!-- Botones de acción -->
+    <div style="margin-top:24px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
+      <div style="display:flex;gap:8px;align-items:center;">
+        <input id="scenarioName" type="text" placeholder="Nombre del escenario..." style="font-size:0.82rem;border:1px solid #e8e8f0;border-radius:8px;padding:8px 14px;outline:none;width:200px;color:#333;background:#fff;" />
+        <button onclick="saveScenario()" style="font-size:0.82rem;font-weight:700;color:#fff;background:#7c3aed;border:none;border-radius:8px;padding:9px 18px;cursor:pointer;">Guardar escenario</button>
+      </div>
+      <button onclick="resetSliders()" style="font-size:0.78rem;color:#aaa;background:none;border:1px solid #e8e8f0;border-radius:8px;padding:8px 16px;cursor:pointer;">Reiniciar a valores base</button>
+    </div>
+
+  </div>
+
+  <!-- COMPARADOR DE ESCENARIOS -->
+  <div id="comparadorWrap" style="display:none;margin-top:0;">
+    <div style="background:#fff;border:1px solid #e8e8f0;border-radius:18px;padding:32px;box-shadow:0 1px 4px rgba(0,0,0,0.04);">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;">
+        <div>
+          <div style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:#aaa;margin-bottom:6px;">Comparador</div>
+          <div style="font-size:1.4rem;font-weight:900;color:#111;letter-spacing:-0.3px;">Escenarios guardados</div>
+        </div>
+        <button onclick="clearScenarios()" style="font-size:0.72rem;color:#ef4444;background:none;border:1px solid #fecaca;border-radius:8px;padding:6px 14px;cursor:pointer;">Limpiar todos</button>
+      </div>
+      <div style="overflow-x:auto;position:relative;">
+        <table id="scenarioTable" style="width:100%;border-collapse:collapse;font-size:0.85rem;">
+          <thead>
+            <tr style="border-bottom:2px solid #e8e8f0;">
+              <th style="position:sticky;left:0;z-index:2;background:#fff;text-align:left;padding:10px 14px;font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#aaa;white-space:nowrap;border-right:1px solid #e8e8f0;">Escenario</th>
+              <th style="position:sticky;left:140px;z-index:2;background:#fff;text-align:right;padding:10px 14px;font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#aaa;white-space:nowrap;border-right:1px solid #e8e8f0;">Presupuesto</th>
+              <th style="text-align:right;padding:10px 14px;font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#aaa;white-space:nowrap;">CPM</th>
+              <th style="text-align:right;padding:10px 14px;font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#aaa;white-space:nowrap;">Mensajes</th>
+              <th style="text-align:right;padding:10px 14px;font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#aaa;white-space:nowrap;">Llamadas</th>
+              <th style="text-align:right;padding:10px 14px;font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#aaa;white-space:nowrap;">Citas</th>
+              <th style="text-align:right;padding:10px 14px;font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#aaa;white-space:nowrap;">Asistencias</th>
+              <th style="text-align:right;padding:10px 14px;font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#aaa;white-space:nowrap;">Cap. Meta</th>
+              <th style="text-align:right;padding:10px 14px;font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#aaa;white-space:nowrap;">Orgánicas</th>
+              <th style="text-align:right;padding:10px 14px;font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#aaa;white-space:nowrap;">Total</th>
+              <th style="text-align:right;padding:10px 14px;font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#aaa;white-space:nowrap;">CAC</th>
+              <th style="text-align:right;padding:10px 14px;font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:#aaa;white-space:nowrap;">Utilidad</th>
+              <th style="padding:10px 14px;"></th>
+            </tr>
+          </thead>
+          <tbody id="scenarioBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- GRÁFICA DE ESCENARIOS -->
+    <div id="chartWrap" style="display:none;margin-top:20px;background:#fff;border:1px solid #e8e8f0;border-radius:16px;padding:24px;box-shadow:0 1px 4px rgba(0,0,0,0.04);">
+      <div style="font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:2px;color:#aaa;margin-bottom:16px;">Comparativa visual — Inversión, CAC y Captaciones</div>
+      <div style="position:relative;height:280px;">
+        <canvas id="scenarioChart"></canvas>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="closing" style="margin-top:24px;">
+    <h3>Más captaciones con cada peso invertido</h3>
+    <p>El simulador muestra dos caminos para crecer: subir el presupuesto o mejorar las tasas del embudo. Ambos funcionan y se pueden combinar. La ventaja de mejorar el embudo es que cada captación cuesta menos — lo que significa que cuando sí se suba el presupuesto, el retorno será aún mayor.</p>
+  </div>
+</div>
+
+<script>
+const MARGEN_POR_CAP = 65; // $65K de utilidad por captación
+
+let scenarios = [];
+let currentData = {};
+
+function recalc() {
+  const ppto = parseInt(document.getElementById('sPpto').value);
+  const cpm  = parseInt(document.getElementById('sCpm').value);
+  const mensajes = Math.round((ppto * 1000) / cpm);
+
+  const p1 = parseInt(document.getElementById('s1').value);
+  const p2 = parseInt(document.getElementById('s2').value);
+  const p3 = parseInt(document.getElementById('s3').value);
+  const p4 = parseInt(document.getElementById('s4').value);
+  const p5 = parseInt(document.getElementById('s5').value);
+
+  const llamadas    = Math.round(mensajes * p1 / 100);
+  const citas       = Math.round(llamadas * p2 / 100);
+  const asistencias = Math.round(citas * p3 / 100);
+  const captadas    = Math.round(asistencias * p4 / 100);
+  const organicas   = p5;
+  const total       = captadas + organicas;
+  const base        = 20;
+  const delta       = total - base;
+  const cac         = captadas > 0 ? Math.round((ppto * 1000) / captadas) : 0;
+  const utilidad    = Math.round((total * MARGEN_POR_CAP) - ppto); // en miles MXN
+
+  // Guardar estado actual para el comparador
+  currentData = { ppto, cpm, mensajes, p1, p2, p3, p4, p5, llamadas, citas, asistencias, captadas, organicas, total, cac, utilidad };
+
+  // Displays presupuesto
+  document.getElementById('vPpto').textContent = '$' + ppto + 'K';
+  document.getElementById('vCpm').textContent  = '$' + cpm;
+  document.getElementById('cMensajes').textContent = mensajes.toLocaleString('es-MX');
+
+  // Embudo
+  document.getElementById('v1').textContent = p1 + '%';
+  document.getElementById('v2').textContent = p2 + '%';
+  document.getElementById('v3').textContent = p3 + '%';
+  document.getElementById('v4').textContent = p4 + '%';
+  document.getElementById('v5').textContent = p5;
+  document.getElementById('c1').textContent = llamadas.toLocaleString('es-MX');
+  document.getElementById('c2').textContent = citas.toLocaleString('es-MX');
+  document.getElementById('c3').textContent = asistencias.toLocaleString('es-MX');
+  document.getElementById('c4').textContent = captadas.toLocaleString('es-MX');
+  document.getElementById('c5').textContent = organicas;
+
+  // Tarjetas resultado
+  document.getElementById('totalResult').textContent = total;
+  document.getElementById('deltaResult').textContent = (delta >= 0 ? '+' : '') + delta;
+  document.getElementById('deltaLabel').textContent = delta >= 0 ? 'propiedades más' : 'propiedades menos';
+  document.getElementById('deltaResult').style.color = delta > 0 ? '#7c3aed' : delta < 0 ? '#ef4444' : '#333';
+
+  // CAC
+  const cacEl = document.getElementById('cacResult');
+  if (captadas > 0) {
+    cacEl.textContent = '$' + cac.toLocaleString('es-MX');
+    cacEl.style.color = cac < 4000 ? '#16a34a' : cac < 7000 ? '#d97706' : '#ef4444';
+  } else {
+    cacEl.textContent = '—'; cacEl.style.color = '#ccc';
+  }
+
+  // Utilidad
+  const utilEl = document.getElementById('utilResult');
+  if (utilidad >= 1000) {
+    utilEl.textContent = '$' + (utilidad / 1000).toFixed(1) + 'M';
+  } else if (utilidad > 0) {
+    utilEl.textContent = '$' + utilidad + 'K';
+  } else {
+    utilEl.textContent = '-$' + Math.abs(utilidad) + 'K';
+  }
+  utilEl.style.color = utilidad >= 800 ? '#16a34a' : utilidad >= 0 ? '#d97706' : '#ef4444';
+}
+
+function saveScenario() {
+  const nameInput = document.getElementById('scenarioName');
+  const name = nameInput.value.trim() || ('Escenario ' + (scenarios.length + 1));
+  scenarios.push({ name, ...currentData });
+  nameInput.value = '';
+  renderScenarios();
+}
+
+function loadScenario(i) {
+  const s = scenarios[i];
+  document.getElementById('sPpto').value = s.ppto;
+  document.getElementById('sCpm').value  = s.cpm;
+  document.getElementById('s1').value = s.p1;
+  document.getElementById('s2').value = s.p2;
+  document.getElementById('s3').value = s.p3;
+  document.getElementById('s4').value = s.p4;
+  document.getElementById('s5').value = s.p5;
+  recalc();
+  // Scroll suave al simulador
+  document.getElementById('sPpto').closest('.sim-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function deleteScenario(i) {
+  scenarios.splice(i, 1);
+  renderScenarios();
+}
+
+function clearScenarios() {
+  scenarios = [];
+  renderScenarios();
+}
+
+function fmtK(val) {
+  if (Math.abs(val) >= 1000) return '$' + (val / 1000).toFixed(2) + 'M';
+  return (val >= 0 ? '$' : '-$') + Math.abs(val).toFixed(0) + 'K';
+}
+
+function renderScenarios() {
+  const wrap = document.getElementById('comparadorWrap');
+  const tbody = document.getElementById('scenarioBody');
+
+  if (scenarios.length === 0) {
+    wrap.style.display = 'none';
+    return;
+  }
+  wrap.style.display = 'block';
+
+  // Encontrar máximos para highlight
+  const maxTotal = Math.max(...scenarios.map(s => s.total));
+  const maxUtil  = Math.max(...scenarios.map(s => s.utilidad));
+  const minCac   = Math.min(...scenarios.filter(s => s.cac > 0).map(s => s.cac));
+
+  // Gráfica
+  const chartWrap = document.getElementById('chartWrap');
+  if (scenarios.length > 0) {
+    chartWrap.style.display = 'block';
+    const labels = scenarios.map(s => s.name);
+    const ctx = document.getElementById('scenarioChart').getContext('2d');
+
+    if (window._scenarioChart) window._scenarioChart.destroy();
+    window._scenarioChart = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [
+          {
+            label: 'Inversión ($K)',
+            data: scenarios.map(s => s.ppto),
+            backgroundColor: 'rgba(239,68,68,0.7)',
+            borderColor: '#ef4444', borderWidth: 1, borderRadius: 5,
+            yAxisID: 'yPpto',
+          },
+          {
+            label: 'CAC ($)',
+            data: scenarios.map(s => s.cac),
+            backgroundColor: 'rgba(234,179,8,0.7)',
+            borderColor: '#eab308', borderWidth: 1, borderRadius: 5,
+            yAxisID: 'yCac',
+            type: 'line',
+            tension: 0.3,
+            pointRadius: 5,
+          },
+          {
+            label: 'Captaciones totales',
+            data: scenarios.map(s => s.total),
+            backgroundColor: 'rgba(34,197,94,0.7)',
+            borderColor: '#22c55e', borderWidth: 1, borderRadius: 5,
+            yAxisID: 'yCaps',
+          },
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { labels: { color: '#888', font: { size: 11 }, boxWidth: 12 } },
+          tooltip: {
+            backgroundColor: '#1a1a24', borderColor: '#3a3a50', borderWidth: 1,
+            titleColor: '#fff', bodyColor: '#ccc', padding: 12,
+          }
+        },
+        scales: {
+          x: { ticks: { color: '#888', font: { size: 11 } }, grid: { color: 'rgba(0,0,0,0.04)' } },
+          yPpto: {
+            type: 'linear', position: 'left',
+            ticks: { color: '#ef4444', font: { size: 10 }, callback: v => '$' + v + 'K' },
+            grid: { color: 'rgba(0,0,0,0.04)' },
+            title: { display: true, text: 'Inversión', color: '#ef4444', font: { size: 10 } }
+          },
+          yCac: {
+            type: 'linear', position: 'right',
+            ticks: { color: '#eab308', font: { size: 10 }, callback: v => '$' + v.toLocaleString('es-MX') },
+            grid: { drawOnChartArea: false },
+            title: { display: true, text: 'CAC', color: '#eab308', font: { size: 10 } }
+          },
+          yCaps: {
+            type: 'linear', position: 'right',
+            ticks: { color: '#22c55e', font: { size: 10 } },
+            grid: { drawOnChartArea: false },
+            title: { display: true, text: 'Captaciones', color: '#22c55e', font: { size: 10 } },
+            offset: true,
+          },
+        }
+      }
+    });
+  } else {
+    chartWrap.style.display = 'none';
+    if (window._scenarioChart) { window._scenarioChart.destroy(); window._scenarioChart = null; }
+  }
+
+  tbody.innerHTML = scenarios.map((s, i) => {
+    const isMaxTotal = s.total === maxTotal;
+    const isMaxUtil  = s.utilidad === maxUtil;
+    const isMinCac   = s.cac === minCac;
+    const rowBg = i % 2 === 0 ? '#fff' : '#fafafa';
+
+    return `<tr style="background:${rowBg};border-bottom:1px solid #f0f0f5;">
+      <td style="position:sticky;left:0;z-index:1;background:${rowBg};padding:12px 14px;font-weight:700;color:#111;white-space:nowrap;border-right:1px solid #f0f0f5;">${s.name}</td>
+      <td style="position:sticky;left:140px;z-index:1;background:${rowBg};padding:12px 14px;text-align:right;color:#333;border-right:1px solid #f0f0f5;">$${s.ppto}K</td>
+      <td style="padding:12px 14px;text-align:right;color:#888;">$${s.cpm}</td>
+      <td style="padding:12px 14px;text-align:right;color:#888;">${s.mensajes.toLocaleString('es-MX')}</td>
+      <td style="padding:12px 14px;text-align:right;color:#888;">${s.llamadas}</td>
+      <td style="padding:12px 14px;text-align:right;color:#888;">${s.citas}</td>
+      <td style="padding:12px 14px;text-align:right;color:#888;">${s.asistencias}</td>
+      <td style="padding:12px 14px;text-align:right;color:#888;">${s.captadas}</td>
+      <td style="padding:12px 14px;text-align:right;color:#16a34a;">${s.organicas}</td>
+      <td style="padding:12px 14px;text-align:right;font-weight:800;font-size:1.05rem;color:${isMaxTotal ? '#7c3aed' : '#111'};">${s.total}${isMaxTotal ? ' 🏆' : ''}</td>
+      <td style="padding:12px 14px;text-align:right;font-weight:700;color:${isMinCac ? '#16a34a' : s.cac > 7000 ? '#ef4444' : '#d97706'};">$${s.cac.toLocaleString('es-MX')}${isMinCac ? ' ✓' : ''}</td>
+      <td style="padding:12px 14px;text-align:right;font-weight:800;color:${isMaxUtil ? '#16a34a' : s.utilidad >= 0 ? '#333' : '#ef4444'};">${fmtK(s.utilidad)}${isMaxUtil ? ' 🏆' : ''}</td>
+      <td style="padding:12px 14px;"><button onclick="deleteScenario(${i})" style="font-size:0.7rem;color:#ef4444;background:none;border:1px solid #fecaca;border-radius:6px;padding:4px 8px;cursor:pointer;">×</button></td>
+      <td style="padding:12px 14px;"><button onclick="loadScenario(${i})" style="font-size:0.7rem;color:#7c3aed;background:#faf5ff;border:1px solid #e9d5ff;border-radius:6px;padding:4px 10px;cursor:pointer;font-weight:600;">↑ Cargar</button></td>
+    </tr>`;
+  }).join('');
+}
+
+function resetSliders() {
+  document.getElementById('sPpto').value = 86;
+  document.getElementById('sCpm').value  = 86;
+  document.getElementById('s1').value = 26;
+  document.getElementById('s2').value = 19;
+  document.getElementById('s3').value = 85;
+  document.getElementById('s4').value = 48;
+  document.getElementById('s5').value = 3;
+  recalc();
+}
+
+// Dibujar líneas del embudo
+function drawFunnel() {
+  const outer = document.getElementById('funnelOuter');
+  const steps = outer.querySelectorAll('.funnel-step-wrap');
+  if (!steps.length) return;
+
+  const outerRect = outer.parentElement.getBoundingClientRect();
+  const firstRect = steps[0].getBoundingClientRect();
+  const lastRect = steps[steps.length - 1].getBoundingClientRect();
+
+  const toRel = (el) => ({
+    top: el.getBoundingClientRect().top - outerRect.top,
+    bottom: el.getBoundingClientRect().bottom - outerRect.top,
+    left: el.getBoundingClientRect().left - outerRect.left,
+    right: el.getBoundingClientRect().right - outerRect.left,
+    width: el.getBoundingClientRect().width
+  });
+
+  // Calcular los puntos de cada etapa
+  const rects = Array.from(steps).map(toRel);
+  const totalWidth = rects[0].width;
+
+  // Línea izquierda: desde borde izq del primer paso hasta borde izq del último
+  const lineL = document.getElementById('funnelLineL');
+  const lineR = document.getElementById('funnelLineR');
+  const poly  = document.getElementById('funnelPoly');
+
+  const startL = rects[0].left;
+  const endL   = rects[rects.length-1].left;
+  const startR = rects[0].right;
+  const endR   = rects[rects.length-1].right;
+  const topY   = rects[0].top;
+  const botY   = rects[rects.length-1].bottom;
+
+  lineL.setAttribute('x1', startL); lineL.setAttribute('y1', topY);
+  lineL.setAttribute('x2', endL);   lineL.setAttribute('y2', botY);
+  lineR.setAttribute('x1', startR); lineR.setAttribute('y1', topY);
+  lineR.setAttribute('x2', endR);   lineR.setAttribute('y2', botY);
+
+  // Polígono relleno del embudo
+  poly.setAttribute('points',
+    `${startL},${topY} ${startR},${topY} ${endR},${botY} ${endL},${botY}`
+  );
+
+  // Actualizar el viewBox del SVG
+  const svg = document.getElementById('funnelSvg');
+  const h = botY + 2;
+  svg.setAttribute('viewBox', `0 0 ${totalWidth} ${h}`);
+  svg.style.height = h + 'px';
+}
+
+window.addEventListener('load', drawFunnel);
+window.addEventListener('resize', drawFunnel);
+setTimeout(drawFunnel, 100);
+
+recalc();
+</script>
+</body>
+</html>
