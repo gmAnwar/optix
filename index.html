@@ -3545,6 +3545,65 @@ function selectAgencia(id) {
 // ══════════════════════════════════════════
 // ROL SELECTOR
 // ══════════════════════════════════════════
+// ── SELECTOR DE WORKSPACE ─────────────────────────────────────────────────
+function showWorkspaceSelector(destinoRol) {
+  // Crear modal de selector de workspace
+  const existing = document.getElementById('workspace-selector-modal');
+  if (existing) existing.remove();
+
+  const modal = document.createElement('div');
+  modal.id = 'workspace-selector-modal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;';
+  modal.innerHTML = `
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:36px;max-width:420px;width:90%;text-align:center;">
+      <div style="font-size:1.2rem;font-weight:800;color:var(--text1);margin-bottom:8px;">¿Qué agencia?</div>
+      <div style="font-size:0.85rem;color:var(--text3);margin-bottom:28px;font-family:'DM Mono',monospace;">Elige el espacio de trabajo que quieres ver</div>
+      <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
+        <button onclick="selectWorkspaceAndEnter('optimizads','${destinoRol}')"
+          style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:16px 24px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:700;color:var(--text1);transition:all 0.2s;min-width:140px;"
+          onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'"
+          onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text1)'">
+          <div style="font-size:1.5rem;margin-bottom:6px;">⚡</div>
+          OptimizAds
+        </button>
+        <button onclick="selectWorkspaceAndEnter('taco','${destinoRol}')"
+          style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:16px 24px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:700;color:var(--text1);transition:all 0.2s;min-width:140px;"
+          onmouseover="this.style.borderColor='var(--accent3)';this.style.color='var(--accent3)'"
+          onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text1)'">
+          <div style="font-size:1.5rem;margin-bottom:6px;">🌮</div>
+          Taco Agency
+        </button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+}
+
+function selectWorkspaceAndEnter(wsId, destinoRol) {
+  // Quitar modal
+  const modal = document.getElementById('workspace-selector-modal');
+  if (modal) modal.remove();
+
+  // Filtrar clientes por workspace y setear agencia
+  currentAgencia = wsId;
+  localStorage.setItem('oa-agencia', wsId);
+  const wsClients = (window.clients || []).filter(c => c.workspaceId === wsId);
+  clients = wsClients;
+
+  // Reiniciar Firebase listener para este workspace
+  if (window._fbOnClientsChange) {
+    window._fbOnClientsChange(wsId, (fbClients) => {
+      const filtered = fbClients.filter(c => c.workspaceId === wsId);
+      clients = filtered.length > 0 ? filtered : clients;
+      if (destinoRol === 'senior') renderSeniorHome();
+      if (destinoRol === 'direccion') renderDireccion();
+    });
+  }
+
+  // Entrar al rol
+  enterAs(destinoRol);
+}
+
 function enterAs(rol) {
   currentRol = rol;
   localStorage.setItem('oa-last-rol', rol);
@@ -3556,6 +3615,11 @@ function enterAs(rol) {
     renderDireccion();
     showScreen('direccion');
   } else if (rol === 'senior') {
+    // Si no hay workspace definido aún, mostrar selector antes de entrar
+    if (!currentAgencia) {
+      showWorkspaceSelector('senior');
+      return;
+    }
     renderSeniorHome();
     showScreen('senior-home');
   } else if (rol === 'junior') {
@@ -4596,6 +4660,7 @@ function toggleSidebar() {
 }
 
 function goHome() {
+  currentAgencia = null;
   if (currentRol === 'direccion') {
     renderDireccion();
     showScreen('direccion');
