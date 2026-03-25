@@ -3419,7 +3419,52 @@ const CLAUDE_PROXY_URL = 'https://optix-claude.anwarhsg.workers.dev';
 const WORKSPACE_ID = window._OptixCore?.WORKSPACE?.id || 'optimizads';
 
 const DEFAULT_CLIENTS_OPTIMIZADS = [
-  { id: 'enpagos', workspaceId: 'optimizads', nombre: 'EnPagos', semaforo: { general: 'green' }, nicho: 'Fintech', presupuesto: 50000, plataformas: ['Meta'] },
+  { id: 'enpagos', workspaceId: 'optimizads', nombre: 'EnPagos', semaforo: { general: 'green' }, nicho: 'Financiamiento de equipos comerciales', presupuesto: 75000, plataformas: ['Meta', 'Google'],
+    adn: {
+      nombre: 'EnPagos',
+      industria: 'Financiamiento de equipos comerciales a crédito (B2C)',
+      ciudad: 'Monterrey, Saltillo, Torreón, Querétaro, Guadalajara, Guanajuato — expansión a Aguascalientes, SLP, San Miguel de Allende',
+      descripcion: 'Financia equipos comerciales (enfriadores, vitrinas, máquinas de hielo, congeladores, freidoras) a dueños de negocios. Modelo híbrido 50% distribuidor + 50% financiera. Sub-distribuidores de Torre/Torrey. Precio único de lista en todas las ciudades.',
+      presupuesto_men: '$75,000 MXN Meta Ads (objetivo $130K en temporada alta)',
+      contacto1: 'Pepe / José López · Dueño / Decisor · enpagos.com.mx',
+      contacto2: 'Alan Vázquez · Estrategia y números',
+      contacto3: 'Luis Martínez · Líder ventas y verificación',
+      contacto4: 'Mauricio · Cierres | Brian · Contenido',
+      embudo: 'Lead Meta WhatsApp → bot Patagon pre-califica → vendedor en Bixis → preautorización buró de crédito → cierre → entrega del equipo',
+      ticket: '$65,000 MXN promedio por equipo',
+      cierre: '10.87% de preautorizados (aceptable). El cuello: prospecto→preaut 2.42% vs 6.65% objetivo.',
+      campanas: 'Meta Ads WhatsApp (principal). Google Ads prueba en Monterrey. Campañas separadas por equipo: vitrinas, enfriadores, máquinas de hielo.',
+      diferenciadores: 'Asesoría personalizada. Plazo más largo que MercadoPago. Recomienda el equipo correcto. Entrega en puerta. Visita de verificación antes del cierre.',
+      competidores: 'Atrato, MercadoPago (línea de crédito con terminal), marcas con 12 MSI en tarjeta',
+      objeciones: 'Buró negativo / sobre-endeudado. Prospecto foráneo. Sin negocio establecido. No contesta.',
+      web: 'enpagos.com.mx',
+      herramientas: 'Meta Ads, Patagon (pre-calificación WhatsApp), Bixis (CRM ventas), buró de crédito',
+      protocolo: 'Lead llega por WhatsApp → Patagon pre-califica (3 preguntas: ¿tienes negocio?, ventas mensuales, ciudad) → vendedor Bixis → preaut buró → cierre → entrega',
+      drive: 'https://docs.google.com/spreadsheets/d/1Zr86DwDUkpkp7uGOWsWrMxcU-iBXl9rulSobzUeAAzw/edit',
+      mensual: 'https://docs.google.com/spreadsheets/d/1eoru9zXLj5JRJJ2TvPv7LNc-Zs98v4zu/edit',
+      semanal: ''
+    },
+    objetivos: {
+      principal: 'Recuperar tasa prospecto→preautorizado a 6.65% y llegar a $34-35M MXN colocación anual 2026',
+      cac: '$2,170–$2,400 MXN (récord jul 2025: $2,170)',
+      cac_max: 'Definido por Alan: mejor mes 2025 + 20% margen',
+      leads: '4,018 prospectos/mes',
+      cierres: '30 cierres/mes',
+      presupuesto: '$75,000 MXN/mes',
+      presupuesto_max: '$130,000 MXN/mes temporada alta (mar–sep)',
+      ticket: '$65,000 MXN',
+      ltv: '$65,000 MXN (una transacción típicamente)',
+      meta_anual: '$34–35 millones MXN colocación 2026',
+      plataformas: 'Meta Ads (principal), Google Ads (prueba Monterrey)',
+      kpis: 'CAC por cierre, costo/preaut ($244 objetivo), % prospecto→preaut (6.65% objetivo), % preaut→cierre (11%), costo/prospecto ($16.20)',
+      plan: 'Patagon filtra con 3 preguntas antes del CRM. Landing para Google Ads. Campañas por equipo y ciudad. Temporada alta: pautar todo. Temporada baja: solo ticket alto.',
+      cuellos: 'Tasa prospecto→preaut colapsó de 6.65% (jul 2025) a 2.42% (feb 2026). Causas: buró rechaza más, prospectos foráneos, sin negocio establecido.',
+      restricciones_camp: 'Temporada baja oct-dic: solo equipos ticket alto. No múltiples pruebas simultáneas en la misma ciudad. Máquinas de hielo requieren mantenimiento local.',
+      metricaTipo: 'cierres',
+      metricaDesc: 'Cierres mensuales — financiamientos colocados. Determina colocación mensual y progreso hacia meta anual $34-35M.',
+      metricaValor: '10 actual (feb 2026) → objetivo 30/mes'
+    }
+  },
   { id: 'favio', workspaceId: 'optimizads', nombre: 'Favio', semaforo: { general: 'yellow' }, nicho: 'Clínica estética', presupuesto: 20000, plataformas: ['Meta'] },
   { id: 'bodygreen', workspaceId: 'optimizads', nombre: 'Bodygreen', semaforo: { general: 'green' }, nicho: 'Clínica estética', presupuesto: 25000, plataformas: ['Meta'] },
   { id: 'divisas', workspaceId: 'optimizads', nombre: 'Divisas La Rioja', semaforo: { general: 'red' }, nicho: 'Finanzas', presupuesto: 15000, plataformas: ['Meta'] },
@@ -6199,35 +6244,36 @@ if (rxBar && kpis.rx_day != null) {
 const CLIENT_HARDCODED_HISTORY = {
   enpagos: {
     monthly: [
-      { mes: 'Jul 25', cac: 2840, costoPreaut: 308, cierres: 18, inversion: 51120, tasa: 3.1 },
-      { mes: 'Ago 25', cac: 3200, costoPreaut: 347, cierres: 15, inversion: 48000, tasa: 2.8 },
-      { mes: 'Sep 25', cac: 2650, costoPreaut: 287, cierres: 22, inversion: 58300, tasa: 3.4 },
-      { mes: 'Oct 25', cac: 3100, costoPreaut: 336, cierres: 19, inversion: 58900, tasa: 3.0 },
-      { mes: 'Nov 25', cac: 2900, costoPreaut: 314, cierres: 21, inversion: 60900, tasa: 3.2 },
-      { mes: 'Dic 25', cac: 3400, costoPreaut: 369, cierres: 14, inversion: 47600, tasa: 2.5 },
-      { mes: 'Ene 26', cac: 3800, costoPreaut: 412, cierres: 16, inversion: 60800, tasa: 2.4 },
-      { mes: 'Feb 26', cac: 6508, costoPreaut: 707, cierres: 10, inversion: 75000, tasa: 2.42 }
+      { mes: 'Jul 25', cac: 2170, costoPreaut: 243, cierres: 30, inversion: 65100, tasa: null },
+      { mes: 'Ago 25', cac: 3225, costoPreaut: 329, cierres: 20, inversion: 64500, tasa: null },
+      { mes: 'Sep 25', cac: 3946, costoPreaut: 371, cierres: 18, inversion: 71028, tasa: null },
+      { mes: 'Oct 25', cac: 3702, costoPreaut: 390, cierres: 19, inversion: 70338, tasa: null },
+      { mes: 'Nov 25', cac: 12552, costoPreaut: 505, cierres: 6,  inversion: 75312, tasa: null },
+      { mes: 'Dic 25', cac: 15165, costoPreaut: 587, cierres: 5,  inversion: 75825, tasa: null },
+      { mes: 'Ene 26', cac: 6025,  costoPreaut: 753, cierres: 12, inversion: 72300, tasa: null },
+      { mes: 'Feb 26', cac: 6508,  costoPreaut: 707, cierres: 10, inversion: 75000, tasa: 2.42 }
     ],
     weekly: [
-      { semana: '27 Ene', preaut: 18, costoPreaut: 722, tasa: 2.1, cierres: 2 },
-      { semana: '3 Feb',  preaut: 21, costoPreaut: 619, tasa: 2.3, cierres: 3 },
-      { semana: '10 Feb', preaut: 24, costoPreaut: 542, tasa: 2.5, cierres: 2 },
-      { semana: '17 Feb', preaut: 31, costoPreaut: 588, tasa: 3.1, cierres: 2 },
-      { semana: '24 Feb', preaut: 19, costoPreaut: 710, tasa: 2.2, cierres: 1 },
-      { semana: '3 Mar',  preaut: 22, costoPreaut: 645, tasa: 2.42, cierres: 2 }
+      { semana: '26 Ene', preaut: 17, costoPreaut: 990, tasa: 1.95, cierres: 2 },
+      { semana: '2 Feb',  preaut: 13, costoPreaut: 1079, tasa: 1.77, cierres: 2 },
+      { semana: '9 Feb',  preaut: 20, costoPreaut: 768, tasa: 2.34, cierres: 0 },
+      { semana: '16 Feb', preaut: 31, costoPreaut: 588, tasa: 2.67, cierres: 3 },
+      { semana: '23 Feb', preaut: 22, costoPreaut: 727, tasa: 2.12, cierres: 1 },
+      { semana: '2 Mar',  preaut: 11, costoPreaut: 982, tasa: 1.28, cierres: 0 }
     ],
     embudo: [
-      { etapa: 'Inversión', valor: '$75,000', pct: 100, color: '#6366f1' },
-      { etapa: 'Leads', valor: '4,411', pct: 100, color: '#8b5cf6' },
-      { etapa: 'Prospectos', valor: '910', pct: 20.6, color: '#a78bfa' },
-      { etapa: 'Preautorizados', valor: '106', pct: 2.4, color: '#f59e0b' },
-      { etapa: 'Cierres', valor: '10', pct: 0.23, color: '#ef4444' }
+      { etapa: 'Prospectos', valor: '3,801', pct: 100, color: '#6366f1' },
+      { etapa: 'Pre-calificados (Patagon)', valor: '~380', pct: 10, color: '#8b5cf6' },
+      { etapa: 'Preautorizados', valor: '92', pct: 2.42, color: '#f59e0b' },
+      { etapa: 'Cierres', valor: '10', pct: 10.87, color: '#ef4444' }
     ],
     ciudades: [
-      { ciudad: 'Monterrey', tasa: 3.1, cac: 5200, cierres: 4 },
-      { ciudad: 'CDMX', tasa: 2.8, cac: 6100, cierres: 3 },
-      { ciudad: 'Guadalajara', tasa: 1.9, cac: 8400, cierres: 2 },
-      { ciudad: 'Puebla', tasa: 1.2, cac: 12000, cierres: 1 }
+      { ciudad: 'Monterrey',   tasa: 2.95, cac: 3876,  cierres: 6 },
+      { ciudad: 'Guadalajara', tasa: 2.81, cac: null,   cierres: 0 },
+      { ciudad: 'Torreón',     tasa: 4.18, cac: null,   cierres: 0 },
+      { ciudad: 'Querétaro',   tasa: 2.26, cac: null,   cierres: 0 },
+      { ciudad: 'Guanajuato',  tasa: 1.84, cac: null,   cierres: 0 },
+      { ciudad: 'Saltillo',    tasa: 1.02, cac: null,   cierres: 0 }
     ]
   },
   inmobili: {
@@ -6280,11 +6326,14 @@ const CLIENT_HARDCODED_HISTORY = {
 
 const CLIENT_CONTEXT = {
   enpagos: {
-    embudo: 'Lead ($17 CPL) → Prospecto contactado → Preautorizado (2.42%) → Cierre (10.9% de preaut)',
-    cuello: 'La tasa prospecto→preautorizado está en 2.42% vs objetivo 6.65%. Costo/preaut $707 vs objetivo $244.',
-    razones_descarte: 'Buró negativo (40%), ingresos insuficientes (30%), zona fuera de cobertura (20%), sin comprobante (10%)',
-    historico: 'Mejor mes Sep 25: $2,650 CAC y 22 cierres. Desde Ene 26 el CAC subió 145% por caída en tasa de conversión.',
-    impacto_mejora: 'Pasar de 2.42% a 4% de tasa = CAC cae a $2,550. A 6.65% = CAC cae a $1,532 (objetivo cumplido).'
+    embudo: 'Lead Meta WhatsApp ($17 CPL) → bot Patagon pre-califica → vendedor en Bixis → preautorización buró → cierre ($65K ticket) → entrega equipo',
+    cuello: 'Tasa prospecto→preautorizado en 2.42% vs objetivo 6.65% — colapsó desde jul 2025 (267 preaut) hasta feb 2026 (92 preaut) con presupuesto igual. Razones confirmadas: prospecto foráneo, sin negocio establecido, no contesta.',
+    historico: 'Mejor mes jul 2025: 30 cierres a CAC $2,170, costo/preaut $243. Nov-dic 2025 los peores: CAC $12K-$15K por canibalizacion de anuncios + curva aprendizaje Bixis. Feb 2026: 10 cierres, CAC $6,508. Semana mejor de 2026: 16-22 feb con 31 preaut a $588/preaut y 3 cierres.',
+    impacto_mejora: 'De 2.42% a 4% = ~44 preaut adicionales → ~5 cierres más = $325K adicionales/mes. De 2.42% a 6.65% = objetivo cumplido, CAC vuelve a $2,170.',
+    modelo: 'B2C. Financia equipos comerciales (enfriadores, vitrinas, máquinas de hielo, congeladores, freidoras). Híbrido 50% distribuidor + 50% financiera. Sub-distribuidor de Torre/Torrey. No tienen inventario propio.',
+    cliente_ideal: 'Dueño de negocio 30-50 años, local propio (no ambulante), 6+ meses operando, ventas mensuales $150K+, giro alimenticio/bebidas. Sin sobre-endeudamiento en buró. NO emprendedor, sí negocio consolidado que quiere crecer.',
+    estacionalidad: 'Temporada alta mar-sep: pautar todo. Temporada baja oct-dic: solo equipos ticket alto (vitrinas, enfriadores grandes). No pautar congeladores $20K en temporada baja.',
+    expansion_2026: 'Abiertas: Monterrey, Saltillo, Torreón, Querétaro, GDL, Guanajuato. Abriendo mar-abr: Aguascalientes, SLP, San Miguel de Allende. Requieren distribuidor: Tampico, Chihuahua, Hermosillo.'
   },
   inmobili: {
     embudo: 'Mensaje (Meta WA) → Llamada agendada (26%) → Cita agendada (19%) → Asistencia (85%) → Captación (48%) + Orgánicas (~3/mes)',
