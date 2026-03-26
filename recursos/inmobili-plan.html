@@ -81,6 +81,32 @@
   .fi-title { font-size: 0.82rem; font-weight: 700; color: #333; margin-bottom: 5px; }
   .fi-desc { font-size: 0.75rem; color: #999; line-height: 1.5; }
 
+  /* ---- PRÓXIMOS PASOS EN INICIATIVA ---- */
+  .init-steps {
+    margin: 0 28px 20px;
+    padding: 16px 20px;
+    background: #f8f8fb;
+    border-radius: 10px;
+    border: 1px solid #ececf5;
+  }
+  .init-steps-label {
+    font-size: 0.6rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: #aaa;
+    margin-bottom: 10px;
+  }
+  .init-steps ol {
+    margin: 0;
+    padding-left: 18px;
+    font-size: 0.82rem;
+    color: #555;
+    line-height: 1.8;
+  }
+  .init-steps ol li { margin-bottom: 3px; }
+  .init-steps ol li strong { color: #222; font-weight: 700; }
+
   /* ---- INICIATIVAS ---- */
   .initiative { background: #fff; border: 1px solid #e8e8f0; border-radius: 18px; margin-bottom: 16px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.04); }
   .initiative-header { padding: 28px 28px 0; display: flex; align-items: flex-start; gap: 18px; }
@@ -201,7 +227,7 @@
 <div class="hero">
   <div class="eyebrow">Inmobili × OptimizAds — Plan 2026</div>
   <h1>Cómo llegar a <span>30 propiedades</span> al mes</h1>
-  <p>Plan de Acción con 3 iniciativas + simulador para explicar el comportamiento al aumentar el presupuesto.</p>
+  <p>El presupuesto ya llegó a su techo. El crecimiento viene de mejorar lo que ya entra, no de meter más dinero.</p>
 </div>
 
 <div class="divider"></div>
@@ -344,7 +370,7 @@
 <div class="section">
   <div class="eyebrow">02 — Iniciativas</div>
   <div class="section-title">Tres palancas de crecimiento</div>
-  <div class="section-desc">Cada iniciativa ataca directamente uno de los tres cuellos de botella del embudo.</div>
+  <div class="section-desc">Las primeras tres iniciativas mejoran el embudo actual. La cuarta abre un canal nuevo que captura demanda existente.</div>
 
   <!-- INICIATIVA 1 -->
   <div class="initiative">
@@ -359,6 +385,14 @@
       <p>Hoy no tenemos visibilidad de los requisitos que no cumplen los leads. El equipo de ventas no los registra porque interrumpe su flujo de trabajo.</p>
       <p>La solución es capturar esa información automáticamente de cada llamada, sin trabajo extra para el equipo. Con el tiempo acumulamos un historial: cuántos no tienen crédito vigente, cuántos están fuera de zona, cuántos no cumplen el perfil de ingresos.</p>
       <p>Ese historial le dice a OptimizAds exactamente qué cambiar en los anuncios y segmentaciones. Si el 40% de los leads no tiene crédito vigente, filtramos ese perfil desde el anuncio. Llegan menos leads pero de mejor calidad. El embudo se limpia sin gastar más en pauta.</p>
+    </div>
+    <div class="init-steps">
+      <div class="init-steps-label">Próximos pasos</div>
+      <ol>
+        <li><strong>Definir categorías de descarte con el equipo de ventas</strong> — acordar las 6–8 razones más frecuentes (sin crédito vigente, fuera de zona, sin propiedad, no contesta, etc.).</li>
+        <li><strong>Activar registro automático por llamada</strong> — OptimizAds implementa el sistema de captura vía AurisIQ, que escucha y categoriza cada conversación sin interrumpir el flujo del vendedor.</li>
+        <li><strong>Primer análisis a las 4 semanas</strong> — con el historial acumulado identificamos qué perfil rechaza más y ajustamos segmentaciones y mensajes de anuncio.</li>
+      </ol>
     </div>
     <div class="initiative-footer">
       <div><div class="init-stat-label">Impacto en</div><div class="init-stat-val" style="color:#7c3aed;">Llamada → Cita</div></div>
@@ -379,6 +413,14 @@
     <div class="initiative-body">
       <p>El 26% de los leads que llegan a cita y califican no acepta la propuesta. Principalmente por precio. Pero no sabemos en qué momento exacto de la conversación se pierde el lead ni qué argumento funciona mejor para cada perfil.</p>
       <p>Con análisis de conversaciones, identificamos los patrones: qué dice el vendedor antes de que el lead rechace, qué argumentos llevan a cierre, qué diferencia tiene el mejor vendedor vs el resto. Eso se convierte en un proceso de venta más claro y replicable para todo el equipo.</p>
+    </div>
+    <div class="init-steps">
+      <div class="init-steps-label">Próximos pasos</div>
+      <ol>
+        <li><strong>Identificar las conversaciones donde se pierde el lead</strong> — OptimizAds analiza las grabaciones de citas donde no se cerró usando AurisIQ para detectar patrones: en qué momento se rompe, qué objeción aparece con más frecuencia, qué respuesta funciona.</li>
+        <li><strong>Construir el script de cierre mejorado</strong> — con los hallazgos, Kike y el equipo de ventas definen los ajustes al proceso. No es teoría, es lo que ya funciona con los mejores asesores.</li>
+        <li><strong>Implementar y medir en 30 días</strong> — evaluar si la tasa de cierre se mueve de 48% hacia el objetivo de 55%.</li>
+      </ol>
     </div>
     <div class="initiative-footer">
       <div><div class="init-stat-label">Impacto en</div><div class="init-stat-val" style="color:#7c3aed;">Asistencia → Captación</div></div>
@@ -401,11 +443,54 @@
       <p>La iniciativa es documentar de dónde viene cada captación orgánica y qué acción del equipo la generó. Referidos, redes sociales, presencia local, visitas directas. Lo que funcione necesita nombre y proceso para que se pueda replicar mes a mes.</p>
       <p>Estas captaciones van por encima del techo de Meta, sin costo adicional de pauta.</p>
     </div>
+    <div class="init-steps">
+      <div class="init-steps-label">Próximos pasos</div>
+      <ol>
+        <li><strong>Mapear el origen de cada captación orgánica de los últimos 6 meses</strong> — identificar si vienen de referidos, redes sociales, presencia local u otro canal.</li>
+        <li><strong>Definir el proceso replicable</strong> — lo que generó una captación orgánica necesita nombre, responsable y frecuencia. Si fue un referido, ¿cuándo se pidió y cómo? Si fue Google Maps, ¿qué lo activó?</li>
+        <li><strong>Asignar meta mensual y hacer seguimiento semanal</strong> — la meta es 6 orgánicas/mes. Kike lo revisa en la junta semanal junto con las campañas de Meta.</li>
+      </ol>
+    </div>
     <div class="initiative-footer">
       <div><div class="init-stat-label">Orgánicas hoy</div><div class="init-stat-val" style="color:#ef4444;">~3/mes</div></div>
       <div><div class="init-stat-label">Potencial medido</div><div class="init-stat-val" style="color:#d97706;">hasta 9/mes</div></div>
       <div><div class="init-stat-label">Objetivo conservador</div><div class="init-stat-val" style="color:#16a34a;">~6/mes</div></div>
       <div><div class="init-stat-label">Costo en pauta</div><div class="init-stat-val" style="color:#16a34a;">$0</div></div>
+    </div>
+  </div>
+
+  <!-- INICIATIVA 4 -->
+  <div class="initiative">
+    <div class="initiative-header">
+      <div class="initiative-num" style="background:#1d4ed8;">4</div>
+      <div>
+        <div class="initiative-tag" style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;">Canal nuevo — Captar la demanda que ya existe</div>
+        <div class="initiative-title">Landing page + Google Search + Meta a formulario</div>
+      </div>
+    </div>
+    <div class="initiative-body">
+      <p>Los tres canales actuales (Meta → WhatsApp, referidos, orgánico) generan demanda. Hay un tipo de demanda que no estamos captando: la persona que ya decidió vender su casa y está buscando activamente en Google "vender mi casa en Gómez Palacio" o "agencia inmobiliaria Torreón". Esa persona ya tomó la decisión — solo falta estar donde la busca.</p>
+      <ul style="margin:0 0 12px 0;padding-left:18px;font-size:0.87rem;color:#444;line-height:1.9;">
+        <li><strong>Google Search</strong> — aparecemos en el momento exacto en que el propietario busca. No interrumpimos, respondemos. Es la diferencia entre generar demanda y captar demanda existente.</li>
+        <li><strong>Meta a landing</strong> — campañas que llevan a formulario en lugar de WhatsApp, con mejor atribución y seguimiento del lead hasta cierre.</li>
+        <li><strong>Landing page</strong> — página específica para el propietario que quiere vender: promesa de venta en 30 días, casos de éxito, formulario de calificación. Pixel Meta + Google Tag para atribución correcta en ambos canales.</li>
+      </ul>
+      <p>Con las tasas actuales del embudo de Inmobili y un presupuesto inicial conservador en Google (~$15,000–$20,000 MXN/mes), la estimación mínima es <strong>+5 captaciones adicionales por mes</strong>. Estas captaciones van completamente por encima del techo que tiene Meta — no reemplazan el canal, lo complementan.</p>
+    </div>
+    <div class="init-steps">
+      <div class="init-steps-label">Próximos pasos</div>
+      <ol>
+        <li><strong>Construir la landing page</strong> — página específica para el propietario que quiere vender: promesa de 30 días, casos de éxito reales, formulario de calificación. Pixel Meta + Google Tag desde el arranque para atribución correcta.</li>
+        <li><strong>Confirmar rango de propiedades y requisitos con Elizandro</strong> — definir qué propiedades acepta Inmobili (valor, zona, condición) para comunicarlo en la landing y pre-calificar al lead antes de que contacte al asesor.</li>
+        <li><strong>Lanzar campañas de búsqueda en Google</strong> — keywords de intención alta: "vender mi casa Gómez Palacio", "agencia inmobiliaria Torreón", "quiero vender mi propiedad rápido". OptimizAds gestiona la pauta.</li>
+        <li><strong>Primer reporte a las 4 semanas</strong> — evaluar costo por lead desde Google vs Meta, y ajustar presupuesto según qué canal trae leads de mejor calidad.</li>
+      </ol>
+    </div>
+    <div class="initiative-footer">
+      <div><div class="init-stat-label">Canales</div><div class="init-stat-val" style="color:#1d4ed8;">Google + Meta</div></div>
+      <div><div class="init-stat-label">Presupuesto est.</div><div class="init-stat-val" style="color:#d97706;">$15–20K/mes</div></div>
+      <div><div class="init-stat-label">Captaciones mín.</div><div class="init-stat-val" style="color:#16a34a;">+5/mes</div></div>
+      <div><div class="init-stat-label">Costo pauta Meta</div><div class="init-stat-val" style="color:#16a34a;">Sin cambio</div></div>
     </div>
   </div>
 </div>
@@ -416,7 +501,7 @@
 <div class="section">
   <div class="eyebrow">03 — Proyección</div>
   <div class="section-title">Cómo se vería el embudo mejorado</div>
-  <div class="section-desc">Con las tres iniciativas activas y el mismo volumen de mensajes actual.</div>
+  <div class="section-desc">Las primeras tres iniciativas mejoran el embudo sin subir el presupuesto de Meta. La cuarta abre Google Search y suma captaciones adicionales desde un canal completamente nuevo.</div>
 
   <div class="projection-grid">
     <div class="proj-col">
@@ -481,9 +566,19 @@
         <div class="ps-right"><div class="ps-val good">~6</div><div class="ps-pct">con proceso</div></div>
       </div>
       <div class="total-box future">
-        <div class="tb-label">Total captaciones</div>
+        <div class="tb-label">Total captaciones (inics. 1–3)</div>
         <div class="tb-num">~31</div>
-        <div class="tb-sub">sin subir presupuesto</div>
+        <div class="tb-sub">mismo presupuesto Meta</div>
+      </div>
+      <div class="total-box future" style="margin-top:12px;border-color:#1d4ed8;background:#eff6ff;">
+        <div class="tb-label" style="color:#1d4ed8;">+ Landing + Google (inic. 4)</div>
+        <div class="tb-num" style="color:#1d4ed8;">+5</div>
+        <div class="tb-sub" style="color:#1d4ed8;">canal adicional ~$15–20K/mes</div>
+      </div>
+      <div class="total-box future" style="margin-top:12px;background:#f0fdf4;border-color:#16a34a;">
+        <div class="tb-label">Total con las 4 iniciativas</div>
+        <div class="tb-num" style="color:#16a34a;">~36</div>
+        <div class="tb-sub">objetivo Elizandro: 30 ✓</div>
       </div>
     </div>
   </div>
@@ -491,9 +586,9 @@
 
 <div class="divider"></div>
 
-<!-- 04 SIMULADOR -->
+<!-- 05 SIMULADOR -->
 <div class="section">
-  <div class="eyebrow">04 — Simulador</div>
+  <div class="eyebrow">05 — Simulador</div>
   <div class="section-title">¿Qué pasa si movemos cada etapa?</div>
   <div class="section-desc">Ajusta presupuesto, costo por mensaje y las tasas de conversión de cada etapa para ver cuántas propiedades se captarían.</div>
 
