@@ -3642,25 +3642,28 @@ function showWorkspaceSelector(destinoRol) {
   document.body.appendChild(modal);
 }
 
-function selectWorkspaceAndEnter(wsId, destinoRol) {
+async function selectWorkspaceAndEnter(wsId, destinoRol) {
   // Quitar modal
   const modal = document.getElementById('workspace-selector-modal');
   if (modal) modal.remove();
 
-  // Setear agencia y cargar clientes del workspace con merge
+  // Setear agencia
   currentAgencia = wsId;
   localStorage.setItem('oa-agencia', wsId);
+
+  // Cargar clientes del workspace — ESPERAR a que termine antes de entrar
   if (window._fbLoadClients) {
-    window._fbLoadClients().then(fbClients => {
+    try {
+      const fbClients = await window._fbLoadClients();
       clients = mergeClients(wsId, fbClients || []);
-    }).catch(() => {
+    } catch(e) {
       clients = getDefaultClients(wsId);
-    });
+    }
   } else {
     clients = mergeClients(wsId, []);
   }
 
-  // Entrar al rol
+  // Ahora sí entrar al rol con los clientes correctos
   enterAs(destinoRol);
 }
 
@@ -3675,13 +3678,9 @@ function enterAs(rol) {
     renderDireccion();
     showScreen('direccion');
   } else if (rol === 'senior') {
-    // Si no hay workspace definido aún, mostrar selector antes de entrar
-    if (!currentAgencia) {
-      showWorkspaceSelector('senior');
-      return;
-    }
-    renderSeniorHome();
-    showScreen('senior-home');
+    // Senior siempre pregunta workspace — hay clientes en ambas agencias
+    showWorkspaceSelector('senior');
+    return;
   } else if (rol === 'junior') {
     renderJuniorHome();
     showScreen('junior');
