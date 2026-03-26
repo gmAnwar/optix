@@ -3539,8 +3539,10 @@ async function init(workspaceId) {
   // Primer load — restaurar agencia si la hay guardada, si no mostrar pantalla de agencia
   const savedAgencia = localStorage.getItem('oa-last-agencia');
   if (savedAgencia && AGENCIA_CONFIG[savedAgencia]) {
-    // Restaurar silenciosamente y mostrar screen-rol
+    // Restaurar silenciosamente — clientes ya se cargaron arriba con mergeClients
     currentAgencia = savedAgencia;
+    // Re-mergear con el workspace guardado (el merge de arriba usó 'optimizads' por default)
+    clients = mergeClients(savedAgencia, clients);
     const badge = document.getElementById('agencia-badge-rol');
     if (badge) {
       const cfg = AGENCIA_CONFIG[savedAgencia];
@@ -3585,7 +3587,7 @@ const AGENCIA_CONFIG = {
   }
 };
 
-function selectAgencia(id) {
+async function selectAgencia(id) {
   currentAgencia = id;
   try { localStorage.setItem('oa-last-agencia', id); } catch(e) {}
   if (window._OptixCore && window._OptixCore.WORKSPACE) {
@@ -3597,12 +3599,20 @@ function selectAgencia(id) {
     badge.innerHTML = `<span style="color:${cfg.color}">${cfg.emoji}</span> ${cfg.nombre}`;
     badge.style.display = 'inline-flex';
   }
-  // AurisIQ solo visible en OptimizAds
   const aurisCard = document.getElementById('card-aurisiq');
   if (aurisCard) aurisCard.style.display = id === 'taco' ? 'none' : '';
-  // Resetear clientes al workspace correcto y re-inicializar
-  clients = getDefaultClients(id);
-  init(id);
+  // Cargar clientes con merge — esperar Firebase antes de mostrar screen-rol
+  if (window._fbLoadClients) {
+    try {
+      const fbClients = await window._fbLoadClients();
+      clients = mergeClients(id, fbClients || []);
+    } catch(e) {
+      clients = getDefaultClients(id);
+    }
+  } else {
+    clients = mergeClients(id, []);
+  }
+  showScreen('rol');
 }
 
 // ══════════════════════════════════════════
@@ -4719,7 +4729,7 @@ function toggleSidebar() {
 }
 
 function goHome() {
-  currentAgencia = null;
+  // No resetear currentAgencia — el workspace se mantiene entre navegaciones
   if (currentRol === 'direccion') {
     renderDireccion();
     showScreen('direccion');
