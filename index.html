@@ -3627,8 +3627,16 @@ function showWorkspaceSelector(destinoRol) {
   const modal = document.createElement('div');
   modal.id = 'workspace-selector-modal';
   modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;display:flex;align-items:center;justify-content:center;';
+  // Click fuera del modal para cerrar y volver a screen-rol
+  modal.addEventListener('click', function(e) {
+    if (e.target === modal) { modal.remove(); showScreen('rol'); }
+  });
   modal.innerHTML = `
-    <div style="background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:36px;max-width:420px;width:90%;text-align:center;">
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:36px;max-width:420px;width:90%;text-align:center;position:relative;">
+      <button onclick="document.getElementById('workspace-selector-modal')?.remove(); showScreen('rol')"
+        style="position:absolute;top:12px;right:16px;background:none;border:none;color:var(--text3);font-size:18px;cursor:pointer;padding:4px 8px;border-radius:6px;"
+        onmouseover="this.style.color='var(--text1)'" onmouseout="this.style.color='var(--text3)'"
+        title="Cerrar">✕</button>
       <div style="font-size:1.2rem;font-weight:800;color:var(--text1);margin-bottom:8px;">¿Qué agencia?</div>
       <div style="font-size:0.85rem;color:var(--text3);margin-bottom:28px;font-family:'DM Mono',monospace;">Elige el espacio de trabajo que quieres ver</div>
       <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
@@ -3657,9 +3665,22 @@ async function selectWorkspaceAndEnter(wsId, destinoRol) {
   const modal = document.getElementById('workspace-selector-modal');
   if (modal) modal.remove();
 
-  // Setear agencia
+  // Setear agencia — guardar con la misma key que init() lee al restaurar
   currentAgencia = wsId;
-  localStorage.setItem('oa-agencia', wsId);
+  try {
+    localStorage.setItem('oa-last-agencia', wsId);
+    localStorage.setItem('oa-agencia', wsId);
+  } catch(e) {}
+
+  // Actualizar badge de agencia en screen-rol
+  const badge = document.getElementById('agencia-badge-rol');
+  if (badge) {
+    const cfg = AGENCIA_CONFIG[wsId];
+    if (cfg) {
+      badge.innerHTML = `<span style="color:${cfg.color}">${cfg.emoji}</span> ${cfg.nombre}`;
+      badge.style.display = 'inline-flex';
+    }
+  }
 
   // Cargar clientes del workspace — ESPERAR a que termine antes de entrar
   if (window._fbLoadClients) {
@@ -3684,12 +3705,23 @@ function enterAs(rol) {
   // Audit log — quién entró y cuándo
   if (window.OptixAudit) window.OptixAudit.Audit.sessionStart(rol);
 
+  // Si no hay agencia seleccionada, pedir que elija primero
+  if (!currentAgencia && ['direccion','senior','junior'].includes(rol)) {
+    showWorkspaceSelector(rol);
+    return;
+  }
+
   if (rol === 'direccion') {
     renderDireccion();
     showScreen('direccion');
   } else if (rol === 'senior') {
-    // Senior siempre pregunta workspace — hay clientes en ambas agencias
-    showWorkspaceSelector('senior');
+    // Si ya hay agencia, entrar directo. Si no, pedir workspace.
+    if (currentAgencia) {
+      renderSeniorHome();
+      showScreen('senior-home');
+    } else {
+      showWorkspaceSelector('senior');
+    }
     return;
   } else if (rol === 'junior') {
     renderJuniorHome();
