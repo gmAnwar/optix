@@ -79,6 +79,64 @@
     try { await auth.signOut(); } catch(e) { console.error("[auth] signOut failed", e); }
   };
 
+  // ── Badge de usuario (commit 2) ─────────────────────────
+  function _userInitials(profile) {
+    const name = (profile && (profile.nombre || profile.email)) || "?";
+    const parts = String(name).trim().split(/\s+/).slice(0,2);
+    return parts.map(p => p[0]).join("").toUpperCase() || "?";
+  }
+  function _rolLabel(rol) {
+    return ({all:"All", direccion:"Dirección", senior:"Senior", junior:"Junior"})[rol] || rol || "—";
+  }
+  window._renderUserBadges = function() {
+    const profile = window.currentUserProfile;
+    if (!profile) return;
+    const slots = document.querySelectorAll(".user-badge-slot");
+    slots.forEach((slot, idx) => {
+      const wrapId = "user-badge-" + idx;
+      const menuId = "user-menu-" + idx;
+      const photo = profile.photoURL
+        ? `<img src="${profile.photoURL}" alt="" style="width:28px;height:28px;border-radius:50%;object-fit:cover;border:1px solid var(--border);" referrerpolicy="no-referrer">`
+        : `<div style="width:28px;height:28px;border-radius:50%;background:var(--accent);color:#000;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;font-family:'DM Sans',sans-serif;">${_userInitials(profile)}</div>`;
+      const safeName = (profile.nombre || "").replace(/[<>&"]/g, c => ({"<":"&lt;",">":"&gt;","&":"&amp;",'"':"&quot;"}[c]));
+      const safeEmail = (profile.email || "").replace(/[<>&"]/g, c => ({"<":"&lt;",">":"&gt;","&":"&amp;",'"':"&quot;"}[c]));
+      slot.innerHTML = `
+        <div id="${wrapId}" style="position:relative; display:inline-flex;">
+          <button type="button" onclick="window._toggleUserMenu('${menuId}', event)"
+            style="display:flex;align-items:center;gap:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:4px 10px 4px 4px;cursor:pointer;font-family:'DM Sans',sans-serif;color:var(--text);transition:border-color 0.15s;"
+            onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
+            ${photo}
+            <span style="font-size:12px;font-weight:600;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${safeName || safeEmail.split("@")[0]}</span>
+            <span style="font-size:9px;color:var(--text3);">▾</span>
+          </button>
+          <div id="${menuId}" style="display:none;position:absolute;right:0;top:calc(100% + 6px);min-width:220px;background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:0 12px 32px rgba(0,0,0,0.4);z-index:10000;overflow:hidden;">
+            <div style="padding:14px 16px;border-bottom:1px solid var(--border);">
+              <div style="font-size:13px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${safeName || "—"}</div>
+              <div style="font-size:11px;color:var(--text3);font-family:'DM Mono',monospace;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${safeEmail}</div>
+              <div style="font-size:10px;color:var(--accent);font-family:'DM Mono',monospace;margin-top:6px;text-transform:uppercase;letter-spacing:0.08em;">${_rolLabel(profile.rol)}</div>
+            </div>
+            <button type="button" onclick="window.signOutUser()"
+              style="display:block;width:100%;padding:12px 16px;background:transparent;border:none;color:var(--red);font-size:13px;font-weight:600;font-family:'DM Sans',sans-serif;text-align:left;cursor:pointer;"
+              onmouseover="this.style.background='rgba(239,68,68,0.08)'" onmouseout="this.style.background='transparent'">
+              Cerrar sesión
+            </button>
+          </div>
+        </div>
+      `;
+    });
+  };
+  window._toggleUserMenu = function(menuId, evt) {
+    if (evt) evt.stopPropagation();
+    document.querySelectorAll('[id^="user-menu-"]').forEach(m => {
+      if (m.id !== menuId) m.style.display = "none";
+    });
+    const el = document.getElementById(menuId);
+    if (el) el.style.display = el.style.display === "block" ? "none" : "block";
+  };
+  document.addEventListener("click", function() {
+    document.querySelectorAll('[id^="user-menu-"]').forEach(m => m.style.display = "none");
+  });
+
   window.initAuth = function initAuth() {
     const btn = document.getElementById("btn-google-signin");
     if (btn) {
@@ -109,6 +167,7 @@
           const profile = await _ensureUserProfile(user);
           window.currentUser = user;
           window.currentUserProfile = profile;
+          if (typeof window._renderUserBadges === "function") window._renderUserBadges();
           const login = document.getElementById("screen-login");
           if (login) login.classList.remove("active");
           if (typeof window.init === "function") {
@@ -1910,6 +1969,8 @@
   </div>
 </div>
 <div id="screen-agencia" class="screen" style="align-items:center; justify-content:center; background:var(--bg); position:relative; overflow:hidden;">
+  <!-- Botón temporal de logout (commit 2 — se removerá cuando el badge esté en todos lados) -->
+  <button onclick="window.signOutUser && window.signOutUser()" style="position:absolute;top:18px;right:20px;z-index:50;background:var(--surface2);border:1px solid var(--border);color:var(--text2);font-size:11px;font-family:'DM Mono',monospace;padding:6px 12px;border-radius:8px;cursor:pointer;transition:all 0.15s;" onmouseover="this.style.borderColor='var(--red)';this.style.color='var(--red)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text2)'">Cerrar sesión</button>
   <div class="home-bg"></div>
   <div class="home-grid"></div>
   <div style="position:relative; z-index:1; text-align:center; padding:40px 24px; max-width:640px; margin:0 auto;">
@@ -2013,6 +2074,7 @@
         <button onclick="enterAs('senior')" style="background:transparent;color:var(--text3);font-size:11px;padding:4px 12px;border-radius:6px;border:none;cursor:pointer;font-family:'DM Mono',monospace;transition:all 0.2s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text3)'">★ Senior</button>
         <button onclick="enterAs('junior')" style="background:transparent;color:var(--text3);font-size:11px;padding:4px 12px;border-radius:6px;border:none;cursor:pointer;font-family:'DM Mono',monospace;transition:all 0.2s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text3)'">▲ Junior</button>
       </div>
+      <div class="user-badge-slot"></div>
     </div>
   </div>
   <!-- Grid de clientes -->
@@ -2140,6 +2202,7 @@
         <button id="jr-btn-dia" onclick="setJrView('dia')" style="background:var(--accent);color:#000;font-size:11px;padding:4px 12px;border-radius:6px;border:none;cursor:pointer;font-family:'DM Mono',monospace;font-weight:600;transition:all 0.2s;">Día</button>
         <button id="jr-btn-semana" onclick="setJrView('semana')" style="background:transparent;color:var(--text3);font-size:11px;padding:4px 12px;border-radius:6px;border:none;cursor:pointer;font-family:'DM Mono',monospace;transition:all 0.2s;">Semana</button>
       </div>
+      <div class="user-badge-slot"></div>
     </div>
   </div>
 
@@ -2265,6 +2328,7 @@
       <button onclick="enterAs('senior')" style="background:transparent;color:var(--text3);font-size:11px;padding:4px 12px;border-radius:6px;border:none;cursor:pointer;font-family:'DM Mono',monospace;transition:all 0.2s;" onmouseover="this.style.color='#a78bfa'" onmouseout="this.style.color='var(--text3)'">★ Senior</button>
       <button onclick="enterAs('junior')" style="background:transparent;color:var(--text3);font-size:11px;padding:4px 12px;border-radius:6px;border:none;cursor:pointer;font-family:'DM Mono',monospace;transition:all 0.2s;" onmouseover="this.style.color='var(--green)'" onmouseout="this.style.color='var(--text3)'">▲ Junior</button>
       <button style="background:rgba(245,158,11,0.12);color:#f59e0b;font-size:11px;padding:4px 12px;border-radius:6px;border:1px solid rgba(245,158,11,0.3);font-family:'DM Mono',monospace;cursor:default;font-weight:600;">◆ AurisIQ</button>
+      <div class="user-badge-slot"></div>
     </div>
   </div>
 
@@ -2361,6 +2425,7 @@
         <button style="background:var(--accent);color:#000;font-size:11px;padding:4px 10px;border-radius:6px;border:none;cursor:default;font-family:'DM Mono',monospace;font-weight:600;">★ Senior</button>
         <button onclick="enterAs('junior')" style="background:transparent;color:var(--text3);font-size:11px;padding:4px 10px;border-radius:6px;border:none;cursor:pointer;font-family:'DM Mono',monospace;transition:all 0.2s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text3)'">▲ Junior</button>
       </div>
+      <div class="user-badge-slot"></div>
     </div>
   </div>
 
@@ -3467,6 +3532,7 @@
       <button onclick="enterAs('senior')" style="background:transparent;color:var(--text3);font-size:11px;padding:4px 10px;border-radius:6px;border:none;cursor:pointer;font-family:'DM Mono',monospace;transition:all 0.2s;" onmouseover="this.style.color='#a78bfa'" onmouseout="this.style.color='var(--text3)'">★ Senior</button>
       <button onclick="enterAs('junior')" style="background:transparent;color:var(--text3);font-size:11px;padding:4px 10px;border-radius:6px;border:none;cursor:pointer;font-family:'DM Mono',monospace;transition:all 0.2s;" onmouseover="this.style.color='var(--green)'" onmouseout="this.style.color='var(--text3)'">▲ Junior</button>
       <button style="background:var(--accent);color:#000;font-size:11px;padding:4px 10px;border-radius:6px;border:none;cursor:default;font-family:'DM Mono',monospace;font-weight:600;">✅ Tareas</button>
+      <div class="user-badge-slot"></div>
     </div>
   </div>
 
