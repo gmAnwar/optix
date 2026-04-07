@@ -5,6 +5,134 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Optix</title>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500&family=Montserrat:wght@400;700;900&display=swap" rel="stylesheet">
+<!-- ════════════════════════════════════════════════════════
+     FIREBASE AUTH (compat) — Sesión: Auth + Login (Commit 1)
+     ════════════════════════════════════════════════════════ -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script>
+  const firebaseConfig = {
+    apiKey: "AIzaSyDFz4p5Me5lZwzCT7aM992JSiWeVbWJb6w",
+    authDomain: "optix-5fb36.firebaseapp.com",
+    projectId: "optix-5fb36",
+    storageBucket: "optix-5fb36.firebasestorage.app",
+    messagingSenderId: "453087797268",
+    appId: "1:453087797268:web:c78faee4f1dffd4574c701"
+  };
+
+  firebase.initializeApp(firebaseConfig);
+  const auth = firebase.auth();
+  const db = firebase.firestore();
+  const googleProvider = new firebase.auth.GoogleAuthProvider();
+
+  // Email con rol "all" desde el primer login
+  const ALL_ROLE_EMAILS = ["anwarhsg@gmail.com"];
+
+  // Globales — currentUser y currentUserProfile NUNCA con let dentro de funciones
+  window.firebaseAuth = auth;
+  window.firebaseDb = db;
+  window.currentUser = null;
+  window.currentUserProfile = null;
+
+  function _showLoginError(msg) {
+    const el = document.getElementById("login-error");
+    if (!el) return;
+    el.textContent = msg;
+    el.style.display = "block";
+  }
+  function _hideLoginError() {
+    const el = document.getElementById("login-error");
+    if (el) el.style.display = "none";
+  }
+  function _setLoginLoading(on) {
+    const el = document.getElementById("login-loading");
+    const btn = document.getElementById("btn-google-signin");
+    if (el)  el.style.display = on ? "block" : "none";
+    if (btn) btn.disabled = on;
+  }
+
+  async function _ensureUserProfile(user) {
+    const ref = db.collection("users").doc(user.uid);
+    const snap = await ref.get();
+    if (!snap.exists) {
+      const email = (user.email || "").toLowerCase();
+      const rolDefault = ALL_ROLE_EMAILS.indexOf(email) !== -1 ? "all" : "junior";
+      const profile = {
+        email: user.email || "",
+        nombre: user.displayName || (user.email || "").split("@")[0],
+        photoURL: user.photoURL || "",
+        rol: rolDefault,
+        workspaces: [],
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        lastLoginAt: firebase.firestore.FieldValue.serverTimestamp()
+      };
+      await ref.set(profile);
+      return profile;
+    } else {
+      try { await ref.update({ lastLoginAt: firebase.firestore.FieldValue.serverTimestamp() }); } catch(e) {}
+      return snap.data();
+    }
+  }
+
+  window.signOutUser = async function() {
+    try { await auth.signOut(); } catch(e) { console.error("[auth] signOut failed", e); }
+  };
+
+  window.initAuth = function initAuth() {
+    const btn = document.getElementById("btn-google-signin");
+    if (btn) {
+      btn.addEventListener("click", async () => {
+        _hideLoginError();
+        _setLoginLoading(true);
+        try {
+          await auth.signInWithPopup(googleProvider);
+          // onAuthStateChanged se encarga del resto
+        } catch (err) {
+          console.error("[auth] signInWithPopup failed", err);
+          _setLoginLoading(false);
+          if (err.code === "auth/popup-closed-by-user") return;
+          if (err.code === "auth/popup-blocked") {
+            _showLoginError("El navegador bloqueó la ventana. Permite pop-ups e intenta de nuevo.");
+          } else if (err.code === "auth/unauthorized-domain") {
+            _showLoginError("Dominio no autorizado en Firebase. Avisa a soporte.");
+          } else {
+            _showLoginError("No se pudo iniciar sesión. Intenta de nuevo.");
+          }
+        }
+      });
+    }
+
+    auth.onAuthStateChanged(async (user) => {
+      if (user) {
+        try {
+          const profile = await _ensureUserProfile(user);
+          window.currentUser = user;
+          window.currentUserProfile = profile;
+          const login = document.getElementById("screen-login");
+          if (login) login.classList.remove("active");
+          if (typeof window.init === "function") {
+            window.init();
+          } else {
+            console.error("[auth] init() no está definido todavía");
+          }
+        } catch (e) {
+          console.error("[auth] ensureUserProfile failed", e);
+          _showLoginError("No se pudo cargar tu perfil. Recarga la página.");
+          _setLoginLoading(false);
+        }
+      } else {
+        window.currentUser = null;
+        window.currentUserProfile = null;
+        document.querySelectorAll(".screen.active").forEach(s => s.classList.remove("active"));
+        const login = document.getElementById("screen-login");
+        if (login) login.classList.add("active");
+        _setLoginLoading(false);
+      }
+    });
+  };
+</script>
+
 <!-- ═══════════════════════════════════════════════════════
      OPTIX — ARQUITECTURA MODULAR v3.0
      
@@ -1747,7 +1875,41 @@
 <!-- ══════════════════════════════════════════ -->
 <!-- SCREEN: AGENCIA (selector OptimizAds / Taco) -->
 <!-- ══════════════════════════════════════════ -->
-<div id="screen-agencia" class="screen active" style="align-items:center; justify-content:center; background:var(--bg); position:relative; overflow:hidden;">
+<!-- ════════════════════════════════════════════════════════
+     SCREEN LOGIN — Firebase Auth + Google
+     ════════════════════════════════════════════════════════ -->
+<div id="screen-login" class="screen active" style="align-items:center; justify-content:center; background:var(--bg); position:relative; overflow:hidden; min-height:100vh; flex-direction:column;">
+  <div style="position:absolute; inset:0; background-image:linear-gradient(var(--border) 1px, transparent 1px), linear-gradient(90deg, var(--border) 1px, transparent 1px); background-size:48px 48px; opacity:0.15; pointer-events:none;"></div>
+  <div style="position:relative; z-index:1; display:flex; flex-direction:column; align-items:center; gap:32px; max-width:420px; width:100%; padding:40px 24px;">
+    <div style="display:flex; flex-direction:column; align-items:center; gap:12px;">
+      <div style="width:72px; height:72px; border-radius:20px; background:var(--accent); display:flex; align-items:center; justify-content:center; font-size:36px; font-weight:700; color:var(--bg); box-shadow:0 8px 32px rgba(0,0,0,0.4);">O</div>
+      <h1 style="margin:0; font-size:32px; font-weight:700; color:var(--text); letter-spacing:-0.02em;">Optix</h1>
+      <p style="margin:0; font-size:14px; color:var(--text2); text-align:center;">Sistema de gestión de clientes</p>
+    </div>
+    <div style="width:100%; background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:32px 24px; display:flex; flex-direction:column; gap:20px;">
+      <div style="text-align:center;">
+        <h2 style="margin:0 0 6px 0; font-size:18px; font-weight:600; color:var(--text);">Iniciar sesión</h2>
+        <p style="margin:0; font-size:13px; color:var(--text2);">Accede con tu cuenta de Google</p>
+      </div>
+      <button id="btn-google-signin" type="button"
+        style="display:flex; align-items:center; justify-content:center; gap:12px; width:100%; padding:14px 20px; background:#fff; color:#1f1f1f; border:none; border-radius:10px; font-size:15px; font-weight:600; cursor:pointer; transition:transform 0.15s, box-shadow 0.15s;"
+        onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 6px 20px rgba(0,0,0,0.3)';"
+        onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none';">
+        <svg width="20" height="20" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+          <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3c-1.6 4.6-6 8-11.3 8-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/>
+          <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 16 19 13 24 13c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/>
+          <path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2c-2 1.5-4.5 2.4-7.2 2.4-5.3 0-9.7-3.4-11.3-8l-6.5 5C9.6 39.6 16.2 44 24 44z"/>
+          <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.1-4.1 5.5l6.2 5.2C41.4 35.5 44 30.2 44 24c0-1.3-.1-2.4-.4-3.5z"/>
+        </svg>
+        <span>Continuar con Google</span>
+      </button>
+      <div id="login-error" style="display:none; padding:12px 14px; background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.3); border-radius:8px; font-size:13px; color:#ef4444; text-align:center;"></div>
+      <div id="login-loading" style="display:none; text-align:center; font-size:13px; color:var(--text2);">Iniciando sesión…</div>
+    </div>
+    <p style="margin:0; font-size:12px; color:var(--text2); text-align:center;">Optix · OptimizAds · 2026</p>
+  </div>
+</div>
+<div id="screen-agencia" class="screen" style="align-items:center; justify-content:center; background:var(--bg); position:relative; overflow:hidden;">
   <div class="home-bg"></div>
   <div class="home-grid"></div>
   <div style="position:relative; z-index:1; text-align:center; padding:40px 24px; max-width:640px; margin:0 auto;">
@@ -3510,7 +3672,7 @@ const AIConversations = {};
 // ══════════════════════════════════════════
 // INIT
 // ══════════════════════════════════════════
-async function init(workspaceId) {
+window.init = async function init(workspaceId) {
   const wsId = workspaceId || 'optimizads';
 
   // Cargar clientes: defaults como base, Firestore sobreescribe por id
@@ -3565,7 +3727,7 @@ async function init(workspaceId) {
       clients = mergeClients(activeWs, fbClients || []);
     });
   }
-}
+};
 
 // ══════════════════════════════════════════
 // AGENCIA SELECTOR
@@ -7318,9 +7480,9 @@ function escapeHtml(str) {
 }
 
 if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', init);
+  document.addEventListener('DOMContentLoaded', function(){ if (window.initAuth) window.initAuth(); });
 } else {
-  init();
+  if (window.initAuth) window.initAuth();
 }
 
 
