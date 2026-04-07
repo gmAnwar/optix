@@ -1799,6 +1799,10 @@
     margin-bottom: 12px;
     overflow: hidden;
     transition: border-color 0.2s;
+    max-height: 520px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
   }
   .tareas-area:hover { border-color: var(--border2); }
   .tareas-area-header {
@@ -1809,6 +1813,10 @@
     cursor: pointer;
     user-select: none;
     transition: background 0.15s;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: var(--surface);
   }
   .tareas-area-header:hover { background: var(--surface2); }
   .tareas-area-arrow {
@@ -1955,6 +1963,63 @@
   }
   .tarea-item:hover .tarea-delete { opacity: 1; }
   .tarea-delete:hover { background: rgba(239,68,68,0.1); color: var(--red); }
+  /* ── F3/F7: tarea-content + chips de fecha + botón nota + textarea ── */
+  .tarea-content { flex: 1; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+  .tarea-actions { display: flex; gap: 2px; flex-shrink: 0; align-items: flex-start; }
+  .tarea-fecha-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+  .tarea-fecha-chip {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 10px; font-family: 'DM Mono', monospace;
+    padding: 2px 7px; border-radius: 4px;
+    background: var(--surface2); color: var(--text3);
+  }
+  .tarea-fecha-chip.deadline-passed { background: rgba(239,68,68,0.14); color: var(--red); }
+  .tarea-fecha-chip.deadline-near { background: rgba(245,158,11,0.14); color: var(--yellow); }
+  .tarea-nota-btn {
+    opacity: 0; background: none; border: none; color: var(--text3);
+    cursor: pointer; font-size: 12px; padding: 0 4px; border-radius: 4px;
+    transition: opacity 0.15s, color 0.15s;
+  }
+  .tarea-item:hover .tarea-nota-btn { opacity: 1; }
+  .tarea-nota-btn.has-nota { opacity: 0.85; color: var(--accent); }
+  .tarea-nota-btn:hover { opacity: 1; color: var(--accent); }
+  .tarea-nota-textarea {
+    width: 100%; background: var(--surface2); border: 1px solid var(--border);
+    color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 11.5px;
+    padding: 6px 8px; border-radius: 6px; resize: vertical; min-height: 50px;
+    margin-top: 2px; outline: none; box-sizing: border-box;
+  }
+  .tarea-nota-textarea:focus { border-color: var(--accent); }
+  /* Inline input wrapper para fechas */
+  .tareas-inline-container {
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .tareas-inline-row {
+    display: flex; gap: 4px; align-items: center;
+  }
+  .tareas-fecha-toggle {
+    background: var(--surface2); border: 1px solid var(--border);
+    color: var(--text3); font-size: 12px; padding: 5px 9px;
+    border-radius: 6px; cursor: pointer; flex-shrink: 0;
+    transition: all 0.15s;
+  }
+  .tareas-fecha-toggle:hover { border-color: var(--accent); color: var(--accent); }
+  .tareas-fecha-inputs {
+    display: none; flex-direction: column; gap: 6px; padding-left: 4px;
+  }
+  .tareas-fecha-inputs.open { display: flex; }
+  .tareas-fecha-input-row {
+    display: flex; align-items: center; gap: 8px; font-size: 10px;
+    font-family: 'DM Mono', monospace; color: var(--text3);
+  }
+  .tareas-fecha-input-row label { min-width: 60px; }
+  .tareas-fecha-input-row input[type="date"] {
+    background: var(--surface2); border: 1px solid var(--border);
+    color: var(--text); font-family: 'DM Mono', monospace; font-size: 11px;
+    padding: 4px 8px; border-radius: 6px; outline: none;
+    color-scheme: dark;
+  }
+  .tareas-fecha-input-row input[type="date"]:focus { border-color: var(--accent); }
   .tareas-add-btn {
     width: 100%;
     background: transparent;
@@ -7265,6 +7330,101 @@ function tareasGetKey() {
   return 'tareas_v2_' + wsId;
 }
 
+// ── F3/F7: helpers de fecha y notas ──────────────────────
+function tareasGetHoy() {
+  const d = new Date();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return d.getFullYear() + '-' + m + '-' + day;
+}
+function tareasFormatFecha(yyyymmdd) {
+  if (!yyyymmdd) return '';
+  const parts = yyyymmdd.split('-');
+  if (parts.length !== 3) return yyyymmdd;
+  const meses = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  const mi = parseInt(parts[1], 10) - 1;
+  return parseInt(parts[2], 10) + ' ' + (meses[mi] || parts[1]);
+}
+function tareasRenderFechaChip(tarea) {
+  // Compat: tarea.fecha legacy = fechaLimite
+  const fechaIdeal = tarea.fechaIdeal || null;
+  const fechaLimite = tarea.fechaLimite || tarea.fecha || null;
+  if (!fechaIdeal && !fechaLimite) return '';
+  const hoy = tareasGetHoy();
+  const chips = [];
+  if (fechaIdeal) {
+    chips.push('<span class="tarea-fecha-chip" title="Fecha ideal">📅 ' + tareasFormatFecha(fechaIdeal) + '</span>');
+  }
+  if (fechaLimite) {
+    let cls = 'tarea-fecha-chip';
+    if (fechaLimite < hoy) cls += ' deadline-passed';
+    else {
+      // mañana = hoy + 1
+      const d = new Date(hoy + 'T00:00:00');
+      d.setDate(d.getDate() + 1);
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      const manana = d.getFullYear() + '-' + m + '-' + day;
+      if (fechaLimite === hoy || fechaLimite === manana) cls += ' deadline-near';
+    }
+    chips.push('<span class="' + cls + '" title="Fecha límite">⚠️ ' + tareasFormatFecha(fechaLimite) + '</span>');
+  }
+  return '<div class="tarea-fecha-chips">' + chips.join('') + '</div>';
+}
+
+// ── Firestore sync (workspaces/{wsId}/tareas/{uid}) ──────
+let _tareasFirestoreUnsub = null;
+let _tareasFirestoreSaveTimer = null;
+let _tareasSubscribedPath = null;
+function tareasFirestoreRef() {
+  if (!window.firebaseDb || !window.currentUser) return null;
+  const wsId = currentAgencia || 'optimizads';
+  return window.firebaseDb
+    .collection('workspaces').doc(wsId)
+    .collection('tareas').doc(window.currentUser.uid);
+}
+async function tareasInitializeFromFirestore() {
+  const ref = tareasFirestoreRef();
+  if (!ref) return;
+  if (_tareasFirestoreUnsub) {
+    try { _tareasFirestoreUnsub(); } catch(e) {}
+    _tareasFirestoreUnsub = null;
+  }
+  try {
+    const snap = await ref.get();
+    if (snap.exists) {
+      const data = snap.data();
+      if (data && Array.isArray(data.areas)) {
+        try { localStorage.setItem(tareasGetKey(), JSON.stringify({ areas: data.areas })); } catch(e) {}
+        if (typeof renderTareas === 'function') {
+          const screen = document.getElementById('screen-tareas');
+          if (screen && screen.classList.contains('active')) renderTareas();
+        }
+      }
+    } else {
+      // Seed inicial: subir lo que tenga localStorage (incluye migración v1→v2)
+      const local = tareasLoad();
+      if (local && local.areas) {
+        try {
+          await ref.set({ areas: local.areas, updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
+        } catch(e) { console.warn('[tareas] seed Firestore failed', e); }
+      }
+    }
+    _tareasFirestoreUnsub = ref.onSnapshot(snap2 => {
+      if (!snap2.exists) return;
+      const d = snap2.data();
+      if (!d || !Array.isArray(d.areas)) return;
+      try { localStorage.setItem(tareasGetKey(), JSON.stringify({ areas: d.areas })); } catch(e) {}
+      const screen = document.getElementById('screen-tareas');
+      if (screen && screen.classList.contains('active') && typeof renderTareas === 'function') {
+        renderTareas();
+      }
+    }, err => console.warn('[tareas] onSnapshot error', err));
+  } catch (e) {
+    console.warn('[tareas] Firestore init failed, fallback localStorage', e);
+  }
+}
+
 // ── MIGRACIÓN v1 → v2 ─────────────────────────────
 // Si existen datos v1 (areas[].tareas[]), los migra a v2 (areas[].proyectos[].tareas[])
 // creando un proyecto "General" en cada área con las tareas existentes.
@@ -7341,6 +7501,16 @@ function tareasSave(data) {
   try {
     localStorage.setItem(tareasGetKey(), JSON.stringify(data));
   } catch(e) { console.warn('tareasSave error', e); }
+  // Debounce 1s para Firestore
+  if (_tareasFirestoreSaveTimer) clearTimeout(_tareasFirestoreSaveTimer);
+  _tareasFirestoreSaveTimer = setTimeout(() => {
+    const ref = tareasFirestoreRef();
+    if (!ref) return;
+    ref.set({
+      areas: data.areas || [],
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    }).catch(e => console.warn('[tareas] Firestore save failed', e));
+  }, 1000);
 }
 
 // Contar pendientes globales para el badge del sidebar
@@ -7361,6 +7531,16 @@ function tareasUpdateBadge() {
 function renderTareas() {
   const container = document.getElementById('tareas-body');
   if (!container) return;
+
+  // Lazy init/resubscribe Firestore para el (ws, uid) actual
+  if (window.currentUser) {
+    const wsId = currentAgencia || 'optimizads';
+    const path = 'workspaces/' + wsId + '/tareas/' + window.currentUser.uid;
+    if (_tareasSubscribedPath !== path) {
+      _tareasSubscribedPath = path;
+      tareasInitializeFromFirestore();
+    }
+  }
 
   const data = tareasLoad();
   const subtitle = document.getElementById('tareas-subtitle');
@@ -7394,16 +7574,32 @@ function renderTareas() {
       const pendientesProy = (proy.tareas || []).filter(t => !t.completado).length;
       const totalProy = (proy.tareas || []).length;
 
-      const tareasHTML = (proy.tareas || []).map(tarea => `
+      const tareasHTML = (proy.tareas || []).map(tarea => {
+        const notaKey = area.id + '|' + proy.id + '|' + tarea.id;
+        const notaOpen = window._tareasNotasOpen && window._tareasNotasOpen.has(notaKey);
+        const hasNota = tarea.notas && tarea.notas.trim().length > 0;
+        const fechaChip = tareasRenderFechaChip(tarea);
+        const notaTextarea = notaOpen
+          ? `<textarea class="tarea-nota-textarea" placeholder="Agrega una nota..." onblur="tareasSaveNota('${area.id}','${proy.id}','${tarea.id}', this.value)">${escapeHtml(tarea.notas || '')}</textarea>`
+          : '';
+        return `
         <div class="tarea-item">
           <div class="tarea-check ${tarea.completado ? 'done' : ''}"
                onclick="tareasToggle('${area.id}','${proy.id}','${tarea.id}')"
                title="${tarea.completado ? 'Marcar pendiente' : 'Marcar completada'}">
             ${tarea.completado ? '<svg width="8" height="6" viewBox="0 0 9 7" fill="none"><polyline points="1,3.5 3.5,6 8,1" stroke="#000" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>' : ''}
           </div>
-          <div class="tarea-texto ${tarea.completado ? 'done' : ''}">${escapeHtml(tarea.texto)}</div>
-          <button class="tarea-delete" onclick="tareasDeleteTarea('${area.id}','${proy.id}','${tarea.id}')" title="Eliminar">✕</button>
-        </div>`).join('');
+          <div class="tarea-content">
+            <div class="tarea-texto ${tarea.completado ? 'done' : ''}">${escapeHtml(tarea.texto)}</div>
+            ${fechaChip}
+            ${notaTextarea}
+          </div>
+          <div class="tarea-actions">
+            <button class="tarea-nota-btn ${hasNota ? 'has-nota' : ''}" onclick="tareasToggleNotaInline('${area.id}','${proy.id}','${tarea.id}')" title="Nota">💬</button>
+            <button class="tarea-delete" onclick="tareasDeleteTarea('${area.id}','${proy.id}','${tarea.id}')" title="Eliminar">✕</button>
+          </div>
+        </div>`;
+      }).join('');
 
       return `
         <div class="tareas-proyecto ${proy.collapsed ? 'collapsed' : ''}" id="proy-${proy.id}">
@@ -7557,10 +7753,28 @@ function tareasShowInput(areaId, proyId) {
   if (!container) return;
   if (container.querySelector('.tareas-inline-input')) { container.innerHTML = ''; return; }
   container.innerHTML = `
-    <input class="tareas-inline-input" id="new-tarea-input-${proyId}"
-      type="text" placeholder="Describe la tarea y presiona Enter..."
-      onkeydown="tareasHandleInputKey(event,'${areaId}','${proyId}')"
-      onblur="tareasBlurInput('${areaId}','${proyId}')">`;
+    <div class="tareas-inline-container" id="inline-wrap-${proyId}"
+         onfocusout="tareasMaybeBlurInput(event,'${areaId}','${proyId}')">
+      <div class="tareas-inline-row">
+        <input class="tareas-inline-input" id="new-tarea-input-${proyId}"
+          type="text" placeholder="Describe la tarea y presiona Enter..."
+          onkeydown="tareasHandleInputKey(event,'${areaId}','${proyId}')"
+          style="flex:1;">
+        <button type="button" class="tareas-fecha-toggle" id="fecha-toggle-${proyId}"
+          onmousedown="event.preventDefault()"
+          onclick="tareasToggleFechaInputs('${proyId}')" title="Agregar fecha">📅</button>
+      </div>
+      <div class="tareas-fecha-inputs" id="fecha-inputs-${proyId}">
+        <div class="tareas-fecha-input-row">
+          <label>📅 Ideal</label>
+          <input type="date" id="fecha-ideal-${proyId}">
+        </div>
+        <div class="tareas-fecha-input-row">
+          <label>⚠️ Límite</label>
+          <input type="date" id="fecha-limite-${proyId}">
+        </div>
+      </div>
+    </div>`;
   setTimeout(() => document.getElementById('new-tarea-input-' + proyId)?.focus(), 50);
 }
 
@@ -7569,8 +7783,19 @@ function tareasHandleInputKey(e, areaId, proyId) {
     e.preventDefault();
     const input = document.getElementById('new-tarea-input-' + proyId);
     const texto = input?.value?.trim();
-    if (texto) tareasAddTarea(areaId, proyId, texto);
-    else { const c = document.getElementById('input-container-' + proyId); if(c) c.innerHTML = ''; }
+    if (texto) {
+      // F1: leer fechas, guardar y reabrir input para escribir la siguiente
+      const fi = document.getElementById('fecha-ideal-' + proyId)?.value || null;
+      const fl = document.getElementById('fecha-limite-' + proyId)?.value || null;
+      // Detach focusout en wrapper para evitar doble-add con el render que viene
+      const wrap = document.getElementById('inline-wrap-' + proyId);
+      if (wrap) wrap.onfocusout = null;
+      tareasAddTarea(areaId, proyId, texto, fi, fl);
+      setTimeout(() => tareasShowInput(areaId, proyId), 0);
+    } else {
+      const c = document.getElementById('input-container-' + proyId);
+      if(c) c.innerHTML = '';
+    }
   }
   if (e.key === 'Escape') {
     const c = document.getElementById('input-container-' + proyId);
@@ -7578,36 +7803,87 @@ function tareasHandleInputKey(e, areaId, proyId) {
   }
 }
 
-function tareasBlurInput(areaId, proyId) {
+function tareasMaybeBlurInput(e, areaId, proyId) {
+  // Si el foco sigue dentro del wrapper (ej. usuario clickeó el input de fecha), no guardar.
+  const wrap = document.getElementById('inline-wrap-' + proyId);
+  if (wrap && e && e.relatedTarget && wrap.contains(e.relatedTarget)) return;
   setTimeout(() => {
+    const w = document.getElementById('inline-wrap-' + proyId);
+    if (!w) return;
+    if (document.activeElement && w.contains(document.activeElement)) return;
     const input = document.getElementById('new-tarea-input-' + proyId);
     const texto = input?.value?.trim();
-    if (texto) tareasAddTarea(areaId, proyId, texto);
-    else { const c = document.getElementById('input-container-' + proyId); if(c) c.innerHTML = ''; }
+    if (texto) {
+      const fi = document.getElementById('fecha-ideal-' + proyId)?.value || null;
+      const fl = document.getElementById('fecha-limite-' + proyId)?.value || null;
+      tareasAddTarea(areaId, proyId, texto, fi, fl);
+    } else {
+      const c = document.getElementById('input-container-' + proyId);
+      if(c) c.innerHTML = '';
+    }
   }, 150);
 }
 
-function tareasAddTarea(areaId, proyId, texto) {
+function tareasToggleFechaInputs(proyId) {
+  const el = document.getElementById('fecha-inputs-' + proyId);
+  if (!el) return;
+  el.classList.toggle('open');
+}
+
+function tareasAddTarea(areaId, proyId, texto, fechaIdeal, fechaLimite) {
   const data = tareasLoad();
   const area = data.areas.find(a => a.id === areaId);
   if (!area) return;
   const proy = (area.proyectos || []).find(p => p.id === proyId);
   if (!proy) return;
   const tarea = {
-    id: 'tarea-' + Date.now(),
+    id: 'tarea-' + Date.now() + '-' + Math.floor(Math.random() * 1000),
     texto: texto.trim(),
     completado: false,
     completadoAt: null,
-    fecha: null,           // Fase 2
-    calendarEventId: null, // Fase 2
-    asignadoA: null,       // Fase 2
-    notas: null,           // Fase 2
+    fechaIdeal: fechaIdeal || null,
+    fechaLimite: fechaLimite || null,
+    fecha: null,           // Legacy compat (no usar)
+    calendarEventId: null,
+    asignadoA: null,
+    notas: null,
     createdAt: new Date().toISOString()
   };
   if (!proy.tareas) proy.tareas = [];
   proy.tareas.push(tarea);
   tareasSave(data);
   renderTareas();
+}
+
+// ── F7: notas inline ─────────────────────────────────────
+window._tareasNotasOpen = window._tareasNotasOpen || new Set();
+function tareasToggleNotaInline(areaId, proyId, tareaId) {
+  const key = areaId + '|' + proyId + '|' + tareaId;
+  if (window._tareasNotasOpen.has(key)) window._tareasNotasOpen.delete(key);
+  else window._tareasNotasOpen.add(key);
+  renderTareas();
+  if (window._tareasNotasOpen.has(key)) {
+    setTimeout(() => {
+      const ta = document.querySelector('.tarea-nota-textarea');
+      // Buscar el textarea correcto: el último renderizado (heurística simple)
+      const all = document.querySelectorAll('.tarea-nota-textarea');
+      const last = all[all.length - 1];
+      if (last) { last.focus(); last.setSelectionRange(last.value.length, last.value.length); }
+    }, 30);
+  }
+}
+function tareasSaveNota(areaId, proyId, tareaId, val) {
+  const data = tareasLoad();
+  const area = data.areas.find(a => a.id === areaId);
+  if (!area) return;
+  const proy = (area.proyectos || []).find(p => p.id === proyId);
+  if (!proy) return;
+  const tarea = (proy.tareas || []).find(t => t.id === tareaId);
+  if (!tarea) return;
+  const trimmed = (val || '').trim();
+  tarea.notas = trimmed || null;
+  tareasSave(data);
+  // No re-render aquí: perdería foco. La próxima render mostrará el cambio.
 }
 
 function tareasDeleteTarea(areaId, proyId, tareaId) {
