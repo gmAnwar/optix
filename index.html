@@ -64,6 +64,7 @@
         photoURL: user.photoURL || "",
         rol: rolDefault,
         workspaces: [],
+        adminAccess: rolDefault === "all",
         createdAt: firebase.firestore.FieldValue.serverTimestamp(),
         lastLoginAt: firebase.firestore.FieldValue.serverTimestamp()
       };
@@ -153,6 +154,9 @@
     const selectStyle = isSelf
       ? "background:var(--surface3);border:1px solid var(--border);color:var(--text3);cursor:not-allowed;"
       : "background:var(--surface2);border:1px solid var(--border);color:var(--text);cursor:pointer;";
+    const adminOn = u.rol === "all" || u.rol === "direccion" || u.adminAccess === true;
+    const adminForced = u.rol === "all" || u.rol === "direccion";
+    const adminAttrs = (isSelf || adminForced) ? "disabled" : `onchange="window.changeUserAdminAccess('${_esc(u.uid)}', this.checked, this)"`;
     return `
       <div style="display:flex;align-items:center;gap:14px;padding:14px 16px;border-bottom:1px solid var(--border);">
         ${photo}
@@ -161,6 +165,10 @@
           <div style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:2px;">${_esc(u.email || "")}</div>
           <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--text3);margin-top:4px;text-transform:uppercase;letter-spacing:0.06em;">Workspace: ${_esc(wsLabel)}</div>
         </div>
+        <label title="Acceso al módulo Admin (Cobranza)" style="display:inline-flex;align-items:center;gap:6px;font-family:'DM Mono',monospace;font-size:10px;color:${adminForced?'var(--text3)':'var(--text2)'};cursor:${(isSelf||adminForced)?'not-allowed':'pointer'};user-select:none;">
+          <input type="checkbox" ${adminOn?"checked":""} ${adminAttrs} style="accent-color:#3b82f6;cursor:${(isSelf||adminForced)?'not-allowed':'pointer'};">
+          Admin
+        </label>
         <select ${selectAttrs} style="${selectStyle}font-family:'DM Mono',monospace;font-size:11px;padding:6px 10px;border-radius:6px;outline:none;">
           ${options}
         </select>
@@ -192,6 +200,18 @@
   window.closeTeamPanel = function() {
     const overlay = document.getElementById("team-panel-overlay");
     if (overlay) overlay.style.display = "none";
+  };
+  window.changeUserAdminAccess = async function(uid, value, inputEl) {
+    if (window.currentUser && uid === window.currentUser.uid) return;
+    if (inputEl) inputEl.disabled = true;
+    try {
+      await db.collection("users").doc(uid).update({ adminAccess: !!value });
+      if (inputEl) inputEl.disabled = false;
+    } catch (e) {
+      console.error("[team] admin access update failed", e);
+      alert("No se pudo actualizar acceso Admin: " + (e.message || e.code || "error desconocido"));
+      if (inputEl) { inputEl.disabled = false; inputEl.checked = !value; }
+    }
   };
   window.changeUserRole = async function(uid, newRol, selectEl) {
     const valid = ["junior","senior","direccion","all"];
@@ -247,6 +267,7 @@
           window.currentUser = user;
           window.currentUserProfile = profile;
           if (typeof window._renderUserBadges === "function") window._renderUserBadges();
+          if (typeof window.updateAdminCardVisibility === "function") window.updateAdminCardVisibility();
           const login = document.getElementById("screen-login");
           if (login) login.classList.remove("active");
           if (typeof window.init === "function") {
@@ -2094,6 +2115,226 @@
   .client-tab.active { background: var(--accent); color: #000; font-weight: 600; }
   .client-tab.active .tab-badge { color: rgba(0,0,0,0.6); }
   .tab-badge { margin-left:auto; font-size:10px; font-family:'DM Mono',monospace; color:var(--text3); }
+
+  /* ── Admin module ───────────────────────────────────── */
+  .admin-tab {
+    background:transparent; border:none; color:var(--text3);
+    font-family:'DM Sans',sans-serif; font-size:13px; font-weight:600;
+    padding:10px 16px; cursor:pointer; border-bottom:2px solid transparent;
+    transition:all 0.15s;
+  }
+  .admin-tab:hover { color:var(--text2); }
+  .admin-tab.active { color:#3b82f6; border-bottom-color:#3b82f6; }
+
+  /* KPIs */
+  .cbz-kpis {
+    display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));
+    gap:12px; margin-bottom:18px;
+  }
+  .cbz-kpi {
+    background:var(--surface); border:1px solid var(--border); border-radius:12px;
+    padding:16px 18px;
+  }
+  .cbz-kpi-label {
+    font-family:'DM Mono',monospace; font-size:10px; color:var(--text3);
+    text-transform:uppercase; letter-spacing:0.08em; margin-bottom:8px;
+  }
+  .cbz-kpi-value {
+    font-family:'DM Sans',sans-serif; font-size:22px; font-weight:700; letter-spacing:-0.3px;
+  }
+
+  /* Filtros + acciones */
+  .cbz-filters {
+    display:flex; flex-wrap:wrap; gap:8px; align-items:center;
+    margin-bottom:16px; padding:12px; background:var(--surface);
+    border:1px solid var(--border); border-radius:10px;
+  }
+  .cbz-filters select {
+    background:var(--surface2); border:1px solid var(--border);
+    color:var(--text); font-family:'DM Mono',monospace; font-size:11px;
+    padding:6px 10px; border-radius:6px; outline:none; cursor:pointer;
+  }
+  .cbz-btn {
+    background:var(--surface2); border:1px solid var(--border); color:var(--text);
+    font-family:'DM Sans',sans-serif; font-size:11.5px; font-weight:600;
+    padding:7px 14px; border-radius:8px; cursor:pointer;
+    transition:all 0.15s;
+  }
+  .cbz-btn:hover { border-color:#3b82f6; color:#3b82f6; }
+  .cbz-btn-primary { background:#3b82f6; border-color:#3b82f6; color:#fff; }
+  .cbz-btn-primary:hover { background:#2563eb; border-color:#2563eb; color:#fff; }
+  .cbz-btn-ghost { background:transparent; }
+
+  /* Tabla */
+  .cbz-table {
+    background:var(--surface); border:1px solid var(--border); border-radius:12px;
+    overflow:hidden;
+  }
+  .cbz-row {
+    border-bottom:1px solid var(--border);
+  }
+  .cbz-row:last-child { border-bottom:none; }
+  .cbz-row-main {
+    display:grid;
+    grid-template-columns: 1.2fr 1.6fr 0.8fr 0.9fr 0.9fr 0.9fr 0.9fr 0.9fr;
+    align-items:center;
+    padding:12px 16px; gap:10px;
+    cursor:pointer; transition:background 0.15s;
+  }
+  .cbz-row:not(.cbz-row-header) .cbz-row-main:hover { background:var(--surface2); }
+  .cbz-row-header .cbz-row-main {
+    background:var(--surface2); cursor:default;
+    font-family:'DM Mono',monospace; font-size:10px;
+    color:var(--text3); text-transform:uppercase; letter-spacing:0.06em;
+  }
+  .cbz-col { font-size:12px; color:var(--text1); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; }
+  .cbz-col-cli { font-weight:600; }
+  .cbz-col-con { color:var(--text2); }
+  .cbz-col-monto, .cbz-col-pagado { font-family:'DM Mono',monospace; font-weight:600; }
+  .cbz-col-vence { font-family:'DM Mono',monospace; font-size:11px; color:var(--text2); }
+  .cbz-tipo {
+    display:inline-block; font-family:'DM Mono',monospace; font-size:10px;
+    background:var(--surface2); color:var(--text2);
+    padding:2px 8px; border-radius:20px; border:1px solid var(--border);
+  }
+  .cbz-col-acts { display:flex; gap:4px; justify-content:flex-end; }
+  .cbz-act {
+    background:none; border:1px solid transparent; color:var(--text3);
+    font-size:12px; padding:4px 7px; border-radius:6px; cursor:pointer;
+    transition:all 0.15s;
+  }
+  .cbz-act:hover { background:var(--surface2); color:var(--text1); border-color:var(--border); }
+  .cbz-act-del:hover { color:var(--red); border-color:rgba(239,68,68,0.3); }
+
+  /* Chips de estado */
+  .cbz-chip {
+    display:inline-block; font-family:'DM Mono',monospace; font-size:10px;
+    padding:3px 10px; border-radius:20px; white-space:nowrap;
+  }
+  .cbz-chip-pend { background:rgba(245,158,11,0.12); color:var(--yellow); }
+  .cbz-chip-pag  { background:rgba(16,185,129,0.12); color:var(--green); }
+  .cbz-chip-ven  { background:rgba(239,68,68,0.14); color:var(--red); }
+  .cbz-chip-par  { background:rgba(59,130,246,0.14); color:#60a5fa; }
+
+  /* Detail expanded */
+  .cbz-row.expanded .cbz-row-main { background:var(--surface2); }
+  .cbz-detail {
+    padding:14px 20px 18px; background:var(--bg2);
+    display:grid; grid-template-columns:repeat(auto-fit, minmax(160px,1fr));
+    gap:12px; border-top:1px dashed var(--border);
+  }
+  .cbz-detail-wide { grid-column:1 / -1; }
+  .cbz-detail-label {
+    font-family:'DM Mono',monospace; font-size:9.5px; color:var(--text3);
+    text-transform:uppercase; letter-spacing:0.06em; margin-bottom:4px;
+  }
+  .cbz-detail-value { font-size:12px; color:var(--text1); word-break:break-word; }
+
+  /* Empty */
+  .cbz-empty {
+    background:var(--surface); border:1px dashed var(--border); border-radius:12px;
+    padding:40px 20px; text-align:center; color:var(--text2);
+    font-size:13px; line-height:1.8;
+  }
+
+  /* Form */
+  .cbz-form {
+    background:var(--surface); border:1px solid #3b82f6; border-radius:12px;
+    padding:18px 20px 16px; margin-bottom:16px;
+  }
+  .cbz-form-title {
+    font-family:'DM Sans',sans-serif; font-weight:700; font-size:14px;
+    color:#3b82f6; margin-bottom:14px;
+  }
+  .cbz-form-grid {
+    display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:12px 14px;
+  }
+  .cbz-form-wide { grid-column:1 / -1; }
+  .cbz-form label {
+    display:flex; flex-direction:column; gap:5px;
+    font-family:'DM Mono',monospace; font-size:10px; color:var(--text3);
+    text-transform:uppercase; letter-spacing:0.06em;
+  }
+  .cbz-form input, .cbz-form select, .cbz-form textarea {
+    background:var(--bg2); border:1px solid var(--border); color:var(--text);
+    font-family:'DM Sans',sans-serif; font-size:12.5px; padding:8px 10px;
+    border-radius:8px; outline:none; text-transform:none; letter-spacing:0;
+    font-weight:400;
+  }
+  .cbz-form input:focus, .cbz-form select:focus, .cbz-form textarea:focus { border-color:#3b82f6; }
+  .cbz-form textarea { resize:vertical; min-height:52px; }
+  .cbz-form-actions {
+    display:flex; gap:8px; justify-content:flex-end; margin-top:14px;
+    padding-top:14px; border-top:1px solid var(--border);
+  }
+
+  /* Pay form */
+  .cbz-payform {
+    background:rgba(59,130,246,0.06); border-top:1px dashed #3b82f6;
+    padding:14px 20px 16px;
+  }
+  .cbz-payform-title {
+    font-family:'DM Mono',monospace; font-size:10.5px; color:#60a5fa;
+    text-transform:uppercase; letter-spacing:0.06em; margin-bottom:10px;
+  }
+  .cbz-payform-grid {
+    display:grid; grid-template-columns:repeat(auto-fit, minmax(140px,1fr)); gap:10px 12px;
+  }
+  .cbz-payform label {
+    display:flex; flex-direction:column; gap:4px;
+    font-family:'DM Mono',monospace; font-size:9.5px; color:var(--text3);
+    text-transform:uppercase; letter-spacing:0.05em;
+  }
+  .cbz-payform input, .cbz-payform select {
+    background:var(--bg2); border:1px solid var(--border); color:var(--text);
+    font-family:'DM Sans',sans-serif; font-size:12px; padding:7px 9px;
+    border-radius:6px; outline:none; text-transform:none; letter-spacing:0; font-weight:400;
+  }
+  .cbz-payform input:focus, .cbz-payform select:focus { border-color:#3b82f6; }
+  .cbz-payform-actions { display:flex; gap:8px; justify-content:flex-end; margin-top:12px; }
+
+  /* Vista por cliente */
+  .cbz-por-cliente { display:flex; flex-direction:column; gap:12px; }
+  .cbz-pc-group {
+    background:var(--surface); border:1px solid var(--border); border-radius:12px;
+    overflow:hidden;
+  }
+  .cbz-pc-header {
+    padding:14px 18px; background:var(--surface2);
+    display:flex; align-items:center; justify-content:space-between;
+    border-bottom:1px solid var(--border); flex-wrap:wrap; gap:8px;
+  }
+  .cbz-pc-name { font-family:'DM Sans',sans-serif; font-size:14px; font-weight:700; }
+  .cbz-pc-meta { font-family:'DM Mono',monospace; font-size:11px; color:var(--text3); }
+  .cbz-pc-items { display:flex; flex-direction:column; }
+  .cbz-pc-item {
+    display:flex; align-items:center; gap:8px;
+    padding:10px 18px; border-top:1px solid var(--border);
+  }
+  .cbz-pc-item:first-child { border-top:none; }
+
+  /* Responsive: tabla colapsa a cards en mobile */
+  @media (max-width: 900px) {
+    .cbz-row-main {
+      grid-template-columns: 1fr 1fr;
+      grid-template-areas:
+        "cli cli"
+        "con con"
+        "tipo monto"
+        "vence estado"
+        "pagado acts";
+      gap:6px 10px;
+    }
+    .cbz-col-cli { grid-area:cli; }
+    .cbz-col-con { grid-area:con; }
+    .cbz-col-tipo { grid-area:tipo; }
+    .cbz-col-monto { grid-area:monto; text-align:right; }
+    .cbz-col-vence { grid-area:vence; }
+    .cbz-col-estado { grid-area:estado; text-align:right; }
+    .cbz-col-pagado { grid-area:pagado; }
+    .cbz-col-acts { grid-area:acts; }
+    .cbz-row-header { display:none; }
+  }
 </style>
   <!-- Google Identity Services + Calendar API -->
   <script src="https://accounts.google.com/gsi/client" async defer></script>
@@ -2222,6 +2463,13 @@
         <div style="font-size:36px; margin-bottom:16px;">✅</div>
         <div style="font-family:'DM Sans',sans-serif; font-weight:700; font-size:17px; margin-bottom:8px; color:var(--accent); letter-spacing:0;">Tareas</div>
         <div style="font-size:12px; color:var(--text3); line-height:1.5;">Áreas · proyectos · pendientes semanales</div>
+      </div>
+
+      <!-- ADMIN — visible solo con adminAccess -->
+      <div id="card-admin" onclick="enterAs('admin')" style="display:none;background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:28px 20px; cursor:pointer; transition:all 0.25s; text-align:center;" onmouseover="this.style.borderColor='#3b82f6';this.style.background='var(--surface2)';this.style.transform='translateY(-4px)'" onmouseout="this.style.borderColor='var(--border)';this.style.background='var(--surface)';this.style.transform='translateY(0)'">
+        <div style="font-size:36px; margin-bottom:16px;">⚙️</div>
+        <div style="font-family:'DM Sans',sans-serif; font-weight:700; font-size:17px; margin-bottom:8px; color:#3b82f6; letter-spacing:0;">Admin</div>
+        <div style="font-size:12px; color:var(--text3); line-height:1.5;">Cobranza · finanzas · operaciones de negocio</div>
       </div>
 
     </div>
@@ -3748,6 +3996,39 @@
   </div>
 </div>
 
+<!-- ══════════════════════════════════════════ -->
+<!-- SCREEN: ADMIN (cobranza + futuro: finanzas) -->
+<!-- ══════════════════════════════════════════ -->
+<div id="screen-admin" class="screen" style="flex-direction:column; background:var(--bg); min-height:100vh;">
+  <div style="display:flex; align-items:center; justify-content:space-between; padding:20px 32px; border-bottom:1px solid var(--border); background:var(--surface); flex-shrink:0;">
+    <div class="logo-mark" style="margin:0; cursor:pointer;" onclick="showScreen('agencia')" title="Ir al inicio">
+      <div class="logo-dot"></div>
+      <div class="logo-text">OPTIX</div>
+    </div>
+    <div style="display:flex; align-items:center; gap:18px;">
+      <button onclick="enterAs('direccion')" style="background:transparent;color:var(--text3);font-size:11px;padding:4px 10px;border-radius:6px;border:none;cursor:pointer;font-family:'DM Mono',monospace;transition:all 0.2s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text3)'">⚡ Dirección</button>
+      <button onclick="enterAs('senior')" style="background:transparent;color:var(--text3);font-size:11px;padding:4px 10px;border-radius:6px;border:none;cursor:pointer;font-family:'DM Mono',monospace;transition:all 0.2s;" onmouseover="this.style.color='#a78bfa'" onmouseout="this.style.color='var(--text3)'">★ Senior</button>
+      <button onclick="enterAs('junior')" style="background:transparent;color:var(--text3);font-size:11px;padding:4px 10px;border-radius:6px;border:none;cursor:pointer;font-family:'DM Mono',monospace;transition:all 0.2s;" onmouseover="this.style.color='var(--green)'" onmouseout="this.style.color='var(--text3)'">▲ Junior</button>
+      <button onclick="showScreen('rol')" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);font-size:11px;font-family:'DM Mono',monospace;padding:6px 12px;border-radius:8px;cursor:pointer;" onmouseover="this.style.borderColor='#3b82f6';this.style.color='#3b82f6'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text)'">← Cambiar rol</button>
+      <div class="user-badge-slot"></div>
+    </div>
+  </div>
+
+  <div style="padding:24px 32px 12px;">
+    <div style="display:flex;align-items:baseline;gap:14px;margin-bottom:4px;">
+      <div style="font-family:'DM Sans',sans-serif;font-weight:700;font-size:22px;letter-spacing:-0.3px;">Admin</div>
+      <div id="admin-subtitle" style="font-size:12px;color:var(--text3);font-family:'DM Mono',monospace;">—</div>
+    </div>
+    <div style="display:flex;gap:4px;border-bottom:1px solid var(--border);margin-top:14px;">
+      <button class="admin-tab active" data-tab="cobranza" onclick="adminSelectTab('cobranza')">💳 Cobranza</button>
+    </div>
+  </div>
+
+  <div id="admin-body" style="padding:20px 32px 60px; flex:1;">
+    <!-- Contenido dinámico por renderAdmin() -->
+  </div>
+</div>
+
 <!-- MODAL: VAULT -->
 <div id="modal-vault" class="modal-overlay">
   <div class="modal">
@@ -3966,6 +4247,7 @@ window.init = async function init(workspaceId) {
     }
     const aurisCard = document.getElementById('card-aurisiq');
     if (aurisCard) aurisCard.style.display = savedAgencia === 'taco' ? 'none' : '';
+    updateAdminCardVisibility();
     showScreen('rol');
     return;
   }
@@ -4016,6 +4298,7 @@ async function selectAgencia(id) {
   }
   const aurisCard = document.getElementById('card-aurisiq');
   if (aurisCard) aurisCard.style.display = id === 'taco' ? 'none' : '';
+  updateAdminCardVisibility();
   // Cargar clientes con merge — esperar Firebase antes de mostrar screen-rol
   if (window._fbLoadClients) {
     try {
@@ -4147,6 +4430,11 @@ function enterAs(rol) {
   } else if (rol === 'tareas') {
     renderTareas();
     showScreen('tareas');
+  } else if (rol === 'admin') {
+    if (!adminCanAccess()) { showToast('Sin acceso a Admin', '🔒'); showScreen('rol'); return; }
+    if (!currentAgencia) { showWorkspaceSelector('admin'); return; }
+    renderAdmin();
+    showScreen('admin');
   }
 }
 
@@ -8222,6 +8510,656 @@ function tareasDeleteTarea(areaId, proyId, tareaId) {
 function escapeHtml(str) {
   return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
+
+// ══════════════════════════════════════════════════════════════
+// ADMIN — Cobranza (spec canvas F0AR7TXK831)
+// ══════════════════════════════════════════════════════════════
+
+// ── Acceso ─────────────────────────────────────────────
+function adminCanAccess() {
+  const p = window.currentUserProfile;
+  if (!p) return false;
+  if (p.rol === 'all' || p.rol === 'direccion') return true;
+  return p.adminAccess === true;
+}
+function updateAdminCardVisibility() {
+  const card = document.getElementById('card-admin');
+  if (card) card.style.display = adminCanAccess() ? '' : 'none';
+}
+
+// ── Estado del módulo ──────────────────────────────────
+window._adminState = {
+  activeTab: 'cobranza',
+  unsub: null
+};
+window._cobranzaState = {
+  cobros: [],
+  loaded: false,
+  filters: { workspace: 'all', estado: 'all', periodo: 'mes' },
+  view: 'tabla', // 'tabla' | 'porCliente'
+  expandedId: null,
+  formOpen: false,
+  editingId: null,
+  payFormForId: null
+};
+
+// ── Helpers generales ──────────────────────────────────
+function cbzFmtMoney(n) {
+  try { return new Intl.NumberFormat('es-MX', { style:'currency', currency:'MXN', maximumFractionDigits:0 }).format(n || 0); }
+  catch(e) { return '$' + (n||0); }
+}
+function cbzFmtFecha(ymd) {
+  if (!ymd) return '—';
+  const parts = String(ymd).split('-');
+  if (parts.length !== 3) return ymd;
+  const d = new Date(parts[0], parseInt(parts[1],10)-1, parts[2]);
+  try { return d.toLocaleDateString('es-MX', { day:'numeric', month:'short', year:'numeric' }); } catch(e) { return ymd; }
+}
+function cbzToday() { return new Date().toISOString().split('T')[0]; }
+function cbzMonthStart(date) {
+  const d = date || new Date();
+  return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0];
+}
+function cbzMonthEnd(date) {
+  const d = date || new Date();
+  return new Date(d.getFullYear(), d.getMonth()+1, 0).toISOString().split('T')[0];
+}
+function cbzYearStart() {
+  return new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0];
+}
+function cbzDerivarEstado(c) {
+  if (c.estado === 'pagado' || c.estado === 'parcial') return c.estado;
+  if (c.fechaVencimiento && c.fechaVencimiento < cbzToday()) return 'vencido';
+  return 'pendiente';
+}
+
+// ── Storage Firestore ──────────────────────────────────
+function cbzDocPath() {
+  const wsId = currentAgencia || 'optimizads';
+  return 'workspaces/' + wsId + '/cobranza/data';
+}
+function cbzLocalKey() {
+  const wsId = currentAgencia || 'optimizads';
+  return 'cobranza_v2_' + wsId;
+}
+function cbzCacheLoad() {
+  try {
+    const raw = localStorage.getItem(cbzLocalKey());
+    if (!raw) return [];
+    const d = JSON.parse(raw);
+    return Array.isArray(d.cobros) ? d.cobros : [];
+  } catch(e) { return []; }
+}
+function cbzCacheSave(cobros) {
+  try { localStorage.setItem(cbzLocalKey(), JSON.stringify({ cobros: cobros, updatedAt: Date.now() })); } catch(e) {}
+}
+async function cbzLoadFromFirestore() {
+  if (!window.db) return cbzCacheLoad();
+  try {
+    const parts = cbzDocPath().split('/');
+    const snap = await db.collection(parts[0]).doc(parts[1]).collection(parts[2]).doc(parts[3]).get();
+    if (snap.exists) {
+      const data = snap.data();
+      const cobros = Array.isArray(data.cobros) ? data.cobros : [];
+      cbzCacheSave(cobros);
+      return cobros;
+    }
+    return [];
+  } catch(e) {
+    console.warn('[cobranza] load failed, using cache', e);
+    return cbzCacheLoad();
+  }
+}
+async function cbzSaveToFirestore(cobros) {
+  cbzCacheSave(cobros);
+  if (!window.db) return;
+  try {
+    const parts = cbzDocPath().split('/');
+    await db.collection(parts[0]).doc(parts[1]).collection(parts[2]).doc(parts[3]).set({
+      cobros: cobros,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
+  } catch(e) {
+    console.error('[cobranza] save failed', e);
+    showToast('Error guardando cobranza', '⚠️');
+  }
+}
+
+// ── Filtros ────────────────────────────────────────────
+function cbzFiltrar(cobros) {
+  const f = _cobranzaState.filters;
+  let arr = cobros.slice();
+  if (f.workspace !== 'all') arr = arr.filter(c => c.workspace === f.workspace);
+  if (f.estado !== 'all') arr = arr.filter(c => cbzDerivarEstado(c) === f.estado);
+  if (f.periodo !== 'todo') {
+    const hoy = new Date();
+    let desde = null;
+    if (f.periodo === 'mes') desde = cbzMonthStart(hoy);
+    else if (f.periodo === '3m') {
+      const d = new Date(hoy.getFullYear(), hoy.getMonth()-2, 1);
+      desde = d.toISOString().split('T')[0];
+    } else if (f.periodo === 'anio') desde = cbzYearStart();
+    if (desde) arr = arr.filter(c => (c.fechaVencimiento || c.fechaPago || '') >= desde);
+  }
+  return arr;
+}
+
+// ── Render principal ───────────────────────────────────
+async function renderAdmin() {
+  const body = document.getElementById('admin-body');
+  const subtitle = document.getElementById('admin-subtitle');
+  if (!body) return;
+  const wsCfg = AGENCIA_CONFIG[currentAgencia || 'optimizads'];
+  if (subtitle) subtitle.textContent = (wsCfg ? wsCfg.emoji + ' ' + wsCfg.nombre : '—');
+
+  if (_adminState.activeTab === 'cobranza') {
+    if (!_cobranzaState.loaded) {
+      body.innerHTML = '<div style="padding:40px;text-align:center;color:var(--text3);font-family:\'DM Mono\',monospace;font-size:12px;">Cargando cobros…</div>';
+      _cobranzaState.cobros = await cbzLoadFromFirestore();
+      _cobranzaState.loaded = true;
+    }
+    body.innerHTML = cbzRenderTab();
+  }
+}
+function adminSelectTab(tab) {
+  _adminState.activeTab = tab;
+  document.querySelectorAll('.admin-tab').forEach(el => {
+    el.classList.toggle('active', el.getAttribute('data-tab') === tab);
+  });
+  renderAdmin();
+}
+
+// ── Render tab Cobranza ────────────────────────────────
+function cbzRenderTab() {
+  const cobros = _cobranzaState.cobros;
+  const hoy = cbzToday();
+  const mesStart = cbzMonthStart();
+  const mesEnd = cbzMonthEnd();
+  const yearStart = cbzYearStart();
+
+  const porCobrarMes = cobros
+    .filter(c => cbzDerivarEstado(c) !== 'pagado' && c.fechaVencimiento >= mesStart && c.fechaVencimiento <= mesEnd)
+    .reduce((s,c) => s + ((parseFloat(c.monto)||0) - (parseFloat(c.montoPagado)||0)), 0);
+  const cobradoMes = cobros
+    .filter(c => (c.estado === 'pagado' || c.estado === 'parcial') && c.fechaPago && c.fechaPago >= mesStart && c.fechaPago <= mesEnd)
+    .reduce((s,c) => s + (parseFloat(c.montoPagado)||parseFloat(c.monto)||0), 0);
+  const vencido = cobros
+    .filter(c => cbzDerivarEstado(c) === 'vencido')
+    .reduce((s,c) => s + ((parseFloat(c.monto)||0) - (parseFloat(c.montoPagado)||0)), 0);
+  const totalAnio = cobros
+    .filter(c => (c.estado === 'pagado' || c.estado === 'parcial') && c.fechaPago && c.fechaPago >= yearStart)
+    .reduce((s,c) => s + (parseFloat(c.montoPagado)||parseFloat(c.monto)||0), 0);
+
+  const kpiCard = (label, value, color) => `
+    <div class="cbz-kpi">
+      <div class="cbz-kpi-label">${label}</div>
+      <div class="cbz-kpi-value" style="color:${color};">${cbzFmtMoney(value)}</div>
+    </div>`;
+
+  const kpis = `
+    <div class="cbz-kpis">
+      ${kpiCard('Por cobrar · mes', porCobrarMes, 'var(--text1)')}
+      ${kpiCard('Cobrado · mes', cobradoMes, 'var(--accent)')}
+      ${kpiCard('Vencido', vencido, vencido > 0 ? 'var(--red)' : 'var(--text3)')}
+      ${kpiCard('Total año', totalAnio, 'var(--text1)')}
+    </div>`;
+
+  const f = _cobranzaState.filters;
+  const opt = (val, label, selected) => `<option value="${val}" ${selected===val?'selected':''}>${label}</option>`;
+  const filtros = `
+    <div class="cbz-filters">
+      <select onchange="cbzSetFilter('workspace', this.value)">
+        ${opt('all','Todos los workspaces', f.workspace)}
+        ${opt('optimizads','OptimizAds', f.workspace)}
+        ${opt('taco','Taco', f.workspace)}
+      </select>
+      <select onchange="cbzSetFilter('estado', this.value)">
+        ${opt('all','Todos los estados', f.estado)}
+        ${opt('pendiente','Pendientes', f.estado)}
+        ${opt('vencido','Vencidos', f.estado)}
+        ${opt('parcial','Parciales', f.estado)}
+        ${opt('pagado','Pagados', f.estado)}
+      </select>
+      <select onchange="cbzSetFilter('periodo', this.value)">
+        ${opt('mes','Este mes', f.periodo)}
+        ${opt('3m','Últimos 3 meses', f.periodo)}
+        ${opt('anio','Este año', f.periodo)}
+        ${opt('todo','Todo', f.periodo)}
+      </select>
+      <div style="flex:1;"></div>
+      <button class="cbz-btn cbz-btn-ghost" onclick="cbzToggleView()">${_cobranzaState.view === 'tabla' ? '👥 Ver por cliente' : '📋 Ver tabla'}</button>
+      <button class="cbz-btn cbz-btn-ghost" onclick="cbzGenerarRetainers()" title="Genera un cobro de este mes para cada retainer recurrente que aún no lo tenga">↻ Generar retainers</button>
+      <button class="cbz-btn cbz-btn-primary" onclick="cbzShowForm()">＋ Nuevo cobro</button>
+    </div>`;
+
+  const filtrados = cbzFiltrar(cobros);
+  const contenido = _cobranzaState.view === 'tabla'
+    ? cbzRenderTabla(filtrados)
+    : cbzRenderPorCliente(filtrados);
+
+  const formBlock = _cobranzaState.formOpen ? cbzRenderForm() : '';
+
+  return kpis + filtros + formBlock + contenido;
+}
+
+// ── Filtros setters ────────────────────────────────────
+function cbzSetFilter(key, val) {
+  _cobranzaState.filters[key] = val;
+  renderAdmin();
+}
+function cbzToggleView() {
+  _cobranzaState.view = _cobranzaState.view === 'tabla' ? 'porCliente' : 'tabla';
+  renderAdmin();
+}
+
+// ── Render tabla ───────────────────────────────────────
+function cbzEstadoChip(estado) {
+  const map = {
+    pendiente: { cls: 'pend', label: '🟡 Pendiente' },
+    pagado:    { cls: 'pag',  label: '🟢 Pagado' },
+    vencido:   { cls: 'ven',  label: '🔴 Vencido' },
+    parcial:   { cls: 'par',  label: '🔵 Parcial' }
+  };
+  const e = map[estado] || map.pendiente;
+  return `<span class="cbz-chip cbz-chip-${e.cls}">${e.label}</span>`;
+}
+function cbzTipoLabel(tipo) {
+  return ({ retainer:'Retainer', proyecto:'Proyecto', variable:'Variable' })[tipo] || tipo || '—';
+}
+function cbzRenderTabla(cobros) {
+  if (cobros.length === 0) {
+    return `<div class="cbz-empty">Sin cobros para los filtros actuales.<br><span style="font-size:11px;color:var(--text3);">Usa <b>＋ Nuevo cobro</b> para registrar el primero.</span></div>`;
+  }
+  const rows = cobros.map(c => {
+    const estado = cbzDerivarEstado(c);
+    const pagado = c.montoPagado ? cbzFmtMoney(c.montoPagado) : '—';
+    const expanded = _cobranzaState.expandedId === c.id;
+    const detail = expanded ? cbzRenderDetail(c) : '';
+    const payForm = _cobranzaState.payFormForId === c.id ? cbzRenderPayForm(c) : '';
+    return `
+      <div class="cbz-row ${expanded?'expanded':''}">
+        <div class="cbz-row-main" onclick="cbzToggleExpand('${c.id}')">
+          <div class="cbz-col cbz-col-cli">${escapeHtml(c.clienteNombre || '—')}</div>
+          <div class="cbz-col cbz-col-con">${escapeHtml(c.concepto || '—')}</div>
+          <div class="cbz-col cbz-col-tipo"><span class="cbz-tipo">${cbzTipoLabel(c.tipo)}${c.recurrente?' ↻':''}</span></div>
+          <div class="cbz-col cbz-col-monto">${cbzFmtMoney(c.monto)}</div>
+          <div class="cbz-col cbz-col-vence">${cbzFmtFecha(c.fechaVencimiento)}</div>
+          <div class="cbz-col cbz-col-estado">${cbzEstadoChip(estado)}</div>
+          <div class="cbz-col cbz-col-pagado">${pagado}</div>
+          <div class="cbz-col cbz-col-acts" onclick="event.stopPropagation()">
+            ${estado !== 'pagado' ? `<button class="cbz-act" title="Marcar pagado" onclick="cbzShowPayForm('${c.id}')">✓</button>` : ''}
+            <button class="cbz-act" title="Editar" onclick="cbzEditCobro('${c.id}')">✏️</button>
+            <button class="cbz-act cbz-act-del" title="Eliminar" onclick="cbzDeleteCobro('${c.id}')">🗑️</button>
+          </div>
+        </div>
+        ${payForm}
+        ${detail}
+      </div>`;
+  }).join('');
+  const header = `
+    <div class="cbz-row cbz-row-header">
+      <div class="cbz-col cbz-col-cli">Cliente</div>
+      <div class="cbz-col cbz-col-con">Concepto</div>
+      <div class="cbz-col cbz-col-tipo">Tipo</div>
+      <div class="cbz-col cbz-col-monto">Monto</div>
+      <div class="cbz-col cbz-col-vence">Vence</div>
+      <div class="cbz-col cbz-col-estado">Estado</div>
+      <div class="cbz-col cbz-col-pagado">Pagado</div>
+      <div class="cbz-col cbz-col-acts"></div>
+    </div>`;
+  return `<div class="cbz-table">${header}${rows}</div>`;
+}
+function cbzRenderDetail(c) {
+  const field = (label, val) => `<div class="cbz-detail-field"><div class="cbz-detail-label">${label}</div><div class="cbz-detail-value">${val || '—'}</div></div>`;
+  return `
+    <div class="cbz-detail">
+      ${field('Método de pago', escapeHtml(c.metodoPago || ''))}
+      ${field('Cuenta destino', escapeHtml(c.cuentaDestino || ''))}
+      ${field('Referencia', escapeHtml(c.referencia || ''))}
+      ${field('Fecha de pago', c.fechaPago ? cbzFmtFecha(c.fechaPago) : '')}
+      ${field('Monto pagado', c.montoPagado ? cbzFmtMoney(c.montoPagado) : '')}
+      ${field('Workspace', escapeHtml(c.workspace || ''))}
+      ${c.notas ? `<div class="cbz-detail-field cbz-detail-wide"><div class="cbz-detail-label">Notas</div><div class="cbz-detail-value">${escapeHtml(c.notas)}</div></div>` : ''}
+    </div>`;
+}
+function cbzToggleExpand(id) {
+  _cobranzaState.expandedId = _cobranzaState.expandedId === id ? null : id;
+  renderAdmin();
+}
+
+// ── Render vista por cliente ───────────────────────────
+function cbzRenderPorCliente(cobros) {
+  if (cobros.length === 0) {
+    return `<div class="cbz-empty">Sin cobros para los filtros actuales.</div>`;
+  }
+  const grupos = {};
+  cobros.forEach(c => {
+    const key = c.clienteId || ('libre-' + (c.clienteNombre || 'otro'));
+    if (!grupos[key]) grupos[key] = { nombre: c.clienteNombre || '—', items: [] };
+    grupos[key].items.push(c);
+  });
+  const keys = Object.keys(grupos).sort((a,b) => grupos[a].nombre.localeCompare(grupos[b].nombre));
+  return `<div class="cbz-por-cliente">${keys.map(k => {
+    const g = grupos[k];
+    const pend = g.items.filter(c => cbzDerivarEstado(c) !== 'pagado').reduce((s,c) => s + ((parseFloat(c.monto)||0) - (parseFloat(c.montoPagado)||0)), 0);
+    const pag = g.items.filter(c => c.estado === 'pagado' || c.estado === 'parcial').reduce((s,c) => s + (parseFloat(c.montoPagado)||parseFloat(c.monto)||0), 0);
+    const lista = g.items.map(c => {
+      const estado = cbzDerivarEstado(c);
+      return `<div class="cbz-pc-item">
+        <div style="flex:1;min-width:0;"><div style="font-size:12.5px;color:var(--text1);">${escapeHtml(c.concepto || '—')}</div><div style="font-size:10.5px;color:var(--text3);font-family:'DM Mono',monospace;margin-top:2px;">${cbzTipoLabel(c.tipo)} · Vence ${cbzFmtFecha(c.fechaVencimiento)}</div></div>
+        <div style="font-family:'DM Mono',monospace;font-size:11.5px;color:var(--text1);font-weight:600;margin-right:10px;">${cbzFmtMoney(c.monto)}</div>
+        ${cbzEstadoChip(estado)}
+      </div>`;
+    }).join('');
+    return `
+      <div class="cbz-pc-group">
+        <div class="cbz-pc-header">
+          <div class="cbz-pc-name">${escapeHtml(g.nombre)}</div>
+          <div class="cbz-pc-meta">Pendiente: <b style="color:var(--text1)">${cbzFmtMoney(pend)}</b> · Cobrado: <b style="color:var(--accent)">${cbzFmtMoney(pag)}</b></div>
+        </div>
+        <div class="cbz-pc-items">${lista}</div>
+      </div>`;
+  }).join('')}</div>`;
+}
+
+// ── Form nuevo / edit ──────────────────────────────────
+function cbzClientesDisponibles() {
+  const arr = Array.isArray(clients) ? clients.slice() : [];
+  const f = _cobranzaState.filters.workspace;
+  if (f !== 'all') return arr.filter(c => (c.workspaceId || 'optimizads') === f);
+  return arr;
+}
+function cbzShowForm() {
+  _cobranzaState.formOpen = true;
+  _cobranzaState.editingId = null;
+  renderAdmin();
+  setTimeout(() => { const el = document.getElementById('cbz-form-concepto'); if (el) el.focus(); }, 50);
+}
+function cbzEditCobro(id) {
+  _cobranzaState.formOpen = true;
+  _cobranzaState.editingId = id;
+  renderAdmin();
+  setTimeout(() => { const el = document.getElementById('cbz-form-concepto'); if (el) el.focus(); }, 50);
+}
+function cbzCancelForm() {
+  _cobranzaState.formOpen = false;
+  _cobranzaState.editingId = null;
+  renderAdmin();
+}
+function cbzRenderForm() {
+  const editing = _cobranzaState.editingId
+    ? _cobranzaState.cobros.find(c => c.id === _cobranzaState.editingId)
+    : null;
+  const val = (k, d) => editing && editing[k] != null ? editing[k] : (d == null ? '' : d);
+  const clientes = cbzClientesDisponibles();
+  const cliOpts = clientes.map(c =>
+    `<option value="${escapeHtml(c.id)}" data-ws="${escapeHtml(c.workspaceId||'optimizads')}" data-nombre="${escapeHtml(c.nombre)}" ${editing && editing.clienteId===c.id?'selected':''}>${escapeHtml(c.nombre)} · ${escapeHtml(c.workspaceId||'optimizads')}</option>`
+  ).join('');
+  const tipo = val('tipo', 'retainer');
+  const ws = val('workspace', currentAgencia || 'optimizads');
+  const metodo = val('metodoPago', '');
+  return `
+    <div class="cbz-form">
+      <div class="cbz-form-title">${editing ? '✏️ Editar cobro' : '＋ Nuevo cobro'}</div>
+      <div class="cbz-form-grid">
+        <label>Cliente
+          <select id="cbz-form-cliente" onchange="cbzFormClienteChange()">
+            <option value="">— Seleccionar —</option>
+            ${cliOpts}
+            <option value="__libre__" ${editing && !editing.clienteId?'selected':''}>Otro (texto libre)</option>
+          </select>
+        </label>
+        <label>Cliente (texto libre)
+          <input id="cbz-form-cliente-libre" type="text" placeholder="Nombre" value="${escapeHtml(editing && !editing.clienteId ? (editing.clienteNombre||'') : '')}">
+        </label>
+        <label>Workspace
+          <select id="cbz-form-ws">
+            <option value="optimizads" ${ws==='optimizads'?'selected':''}>OptimizAds</option>
+            <option value="taco" ${ws==='taco'?'selected':''}>Taco</option>
+          </select>
+        </label>
+        <label>Tipo
+          <select id="cbz-form-tipo" onchange="cbzFormTipoChange()">
+            <option value="retainer" ${tipo==='retainer'?'selected':''}>Retainer mensual</option>
+            <option value="proyecto" ${tipo==='proyecto'?'selected':''}>Proyecto (one-time)</option>
+            <option value="variable" ${tipo==='variable'?'selected':''}>Variable</option>
+          </select>
+        </label>
+        <label class="cbz-form-wide">Concepto
+          <input id="cbz-form-concepto" type="text" placeholder="ej. Retainer Abril 2026" value="${escapeHtml(val('concepto',''))}">
+        </label>
+        <label>Monto MXN
+          <input id="cbz-form-monto" type="number" step="0.01" placeholder="0" value="${val('monto','')}">
+        </label>
+        <label>Fecha de vencimiento
+          <input id="cbz-form-vence" type="date" value="${val('fechaVencimiento','')}">
+        </label>
+        <label id="cbz-form-rec-wrap" style="${tipo==='retainer'?'':'display:none;'}">¿Recurrente?
+          <select id="cbz-form-recurrente">
+            <option value="true" ${val('recurrente', true)===true?'selected':''}>Sí (se regenera cada mes)</option>
+            <option value="false" ${val('recurrente', true)===false?'selected':''}>No</option>
+          </select>
+        </label>
+        <label>Método de pago
+          <select id="cbz-form-metodo">
+            <option value="" ${metodo===''?'selected':''}>—</option>
+            <option value="transferencia" ${metodo==='transferencia'?'selected':''}>Transferencia</option>
+            <option value="efectivo" ${metodo==='efectivo'?'selected':''}>Efectivo</option>
+            <option value="tarjeta" ${metodo==='tarjeta'?'selected':''}>Tarjeta</option>
+            <option value="cheque" ${metodo==='cheque'?'selected':''}>Cheque</option>
+            <option value="otro" ${metodo==='otro'?'selected':''}>Otro</option>
+          </select>
+        </label>
+        <label>Cuenta destino
+          <input id="cbz-form-cuenta" type="text" placeholder="ej. BBVA 4567" value="${escapeHtml(val('cuentaDestino',''))}">
+        </label>
+        <label>Referencia
+          <input id="cbz-form-ref" type="text" placeholder="folio / número de operación" value="${escapeHtml(val('referencia',''))}">
+        </label>
+        <label class="cbz-form-wide">Notas
+          <textarea id="cbz-form-notas" rows="2" placeholder="Opcional">${escapeHtml(val('notas',''))}</textarea>
+        </label>
+      </div>
+      <div class="cbz-form-actions">
+        <button class="cbz-btn cbz-btn-ghost" onclick="cbzCancelForm()">Cancelar</button>
+        <button class="cbz-btn cbz-btn-primary" onclick="cbzSaveForm()">${editing ? 'Guardar cambios' : 'Guardar cobro'}</button>
+      </div>
+    </div>`;
+}
+function cbzFormClienteChange() {
+  const sel = document.getElementById('cbz-form-cliente');
+  if (!sel) return;
+  const opt = sel.options[sel.selectedIndex];
+  const ws = opt && opt.getAttribute('data-ws');
+  if (ws) {
+    const wsSel = document.getElementById('cbz-form-ws');
+    if (wsSel) wsSel.value = ws;
+  }
+}
+function cbzFormTipoChange() {
+  const tipo = document.getElementById('cbz-form-tipo').value;
+  const wrap = document.getElementById('cbz-form-rec-wrap');
+  if (wrap) wrap.style.display = (tipo === 'retainer') ? '' : 'none';
+}
+async function cbzSaveForm() {
+  const cliSel = document.getElementById('cbz-form-cliente').value;
+  const cliLibre = document.getElementById('cbz-form-cliente-libre').value.trim();
+  let clienteId = null, clienteNombre = '';
+  if (cliSel && cliSel !== '__libre__') {
+    clienteId = cliSel;
+    const cli = (clients || []).find(c => c.id === cliSel);
+    clienteNombre = cli ? cli.nombre : cliSel;
+  } else {
+    clienteNombre = cliLibre;
+  }
+  if (!clienteNombre) { showToast('Elige un cliente o escribe uno', '⚠️'); return; }
+  const concepto = document.getElementById('cbz-form-concepto').value.trim();
+  const monto = parseFloat(document.getElementById('cbz-form-monto').value);
+  const fechaVencimiento = document.getElementById('cbz-form-vence').value;
+  const tipo = document.getElementById('cbz-form-tipo').value;
+  const workspace = document.getElementById('cbz-form-ws').value;
+  const recurrenteSel = document.getElementById('cbz-form-recurrente');
+  const recurrente = tipo === 'retainer' && recurrenteSel && recurrenteSel.value === 'true';
+  const metodoPago = document.getElementById('cbz-form-metodo').value;
+  const cuentaDestino = document.getElementById('cbz-form-cuenta').value.trim();
+  const referencia = document.getElementById('cbz-form-ref').value.trim();
+  const notas = document.getElementById('cbz-form-notas').value.trim();
+  if (!concepto) { showToast('Escribe un concepto', '⚠️'); return; }
+  if (isNaN(monto) || monto <= 0) { showToast('Monto inválido', '⚠️'); return; }
+  if (!fechaVencimiento) { showToast('Fecha de vencimiento requerida', '⚠️'); return; }
+
+  const now = new Date().toISOString();
+  const uid = (window.currentUser && window.currentUser.uid) || 'anon';
+  const editing = _cobranzaState.editingId
+    ? _cobranzaState.cobros.find(c => c.id === _cobranzaState.editingId)
+    : null;
+
+  if (editing) {
+    Object.assign(editing, { clienteId, clienteNombre, workspace, concepto, tipo, monto, fechaVencimiento, recurrente, metodoPago, cuentaDestino, referencia, notas, updatedAt: now });
+  } else {
+    _cobranzaState.cobros.push({
+      id: 'cbz-' + Date.now() + '-' + Math.random().toString(36).slice(2,6),
+      clienteId, clienteNombre, workspace, concepto, tipo, monto,
+      fechaVencimiento, recurrente,
+      estado: 'pendiente',
+      fechaPago: null, montoPagado: 0,
+      metodoPago, cuentaDestino, referencia, notas,
+      createdAt: now, updatedAt: now, createdBy: uid
+    });
+  }
+  await cbzSaveToFirestore(_cobranzaState.cobros);
+  _cobranzaState.formOpen = false;
+  _cobranzaState.editingId = null;
+  renderAdmin();
+  showToast(editing ? 'Cobro actualizado' : 'Cobro registrado', '💳');
+}
+
+// ── Marcar pagado (mini form) ──────────────────────────
+function cbzShowPayForm(id) {
+  _cobranzaState.payFormForId = id;
+  renderAdmin();
+  setTimeout(() => { const el = document.getElementById('cbz-pay-fecha'); if (el) el.focus(); }, 50);
+}
+function cbzCancelPayForm() {
+  _cobranzaState.payFormForId = null;
+  renderAdmin();
+}
+function cbzRenderPayForm(c) {
+  return `
+    <div class="cbz-payform">
+      <div class="cbz-payform-title">Registrar pago · ${escapeHtml(c.clienteNombre)} · ${cbzFmtMoney(c.monto)}</div>
+      <div class="cbz-payform-grid">
+        <label>Fecha de pago<input id="cbz-pay-fecha" type="date" value="${cbzToday()}"></label>
+        <label>Monto pagado<input id="cbz-pay-monto" type="number" step="0.01" value="${c.monto}"></label>
+        <label>Método
+          <select id="cbz-pay-metodo">
+            <option value="transferencia" ${c.metodoPago==='transferencia'?'selected':''}>Transferencia</option>
+            <option value="efectivo" ${c.metodoPago==='efectivo'?'selected':''}>Efectivo</option>
+            <option value="tarjeta" ${c.metodoPago==='tarjeta'?'selected':''}>Tarjeta</option>
+            <option value="cheque" ${c.metodoPago==='cheque'?'selected':''}>Cheque</option>
+            <option value="otro" ${c.metodoPago==='otro'?'selected':''}>Otro</option>
+          </select>
+        </label>
+        <label>Cuenta destino<input id="cbz-pay-cuenta" type="text" value="${escapeHtml(c.cuentaDestino||'')}"></label>
+        <label>Referencia<input id="cbz-pay-ref" type="text" value="${escapeHtml(c.referencia||'')}"></label>
+      </div>
+      <div class="cbz-payform-actions">
+        <button class="cbz-btn cbz-btn-ghost" onclick="cbzCancelPayForm()">Cancelar</button>
+        <button class="cbz-btn cbz-btn-primary" onclick="cbzConfirmPay('${c.id}')">Confirmar pago</button>
+      </div>
+    </div>`;
+}
+async function cbzConfirmPay(id) {
+  const c = _cobranzaState.cobros.find(x => x.id === id);
+  if (!c) return;
+  const fecha = document.getElementById('cbz-pay-fecha').value || cbzToday();
+  const monto = parseFloat(document.getElementById('cbz-pay-monto').value);
+  if (isNaN(monto) || monto <= 0) { showToast('Monto inválido', '⚠️'); return; }
+  c.fechaPago = fecha;
+  c.montoPagado = monto;
+  c.metodoPago = document.getElementById('cbz-pay-metodo').value;
+  c.cuentaDestino = document.getElementById('cbz-pay-cuenta').value.trim();
+  c.referencia = document.getElementById('cbz-pay-ref').value.trim();
+  c.estado = monto >= (parseFloat(c.monto)||0) ? 'pagado' : 'parcial';
+  c.updatedAt = new Date().toISOString();
+  await cbzSaveToFirestore(_cobranzaState.cobros);
+  _cobranzaState.payFormForId = null;
+  renderAdmin();
+  showToast(c.estado === 'pagado' ? 'Cobro pagado' : 'Pago parcial registrado', '✅');
+}
+
+// ── Delete ─────────────────────────────────────────────
+async function cbzDeleteCobro(id) {
+  const c = _cobranzaState.cobros.find(x => x.id === id);
+  if (!c) return;
+  if (!confirm(`¿Eliminar cobro de ${c.clienteNombre} — ${cbzFmtMoney(c.monto)}?`)) return;
+  _cobranzaState.cobros = _cobranzaState.cobros.filter(x => x.id !== id);
+  await cbzSaveToFirestore(_cobranzaState.cobros);
+  renderAdmin();
+  showToast('Cobro eliminado', '🗑️');
+}
+
+// ── Generar retainers del mes ──────────────────────────
+async function cbzGenerarRetainers() {
+  const mesStart = cbzMonthStart();
+  const mesEnd = cbzMonthEnd();
+  // Buscar todos los cobros recurrentes que NO tengan aún otro cobro para el mes activo
+  const recurrentes = _cobranzaState.cobros.filter(c => c.recurrente === true && c.tipo === 'retainer');
+  // Agrupar por cliente+workspace y conservar el más reciente como plantilla
+  const plantillas = {};
+  recurrentes.forEach(c => {
+    const k = (c.clienteId || c.clienteNombre) + '|' + c.workspace;
+    if (!plantillas[k] || (c.createdAt || '') > (plantillas[k].createdAt || '')) plantillas[k] = c;
+  });
+  let creados = 0;
+  const now = new Date().toISOString();
+  const uid = (window.currentUser && window.currentUser.uid) || 'anon';
+  const hoy = new Date();
+  const mesLabel = hoy.toLocaleDateString('es-MX', { month:'long', year:'numeric' });
+  Object.values(plantillas).forEach(tpl => {
+    const yaExiste = _cobranzaState.cobros.some(c =>
+      c.recurrente === true &&
+      (c.clienteId === tpl.clienteId && c.clienteNombre === tpl.clienteNombre) &&
+      c.workspace === tpl.workspace &&
+      c.fechaVencimiento >= mesStart && c.fechaVencimiento <= mesEnd &&
+      c.id !== tpl.id);
+    // Si la plantilla misma ya está en el mes activo, también cuenta
+    const tplEnMes = tpl.fechaVencimiento >= mesStart && tpl.fechaVencimiento <= mesEnd;
+    if (yaExiste || tplEnMes) return;
+    // Crear nuevo cobro clonado
+    const venc = mesEnd; // por default vence al final del mes
+    _cobranzaState.cobros.push({
+      id: 'cbz-' + Date.now() + '-' + Math.random().toString(36).slice(2,6),
+      clienteId: tpl.clienteId,
+      clienteNombre: tpl.clienteNombre,
+      workspace: tpl.workspace,
+      concepto: 'Retainer ' + mesLabel.charAt(0).toUpperCase() + mesLabel.slice(1),
+      tipo: 'retainer',
+      monto: tpl.monto,
+      fechaVencimiento: venc,
+      recurrente: true,
+      estado: 'pendiente',
+      fechaPago: null,
+      montoPagado: 0,
+      metodoPago: tpl.metodoPago || '',
+      cuentaDestino: tpl.cuentaDestino || '',
+      referencia: '',
+      notas: '',
+      createdAt: now,
+      updatedAt: now,
+      createdBy: uid
+    });
+    creados++;
+  });
+  if (creados === 0) {
+    showToast('Retainers del mes ya estaban generados', 'ℹ️');
+    return;
+  }
+  await cbzSaveToFirestore(_cobranzaState.cobros);
+  renderAdmin();
+  showToast(creados + ' retainer' + (creados>1?'s':'') + ' generado' + (creados>1?'s':''), '↻');
+}
+
 
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', function(){ if (window.initAuth) window.initAuth(); });
