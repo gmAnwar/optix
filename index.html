@@ -7979,11 +7979,14 @@ function tareasDragStart(e, areaId, proyId, tareaId) {
     try { e.dataTransfer.setData('text/plain', tareaId); } catch(err) {}
   }
   e.currentTarget.classList.add('dragging');
+  // Evitar que dragstart burbujee al handler del área padre (defensa en profundidad)
+  e.stopPropagation();
 }
 function tareasDragOver(e, areaId, proyId, tareaId) {
   const ctx = window._dragTareaCtx;
   if (!ctx || ctx.areaId !== areaId || ctx.proyId !== proyId) return;
   e.preventDefault();
+  e.stopPropagation();
   if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
   const rect = e.currentTarget.getBoundingClientRect();
   const middle = rect.top + rect.height / 2;
@@ -7996,6 +7999,7 @@ function tareasDragLeave(e) {
 }
 function tareasDrop(e, areaId, proyId, targetTareaId) {
   e.preventDefault();
+  e.stopPropagation();
   e.currentTarget.classList.remove('drop-before','drop-after');
   const ctx = window._dragTareaCtx;
   window._dragTareaCtx = null;
@@ -8031,13 +8035,18 @@ function tareasDragEnd(e) {
 // ── F6b: drag & drop de cards de área ──────────────────
 window._dragAreaId = null;
 function tareasAreaDragStart(e, areaId) {
-  // Solo permitir drag si el usuario tomó el handle dedicado del área.
+  // Si el dragstart viene burbujeado desde una .tarea-item anidada, NO interferir.
+  // Llamar preventDefault aquí cancelaría el drag de la tarea (misma instancia de evento).
+  if (e.target && e.target.closest && e.target.closest('.tarea-item')) {
+    return;
+  }
+  // Solo permitir drag de área si el usuario agarró el handle dedicado del header.
   if (!e.target || !e.target.closest || !e.target.closest('.tareas-area-drag-handle')) {
     e.preventDefault();
     return false;
   }
-  // Si por alguna razón se activó el drag de tareas anidado, abortar área
-  if (window._dragTareaCtx) { e.preventDefault(); return false; }
+  // Guard extra: si por alguna razón hay un drag de tarea activo, abortar área sin cancelar el evento
+  if (window._dragTareaCtx) { return; }
   e.stopPropagation();
   window._dragAreaId = areaId;
   if (e.dataTransfer) {
