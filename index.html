@@ -1997,6 +1997,19 @@
   .tareas-inline-row {
     display: flex; gap: 4px; align-items: center;
   }
+  /* ── F6: drag & drop ── */
+  .tarea-drag-handle {
+    opacity: 0; cursor: grab; color: var(--text3);
+    font-size: 13px; line-height: 1; user-select: none;
+    flex-shrink: 0; padding: 2px 2px 0 0;
+    transition: opacity 0.15s, color 0.15s;
+  }
+  .tarea-item:hover .tarea-drag-handle { opacity: 0.55; }
+  .tarea-drag-handle:hover { opacity: 1; color: var(--accent); }
+  .tarea-drag-handle:active { cursor: grabbing; }
+  .tarea-item.dragging { opacity: 0.4; }
+  .tarea-item.drop-before { box-shadow: inset 0 2px 0 0 var(--accent); }
+  .tarea-item.drop-after  { box-shadow: inset 0 -2px 0 0 var(--accent); }
   .tareas-fecha-toggle {
     background: var(--surface2); border: 1px solid var(--border);
     color: var(--text3); font-size: 12px; padding: 5px 9px;
@@ -2418,6 +2431,12 @@
           <div id="jr-horas-badge" style="background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:6px 12px; font-size:11px; font-family:'DM Mono',monospace; color:var(--text2);"></div>
         </div>
 
+        <!-- Tareas pendientes hoy (módulo Tareas) — F4 -->
+        <div id="jr-tareas-hoy-section" style="display:none; margin-bottom:20px;">
+          <div style="font-family:'DM Mono',monospace; font-weight:500; font-size:11px; color:var(--accent); margin-bottom:10px; text-transform:uppercase; letter-spacing:1px;">📋 Tareas · hoy</div>
+          <div id="jr-tareas-hoy-list"></div>
+        </div>
+
         <!-- Tareas urgentes -->
         <div id="jr-urgentes-section" style="display:none; margin-bottom:20px;">
           <div style="font-family:'DM Mono',monospace; font-weight:500; font-size:11px; color:var(--red); margin-bottom:10px; text-transform:uppercase; letter-spacing:1px;">🚨 Urgente</div>
@@ -2583,7 +2602,15 @@
         <div style="font-family:'DM Sans',sans-serif; font-weight:700; font-size:20px; letter-spacing:-0.3px;">Command Center</div>
         <div id="sen-cmd-semana" style="font-size:11px; color:var(--text3); font-family:'DM Mono',monospace; margin-top:2px;"></div>
       </div>
-      <button class="btn btn-ghost" style="font-size:11px;" onclick="openNewClientModal()">＋ Cliente</button>
+      <div style="display:flex; gap:8px; align-items:center;">
+        <button id="sen-tareas-toggle" class="btn btn-ghost" style="font-size:11px;" onclick="seniorToggleTareasPanel()">✅ Tareas</button>
+        <button class="btn btn-ghost" style="font-size:11px;" onclick="openNewClientModal()">＋ Cliente</button>
+      </div>
+    </div>
+
+    <!-- F5: Panel de Tareas del equipo (solo lectura) -->
+    <div id="sen-tareas-panel" style="display:none; margin-bottom:20px; background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:18px 20px;">
+      <div id="sen-tareas-panel-content"></div>
     </div>
 
     <!-- TARJETAS DE CUENTAS -->
@@ -4220,6 +4247,16 @@ function renderSeniorHome() {
   }
 
   renderSeniorCMD();
+
+  // F5: restaurar estado del panel de Tareas
+  try {
+    const open = localStorage.getItem('sen-tareas-panel-open') === '1';
+    const panel = document.getElementById('sen-tareas-panel');
+    if (panel) {
+      panel.style.display = open ? 'block' : 'none';
+      if (open) renderSeniorTareasPanel();
+    }
+  } catch(e) {}
 }
 
 function renderSeniorCMD() {
@@ -4968,6 +5005,19 @@ function loadJrChecklist(nombre) {
   linksList.innerHTML = tasks.links.map(l =>
     `<a href="${l.url}" target="_blank" style="background:var(--surface2); border:1px solid var(--border); color:var(--text2); font-size:11px; padding:6px 12px; border-radius:8px; text-decoration:none; font-family:'DM Mono',monospace; transition:all 0.2s;" onmouseover="this.style.color='var(--accent)'; this.style.borderColor='var(--accent)'" onmouseout="this.style.color='var(--text2)'; this.style.borderColor='var(--border)'">${l.label}</a>`
   ).join('');
+
+  // F4: Tareas pendientes hoy del módulo Tareas (matching por nombre de área)
+  const hoySection = document.getElementById('jr-tareas-hoy-section');
+  const hoyList = document.getElementById('jr-tareas-hoy-list');
+  if (hoySection && hoyList) {
+    const pendientesHoy = tareasGetPendientesHoy(clienteNombre);
+    if (pendientesHoy.length === 0) {
+      hoySection.style.display = 'none';
+    } else {
+      hoySection.style.display = 'block';
+      hoyList.innerHTML = pendientesHoy.map(m => renderJrTareaPendiente(m)).join('');
+    }
+  }
 
   updateJrProgress();
 }
@@ -7583,7 +7633,13 @@ function renderTareas() {
           ? `<textarea class="tarea-nota-textarea" placeholder="Agrega una nota..." onblur="tareasSaveNota('${area.id}','${proy.id}','${tarea.id}', this.value)">${escapeHtml(tarea.notas || '')}</textarea>`
           : '';
         return `
-        <div class="tarea-item">
+        <div class="tarea-item" draggable="true"
+             ondragstart="tareasDragStart(event,'${area.id}','${proy.id}','${tarea.id}')"
+             ondragover="tareasDragOver(event,'${area.id}','${proy.id}','${tarea.id}')"
+             ondragleave="tareasDragLeave(event)"
+             ondrop="tareasDrop(event,'${area.id}','${proy.id}','${tarea.id}')"
+             ondragend="tareasDragEnd(event)">
+          <span class="tarea-drag-handle" title="Arrastrar para reordenar">⠿</span>
           <div class="tarea-check ${tarea.completado ? 'done' : ''}"
                onclick="tareasToggle('${area.id}','${proy.id}','${tarea.id}')"
                title="${tarea.completado ? 'Marcar pendiente' : 'Marcar completada'}">
@@ -7884,6 +7940,173 @@ function tareasSaveNota(areaId, proyId, tareaId, val) {
   tarea.notas = trimmed || null;
   tareasSave(data);
   // No re-render aquí: perdería foco. La próxima render mostrará el cambio.
+}
+
+// ── F6: drag & drop para reordenar tareas dentro del mismo proyecto ──
+window._dragTareaCtx = null;
+function tareasDragStart(e, areaId, proyId, tareaId) {
+  // Si el target inicial es checkbox/delete/nota/textarea, abortar
+  if (e.target && e.target.closest && e.target.closest('.tarea-check, .tarea-delete, .tarea-nota-btn, .tarea-nota-textarea, input, textarea')) {
+    e.preventDefault();
+    return false;
+  }
+  window._dragTareaCtx = { areaId: areaId, proyId: proyId, tareaId: tareaId };
+  if (e.dataTransfer) {
+    e.dataTransfer.effectAllowed = 'move';
+    try { e.dataTransfer.setData('text/plain', tareaId); } catch(err) {}
+  }
+  e.currentTarget.classList.add('dragging');
+}
+function tareasDragOver(e, areaId, proyId, tareaId) {
+  const ctx = window._dragTareaCtx;
+  if (!ctx || ctx.areaId !== areaId || ctx.proyId !== proyId) return;
+  e.preventDefault();
+  if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+  const rect = e.currentTarget.getBoundingClientRect();
+  const middle = rect.top + rect.height / 2;
+  e.currentTarget.classList.remove('drop-before','drop-after');
+  if (e.clientY < middle) e.currentTarget.classList.add('drop-before');
+  else e.currentTarget.classList.add('drop-after');
+}
+function tareasDragLeave(e) {
+  e.currentTarget.classList.remove('drop-before','drop-after');
+}
+function tareasDrop(e, areaId, proyId, targetTareaId) {
+  e.preventDefault();
+  e.currentTarget.classList.remove('drop-before','drop-after');
+  const ctx = window._dragTareaCtx;
+  window._dragTareaCtx = null;
+  if (!ctx || ctx.areaId !== areaId || ctx.proyId !== proyId) return;
+  if (ctx.tareaId === targetTareaId) return;
+  const data = tareasLoad();
+  const area = data.areas.find(a => a.id === areaId);
+  if (!area) return;
+  const proy = (area.proyectos || []).find(p => p.id === proyId);
+  if (!proy) return;
+  const arr = proy.tareas || [];
+  const fromIdx = arr.findIndex(t => t.id === ctx.tareaId);
+  if (fromIdx === -1) return;
+  const rect = e.currentTarget.getBoundingClientRect();
+  const middle = rect.top + rect.height / 2;
+  const insertAfter = e.clientY >= middle;
+  const [moved] = arr.splice(fromIdx, 1);
+  let toIdx = arr.findIndex(t => t.id === targetTareaId);
+  if (toIdx === -1) { arr.push(moved); proy.tareas = arr; tareasSave(data); renderTareas(); return; }
+  if (insertAfter) toIdx += 1;
+  arr.splice(toIdx, 0, moved);
+  proy.tareas = arr;
+  tareasSave(data);
+  renderTareas();
+}
+function tareasDragEnd(e) {
+  if (e.currentTarget && e.currentTarget.classList) e.currentTarget.classList.remove('dragging');
+  document.querySelectorAll('.tarea-item.drop-before, .tarea-item.drop-after')
+    .forEach(el => el.classList.remove('drop-before','drop-after'));
+  window._dragTareaCtx = null;
+}
+
+// ── F4: tareas pendientes hoy + render para Junior ─────────
+function tareasGetPendientesHoy(clienteNombre) {
+  if (!clienteNombre) return [];
+  const data = tareasLoad();
+  const hoy = tareasGetHoy();
+  const needle = String(clienteNombre).toLowerCase();
+  const matches = [];
+  (data.areas || []).forEach(area => {
+    if (!area.nombre || !area.nombre.toLowerCase().includes(needle)) return;
+    (area.proyectos || []).forEach(proy => {
+      (proy.tareas || []).forEach(tarea => {
+        if (tarea.completado) return;
+        const fl = tarea.fechaLimite || tarea.fecha;
+        const fi = tarea.fechaIdeal;
+        if (fl === hoy || fi === hoy || (fl && fl < hoy)) {
+          matches.push({ areaId: area.id, proyId: proy.id, tarea: tarea });
+        }
+      });
+    });
+  });
+  return matches;
+}
+function renderJrTareaPendiente(m) {
+  const tarea = m.tarea;
+  const areaId = m.areaId;
+  const proyId = m.proyId;
+  const fl = tarea.fechaLimite || tarea.fecha;
+  const hoy = tareasGetHoy();
+  const venc = fl && fl < hoy;
+  const chip = fl
+    ? `<span style="font-size:10px;font-family:'DM Mono',monospace;background:${venc ? 'rgba(239,68,68,0.14)' : 'rgba(245,158,11,0.14)'};color:${venc ? 'var(--red)' : 'var(--yellow)'};padding:2px 7px;border-radius:4px;flex-shrink:0;">${venc ? '🔴' : '⚠️'} ${tareasFormatFecha(fl)}</span>`
+    : '';
+  const nota = tarea.notas
+    ? `<div style="font-size:11px;color:var(--text3);font-style:italic;margin-top:4px;">${escapeHtml(tarea.notas)}</div>`
+    : '';
+  return `
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:8px;display:flex;align-items:flex-start;gap:12px;cursor:pointer;transition:all 0.15s;" onclick="tareasToggle('${areaId}','${proyId}','${tarea.id}'); loadJrChecklist();" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
+      <div style="width:18px;height:18px;border:2px solid ${tarea.completado ? 'var(--green)' : 'var(--border2)'};border-radius:5px;background:${tarea.completado ? 'var(--green)' : 'transparent'};flex-shrink:0;display:flex;align-items:center;justify-content:center;margin-top:1px;">
+        ${tarea.completado ? '<svg width="10" height="8" viewBox="0 0 10 8"><polyline points="1,4 4,7 9,1" fill="none" stroke="#000" stroke-width="2" stroke-linecap="round"/></svg>' : ''}
+      </div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:13px;color:${tarea.completado ? 'var(--text3)' : 'var(--text1)'};text-decoration:${tarea.completado ? 'line-through' : 'none'};line-height:1.4;">${escapeHtml(tarea.texto)}</div>
+        ${nota}
+      </div>
+      ${chip}
+    </div>`;
+}
+
+// ── F5: Senior — panel de tareas del equipo (solo lectura) ──
+function seniorToggleTareasPanel() {
+  const panel = document.getElementById('sen-tareas-panel');
+  if (!panel) return;
+  const isOpen = panel.style.display !== 'none';
+  panel.style.display = isOpen ? 'none' : 'block';
+  try { localStorage.setItem('sen-tareas-panel-open', isOpen ? '0' : '1'); } catch(e) {}
+  if (!isOpen) renderSeniorTareasPanel();
+}
+function renderSeniorTareasPanel() {
+  const content = document.getElementById('sen-tareas-panel-content');
+  if (!content) return;
+  const data = tareasLoad();
+  const hoy = tareasGetHoy();
+  let totalPendientes = 0;
+  let totalVencidas = 0;
+  const areasHTML = (data.areas || []).map(area => {
+    const proyectosHTML = (area.proyectos || []).map(proy => {
+      const pendientes = (proy.tareas || []).filter(t => !t.completado);
+      if (pendientes.length === 0) return '';
+      const tareasHTML = pendientes.map(t => {
+        totalPendientes++;
+        const fl = t.fechaLimite || t.fecha;
+        const venc = fl && fl <= hoy;
+        if (venc) totalVencidas++;
+        const chip = fl
+          ? `<span style="font-size:10px;font-family:'DM Mono',monospace;background:${venc ? 'rgba(239,68,68,0.14)' : 'var(--surface2)'};color:${venc ? 'var(--red)' : 'var(--text3)'};padding:2px 7px;border-radius:4px;margin-left:8px;flex-shrink:0;">${venc ? '🔴' : '📅'} ${tareasFormatFecha(fl)}</span>`
+          : '';
+        return `<div style="display:flex;align-items:center;padding:6px 0;border-bottom:1px dashed var(--border);font-size:12px;color:var(--text2);"><span style="flex:1;min-width:0;">${escapeHtml(t.texto)}</span>${chip}</div>`;
+      }).join('');
+      return `
+        <div style="margin:10px 0 14px 16px;">
+          <div style="font-family:'DM Sans',sans-serif;font-weight:600;font-size:11px;color:var(--text3);margin-bottom:4px;text-transform:uppercase;letter-spacing:0.06em;">${escapeHtml(proy.nombre)} · ${pendientes.length}</div>
+          ${tareasHTML}
+        </div>`;
+    }).filter(s => s).join('');
+    if (!proyectosHTML) return '';
+    return `
+      <div style="margin-bottom:14px;">
+        <div style="font-family:'DM Sans',sans-serif;font-weight:700;font-size:13px;color:var(--text);margin-bottom:6px;">${escapeHtml(area.nombre)}</div>
+        ${proyectosHTML}
+      </div>`;
+  }).filter(s => s).join('');
+
+  const header = `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid var(--border);">
+      <div>
+        <div style="font-family:'DM Sans',sans-serif;font-weight:700;font-size:14px;color:var(--text);">✅ Tareas del equipo</div>
+        <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--text3);margin-top:2px;">Solo lectura · ${totalPendientes} pendiente${totalPendientes===1?'':'s'}</div>
+      </div>
+      ${totalVencidas > 0 ? `<div style="background:rgba(239,68,68,0.14);color:var(--red);font-family:'DM Mono',monospace;font-size:11px;padding:6px 12px;border-radius:8px;font-weight:600;">🔴 ${totalVencidas} vencida${totalVencidas===1?'':'s'}</div>` : ''}
+    </div>`;
+
+  content.innerHTML = header + (areasHTML || '<div style="padding:20px;text-align:center;color:var(--text3);font-size:12px;">Sin tareas pendientes 🎉</div>');
 }
 
 function tareasDeleteTarea(areaId, proyId, tareaId) {
