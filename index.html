@@ -7693,14 +7693,14 @@ function renderTareas() {
 
     return `
       <div class="tareas-area ${area.collapsed ? 'collapsed' : ''}" id="area-${area.id}"
-           draggable="true"
-           ondragstart="tareasAreaDragStart(event,'${area.id}')"
            ondragover="tareasAreaDragOver(event,'${area.id}')"
            ondragleave="tareasAreaDragLeave(event)"
-           ondrop="tareasAreaDrop(event,'${area.id}')"
-           ondragend="tareasAreaDragEnd(event)">
+           ondrop="tareasAreaDrop(event,'${area.id}')">
         <div class="tareas-area-header" onclick="tareasToggleArea('${area.id}')">
           <span class="tareas-area-drag-handle" title="Arrastrar para reordenar"
+                draggable="true"
+                ondragstart="tareasAreaDragStart(event,'${area.id}')"
+                ondragend="tareasAreaDragEnd(event,'${area.id}')"
                 onclick="event.stopPropagation()">⠿</span>
           <span class="tareas-area-arrow">▾</span>
           <span class="tareas-area-nombre">${escapeHtml(area.nombre)}</span>
@@ -8035,25 +8035,19 @@ function tareasDragEnd(e) {
 // ── F6b: drag & drop de cards de área ──────────────────
 window._dragAreaId = null;
 function tareasAreaDragStart(e, areaId) {
-  // Si el dragstart viene burbujeado desde una .tarea-item anidada, NO interferir.
-  // Llamar preventDefault aquí cancelaría el drag de la tarea (misma instancia de evento).
-  if (e.target && e.target.closest && e.target.closest('.tarea-item')) {
-    return;
-  }
-  // Solo permitir drag de área si el usuario agarró el handle dedicado del header.
-  if (!e.target || !e.target.closest || !e.target.closest('.tareas-area-drag-handle')) {
-    e.preventDefault();
-    return false;
-  }
-  // Guard extra: si por alguna razón hay un drag de tarea activo, abortar área sin cancelar el evento
-  if (window._dragTareaCtx) { return; }
-  e.stopPropagation();
+  // Dragstart nace en el handle span (draggable=true). No hay ambigüedad: aquí siempre es drag de área.
   window._dragAreaId = areaId;
   if (e.dataTransfer) {
     e.dataTransfer.effectAllowed = 'move';
     try { e.dataTransfer.setData('text/plain', 'area:' + areaId); } catch(err) {}
+    // Ghost visual: usar la card entera, no el handle diminuto
+    const areaEl = document.getElementById('area-' + areaId);
+    if (areaEl && e.dataTransfer.setDragImage) {
+      try { e.dataTransfer.setDragImage(areaEl, 20, 20); } catch(err) {}
+    }
   }
-  e.currentTarget.classList.add('area-dragging');
+  const areaEl2 = document.getElementById('area-' + areaId);
+  if (areaEl2) areaEl2.classList.add('area-dragging');
 }
 function tareasAreaDragOver(e, areaId) {
   if (!window._dragAreaId || window._dragAreaId === areaId) return;
@@ -8096,12 +8090,16 @@ function tareasAreaDrop(e, targetAreaId) {
   tareasSave(data);
   renderTareas();
 }
-function tareasAreaDragEnd(e) {
-  if (e.currentTarget && e.currentTarget.classList) {
-    e.currentTarget.classList.remove('area-dragging');
+function tareasAreaDragEnd(e, areaId) {
+  // currentTarget es el handle span. Limpiar visual del área por id.
+  if (areaId) {
+    const areaEl = document.getElementById('area-' + areaId);
+    if (areaEl) areaEl.classList.remove('area-dragging');
   }
   document.querySelectorAll('.tareas-area.area-drop-before, .tareas-area.area-drop-after')
     .forEach(el => el.classList.remove('area-drop-before','area-drop-after'));
+  document.querySelectorAll('.tareas-area.area-dragging')
+    .forEach(el => el.classList.remove('area-dragging'));
   window._dragAreaId = null;
 }
 
