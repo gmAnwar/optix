@@ -2010,6 +2010,21 @@
   .tarea-item.dragging { opacity: 0.4; }
   .tarea-item.drop-before { box-shadow: inset 0 2px 0 0 var(--accent); }
   .tarea-item.drop-after  { box-shadow: inset 0 -2px 0 0 var(--accent); }
+  /* ── F6b: drag & drop de cards de área ── */
+  .tareas-area-drag-handle {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 16px; height: 16px; cursor: grab; color: var(--text3);
+    font-size: 13px; line-height: 1; user-select: none;
+    flex-shrink: 0; opacity: 0.4;
+    transition: opacity 0.15s, color 0.15s;
+    margin-right: 2px;
+  }
+  .tareas-area:hover .tareas-area-drag-handle { opacity: 0.85; }
+  .tareas-area-drag-handle:hover { opacity: 1; color: var(--accent); }
+  .tareas-area-drag-handle:active { cursor: grabbing; }
+  .tareas-area.area-dragging { opacity: 0.4; }
+  .tareas-area.area-drop-before { box-shadow: inset 3px 0 0 0 var(--accent); }
+  .tareas-area.area-drop-after  { box-shadow: inset -3px 0 0 0 var(--accent); }
   .tareas-fecha-toggle {
     background: var(--surface2); border: 1px solid var(--border);
     color: var(--text3); font-size: 12px; padding: 5px 9px;
@@ -7677,8 +7692,17 @@ function renderTareas() {
     }).join('');
 
     return `
-      <div class="tareas-area ${area.collapsed ? 'collapsed' : ''}" id="area-${area.id}">
+      <div class="tareas-area ${area.collapsed ? 'collapsed' : ''}" id="area-${area.id}"
+           draggable="true"
+           ondragstart="tareasAreaDragStart(event,'${area.id}')"
+           ondragover="tareasAreaDragOver(event,'${area.id}')"
+           ondragleave="tareasAreaDragLeave(event)"
+           ondrop="tareasAreaDrop(event,'${area.id}')"
+           ondragend="tareasAreaDragEnd(event)">
         <div class="tareas-area-header" onclick="tareasToggleArea('${area.id}')">
+          <span class="tareas-area-drag-handle" title="Arrastrar para reordenar"
+                onclick="event.stopPropagation()"
+                onmousedown="event.stopPropagation()">⠿</span>
           <span class="tareas-area-arrow">▾</span>
           <span class="tareas-area-nombre">${escapeHtml(area.nombre)}</span>
           <span class="tareas-area-count ${pendientesArea > 0 ? 'has-pending' : ''}">${pendientesArea > 0 ? pendientesArea + ' pendientes' : (totalArea > 0 ? '✓ todo listo' : 'sin tareas')}</span>
@@ -8003,6 +8027,74 @@ function tareasDragEnd(e) {
   document.querySelectorAll('.tarea-item.drop-before, .tarea-item.drop-after')
     .forEach(el => el.classList.remove('drop-before','drop-after'));
   window._dragTareaCtx = null;
+}
+
+// ── F6b: drag & drop de cards de área ──────────────────
+window._dragAreaId = null;
+function tareasAreaDragStart(e, areaId) {
+  // Solo permitir drag si el usuario tomó el handle dedicado del área.
+  if (!e.target || !e.target.closest || !e.target.closest('.tareas-area-drag-handle')) {
+    e.preventDefault();
+    return false;
+  }
+  // Si por alguna razón se activó el drag de tareas anidado, abortar área
+  if (window._dragTareaCtx) { e.preventDefault(); return false; }
+  e.stopPropagation();
+  window._dragAreaId = areaId;
+  if (e.dataTransfer) {
+    e.dataTransfer.effectAllowed = 'move';
+    try { e.dataTransfer.setData('text/plain', 'area:' + areaId); } catch(err) {}
+  }
+  e.currentTarget.classList.add('area-dragging');
+}
+function tareasAreaDragOver(e, areaId) {
+  if (!window._dragAreaId || window._dragAreaId === areaId) return;
+  e.preventDefault();
+  e.stopPropagation();
+  if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+  const rect = e.currentTarget.getBoundingClientRect();
+  const middle = rect.left + rect.width / 2;
+  e.currentTarget.classList.remove('area-drop-before','area-drop-after');
+  if (e.clientX < middle) e.currentTarget.classList.add('area-drop-before');
+  else e.currentTarget.classList.add('area-drop-after');
+}
+function tareasAreaDragLeave(e) {
+  e.currentTarget.classList.remove('area-drop-before','area-drop-after');
+}
+function tareasAreaDrop(e, targetAreaId) {
+  e.preventDefault();
+  e.stopPropagation();
+  e.currentTarget.classList.remove('area-drop-before','area-drop-after');
+  const sourceId = window._dragAreaId;
+  window._dragAreaId = null;
+  if (!sourceId || sourceId === targetAreaId) return;
+  const data = tareasLoad();
+  const arr = data.areas || [];
+  const fromIdx = arr.findIndex(a => a.id === sourceId);
+  if (fromIdx === -1) return;
+  const rect = e.currentTarget.getBoundingClientRect();
+  const middle = rect.left + rect.width / 2;
+  const insertAfter = e.clientX >= middle;
+  const [moved] = arr.splice(fromIdx, 1);
+  let toIdx = arr.findIndex(a => a.id === targetAreaId);
+  if (toIdx === -1) { arr.push(moved); }
+  else {
+    if (insertAfter) toIdx += 1;
+    arr.splice(toIdx, 0, moved);
+  }
+  // Refrescar el campo orden para que sea consistente
+  arr.forEach((a, i) => { a.orden = i; });
+  data.areas = arr;
+  tareasSave(data);
+  renderTareas();
+}
+function tareasAreaDragEnd(e) {
+  if (e.currentTarget && e.currentTarget.classList) {
+    e.currentTarget.classList.remove('area-dragging');
+  }
+  document.querySelectorAll('.tareas-area.area-drop-before, .tareas-area.area-drop-after')
+    .forEach(el => el.classList.remove('area-drop-before','area-drop-after'));
+  window._dragAreaId = null;
 }
 
 // ── F4: tareas pendientes hoy + render para Junior ─────────
