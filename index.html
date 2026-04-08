@@ -7701,8 +7701,7 @@ function renderTareas() {
            ondragend="tareasAreaDragEnd(event)">
         <div class="tareas-area-header" onclick="tareasToggleArea('${area.id}')">
           <span class="tareas-area-drag-handle" title="Arrastrar para reordenar"
-                onclick="event.stopPropagation()"
-                onmousedown="event.stopPropagation()">⠿</span>
+                onclick="event.stopPropagation()">⠿</span>
           <span class="tareas-area-arrow">▾</span>
           <span class="tareas-area-nombre">${escapeHtml(area.nombre)}</span>
           <span class="tareas-area-count ${pendientesArea > 0 ? 'has-pending' : ''}">${pendientesArea > 0 ? pendientesArea + ' pendientes' : (totalArea > 0 ? '✓ todo listo' : 'sin tareas')}</span>
