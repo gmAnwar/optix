@@ -8592,58 +8592,65 @@ function cbzDerivarEstado(c) {
 }
 
 // ── Storage Firestore ──────────────────────────────────
-function cbzDocPath() {
-  const wsId = currentAgencia || 'optimizads';
-  return 'workspaces/' + wsId + '/cobranza/data';
-}
-function cbzLocalKey() {
-  const wsId = currentAgencia || 'optimizads';
-  return 'cobranza_v2_' + wsId;
-}
-function cbzCacheLoad() {
-  try {
-    const raw = localStorage.getItem(cbzLocalKey());
-    if (!raw) return [];
-    const d = JSON.parse(raw);
-    return Array.isArray(d.cobros) ? d.cobros : [];
-  } catch(e) { return []; }
-}
-function cbzCacheSave(cobros) {
-  try { localStorage.setItem(cbzLocalKey(), JSON.stringify({ cobros: cobros, updatedAt: Date.now() })); } catch(e) {}
-}
+// Cobranza es global del negocio — se leen AMBOS workspaces siempre.
+var CBZ_WORKSPACES = ['optimizads', 'taco'];
+
 function cbzGetDb() {
-  // db es const en el primer <script> y NO global; se expone como window.firebaseDb.
-  // Fallback al SDK directo si está cargado.
   return window.firebaseDb || (typeof firebase !== 'undefined' && firebase.firestore ? firebase.firestore() : null);
 }
+function cbzCacheLoadAll() {
+  var all = [];
+  CBZ_WORKSPACES.forEach(function(ws) {
+    try {
+      var raw = localStorage.getItem('cobranza_v2_' + ws);
+      if (!raw) return;
+      var d = JSON.parse(raw);
+      if (Array.isArray(d.cobros)) all = all.concat(d.cobros);
+    } catch(e) {}
+  });
+  return all;
+}
+function cbzCacheSaveAll(cobros) {
+  CBZ_WORKSPACES.forEach(function(ws) {
+    var subset = cobros.filter(function(c) { return c.workspace === ws; });
+    try { localStorage.setItem('cobranza_v2_' + ws, JSON.stringify({ cobros: subset, updatedAt: Date.now() })); } catch(e) {}
+  });
+}
 async function cbzLoadFromFirestore() {
-  const fdb = cbzGetDb();
-  if (!fdb) { console.warn('[cobranza] firebaseDb no disponible, usando cache'); return cbzCacheLoad(); }
+  var fdb = cbzGetDb();
+  if (!fdb) { console.warn('[cobranza] firebaseDb no disponible, usando cache'); return cbzCacheLoadAll(); }
+  var all = [];
   try {
-    const parts = cbzDocPath().split('/');
-    const snap = await fdb.collection(parts[0]).doc(parts[1]).collection(parts[2]).doc(parts[3]).get();
-    if (snap.exists) {
-      const data = snap.data() || {};
-      const cobros = Array.isArray(data.cobros) ? data.cobros : [];
-      cbzCacheSave(cobros);
-      return cobros;
-    }
-    return [];
+    var reads = CBZ_WORKSPACES.map(function(ws) {
+      return fdb.collection('workspaces').doc(ws).collection('cobranza').doc('data').get()
+        .then(function(snap) {
+          if (snap.exists) {
+            var data = snap.data() || {};
+            if (Array.isArray(data.cobros)) all = all.concat(data.cobros);
+          }
+        });
+    });
+    await Promise.all(reads);
+    cbzCacheSaveAll(all);
+    return all;
   } catch(e) {
     console.warn('[cobranza] load failed, using cache', e);
-    return cbzCacheLoad();
+    return cbzCacheLoadAll();
   }
 }
 async function cbzSaveToFirestore(cobros) {
-  cbzCacheSave(cobros);
-  const fdb = cbzGetDb();
+  cbzCacheSaveAll(cobros);
+  var fdb = cbzGetDb();
   if (!fdb) { console.warn('[cobranza] firebaseDb no disponible, save solo a cache'); return; }
   try {
-    const parts = cbzDocPath().split('/');
-    await fdb.collection(parts[0]).doc(parts[1]).collection(parts[2]).doc(parts[3]).set({
-      cobros: cobros,
-      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-    }, { merge: true });
+    var writes = CBZ_WORKSPACES.map(function(ws) {
+      var subset = cobros.filter(function(c) { return c.workspace === ws; });
+      return fdb.collection('workspaces').doc(ws).collection('cobranza').doc('data').set({
+        cobros: subset,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+    });
+    await Promise.all(writes);
   } catch(e) {
     console.error('[cobranza] save failed', e);
     showToast('Error guardando cobranza', '⚠️');
