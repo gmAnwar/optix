@@ -65,6 +65,7 @@
         rol: rolDefault,
         workspaces: [],
         adminAccess: rolDefault === "all",
+        adminWorkspaces: [],
         createdAt: firebase.firestore.FieldValue.serverTimestamp(),
         lastLoginAt: firebase.firestore.FieldValue.serverTimestamp()
       };
@@ -142,6 +143,18 @@
   function _esc(s) {
     return String(s == null ? "" : s).replace(/[<>&"]/g, c => ({"<":"&lt;",">":"&gt;","&":"&amp;",'"':"&quot;"}[c]));
   }
+  function _cbzWsCheckboxes(u, isSelf) {
+    const ws = Array.isArray(u.adminWorkspaces) ? u.adminWorkspaces : [];
+    const allWs = ws.length === 0; // empty = all
+    const mk = (id, label) => {
+      const on = allWs || ws.indexOf(id) !== -1;
+      const attrs = isSelf ? "disabled" : 'onchange="window.changeUserAdminWorkspaces(\'' + _esc(u.uid) + '\', this)"';
+      return '<label style="display:inline-flex;align-items:center;gap:4px;font-family:\'DM Mono\',monospace;font-size:9px;color:var(--text3);cursor:' + (isSelf?'not-allowed':'pointer') + ';user-select:none;margin-left:18px;">'
+        + '<input type="checkbox" data-ws="' + id + '" ' + (on?"checked ":"") + attrs + ' style="accent-color:#3b82f6;transform:scale(0.85);">'
+        + label + '</label>';
+    };
+    return mk('optimizads','OptimizAds') + mk('taco','Taco');
+  }
   function _renderTeamRow(u, isSelf) {
     const photo = u.photoURL
       ? `<img src="${_esc(u.photoURL)}" alt="" style="width:36px;height:36px;border-radius:50%;object-fit:cover;border:1px solid var(--border);" referrerpolicy="no-referrer">`
@@ -165,7 +178,7 @@
           <div style="font-family:'DM Mono',monospace;font-size:11px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:2px;">${_esc(u.email || "")}</div>
           <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--text3);margin-top:4px;text-transform:uppercase;letter-spacing:0.06em;">Workspace: ${_esc(wsLabel)}</div>
         </div>
-        <label title="Acceso al módulo Admin (Cobranza)" style="display:inline-flex;align-items:center;gap:6px;font-family:'DM Mono',monospace;font-size:10px;color:${adminForced?'var(--text3)':'var(--text2)'};cursor:${(isSelf||adminForced)?'not-allowed':'pointer'};user-select:none;">
+        <label title="Acceso al módulo Finanzas (Cobranza)" style="display:inline-flex;align-items:center;gap:6px;font-family:'DM Mono',monospace;font-size:10px;color:${adminForced?'var(--text3)':'var(--text2)'};cursor:${(isSelf||adminForced)?'not-allowed':'pointer'};user-select:none;">
           <input type="checkbox" ${adminOn?"checked":""} ${adminAttrs} style="accent-color:#3b82f6;cursor:${(isSelf||adminForced)?'not-allowed':'pointer'};">
           Admin
         </label>
@@ -209,8 +222,24 @@
       if (inputEl) inputEl.disabled = false;
     } catch (e) {
       console.error("[team] admin access update failed", e);
-      alert("No se pudo actualizar acceso Admin: " + (e.message || e.code || "error desconocido"));
+      alert("No se pudo actualizar acceso Finanzas: " + (e.message || e.code || "error desconocido"));
       if (inputEl) { inputEl.disabled = false; inputEl.checked = !value; }
+    }
+  };
+  window.changeUserAdminWorkspaces = async function(uid, checkboxEl) {
+    // Gather all ws checkboxes for this user row
+    const row = checkboxEl.closest('[style*="border-bottom"]');
+    if (!row) return;
+    const boxes = row.querySelectorAll('input[data-ws]');
+    const selected = [];
+    boxes.forEach(b => { if (b.checked) selected.push(b.getAttribute('data-ws')); });
+    // If all are checked, store empty array (= all)
+    const value = selected.length >= 2 ? [] : selected;
+    try {
+      await db.collection("users").doc(uid).update({ adminWorkspaces: value });
+    } catch (e) {
+      console.error("[team] adminWorkspaces update failed", e);
+      alert("No se pudo actualizar workspaces de Finanzas");
     }
   };
   window.changeUserRole = async function(uid, newRol, selectEl) {
@@ -2116,7 +2145,7 @@
   .client-tab.active .tab-badge { color: rgba(0,0,0,0.6); }
   .tab-badge { margin-left:auto; font-size:10px; font-family:'DM Mono',monospace; color:var(--text3); }
 
-  /* ── Admin module ───────────────────────────────────── */
+  /* ── Finanzas module — Stripe-inspired ────────────── */
   .admin-tab {
     background:transparent; border:none; color:var(--text3);
     font-family:'DM Sans',sans-serif; font-size:13px; font-weight:600;
@@ -2124,123 +2153,124 @@
     transition:all 0.15s;
   }
   .admin-tab:hover { color:var(--text2); }
-  .admin-tab.active { color:#3b82f6; border-bottom-color:#3b82f6; }
+  .admin-tab.active { color:#635bff; border-bottom-color:#635bff; }
 
-  /* KPIs */
+  /* KPIs — compact Stripe style */
   .cbz-kpis {
-    display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));
-    gap:12px; margin-bottom:18px;
+    display:flex; gap:0; margin-bottom:16px;
+    border-bottom:1px solid var(--border);
   }
   .cbz-kpi {
-    background:var(--surface); border:1px solid var(--border); border-radius:12px;
-    padding:16px 18px;
+    flex:1; padding:14px 18px;
+    border-right:1px solid var(--border);
   }
+  .cbz-kpi:last-child { border-right:none; }
   .cbz-kpi-label {
     font-family:'DM Mono',monospace; font-size:10px; color:var(--text3);
-    text-transform:uppercase; letter-spacing:0.08em; margin-bottom:8px;
+    text-transform:uppercase; letter-spacing:0.05em; margin-bottom:4px;
   }
   .cbz-kpi-value {
-    font-family:'DM Sans',sans-serif; font-size:22px; font-weight:700; letter-spacing:-0.3px;
+    font-family:'DM Sans',sans-serif; font-size:20px; font-weight:700; letter-spacing:-0.3px;
   }
 
-  /* Filtros + acciones */
+  /* Filtros + acciones — minimal bar */
   .cbz-filters {
-    display:flex; flex-wrap:wrap; gap:8px; align-items:center;
-    margin-bottom:16px; padding:12px; background:var(--surface);
-    border:1px solid var(--border); border-radius:10px;
+    display:flex; flex-wrap:wrap; gap:6px; align-items:center;
+    margin-bottom:12px; padding:0;
   }
   .cbz-filters select {
-    background:var(--surface2); border:1px solid var(--border);
-    color:var(--text); font-family:'DM Mono',monospace; font-size:11px;
-    padding:6px 10px; border-radius:6px; outline:none; cursor:pointer;
+    background:transparent; border:1px solid var(--border);
+    color:var(--text2); font-family:'DM Mono',monospace; font-size:11px;
+    padding:5px 8px; border-radius:4px; outline:none; cursor:pointer;
   }
+  .cbz-filters select:hover { border-color:var(--border2); }
   .cbz-btn {
-    background:var(--surface2); border:1px solid var(--border); color:var(--text);
-    font-family:'DM Sans',sans-serif; font-size:11.5px; font-weight:600;
-    padding:7px 14px; border-radius:8px; cursor:pointer;
-    transition:all 0.15s;
+    background:transparent; border:1px solid var(--border); color:var(--text2);
+    font-family:'DM Sans',sans-serif; font-size:11px; font-weight:500;
+    padding:5px 12px; border-radius:4px; cursor:pointer;
+    transition:all 0.12s;
   }
-  .cbz-btn:hover { border-color:#3b82f6; color:#3b82f6; }
-  .cbz-btn-primary { background:#3b82f6; border-color:#3b82f6; color:#fff; }
-  .cbz-btn-primary:hover { background:#2563eb; border-color:#2563eb; color:#fff; }
+  .cbz-btn:hover { border-color:var(--border2); color:var(--text1); }
+  .cbz-btn-primary { background:#635bff; border-color:#635bff; color:#fff; font-weight:600; }
+  .cbz-btn-primary:hover { background:#5046e5; border-color:#5046e5; color:#fff; }
   .cbz-btn-ghost { background:transparent; }
 
-  /* Tabla */
+  /* Tabla — Stripe flat */
   .cbz-table {
-    background:var(--surface); border:1px solid var(--border); border-radius:12px;
-    overflow:hidden;
+    border-top:1px solid var(--border);
   }
   .cbz-row {
-    border-bottom:1px solid var(--border);
+    border-bottom:1px solid rgba(42,42,53,0.5);
   }
   .cbz-row:last-child { border-bottom:none; }
   .cbz-row-main {
     display:grid;
-    grid-template-columns: 1.1fr 0.7fr 1.6fr 0.7fr 0.8fr 0.8fr 0.8fr 0.7fr 100px;
+    grid-template-columns: 1.1fr 0.65fr 1.6fr 0.65fr 0.75fr 0.75fr 0.75fr 0.6fr 90px;
     align-items:center;
-    padding:11px 16px; gap:8px;
-    cursor:pointer; transition:background 0.15s;
+    padding:7px 12px; gap:6px;
+    cursor:pointer; transition:background 0.1s;
   }
-  .cbz-row:not(.cbz-row-header) .cbz-row-main:hover { background:var(--surface2); }
+  .cbz-row:not(.cbz-row-header) .cbz-row-main:hover { background:rgba(255,255,255,0.02); }
   .cbz-row-header {
     position:sticky; top:0; z-index:2;
+    background:var(--bg);
   }
   .cbz-row-header .cbz-row-main {
-    background:var(--surface2); cursor:default;
-    font-family:'DM Mono',monospace; font-size:10px;
-    color:var(--text3); text-transform:uppercase; letter-spacing:0.06em;
-    padding:10px 16px;
+    cursor:default;
+    font-family:'DM Mono',monospace; font-size:11px;
+    color:var(--text3); text-transform:uppercase; letter-spacing:0.05em;
+    padding:8px 12px;
+    border-bottom:1px solid var(--border);
   }
-  .cbz-col { font-size:12.5px; color:var(--text1); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; }
-  .cbz-col-cli { font-weight:600; }
-  .cbz-col-ws { font-family:'DM Mono',monospace; font-size:10.5px; color:var(--text2); }
-  .cbz-col-con { color:var(--text2); font-size:12px; }
-  .cbz-col-monto { font-family:'DM Mono',monospace; font-weight:600; }
-  .cbz-col-pagado { font-family:'DM Mono',monospace; font-weight:600; color:var(--text3); }
-  .cbz-col-vence { font-family:'DM Mono',monospace; font-size:11px; color:var(--text2); }
+  .cbz-col { font-size:12px; color:var(--text1); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; }
+  .cbz-col-cli { font-weight:600; font-size:12.5px; }
+  .cbz-col-ws { font-family:'DM Mono',monospace; font-size:10px; color:var(--text3); }
+  .cbz-col-con { color:var(--text2); font-size:11.5px; }
+  .cbz-col-monto { font-family:'DM Mono',monospace; font-weight:600; font-size:12px; }
+  .cbz-col-pagado { font-family:'DM Mono',monospace; font-size:11.5px; color:var(--text3); }
+  .cbz-col-vence { font-family:'DM Mono',monospace; font-size:11px; color:var(--text3); }
   .cbz-tipo {
-    display:inline-block; font-family:'DM Mono',monospace; font-size:10px;
-    background:var(--surface2); color:var(--text2);
-    padding:2px 8px; border-radius:20px; border:1px solid var(--border);
+    display:inline-block; font-family:'DM Mono',monospace; font-size:9.5px;
+    color:var(--text3); padding:0; border:none; background:none;
   }
-  .cbz-col-acts { display:flex; gap:2px; justify-content:flex-end; align-items:center; }
+  .cbz-col-acts { display:flex; gap:1px; justify-content:flex-end; align-items:center; opacity:0; transition:opacity 0.12s; }
+  .cbz-row:hover .cbz-col-acts { opacity:1; }
   .cbz-act {
-    background:var(--surface2); border:1px solid var(--border); color:var(--text3);
-    font-size:11px; width:28px; height:28px;
+    background:none; border:none; color:var(--text3);
+    font-size:12px; width:24px; height:24px;
     display:inline-flex; align-items:center; justify-content:center;
-    border-radius:6px; cursor:pointer; transition:all 0.15s;
+    border-radius:4px; cursor:pointer; transition:all 0.1s;
     line-height:1; padding:0;
   }
-  .cbz-act:hover { background:var(--surface3); color:var(--text1); border-color:var(--border2); }
-  .cbz-act-pay:hover { background:rgba(16,185,129,0.12); color:var(--green); border-color:rgba(16,185,129,0.3); }
-  .cbz-act-edit:hover { background:rgba(59,130,246,0.1); color:#60a5fa; border-color:rgba(59,130,246,0.3); }
-  .cbz-act-del:hover { background:rgba(239,68,68,0.1); color:var(--red); border-color:rgba(239,68,68,0.3); }
+  .cbz-act:hover { background:var(--surface2); color:var(--text1); }
+  .cbz-act-pay:hover { color:var(--green); }
+  .cbz-act-edit:hover { color:#635bff; }
+  .cbz-act-del:hover { color:var(--red); }
 
-  /* Chips de estado — FreshBooks/Bonsai style: no emoji, clean pill */
+  /* Chips de estado — Stripe dot+text, minimal */
   .cbz-chip {
     display:inline-flex; align-items:center; gap:5px;
-    font-family:'DM Sans',sans-serif; font-size:11px; font-weight:600;
-    padding:4px 12px; border-radius:20px; white-space:nowrap;
-    letter-spacing:0.01em;
+    font-family:'DM Sans',sans-serif; font-size:11px; font-weight:500;
+    padding:0; border-radius:0; white-space:nowrap; background:none;
   }
   .cbz-chip-dot {
-    width:6px; height:6px; border-radius:50%; flex-shrink:0;
+    width:5px; height:5px; border-radius:50%; flex-shrink:0;
   }
-  .cbz-chip-pend { background:rgba(245,158,11,0.10); color:#d97706; }
+  .cbz-chip-pend { color:var(--text2); }
   .cbz-chip-pend .cbz-chip-dot { background:#d97706; }
-  .cbz-chip-pag  { background:rgba(16,185,129,0.10); color:#059669; }
+  .cbz-chip-pag  { color:var(--text3); }
   .cbz-chip-pag .cbz-chip-dot { background:#059669; }
-  .cbz-chip-ven  { background:rgba(239,68,68,0.12); color:#dc2626; }
+  .cbz-chip-ven  { color:#dc2626; }
   .cbz-chip-ven .cbz-chip-dot { background:#dc2626; }
-  .cbz-chip-par  { background:rgba(59,130,246,0.10); color:#3b82f6; }
+  .cbz-chip-par  { color:var(--text2); }
   .cbz-chip-par .cbz-chip-dot { background:#3b82f6; }
 
   /* Detail expanded */
   .cbz-row.expanded .cbz-row-main { background:var(--surface2); }
   .cbz-detail {
-    padding:14px 20px 18px; background:var(--bg2);
+    padding:10px 16px 14px; background:var(--bg);
     display:grid; grid-template-columns:repeat(auto-fit, minmax(160px,1fr));
-    gap:12px; border-top:1px dashed var(--border);
+    gap:10px; border-top:1px solid var(--border);
   }
   .cbz-detail-wide { grid-column:1 / -1; }
   .cbz-detail-label {
@@ -2251,19 +2281,18 @@
 
   /* Empty */
   .cbz-empty {
-    background:var(--surface); border:1px dashed var(--border); border-radius:12px;
-    padding:40px 20px; text-align:center; color:var(--text2);
-    font-size:13px; line-height:1.8;
+    padding:32px 20px; text-align:center; color:var(--text3);
+    font-size:12px; line-height:1.8; border-top:1px solid var(--border);
   }
 
   /* Form */
   .cbz-form {
-    background:var(--surface); border:1px solid #3b82f6; border-radius:12px;
-    padding:18px 20px 16px; margin-bottom:16px;
+    border:1px solid var(--border); border-radius:6px;
+    padding:16px 18px 14px; margin-bottom:12px;
   }
   .cbz-form-title {
     font-family:'DM Sans',sans-serif; font-weight:700; font-size:14px;
-    color:#3b82f6; margin-bottom:14px;
+    color:#635bff; margin-bottom:12px;
   }
   .cbz-form-grid {
     display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:12px 14px;
@@ -2289,12 +2318,12 @@
 
   /* Pay form */
   .cbz-payform {
-    background:rgba(59,130,246,0.06); border-top:1px dashed #3b82f6;
-    padding:14px 20px 16px;
+    border-top:1px solid var(--border);
+    padding:10px 16px 14px;
   }
   .cbz-payform-title {
-    font-family:'DM Mono',monospace; font-size:10.5px; color:#60a5fa;
-    text-transform:uppercase; letter-spacing:0.06em; margin-bottom:10px;
+    font-family:'DM Mono',monospace; font-size:10.5px; color:#635bff;
+    text-transform:uppercase; letter-spacing:0.06em; margin-bottom:8px;
   }
   .cbz-payform-grid {
     display:grid; grid-template-columns:repeat(auto-fit, minmax(140px,1fr)); gap:10px 12px;
@@ -2315,7 +2344,7 @@
   /* Vista por cliente */
   .cbz-por-cliente { display:flex; flex-direction:column; gap:12px; }
   .cbz-pc-group {
-    background:var(--surface); border:1px solid var(--border); border-radius:12px;
+    border:1px solid var(--border); border-radius:4px;
     overflow:hidden;
   }
   .cbz-pc-header {
@@ -2342,6 +2371,7 @@
         "tipo monto"
         "vence estado"
         "pagado acts";
+      padding:8px 10px;
       gap:6px 10px;
     }
     .cbz-col-cli { grid-area:cli; }
@@ -2485,11 +2515,11 @@
         <div style="font-size:12px; color:var(--text3); line-height:1.5;">Áreas · proyectos · pendientes semanales</div>
       </div>
 
-      <!-- ADMIN — visible solo con adminAccess -->
+      <!-- FINANZAS — visible solo con adminAccess -->
       <div id="card-admin" onclick="enterAs('admin')" style="display:none;background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:28px 20px; cursor:pointer; transition:all 0.25s; text-align:center;" onmouseover="this.style.borderColor='#3b82f6';this.style.background='var(--surface2)';this.style.transform='translateY(-4px)'" onmouseout="this.style.borderColor='var(--border)';this.style.background='var(--surface)';this.style.transform='translateY(0)'">
-        <div style="font-size:36px; margin-bottom:16px;">⚙️</div>
-        <div style="font-family:'DM Sans',sans-serif; font-weight:700; font-size:17px; margin-bottom:8px; color:#3b82f6; letter-spacing:0;">Admin</div>
-        <div style="font-size:12px; color:var(--text3); line-height:1.5;">Cobranza · finanzas · operaciones de negocio</div>
+        <div style="font-size:36px; margin-bottom:16px;">💰</div>
+        <div style="font-family:'DM Sans',sans-serif; font-weight:700; font-size:17px; margin-bottom:8px; color:#3b82f6; letter-spacing:0;">Finanzas</div>
+        <div style="font-size:12px; color:var(--text3); line-height:1.5;">Cobranza · flujo de caja · operaciones de negocio</div>
       </div>
 
     </div>
@@ -4036,7 +4066,7 @@
 
   <div style="padding:24px 32px 12px;">
     <div style="display:flex;align-items:baseline;gap:14px;margin-bottom:4px;">
-      <div style="font-family:'DM Sans',sans-serif;font-weight:700;font-size:22px;letter-spacing:-0.3px;">Admin</div>
+      <div style="font-family:'DM Sans',sans-serif;font-weight:700;font-size:22px;letter-spacing:-0.3px;">Finanzas</div>
       <div id="admin-subtitle" style="font-size:12px;color:var(--text3);font-family:'DM Mono',monospace;">—</div>
     </div>
     <div style="display:flex;gap:4px;border-bottom:1px solid var(--border);margin-top:14px;">
@@ -4451,7 +4481,7 @@ function enterAs(rol) {
     renderTareas();
     showScreen('tareas');
   } else if (rol === 'admin') {
-    if (!adminCanAccess()) { showToast('Sin acceso a Admin', '🔒'); showScreen('rol'); return; }
+    if (!adminCanAccess()) { showToast('Sin acceso a Finanzas', '🔒'); showScreen('rol'); return; }
     if (!currentAgencia) { showWorkspaceSelector('admin'); return; }
     renderAdmin();
     showScreen('admin');
@@ -8536,6 +8566,13 @@ function escapeHtml(str) {
 // ══════════════════════════════════════════════════════════════
 
 // ── Acceso ─────────────────────────────────────────────
+function adminAllowedWorkspaces() {
+  const p = window.currentUserProfile;
+  if (!p) return CBZ_WORKSPACES.slice();
+  if (p.rol === 'all') return CBZ_WORKSPACES.slice();
+  const arr = Array.isArray(p.adminWorkspaces) ? p.adminWorkspaces : [];
+  return arr.length > 0 ? arr.filter(w => CBZ_WORKSPACES.indexOf(w) !== -1) : CBZ_WORKSPACES.slice();
+}
 function adminCanAccess() {
   const p = window.currentUserProfile;
   if (!p) return false;
@@ -8633,6 +8670,8 @@ async function cbzLoadFromFirestore() {
         });
     });
     await Promise.all(reads);
+    var allowed = adminAllowedWorkspaces();
+    all = all.filter(function(c) { return allowed.indexOf(c.workspace) !== -1; });
     cbzCacheSaveAll(all);
     return all;
   } catch(e) {
@@ -8704,6 +8743,14 @@ function adminSelectTab(tab) {
 }
 
 // ── Render tab Cobranza ────────────────────────────────
+function cbzWsFilterOpts(selected) {
+  var allowed = adminAllowedWorkspaces();
+  var o = '';
+  if (allowed.length > 1) o += '<option value="all"' + (selected==='all'?' selected':'') + '>Todos los workspaces</option>';
+  if (allowed.indexOf('optimizads') !== -1) o += '<option value="optimizads"' + (selected==='optimizads'?' selected':'') + '>OptimizAds</option>';
+  if (allowed.indexOf('taco') !== -1) o += '<option value="taco"' + (selected==='taco'?' selected':'') + '>Taco</option>';
+  return o;
+}
 function cbzRenderTab() {
   const cobros = _cobranzaState.cobros;
   const hoy = cbzToday();
@@ -8745,9 +8792,7 @@ function cbzRenderTab() {
   const filtros = `
     <div class="cbz-filters">
       <select onchange="cbzSetFilter('workspace', this.value)">
-        ${opt('all','Todos los workspaces', f.workspace)}
-        ${opt('optimizads','OptimizAds', f.workspace)}
-        ${opt('taco','Taco', f.workspace)}
+        ${cbzWsFilterOpts(f.workspace)}
       </select>
       <select onchange="cbzSetFilter('estado', this.value)">
         ${opt('all','Todos los estados', f.estado)}
