@@ -2176,45 +2176,63 @@
   .cbz-row:last-child { border-bottom:none; }
   .cbz-row-main {
     display:grid;
-    grid-template-columns: 1.2fr 1.6fr 0.8fr 0.9fr 0.9fr 0.9fr 0.9fr 0.9fr;
+    grid-template-columns: 1.2fr 1.8fr 0.7fr 0.8fr 0.8fr 0.8fr 0.7fr 100px;
     align-items:center;
-    padding:12px 16px; gap:10px;
+    padding:11px 16px; gap:8px;
     cursor:pointer; transition:background 0.15s;
   }
   .cbz-row:not(.cbz-row-header) .cbz-row-main:hover { background:var(--surface2); }
+  .cbz-row-header {
+    position:sticky; top:0; z-index:2;
+  }
   .cbz-row-header .cbz-row-main {
     background:var(--surface2); cursor:default;
     font-family:'DM Mono',monospace; font-size:10px;
     color:var(--text3); text-transform:uppercase; letter-spacing:0.06em;
+    padding:10px 16px;
   }
-  .cbz-col { font-size:12px; color:var(--text1); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; }
+  .cbz-col { font-size:12.5px; color:var(--text1); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; }
   .cbz-col-cli { font-weight:600; }
-  .cbz-col-con { color:var(--text2); }
-  .cbz-col-monto, .cbz-col-pagado { font-family:'DM Mono',monospace; font-weight:600; }
+  .cbz-col-con { color:var(--text2); font-size:12px; }
+  .cbz-col-monto { font-family:'DM Mono',monospace; font-weight:600; }
+  .cbz-col-pagado { font-family:'DM Mono',monospace; font-weight:600; color:var(--text3); }
   .cbz-col-vence { font-family:'DM Mono',monospace; font-size:11px; color:var(--text2); }
   .cbz-tipo {
     display:inline-block; font-family:'DM Mono',monospace; font-size:10px;
     background:var(--surface2); color:var(--text2);
     padding:2px 8px; border-radius:20px; border:1px solid var(--border);
   }
-  .cbz-col-acts { display:flex; gap:4px; justify-content:flex-end; }
+  .cbz-col-acts { display:flex; gap:2px; justify-content:flex-end; align-items:center; }
   .cbz-act {
-    background:none; border:1px solid transparent; color:var(--text3);
-    font-size:12px; padding:4px 7px; border-radius:6px; cursor:pointer;
-    transition:all 0.15s;
+    background:var(--surface2); border:1px solid var(--border); color:var(--text3);
+    font-size:11px; width:28px; height:28px;
+    display:inline-flex; align-items:center; justify-content:center;
+    border-radius:6px; cursor:pointer; transition:all 0.15s;
+    line-height:1; padding:0;
   }
-  .cbz-act:hover { background:var(--surface2); color:var(--text1); border-color:var(--border); }
-  .cbz-act-del:hover { color:var(--red); border-color:rgba(239,68,68,0.3); }
+  .cbz-act:hover { background:var(--surface3); color:var(--text1); border-color:var(--border2); }
+  .cbz-act-pay:hover { background:rgba(16,185,129,0.12); color:var(--green); border-color:rgba(16,185,129,0.3); }
+  .cbz-act-edit:hover { background:rgba(59,130,246,0.1); color:#60a5fa; border-color:rgba(59,130,246,0.3); }
+  .cbz-act-del:hover { background:rgba(239,68,68,0.1); color:var(--red); border-color:rgba(239,68,68,0.3); }
 
-  /* Chips de estado */
+  /* Chips de estado — FreshBooks/Bonsai style: no emoji, clean pill */
   .cbz-chip {
-    display:inline-block; font-family:'DM Mono',monospace; font-size:10px;
-    padding:3px 10px; border-radius:20px; white-space:nowrap;
+    display:inline-flex; align-items:center; gap:5px;
+    font-family:'DM Sans',sans-serif; font-size:11px; font-weight:600;
+    padding:4px 12px; border-radius:20px; white-space:nowrap;
+    letter-spacing:0.01em;
   }
-  .cbz-chip-pend { background:rgba(245,158,11,0.12); color:var(--yellow); }
-  .cbz-chip-pag  { background:rgba(16,185,129,0.12); color:var(--green); }
-  .cbz-chip-ven  { background:rgba(239,68,68,0.14); color:var(--red); }
-  .cbz-chip-par  { background:rgba(59,130,246,0.14); color:#60a5fa; }
+  .cbz-chip-dot {
+    width:6px; height:6px; border-radius:50%; flex-shrink:0;
+  }
+  .cbz-chip-pend { background:rgba(245,158,11,0.10); color:#d97706; }
+  .cbz-chip-pend .cbz-chip-dot { background:#d97706; }
+  .cbz-chip-pag  { background:rgba(16,185,129,0.10); color:#059669; }
+  .cbz-chip-pag .cbz-chip-dot { background:#059669; }
+  .cbz-chip-ven  { background:rgba(239,68,68,0.12); color:#dc2626; }
+  .cbz-chip-ven .cbz-chip-dot { background:#dc2626; }
+  .cbz-chip-par  { background:rgba(59,130,246,0.10); color:#3b82f6; }
+  .cbz-chip-par .cbz-chip-dot { background:#3b82f6; }
 
   /* Detail expanded */
   .cbz-row.expanded .cbz-row-main { background:var(--surface2); }
@@ -8684,12 +8702,14 @@ function cbzRenderTab() {
   const mesEnd = cbzMonthEnd();
   const yearStart = cbzYearStart();
 
+  // "Por cobrar" = solo estado pendiente (no vencido) con vencimiento en el mes actual
   const porCobrarMes = cobros
-    .filter(c => cbzDerivarEstado(c) !== 'pagado' && c.fechaVencimiento >= mesStart && c.fechaVencimiento <= mesEnd)
+    .filter(c => cbzDerivarEstado(c) === 'pendiente' && c.fechaVencimiento >= mesStart && c.fechaVencimiento <= mesEnd)
     .reduce((s,c) => s + ((parseFloat(c.monto)||0) - (parseFloat(c.montoPagado)||0)), 0);
   const cobradoMes = cobros
     .filter(c => (c.estado === 'pagado' || c.estado === 'parcial') && c.fechaPago && c.fechaPago >= mesStart && c.fechaPago <= mesEnd)
     .reduce((s,c) => s + (parseFloat(c.montoPagado)||parseFloat(c.monto)||0), 0);
+  // "Vencido" = todos los vencidos sin importar el mes
   const vencido = cobros
     .filter(c => cbzDerivarEstado(c) === 'vencido')
     .reduce((s,c) => s + ((parseFloat(c.monto)||0) - (parseFloat(c.montoPagado)||0)), 0);
@@ -8762,13 +8782,13 @@ function cbzToggleView() {
 // ── Render tabla ───────────────────────────────────────
 function cbzEstadoChip(estado) {
   const map = {
-    pendiente: { cls: 'pend', label: '🟡 Pendiente' },
-    pagado:    { cls: 'pag',  label: '🟢 Pagado' },
-    vencido:   { cls: 'ven',  label: '🔴 Vencido' },
-    parcial:   { cls: 'par',  label: '🔵 Parcial' }
+    pendiente: { cls: 'pend', label: 'Pendiente' },
+    pagado:    { cls: 'pag',  label: 'Pagado' },
+    vencido:   { cls: 'ven',  label: 'Vencido' },
+    parcial:   { cls: 'par',  label: 'Parcial' }
   };
   const e = map[estado] || map.pendiente;
-  return `<span class="cbz-chip cbz-chip-${e.cls}">${e.label}</span>`;
+  return `<span class="cbz-chip cbz-chip-${e.cls}"><span class="cbz-chip-dot"></span>${e.label}</span>`;
 }
 function cbzTipoLabel(tipo) {
   return ({ retainer:'Retainer', proyecto:'Proyecto', variable:'Variable' })[tipo] || tipo || '—';
@@ -8779,7 +8799,8 @@ function cbzRenderTabla(cobros) {
   }
   const rows = cobros.map(c => {
     const estado = cbzDerivarEstado(c);
-    const pagado = c.montoPagado ? cbzFmtMoney(c.montoPagado) : '—';
+    const pagadoVal = parseFloat(c.montoPagado) || 0;
+    const pagadoTxt = pagadoVal > 0 ? cbzFmtMoney(pagadoVal) : '—';
     const expanded = _cobranzaState.expandedId === c.id;
     const detail = expanded ? cbzRenderDetail(c) : '';
     const payForm = _cobranzaState.payFormForId === c.id ? cbzRenderPayForm(c) : '';
@@ -8792,11 +8813,11 @@ function cbzRenderTabla(cobros) {
           <div class="cbz-col cbz-col-monto">${cbzFmtMoney(c.monto)}</div>
           <div class="cbz-col cbz-col-vence">${cbzFmtFecha(c.fechaVencimiento)}</div>
           <div class="cbz-col cbz-col-estado">${cbzEstadoChip(estado)}</div>
-          <div class="cbz-col cbz-col-pagado">${pagado}</div>
+          <div class="cbz-col cbz-col-pagado">${pagadoTxt}</div>
           <div class="cbz-col cbz-col-acts" onclick="event.stopPropagation()">
-            ${estado !== 'pagado' ? `<button class="cbz-act" title="Marcar pagado" onclick="cbzShowPayForm('${c.id}')">✓</button>` : ''}
-            <button class="cbz-act" title="Editar" onclick="cbzEditCobro('${c.id}')">✏️</button>
-            <button class="cbz-act cbz-act-del" title="Eliminar" onclick="cbzDeleteCobro('${c.id}')">🗑️</button>
+            ${estado !== 'pagado' ? `<button class="cbz-act cbz-act-pay" title="Marcar pagado" onclick="cbzShowPayForm('${c.id}')">✓</button>` : ''}
+            <button class="cbz-act cbz-act-edit" title="Editar" onclick="cbzEditCobro('${c.id}')">✎</button>
+            <button class="cbz-act cbz-act-del" title="Eliminar" onclick="cbzDeleteCobro('${c.id}')">✕</button>
           </div>
         </div>
         ${payForm}
@@ -8805,14 +8826,16 @@ function cbzRenderTabla(cobros) {
   }).join('');
   const header = `
     <div class="cbz-row cbz-row-header">
-      <div class="cbz-col cbz-col-cli">Cliente</div>
-      <div class="cbz-col cbz-col-con">Concepto</div>
-      <div class="cbz-col cbz-col-tipo">Tipo</div>
-      <div class="cbz-col cbz-col-monto">Monto</div>
-      <div class="cbz-col cbz-col-vence">Vence</div>
-      <div class="cbz-col cbz-col-estado">Estado</div>
-      <div class="cbz-col cbz-col-pagado">Pagado</div>
-      <div class="cbz-col cbz-col-acts"></div>
+      <div class="cbz-row-main">
+        <div class="cbz-col cbz-col-cli">Cliente</div>
+        <div class="cbz-col cbz-col-con">Concepto</div>
+        <div class="cbz-col cbz-col-tipo">Tipo</div>
+        <div class="cbz-col cbz-col-monto">Monto</div>
+        <div class="cbz-col cbz-col-vence">Vence</div>
+        <div class="cbz-col cbz-col-estado">Estado</div>
+        <div class="cbz-col cbz-col-pagado">Pagado</div>
+        <div class="cbz-col cbz-col-acts"></div>
+      </div>
     </div>`;
   return `<div class="cbz-table">${header}${rows}</div>`;
 }
