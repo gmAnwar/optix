@@ -2176,7 +2176,7 @@
   .cbz-row:last-child { border-bottom:none; }
   .cbz-row-main {
     display:grid;
-    grid-template-columns: 1.2fr 1.8fr 0.7fr 0.8fr 0.8fr 0.8fr 0.7fr 100px;
+    grid-template-columns: 1.1fr 0.7fr 1.6fr 0.7fr 0.8fr 0.8fr 0.8fr 0.7fr 100px;
     align-items:center;
     padding:11px 16px; gap:8px;
     cursor:pointer; transition:background 0.15s;
@@ -2193,6 +2193,7 @@
   }
   .cbz-col { font-size:12.5px; color:var(--text1); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; }
   .cbz-col-cli { font-weight:600; }
+  .cbz-col-ws { font-family:'DM Mono',monospace; font-size:10.5px; color:var(--text2); }
   .cbz-col-con { color:var(--text2); font-size:12px; }
   .cbz-col-monto { font-family:'DM Mono',monospace; font-weight:600; }
   .cbz-col-pagado { font-family:'DM Mono',monospace; font-weight:600; color:var(--text3); }
@@ -2336,7 +2337,7 @@
     .cbz-row-main {
       grid-template-columns: 1fr 1fr;
       grid-template-areas:
-        "cli cli"
+        "cli ws"
         "con con"
         "tipo monto"
         "vence estado"
@@ -2344,6 +2345,7 @@
       gap:6px 10px;
     }
     .cbz-col-cli { grid-area:cli; }
+    .cbz-col-ws  { grid-area:ws; text-align:right; }
     .cbz-col-con { grid-area:con; }
     .cbz-col-tipo { grid-area:tipo; }
     .cbz-col-monto { grid-area:monto; text-align:right; }
@@ -8815,6 +8817,7 @@ function cbzRenderTabla(cobros) {
       <div class="cbz-row ${expanded?'expanded':''}">
         <div class="cbz-row-main" onclick="cbzToggleExpand('${c.id}')">
           <div class="cbz-col cbz-col-cli">${escapeHtml(c.clienteNombre || '—')}</div>
+          <div class="cbz-col cbz-col-ws">${c.workspace === 'taco' ? 'Taco' : 'OptimizAds'}</div>
           <div class="cbz-col cbz-col-con">${escapeHtml(c.concepto || '—')}</div>
           <div class="cbz-col cbz-col-tipo"><span class="cbz-tipo">${cbzTipoLabel(c.tipo)}${c.recurrente?' ↻':''}</span></div>
           <div class="cbz-col cbz-col-monto">${cbzFmtMoney(c.monto)}</div>
@@ -8835,6 +8838,7 @@ function cbzRenderTabla(cobros) {
     <div class="cbz-row cbz-row-header">
       <div class="cbz-row-main">
         <div class="cbz-col cbz-col-cli">Cliente</div>
+        <div class="cbz-col cbz-col-ws">Agencia</div>
         <div class="cbz-col cbz-col-con">Concepto</div>
         <div class="cbz-col cbz-col-tipo">Tipo</div>
         <div class="cbz-col cbz-col-monto">Monto</div>
