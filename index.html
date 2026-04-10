@@ -2422,6 +2422,77 @@
     width:100%; height:100%; border:none;
   }
 
+
+  /* ── Commit 4: Recordatorios + promesa de pago ──── */
+  .cbz-bandeja {
+    border:1px solid var(--border); border-radius:6px; margin-bottom:14px;
+    overflow:hidden;
+  }
+  .cbz-bandeja-header {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:10px 14px; cursor:pointer;
+    transition:background 0.1s;
+  }
+  .cbz-bandeja-header:hover { background:var(--surface2); }
+  .cbz-bandeja-title {
+    font-family:'DM Sans',sans-serif; font-size:13px; font-weight:600;
+  }
+  .cbz-bandeja-badge {
+    font-family:'DM Mono',monospace; font-size:10px; color:#635bff;
+    background:rgba(99,91,255,0.1); padding:2px 8px; border-radius:12px;
+  }
+  .cbz-bandeja-items { border-top:1px solid var(--border); }
+  .cbz-bandeja-item {
+    display:flex; align-items:flex-start; gap:10px;
+    padding:10px 14px; border-bottom:1px solid rgba(42,42,53,0.3);
+    font-size:12px;
+  }
+  .cbz-bandeja-item:last-child { border-bottom:none; }
+  .cbz-bandeja-item .info { flex:1; min-width:0; }
+  .cbz-bandeja-item .info .cli { font-weight:600; color:var(--text1); }
+  .cbz-bandeja-item .info .tipo { font-family:'DM Mono',monospace; font-size:10px; color:var(--text3); margin-top:2px; }
+  .cbz-bandeja-item .info .msg { font-size:11px; color:var(--text2); margin-top:4px; line-height:1.4; max-height:36px; overflow:hidden; }
+  .cbz-bandeja-item .acts { display:flex; gap:3px; flex-shrink:0; }
+  .cbz-bandeja-btn {
+    background:none; border:1px solid var(--border); color:var(--text3);
+    font-size:10px; padding:4px 8px; border-radius:4px; cursor:pointer;
+    font-family:'DM Sans',sans-serif; transition:all 0.1s;
+  }
+  .cbz-bandeja-btn:hover { border-color:var(--border2); color:var(--text1); }
+  .cbz-bandeja-btn.approve { border-color:rgba(16,185,129,0.4); color:var(--green); }
+  .cbz-bandeja-btn.approve:hover { background:rgba(16,185,129,0.1); }
+
+  /* Promesa de pago + timeline in detail */
+  .cbz-seguimiento {
+    border-top:1px solid var(--border); padding:10px 16px 14px;
+    background:var(--bg);
+  }
+  .cbz-seg-title {
+    font-family:'DM Mono',monospace; font-size:9.5px; color:var(--text3);
+    text-transform:uppercase; letter-spacing:0.05em; margin-bottom:8px;
+  }
+  .cbz-promesa-row {
+    display:flex; align-items:center; gap:8px; margin-bottom:10px;
+  }
+  .cbz-promesa-chip {
+    font-family:'DM Mono',monospace; font-size:10px; color:#d97706;
+    background:rgba(245,158,11,0.1); padding:3px 10px; border-radius:12px;
+  }
+  .cbz-timeline { display:flex; flex-direction:column; gap:4px; }
+  .cbz-timeline-item {
+    display:flex; align-items:center; gap:8px; font-size:11px;
+  }
+  .cbz-timeline-dot {
+    width:6px; height:6px; border-radius:50%; background:var(--text3); flex-shrink:0;
+  }
+  .cbz-timeline-fecha { font-family:'DM Mono',monospace; font-size:10px; color:var(--text3); }
+  .cbz-timeline-text { color:var(--text2); }
+  .cbz-mode-toggle {
+    font-family:'DM Mono',monospace; font-size:10px; color:var(--text3);
+    background:transparent; border:1px solid var(--border); padding:4px 10px;
+    border-radius:4px; cursor:pointer;
+  }
+
   /* Responsive: tabla colapsa a cards en mobile */
   @media (max-width: 900px) {
     .cbz-row-main {
@@ -8662,7 +8733,8 @@ window._cobranzaState = {
   editingId: null,
   payFormForId: null,
   folioInputForId: null,
-  canalDropdownForId: null
+  canalDropdownForId: null,
+  bandejaCollapsed: true
 };
 
 // ── Helpers generales ──────────────────────────────────
@@ -8875,6 +8947,7 @@ function cbzRenderTab() {
       <div style="flex:1;"></div>
       <button class="cbz-btn cbz-btn-ghost" onclick="cbzToggleView()">${_cobranzaState.view === 'tabla' ? '👥 Ver por cliente' : '📋 Ver tabla'}</button>
       <button class="cbz-btn cbz-btn-ghost" onclick="cbzGenerarRetainers()" title="Genera un cobro de este mes para cada retainer recurrente que aún no lo tenga">↻ Generar retainers</button>
+      <button class="cbz-btn cbz-btn-ghost" onclick="cbzGenerarRecordatorios()">🔔 Revisar</button>
       <button class="cbz-btn cbz-btn-primary" onclick="cbzShowForm()">＋ Nuevo cobro</button>
     </div>`;
 
@@ -8885,7 +8958,8 @@ function cbzRenderTab() {
 
   const formBlock = _cobranzaState.formOpen ? cbzRenderForm() : '';
 
-  return kpis + filtros + formBlock + contenido;
+  const bandeja = cbzRenderBandeja(cobros);
+  return bandeja + kpis + filtros + formBlock + contenido;
 }
 
 // ── Filtros setters ────────────────────────────────────
@@ -9319,8 +9393,191 @@ function cbzRenderDetail(c) {
       ${field('Monto pagado', c.montoPagado ? cbzFmtMoney(c.montoPagado) : '')}
       ${field('Workspace', escapeHtml(c.workspace || ''))}
       ${c.notas ? `<div class="cbz-detail-field cbz-detail-wide"><div class="cbz-detail-label">Notas</div><div class="cbz-detail-value">${escapeHtml(c.notas)}</div></div>` : ''}
-    </div>`;
+    </div>
+    ${cbzRenderSeguimiento(c)}`;
 }
+
+// ── Commit 4: Recordatorios + promesa de pago ────────────────
+
+// ── Seguimiento section in detail view ────────────────────────
+function cbzRenderSeguimiento(c) {
+  var estado = cbzDerivarEstado(c);
+  var promesa = c.fechaPromesaPago || '';
+  var recs = Array.isArray(c.recordatorios) ? c.recordatorios : [];
+  var promesaHTML = '';
+  if (estado !== 'pagado') {
+    var promesaChip = promesa ? '<span class="cbz-promesa-chip">Prometió pagar el ' + cbzFmtFecha(promesa) + '</span>' : '';
+    promesaHTML = '<div class="cbz-promesa-row">'
+      + '<label style="font-family:\'DM Mono\',monospace;font-size:10px;color:var(--text3);">Promesa de pago:</label>'
+      + '<input type="date" value="' + escapeHtml(promesa) + '" onchange="cbzSetPromesa(\'' + c.id + '\',this.value)" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:\'DM Mono\',monospace;font-size:11px;padding:3px 6px;border-radius:4px;outline:none;">'
+      + (promesa ? '<button class="cbz-bandeja-btn" onclick="cbzClearPromesa(\'' + c.id + '\')" title="Quitar promesa" style="font-size:10px;">✕</button>' : '')
+      + promesaChip
+      + '</div>';
+  }
+  var timelineHTML = '';
+  if (recs.length > 0) {
+    timelineHTML = '<div class="cbz-timeline">' + recs.slice().reverse().slice(0, 10).map(function(r) {
+      var fecha = r.fecha ? cbzFmtFecha(r.fecha.split('T')[0]) : '—';
+      var canal = r.canal === 'whatsapp' ? '💬' : (r.canal === 'correo' ? '📧' : '📋');
+      var tipo = r.tipo || 'envío';
+      return '<div class="cbz-timeline-item"><span class="cbz-timeline-dot"></span><span class="cbz-timeline-fecha">' + fecha + '</span><span class="cbz-timeline-text">' + canal + ' ' + escapeHtml(tipo) + '</span></div>';
+    }).join('') + '</div>';
+  }
+  if (!promesaHTML && !timelineHTML) return '';
+  return '<div class="cbz-seguimiento"><div class="cbz-seg-title">Seguimiento</div>' + promesaHTML + timelineHTML + '</div>';
+}
+
+// ── Promesa de pago ───────────────────────────────────────────
+async function cbzSetPromesa(id, fecha) {
+  var c = _cobranzaState.cobros.find(function(x){return x.id===id;});
+  if (!c) return;
+  c.fechaPromesaPago = fecha || null;
+  c.updatedAt = new Date().toISOString();
+  await cbzSaveToFirestore(_cobranzaState.cobros);
+  renderAdmin();
+  if (fecha) showToast('Promesa de pago registrada: ' + cbzFmtFecha(fecha), '📅');
+}
+async function cbzClearPromesa(id) {
+  var c = _cobranzaState.cobros.find(function(x){return x.id===id;});
+  if (!c) return;
+  c.fechaPromesaPago = null;
+  c.updatedAt = new Date().toISOString();
+  await cbzSaveToFirestore(_cobranzaState.cobros);
+  renderAdmin();
+  showToast('Promesa de pago removida', '📅');
+}
+
+// ── Bandeja de recordatorios (modo supervisado) ───────────────
+function cbzRenderBandeja(cobros) {
+  var pendientes = (cobros._pendingRecordatorios || []);
+  if (!pendientes.length) return '';
+  var collapsed = _cobranzaState.bandejaCollapsed;
+  var items = collapsed ? '' : '<div class="cbz-bandeja-items">' + pendientes.map(function(r, i) {
+    var preview = (r.mensaje || '').slice(0, 120);
+    return '<div class="cbz-bandeja-item">'
+      + '<div class="info"><div class="cli">' + escapeHtml(r.clienteNombre) + '</div>'
+      + '<div class="tipo">' + escapeHtml(r.tipo) + ' · ' + (r.canal === 'whatsapp' ? '💬 WhatsApp' : '📧 Correo') + '</div>'
+      + '<div class="msg">' + escapeHtml(preview) + '</div></div>'
+      + '<div class="acts">'
+      + '<button class="cbz-bandeja-btn approve" onclick="cbzBandejaAprobar(' + i + ')" title="Aprobar y enviar">✓</button>'
+      + '<button class="cbz-bandeja-btn" onclick="cbzBandejaPosponer(' + i + ')" title="Posponer 2 días">⏭️</button>'
+      + '<button class="cbz-bandeja-btn" onclick="cbzBandejaIgnorar(' + i + ')" title="Ignorar">✕</button>'
+      + '</div></div>';
+  }).join('') + '</div>';
+  return '<div class="cbz-bandeja">'
+    + '<div class="cbz-bandeja-header" onclick="_cobranzaState.bandejaCollapsed=!_cobranzaState.bandejaCollapsed;renderAdmin();">'
+    + '<div class="cbz-bandeja-title">🔔 Recordatorios pendientes</div>'
+    + '<span class="cbz-bandeja-badge">' + pendientes.length + '</span>'
+    + '</div>' + items + '</div>';
+}
+
+// ── Generar recordatorios (modo supervisado) ──────────────────
+function cbzGenerarRecordatorios() {
+  var cobros = _cobranzaState.cobros;
+  var hoy = cbzToday();
+  var hoyDate = new Date(hoy);
+  var en3dias = new Date(hoyDate); en3dias.setDate(en3dias.getDate() + 3);
+  var en3 = en3dias.toISOString().split('T')[0];
+  var pendientes = [];
+
+  cobros.forEach(function(c) {
+    var estado = cbzDerivarEstado(c);
+    var canal = c.canalRecordatorio || 'whatsapp';
+    var contacto = canal === 'whatsapp' ? c.contactoWhatsapp : c.contactoCorreo;
+    if (!contacto) return; // Sin contacto no se puede enviar
+
+    // Skip si tiene promesa de pago activa y no ha vencido
+    if (c.fechaPromesaPago && c.fechaPromesaPago >= hoy && estado !== 'pagado') return;
+
+    var msg = cbzBuildMessage(c, canal);
+    var tipo = null;
+
+    if (estado === 'pendiente' && c.fechaVencimiento === en3) {
+      tipo = 'pre-vencimiento';
+    } else if (estado === 'pendiente' && c.fechaVencimiento === hoy) {
+      tipo = 'vencimiento';
+    } else if (estado === 'vencido') {
+      // Si promesa venció, reactivar
+      if (c.fechaPromesaPago && c.fechaPromesaPago < hoy) {
+        tipo = 'seguimiento (promesa vencida)';
+      } else if (!c.fechaPromesaPago) {
+        tipo = 'seguimiento';
+      }
+    }
+    if (!tipo) return;
+
+    // Check escalation: 2+ seguimiento sin respuesta
+    var recs = Array.isArray(c.recordatorios) ? c.recordatorios : [];
+    var seguimientos = recs.filter(function(r) { return r.tipo && r.tipo.indexOf('seguimiento') !== -1; });
+    if (seguimientos.length >= 2 && !c.escaladoAnwar) {
+      c.escaladoAnwar = true;
+      tipo += ' ⚠️ ESCALAR';
+    }
+
+    pendientes.push({
+      cobroId: c.id,
+      clienteNombre: c.clienteNombre,
+      tipo: tipo,
+      canal: canal,
+      mensaje: msg.body,
+      subject: msg.subject || ''
+    });
+  });
+
+  // Attach to cobros object for bandeja render
+  cobros._pendingRecordatorios = pendientes;
+  _cobranzaState.bandejaCollapsed = false;
+  renderAdmin();
+  if (pendientes.length === 0) {
+    showToast('Sin recordatorios pendientes', 'ℹ️');
+  } else {
+    showToast(pendientes.length + ' recordatorio' + (pendientes.length > 1 ? 's' : '') + ' generado' + (pendientes.length > 1 ? 's' : ''), '🔔');
+  }
+}
+
+// ── Bandeja actions ───────────────────────────────────────────
+async function cbzBandejaAprobar(idx) {
+  var pendientes = _cobranzaState.cobros._pendingRecordatorios || [];
+  var r = pendientes[idx];
+  if (!r) return;
+  var c = _cobranzaState.cobros.find(function(x){return x.id===r.cobroId;});
+  if (!c) return;
+  // Send via canal
+  if (r.canal === 'whatsapp') {
+    var num = (c.contactoWhatsapp || '').replace(/[^0-9]/g, '');
+    window.open('https://wa.me/' + num + '?text=' + encodeURIComponent(r.mensaje), '_blank');
+  } else {
+    window.open('mailto:' + encodeURIComponent(c.contactoCorreo || '') + '?subject=' + encodeURIComponent(r.subject) + '&body=' + encodeURIComponent(r.mensaje), '_blank');
+  }
+  // Log
+  if (!Array.isArray(c.recordatorios)) c.recordatorios = [];
+  var uid = (window.currentUser && window.currentUser.uid) || 'anon';
+  c.recordatorios.push({
+    fecha: new Date().toISOString(),
+    tipo: r.tipo,
+    canal: r.canal,
+    estado: 'enviado',
+    mensaje: r.mensaje.slice(0, 200),
+    aprobadoPor: uid
+  });
+  // Remove from pending
+  pendientes.splice(idx, 1);
+  await cbzSaveToFirestore(_cobranzaState.cobros);
+  renderAdmin();
+  showToast('Recordatorio enviado a ' + escapeHtml(r.clienteNombre), '✓');
+}
+async function cbzBandejaPosponer(idx) {
+  var pendientes = _cobranzaState.cobros._pendingRecordatorios || [];
+  pendientes.splice(idx, 1);
+  renderAdmin();
+  showToast('Pospuesto 2 días', '⏭️');
+}
+function cbzBandejaIgnorar(idx) {
+  var pendientes = _cobranzaState.cobros._pendingRecordatorios || [];
+  pendientes.splice(idx, 1);
+  renderAdmin();
+}
+
 function cbzToggleExpand(id) {
   _cobranzaState.expandedId = _cobranzaState.expandedId === id ? null : id;
   renderAdmin();
