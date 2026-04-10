@@ -9052,8 +9052,11 @@ async function cbzSaveForm() {
     : null;
 
   if (editing) {
+    // Editing no cambia estado — el usuario lo controla vía "Marcar pagado"
     Object.assign(editing, { clienteId, clienteNombre, workspace, concepto, tipo, monto, fechaVencimiento, recurrente, metodoPago, cuentaDestino, referencia, notas, updatedAt: now });
   } else {
+    // REGLA DE NEGOCIO: todo cobro nuevo nace 'pendiente'. Si el cliente pagó
+    // adelantado, se marca manualmente después vía "Marcar pagado".
     _cobranzaState.cobros.push({
       id: 'cbz-' + Date.now() + '-' + Math.random().toString(36).slice(2,6),
       clienteId, clienteNombre, workspace, concepto, tipo, monto,
@@ -9163,8 +9166,10 @@ async function cbzGenerarRetainers() {
     // Si la plantilla misma ya está en el mes activo, también cuenta
     const tplEnMes = tpl.fechaVencimiento >= mesStart && tpl.fechaVencimiento <= mesEnd;
     if (yaExiste || tplEnMes) return;
-    // Crear nuevo cobro clonado
-    const venc = mesEnd; // por default vence al final del mes
+    // REGLA DE NEGOCIO: cobros generados por retainers SIEMPRE nacen 'pendiente'.
+    // Si el cliente pagó adelantado, el usuario marca como pagado manualmente.
+    // Un cobro representa el mes vigente — nunca se genera como 'pagado'.
+    const venc = mesEnd;
     _cobranzaState.cobros.push({
       id: 'cbz-' + Date.now() + '-' + Math.random().toString(36).slice(2,6),
       clienteId: tpl.clienteId,
