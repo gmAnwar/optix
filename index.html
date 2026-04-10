@@ -2205,7 +2205,7 @@
   .cbz-row:last-child { border-bottom:none; }
   .cbz-row-main {
     display:grid;
-    grid-template-columns: 1.1fr 0.65fr 1.6fr 0.65fr 0.75fr 0.75fr 0.75fr 0.6fr 90px;
+    grid-template-columns: 1.1fr 0.65fr 1.5fr 0.6fr 0.7fr 0.6fr 0.7fr 0.7fr 0.6fr 90px;
     align-items:center;
     padding:7px 12px; gap:6px;
     cursor:pointer; transition:background 0.1s;
@@ -2227,6 +2227,40 @@
   .cbz-col-ws { font-family:'DM Mono',monospace; font-size:10px; color:var(--text3); }
   .cbz-col-con { color:var(--text2); font-size:11.5px; }
   .cbz-col-monto { font-family:'DM Mono',monospace; font-weight:600; font-size:12px; }
+  .cbz-col-doc { font-size:11px; position:relative; }
+  .cbz-doc-chip { display:inline-flex; align-items:center; gap:4px; font-size:10.5px; }
+  .cbz-doc-chip.sin { color:var(--text3); }
+  .cbz-doc-chip.gen { color:var(--text2); }
+  .cbz-doc-chip.env { color:#635bff; }
+  .cbz-doc-actions { display:none; gap:2px; margin-top:2px; }
+  .cbz-row:hover .cbz-doc-actions { display:flex; }
+  .cbz-doc-btn {
+    background:none; border:1px solid var(--border); color:var(--text3);
+    font-family:'DM Sans',sans-serif; font-size:9.5px; font-weight:500;
+    padding:2px 7px; border-radius:3px; cursor:pointer; transition:all 0.1s;
+    white-space:nowrap;
+  }
+  .cbz-doc-btn:hover { border-color:var(--border2); color:var(--text1); }
+  .cbz-doc-btn.primary { border-color:#635bff; color:#635bff; }
+  .cbz-doc-btn.primary:hover { background:#635bff; color:#fff; }
+  .cbz-canal-dropdown {
+    position:absolute; top:100%; left:0; z-index:20;
+    background:var(--surface); border:1px solid var(--border); border-radius:6px;
+    box-shadow:0 8px 24px rgba(0,0,0,0.3); min-width:160px; padding:4px 0;
+  }
+  .cbz-canal-opt {
+    display:block; width:100%; background:none; border:none; color:var(--text1);
+    font-family:'DM Sans',sans-serif; font-size:11.5px; padding:7px 12px;
+    text-align:left; cursor:pointer; transition:background 0.1s;
+  }
+  .cbz-canal-opt:hover { background:var(--surface2); }
+  .cbz-canal-warn { padding:8px 12px; font-size:10.5px; color:var(--yellow); }
+  .cbz-folio-input {
+    background:var(--bg); border:1px solid var(--border); color:var(--text);
+    font-family:'DM Mono',monospace; font-size:10.5px; padding:3px 6px;
+    border-radius:3px; width:70px; outline:none;
+  }
+  .cbz-folio-input:focus { border-color:#635bff; }
   .cbz-col-pagado { font-family:'DM Mono',monospace; font-size:11.5px; color:var(--text3); }
   .cbz-col-vence { font-family:'DM Mono',monospace; font-size:11px; color:var(--text3); }
   .cbz-tipo {
@@ -2369,6 +2403,7 @@
         "cli ws"
         "con con"
         "tipo monto"
+        "doc doc"
         "vence estado"
         "pagado acts";
       padding:8px 10px;
@@ -2379,6 +2414,7 @@
     .cbz-col-con { grid-area:con; }
     .cbz-col-tipo { grid-area:tipo; }
     .cbz-col-monto { grid-area:monto; text-align:right; }
+    .cbz-col-doc { grid-area:doc; }
     .cbz-col-vence { grid-area:vence; }
     .cbz-col-estado { grid-area:estado; text-align:right; }
     .cbz-col-pagado { grid-area:pagado; }
@@ -8597,7 +8633,9 @@ window._cobranzaState = {
   expandedId: null,
   formOpen: false,
   editingId: null,
-  payFormForId: null
+  payFormForId: null,
+  folioInputForId: null,
+  canalDropdownForId: null
 };
 
 // ── Helpers generales ──────────────────────────────────
@@ -8847,6 +8885,165 @@ function cbzEstadoChip(estado) {
 function cbzTipoLabel(tipo) {
   return ({ retainer:'Retainer', proyecto:'Proyecto', variable:'Variable' })[tipo] || tipo || '—';
 }
+
+// ── Commit 2: Columna Doc + acciones de recordatorio ──────────
+function cbzDocChip(c) {
+  var s = c.documentoEstado || 'sin_generar';
+  if (s === 'enviado') return '<span class="cbz-doc-chip env">📤 Enviado</span>';
+  if (s === 'generado') return '<span class="cbz-doc-chip gen">📄 ' + escapeHtml(c.documentoFolio || 'Generado') + '</span>';
+  return '<span class="cbz-doc-chip sin">—</span>';
+}
+function cbzDocActions(c) {
+  var s = c.documentoEstado || 'sin_generar';
+  var tipo = c.tipoDocumento || 'ninguno';
+  var acts = '';
+  if (tipo === 'ninguno') return '';
+  // Folio input mode
+  if (_cobranzaState.folioInputForId === c.id) {
+    return '<div class="cbz-doc-actions" style="display:flex;"><input class="cbz-folio-input" id="cbz-folio-' + c.id + '" placeholder="Folio" onkeydown="if(event.key===\'Enter\')cbzConfirmFolio(\'' + c.id + '\');if(event.key===\'Escape\'){_cobranzaState.folioInputForId=null;renderAdmin();}"><button class="cbz-doc-btn primary" onclick="cbzConfirmFolio(\'' + c.id + '\')">OK</button></div>';
+  }
+  // Canal dropdown mode
+  if (_cobranzaState.canalDropdownForId === c.id) {
+    return cbzCanalDropdown(c);
+  }
+  if (s === 'sin_generar') {
+    if (tipo === 'remision') {
+      acts = '<button class="cbz-doc-btn" onclick="cbzGenerarRemision(\'' + c.id + '\')">📄 Generar</button>';
+    } else if (tipo === 'factura') {
+      acts = '<button class="cbz-doc-btn" onclick="cbzRegistrarFolio(\'' + c.id + '\')">📄 Folio</button>';
+    }
+  } else if (s === 'generado') {
+    acts = '<button class="cbz-doc-btn primary" onclick="cbzShowCanalDropdown(\'' + c.id + '\')">📤 Enviar</button>';
+  }
+  if (!acts) return '';
+  return '<div class="cbz-doc-actions">' + acts + '</div>';
+}
+function cbzDocCell(c) {
+  return cbzDocChip(c) + cbzDocActions(c);
+}
+
+// ── Generar remisión (stub — Commit 3 adds actual PDF) ────────
+async function cbzGenerarRemision(id) {
+  var c = _cobranzaState.cobros.find(function(x){return x.id===id;});
+  if (!c) return;
+  var folio = cbzNextFolio();
+  c.documentoEstado = 'generado';
+  c.documentoFolio = folio;
+  c.documentoFechaGenerado = new Date().toISOString();
+  await cbzSaveToFirestore(_cobranzaState.cobros);
+  renderAdmin();
+  showToast('Remisión ' + folio + ' generada', '📄');
+}
+function cbzNextFolio() {
+  var now = new Date();
+  var prefix = 'R-' + now.getFullYear() + String(now.getMonth()+1).padStart(2,'0') + '-';
+  var max = 0;
+  _cobranzaState.cobros.forEach(function(c) {
+    if (c.documentoFolio && c.documentoFolio.indexOf(prefix) === 0) {
+      var n = parseInt(c.documentoFolio.slice(prefix.length), 10);
+      if (n > max) max = n;
+    }
+  });
+  return prefix + String(max + 1).padStart(3, '0');
+}
+
+// ── Registrar folio de factura ────────────────────────────────
+function cbzRegistrarFolio(id) {
+  _cobranzaState.folioInputForId = id;
+  _cobranzaState.canalDropdownForId = null;
+  renderAdmin();
+  setTimeout(function(){ var el = document.getElementById('cbz-folio-' + id); if(el) el.focus(); }, 50);
+}
+async function cbzConfirmFolio(id) {
+  var el = document.getElementById('cbz-folio-' + id);
+  var folio = el ? el.value.trim() : '';
+  if (!folio) { showToast('Ingresa el número de folio', '⚠️'); return; }
+  var c = _cobranzaState.cobros.find(function(x){return x.id===id;});
+  if (!c) return;
+  c.documentoEstado = 'generado';
+  c.documentoFolio = folio;
+  c.documentoFechaGenerado = new Date().toISOString();
+  _cobranzaState.folioInputForId = null;
+  await cbzSaveToFirestore(_cobranzaState.cobros);
+  renderAdmin();
+  showToast('Factura ' + folio + ' registrada', '📄');
+}
+
+// ── Canal de envío (dropdown) ─────────────────────────────────
+function cbzShowCanalDropdown(id) {
+  _cobranzaState.canalDropdownForId = (_cobranzaState.canalDropdownForId === id) ? null : id;
+  _cobranzaState.folioInputForId = null;
+  renderAdmin();
+}
+function cbzCanalDropdown(c) {
+  var wa = c.contactoWhatsapp || '';
+  var email = c.contactoCorreo || '';
+  var opts = '';
+  if (wa) opts += '<button class="cbz-canal-opt" onclick="cbzEnviarPorCanal(\'' + c.id + '\',\'whatsapp\')">💬 WhatsApp</button>';
+  if (email) opts += '<button class="cbz-canal-opt" onclick="cbzEnviarPorCanal(\'' + c.id + '\',\'correo\')">📧 Correo</button>';
+  if (!wa && !email) opts = '<div class="cbz-canal-warn">⚠️ Sin contacto — agregar en el cobro</div>';
+  opts += '<button class="cbz-canal-opt" style="color:var(--text3);font-size:10px;border-top:1px solid var(--border);" onclick="_cobranzaState.canalDropdownForId=null;renderAdmin();">Cancelar</button>';
+  return '<div class="cbz-doc-actions" style="display:flex;"><div class="cbz-canal-dropdown">' + opts + '</div></div>';
+}
+async function cbzEnviarPorCanal(id, canal) {
+  var c = _cobranzaState.cobros.find(function(x){return x.id===id;});
+  if (!c) return;
+  var msg = cbzBuildMessage(c, canal);
+  if (canal === 'whatsapp') {
+    var num = (c.contactoWhatsapp || '').replace(/[^0-9]/g, '');
+    window.open('https://wa.me/' + num + '?text=' + encodeURIComponent(msg.body), '_blank');
+  } else if (canal === 'correo') {
+    window.open('mailto:' + encodeURIComponent(c.contactoCorreo || '') + '?subject=' + encodeURIComponent(msg.subject) + '&body=' + encodeURIComponent(msg.body), '_blank');
+  }
+  c.documentoEstado = 'enviado';
+  c.documentoFechaEnviado = new Date().toISOString();
+  // Log to recordatorios array
+  if (!Array.isArray(c.recordatorios)) c.recordatorios = [];
+  c.recordatorios.push({
+    fecha: new Date().toISOString(),
+    tipo: 'envio_documento',
+    canal: canal,
+    estado: 'enviado',
+    mensaje: msg.body.slice(0, 200)
+  });
+  _cobranzaState.canalDropdownForId = null;
+  await cbzSaveToFirestore(_cobranzaState.cobros);
+  renderAdmin();
+  showToast('Documento enviado por ' + (canal === 'whatsapp' ? 'WhatsApp' : 'correo'), '📤');
+}
+
+// ── Message templates ─────────────────────────────────────────
+function cbzBuildMessage(c, canal) {
+  var tipo = c.tipoDocumento === 'factura' ? 'factura' : 'remisión';
+  var Tipo = c.tipoDocumento === 'factura' ? 'Factura' : 'Remisión';
+  var folio = c.documentoFolio || '';
+  var concepto = c.concepto || '';
+  var monto = cbzFmtMoney(c.monto);
+  var cliente = c.clienteNombre || '';
+  var vence = cbzFmtFecha(c.fechaVencimiento);
+  var cuenta = c.cuentaDestino || '';
+  var now = new Date();
+  var mes = now.toLocaleDateString('es-MX', { month:'long', year:'numeric' });
+
+  if (canal === 'whatsapp') {
+    if (c.tipoDocumento === 'factura') {
+      return {
+        subject: '',
+        body: 'Hola, te compartimos la factura ' + folio + ' de ' + concepto + ' por ' + monto + '. Queda pendiente el pago antes del ' + vence + '. Datos de pago: ' + cuenta
+      };
+    }
+    return {
+      subject: '',
+      body: 'Hola, te compartimos la remisión ' + folio + ' correspondiente a ' + concepto + ' de ' + mes + '. Monto: ' + monto + '. Cualquier duda con gusto te atendemos 🙌'
+    };
+  }
+  // correo
+  return {
+    subject: Tipo + ' ' + folio + ' — ' + concepto + ' ' + mes,
+    body: 'Estimado equipo de ' + cliente + ',\n\nAdjuntamos ' + tipo + ' ' + folio + ' por concepto de ' + concepto + ' correspondiente a ' + mes + ', por un monto de ' + monto + '.\n\nEl vencimiento es el ' + vence + '.\nDatos de pago: ' + cuenta + '\n\nQuedamos a sus órdenes.'
+  };
+}
+
 function cbzRenderTabla(cobros) {
   if (cobros.length === 0) {
     return `<div class="cbz-empty">Sin cobros para los filtros actuales.<br><span style="font-size:11px;color:var(--text3);">Usa <b>＋ Nuevo cobro</b> para registrar el primero.</span></div>`;
@@ -8866,6 +9063,7 @@ function cbzRenderTabla(cobros) {
           <div class="cbz-col cbz-col-con">${escapeHtml(c.concepto || '—')}</div>
           <div class="cbz-col cbz-col-tipo"><span class="cbz-tipo">${cbzTipoLabel(c.tipo)}${c.recurrente?' ↻':''}</span></div>
           <div class="cbz-col cbz-col-monto">${cbzFmtMoney(c.monto)}</div>
+          <div class="cbz-col cbz-col-doc" onclick="event.stopPropagation()">${cbzDocCell(c)}</div>
           <div class="cbz-col cbz-col-vence">${cbzFmtFecha(c.fechaVencimiento)}</div>
           <div class="cbz-col cbz-col-estado">${cbzEstadoChip(estado)}</div>
           <div class="cbz-col cbz-col-pagado">${pagadoTxt}</div>
@@ -8887,6 +9085,7 @@ function cbzRenderTabla(cobros) {
         <div class="cbz-col cbz-col-con">Concepto</div>
         <div class="cbz-col cbz-col-tipo">Tipo</div>
         <div class="cbz-col cbz-col-monto">Monto</div>
+        <div class="cbz-col cbz-col-doc">Doc</div>
         <div class="cbz-col cbz-col-vence">Vence</div>
         <div class="cbz-col cbz-col-estado">Estado</div>
         <div class="cbz-col cbz-col-pagado">Pagado</div>
