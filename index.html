@@ -2535,6 +2535,77 @@
     border-radius:4px; cursor:pointer;
   }
 
+
+  /* ── Cobranza v3: Multi-pay modal ──────── */
+  .cbz-mpay-overlay {
+    position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:9998;
+    display:flex; align-items:center; justify-content:center; padding:20px;
+  }
+  .cbz-mpay-modal {
+    background:var(--surface); border:1px solid var(--border); border-radius:8px;
+    width:90vw; max-width:640px; max-height:85vh;
+    display:flex; flex-direction:column; overflow:hidden;
+  }
+  .cbz-mpay-header {
+    padding:14px 18px; border-bottom:1px solid var(--border);
+  }
+  .cbz-mpay-header h3 {
+    font-family:'DM Sans',sans-serif; font-size:15px; font-weight:700; margin:0 0 4px;
+  }
+  .cbz-mpay-header .sub {
+    font-family:'DM Mono',monospace; font-size:11px; color:var(--text3);
+  }
+  .cbz-mpay-body { flex:1; overflow-y:auto; padding:14px 18px; }
+  .cbz-mpay-input-row {
+    display:flex; align-items:center; gap:10px; margin-bottom:14px;
+    padding-bottom:14px; border-bottom:1px solid var(--border);
+  }
+  .cbz-mpay-input-row label {
+    font-family:'DM Mono',monospace; font-size:10px; color:var(--text3);
+    text-transform:uppercase; letter-spacing:0.05em;
+  }
+  .cbz-mpay-input-row input {
+    background:var(--bg2); border:1px solid var(--border); color:var(--text);
+    font-family:'DM Mono',monospace; font-size:14px; font-weight:600;
+    padding:8px 10px; border-radius:4px; outline:none; width:180px;
+  }
+  .cbz-mpay-input-row input:focus { border-color:#635bff; }
+  .cbz-mpay-dist { display:flex; flex-direction:column; gap:6px; }
+  .cbz-mpay-row {
+    display:flex; align-items:center; gap:8px; padding:8px 10px;
+    border:1px solid var(--border); border-radius:4px;
+  }
+  .cbz-mpay-row .info { flex:1; min-width:0; }
+  .cbz-mpay-row .info .concepto { font-size:12px; font-weight:600; color:var(--text1); }
+  .cbz-mpay-row .info .meta { font-family:'DM Mono',monospace; font-size:10px; color:var(--text3); margin-top:2px; }
+  .cbz-mpay-row .monto-col { font-family:'DM Mono',monospace; font-size:12px; color:var(--text2); white-space:nowrap; width:90px; text-align:right; }
+  .cbz-mpay-row .apply-col { width:100px; }
+  .cbz-mpay-row .apply-col input {
+    background:var(--bg2); border:1px solid var(--border); color:var(--text);
+    font-family:'DM Mono',monospace; font-size:12px; font-weight:600;
+    padding:5px 7px; border-radius:4px; outline:none; width:100%;
+    text-align:right;
+  }
+  .cbz-mpay-row .apply-col input:focus { border-color:#635bff; }
+  .cbz-mpay-row .status-col {
+    font-family:'DM Mono',monospace; font-size:10px; width:80px; text-align:right;
+  }
+  .cbz-mpay-row .status-col.full { color:var(--green); }
+  .cbz-mpay-row .status-col.partial { color:#d97706; }
+  .cbz-mpay-row .status-col.none { color:var(--text3); }
+  .cbz-mpay-summary {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:12px 18px; border-top:1px solid var(--border);
+    font-family:'DM Mono',monospace; font-size:12px;
+  }
+  .cbz-mpay-summary .total { font-weight:600; }
+  .cbz-mpay-summary .remaining { color:var(--text3); }
+  .cbz-mpay-summary .remaining.over { color:var(--red); }
+  .cbz-mpay-footer {
+    display:flex; gap:8px; justify-content:flex-end;
+    padding:12px 18px; border-top:1px solid var(--border);
+  }
+
   /* Responsive: tabla colapsa a cards en mobile */
   @media (max-width: 900px) {
     .cbz-row-main {
@@ -9996,11 +10067,26 @@ async function cbzSaveForm() {
   showToast(editing ? 'Cobro actualizado' : 'Cobro registrado', '💳');
 }
 
-// ── Marcar pagado (mini form) ──────────────────────────
+// ── Marcar pagado (mini form / multi-pay modal) ──────────
 function cbzShowPayForm(id) {
+  var c = _cobranzaState.cobros.find(function(x){return x.id===id;});
+  if (!c) return;
+  // Check if client has multiple unpaid cobros
+  var clienteKey = c.clienteId || c.clienteNombre;
+  var unpaid = _cobranzaState.cobros.filter(function(x) {
+    var k = x.clienteId || x.clienteNombre;
+    if (k !== clienteKey || x.workspace !== c.workspace) return false;
+    var e = cbzDerivarEstado(x);
+    return e === 'vencido' || e === 'pendiente' || e === 'parcial';
+  });
+  if (unpaid.length > 1) {
+    cbzShowMultiPayModal(clienteKey, c.workspace);
+    return;
+  }
+  // Single cobro: use inline form
   _cobranzaState.payFormForId = id;
   renderAdmin();
-  setTimeout(() => { const el = document.getElementById('cbz-pay-fecha'); if (el) el.focus(); }, 50);
+  setTimeout(function() { var el = document.getElementById('cbz-pay-fecha'); if (el) el.focus(); }, 50);
 }
 function cbzCancelPayForm() {
   _cobranzaState.payFormForId = null;
@@ -10043,11 +10129,163 @@ async function cbzConfirmPay(id) {
   c.cuentaDestino = document.getElementById('cbz-pay-cuenta').value.trim();
   c.referencia = document.getElementById('cbz-pay-ref').value.trim();
   c.estado = monto >= (parseFloat(c.monto)||0) ? 'pagado' : 'parcial';
+  c.saldoPendiente = Math.max(0, Math.round(((parseFloat(c.monto)||0) - monto) * 100) / 100);
   c.updatedAt = new Date().toISOString();
+  cbzAutoUnblock();
   await cbzSaveToFirestore(_cobranzaState.cobros);
   _cobranzaState.payFormForId = null;
   renderAdmin();
   showToast(c.estado === 'pagado' ? 'Cobro pagado' : 'Pago parcial registrado', '✅');
+}
+
+
+// ── Cobranza v3: Auto-desbloqueo ──────────────────────────────
+function cbzAutoUnblock() {
+  _cobranzaState.cobros.forEach(function(c) {
+    if (c.estado !== 'bloqueado' || !Array.isArray(c.bloqueadoPor) || c.bloqueadoPor.length === 0) return;
+    // Check if ALL blocking cobros are now pagado
+    var allPaid = c.bloqueadoPor.every(function(bId) {
+      var b = _cobranzaState.cobros.find(function(x){return x.id===bId;});
+      return !b || b.estado === 'pagado';
+    });
+    if (allPaid) {
+      c.estado = 'pendiente';
+      c.bloqueadoPor = [];
+      c.updatedAt = new Date().toISOString();
+    }
+  });
+}
+
+// ── Cobranza v3: Multi-pay modal ──────────────────────────────
+function cbzShowMultiPayModal(clienteKey, workspace) {
+  var unpaid = _cobranzaState.cobros.filter(function(x) {
+    var k = x.clienteId || x.clienteNombre;
+    if (k !== clienteKey || x.workspace !== workspace) return false;
+    var e = cbzDerivarEstado(x);
+    return e === 'vencido' || e === 'pendiente' || e === 'parcial';
+  }).sort(function(a,b) { return (a.fechaVencimiento||'').localeCompare(b.fechaVencimiento||''); });
+  if (unpaid.length === 0) return;
+  var clienteNombre = unpaid[0].clienteNombre || '—';
+  var totalDeuda = unpaid.reduce(function(s,c) { return s + Math.round(((parseFloat(c.monto)||0) - (parseFloat(c.montoPagado)||0))*100)/100; }, 0);
+  _cobranzaState._multiPay = { clienteKey: clienteKey, workspace: workspace, cobros: unpaid, dist: [] };
+  // Build modal
+  var old = document.getElementById('cbz-mpay-overlay');
+  if (old) old.remove();
+  var overlay = document.createElement('div');
+  overlay.id = 'cbz-mpay-overlay';
+  overlay.className = 'cbz-mpay-overlay';
+  overlay.onclick = function(e) { if (e.target === overlay) cbzCloseMultiPay(); };
+  overlay.innerHTML = '<div class="cbz-mpay-modal">'
+    + '<div class="cbz-mpay-header"><h3>Registrar pago · ' + escapeHtml(clienteNombre) + '</h3>'
+    + '<div class="sub">Deuda total: ' + cbzFmtMoney(totalDeuda) + ' · ' + unpaid.length + ' cobro' + (unpaid.length>1?'s':'') + '</div></div>'
+    + '<div class="cbz-mpay-body">'
+    + '<div class="cbz-mpay-input-row"><label>Monto recibido</label>'
+    + '<input id="cbz-mpay-monto" type="number" step="0.01" value="" placeholder="0" oninput="cbzMultiPayDistribute()">'
+    + '<select id="cbz-mpay-metodo" style="background:var(--bg2);border:1px solid var(--border);color:var(--text);font-family:\'DM Mono\',monospace;font-size:11px;padding:8px;border-radius:4px;">'
+    + '<option value="transferencia">Transferencia</option><option value="efectivo">Efectivo</option><option value="cheque">Cheque</option><option value="tarjeta">Tarjeta</option><option value="otro">Otro</option></select></div>'
+    + '<div class="cbz-mpay-dist" id="cbz-mpay-dist">' + unpaid.map(function(c, i) {
+      var saldo = Math.round(((parseFloat(c.monto)||0) - (parseFloat(c.montoPagado)||0))*100)/100;
+      return '<div class="cbz-mpay-row" data-idx="' + i + '" data-saldo="' + saldo + '">'
+        + '<div class="info"><div class="concepto">' + escapeHtml(c.concepto||'—') + '</div><div class="meta">' + cbzFmtFecha(c.fechaVencimiento) + ' · ' + cbzEstadoChip(cbzDerivarEstado(c), c) + '</div></div>'
+        + '<div class="monto-col">' + cbzFmtMoney(saldo) + '</div>'
+        + '<div class="apply-col"><input id="cbz-mpay-apply-' + i + '" type="number" step="0.01" value="0" oninput="cbzMultiPayManualEdit(' + i + ')"></div>'
+        + '<div class="status-col none" id="cbz-mpay-status-' + i + '">—</div>'
+        + '</div>';
+    }).join('') + '</div></div>'
+    + '<div class="cbz-mpay-summary"><span class="total" id="cbz-mpay-total">Aplicado: $0</span><span class="remaining" id="cbz-mpay-remaining">Restante: $0</span></div>'
+    + '<div class="cbz-mpay-footer">'
+    + '<button class="cbz-btn cbz-btn-ghost" onclick="cbzCloseMultiPay()">Cancelar</button>'
+    + '<button class="cbz-btn" onclick="cbzMultiPayAutoDistribute()">FIFO auto</button>'
+    + '<button class="cbz-btn cbz-btn-primary" onclick="cbzConfirmMultiPay()">Confirmar pago</button>'
+    + '</div></div>';
+  document.body.appendChild(overlay);
+  setTimeout(function(){ var el=document.getElementById('cbz-mpay-monto'); if(el) el.focus(); }, 50);
+}
+function cbzCloseMultiPay() {
+  var el = document.getElementById('cbz-mpay-overlay');
+  if (el) el.remove();
+  _cobranzaState._multiPay = null;
+}
+function cbzMultiPayAutoDistribute() {
+  var mp = _cobranzaState._multiPay;
+  if (!mp) return;
+  var montoEl = document.getElementById('cbz-mpay-monto');
+  var total = parseFloat(montoEl ? montoEl.value : 0) || 0;
+  var remaining = total;
+  mp.cobros.forEach(function(c, i) {
+    var saldo = Math.round(((parseFloat(c.monto)||0) - (parseFloat(c.montoPagado)||0))*100)/100;
+    var apply = Math.min(remaining, saldo);
+    apply = Math.round(apply * 100) / 100;
+    var input = document.getElementById('cbz-mpay-apply-' + i);
+    if (input) input.value = apply > 0 ? apply : 0;
+    remaining = Math.round((remaining - apply) * 100) / 100;
+  });
+  cbzMultiPayUpdateSummary();
+}
+// Alias: typing in monto triggers FIFO auto
+function cbzMultiPayDistribute() { cbzMultiPayAutoDistribute(); }
+function cbzMultiPayManualEdit(idx) {
+  cbzMultiPayUpdateSummary();
+}
+function cbzMultiPayUpdateSummary() {
+  var mp = _cobranzaState._multiPay;
+  if (!mp) return;
+  var montoEl = document.getElementById('cbz-mpay-monto');
+  var total = parseFloat(montoEl ? montoEl.value : 0) || 0;
+  var applied = 0;
+  mp.cobros.forEach(function(c, i) {
+    var input = document.getElementById('cbz-mpay-apply-' + i);
+    var val = parseFloat(input ? input.value : 0) || 0;
+    var saldo = Math.round(((parseFloat(c.monto)||0) - (parseFloat(c.montoPagado)||0))*100)/100;
+    var statusEl = document.getElementById('cbz-mpay-status-' + i);
+    if (statusEl) {
+      if (val >= saldo && saldo > 0) { statusEl.textContent = '✓ completo'; statusEl.className = 'status-col full'; }
+      else if (val > 0) { statusEl.textContent = 'parcial'; statusEl.className = 'status-col partial'; }
+      else { statusEl.textContent = '—'; statusEl.className = 'status-col none'; }
+    }
+    applied += val;
+  });
+  applied = Math.round(applied * 100) / 100;
+  var remaining = Math.round((total - applied) * 100) / 100;
+  var totalEl = document.getElementById('cbz-mpay-total');
+  var remEl = document.getElementById('cbz-mpay-remaining');
+  if (totalEl) totalEl.textContent = 'Aplicado: ' + cbzFmtMoney(applied);
+  if (remEl) {
+    remEl.textContent = remaining >= 0 ? ('Restante: ' + cbzFmtMoney(remaining)) : ('Excede: ' + cbzFmtMoney(-remaining));
+    remEl.className = 'remaining' + (remaining < 0 ? ' over' : '');
+  }
+}
+async function cbzConfirmMultiPay() {
+  var mp = _cobranzaState._multiPay;
+  if (!mp) return;
+  var montoEl = document.getElementById('cbz-mpay-monto');
+  var totalRecibido = parseFloat(montoEl ? montoEl.value : 0) || 0;
+  if (totalRecibido <= 0) { showToast('Ingresa el monto recibido', '⚠️'); return; }
+  var metodoEl = document.getElementById('cbz-mpay-metodo');
+  var metodo = metodoEl ? metodoEl.value : 'transferencia';
+  var fecha = cbzToday();
+  var aplicados = 0;
+  mp.cobros.forEach(function(c, i) {
+    var input = document.getElementById('cbz-mpay-apply-' + i);
+    var val = Math.round((parseFloat(input ? input.value : 0) || 0) * 100) / 100;
+    if (val <= 0) return;
+    var prevPagado = parseFloat(c.montoPagado) || 0;
+    c.montoPagado = Math.round((prevPagado + val) * 100) / 100;
+    c.fechaPago = fecha;
+    c.metodoPago = metodo;
+    c.saldoPendiente = Math.max(0, Math.round(((parseFloat(c.monto)||0) - c.montoPagado) * 100) / 100);
+    c.estado = c.montoPagado >= (parseFloat(c.monto)||0) ? 'pagado' : 'parcial';
+    c.updatedAt = new Date().toISOString();
+    // Log
+    if (!Array.isArray(c.recordatorios)) c.recordatorios = [];
+    c.recordatorios.push({ fecha: new Date().toISOString(), tipo: 'pago_multiple', canal: 'manual', estado: c.estado, mensaje: 'Pago aplicado: ' + cbzFmtMoney(val) + ' de ' + cbzFmtMoney(totalRecibido) });
+    aplicados++;
+  });
+  cbzAutoUnblock();
+  await cbzSaveToFirestore(_cobranzaState.cobros);
+  cbzCloseMultiPay();
+  renderAdmin();
+  showToast(aplicados + ' cobro' + (aplicados>1?'s':'') + ' actualizado' + (aplicados>1?'s':''), '✅');
 }
 
 // ── Delete ─────────────────────────────────────────────
