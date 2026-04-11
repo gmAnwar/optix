@@ -9079,7 +9079,7 @@ function cbzRenderTab() {
       <div style="flex:1;"></div>
       <button class="cbz-btn cbz-btn-ghost" onclick="cbzToggleView()">${_cobranzaState.view === 'tabla' ? '👥 Ver por cliente' : '📋 Ver tabla'}</button>
       <button class="cbz-btn cbz-btn-ghost" onclick="cbzGenerarRetainers()" title="Genera un cobro de este mes para cada retainer recurrente que aún no lo tenga">↻ Generar retainers</button>
-      <button class="cbz-btn cbz-btn-ghost" onclick="cbzGenerarRecordatorios()">🔔 Revisar</button>
+      <button class="cbz-btn cbz-btn-ghost" onclick="cbzRevisarCompleto()">🔔 Revisar</button>
       <button class="cbz-btn cbz-btn-primary" onclick="cbzShowForm()">＋ Nuevo cobro</button>
     </div>`;
 
@@ -10164,6 +10164,104 @@ async function cbzConfirmPay(id) {
   showToast(c.estado === 'pagado' ? 'Cobro pagado' : 'Pago parcial registrado', '✅');
 }
 
+
+
+// ── Alertas de cobranza a Slack (DM a Anwar) ─────────────────
+var CBZ_WORKER = 'https://optix-proxy.anwarhsg.workers.dev';
+var CBZ_ANWAR_SLACK = 'U052K7CCA8J';
+
+async function cbzSlackDM(userId, text) {
+  try {
+    var resp = await fetch(CBZ_WORKER, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'slack_dm', user_id: userId, text: text })
+    });
+    return resp.ok;
+  } catch(e) {
+    console.error('[cbz] slack DM failed', e);
+    return false;
+  }
+}
+
+async function cbzCheckAlertas() {
+  var cobros = _cobranzaState.cobros;
+  var hoy = cbzToday();
+  var hoyDate = new Date(hoy);
+  var en3 = new Date(hoyDate); en3.setDate(en3.getDate() + 3);
+  var en3str = en3.toISOString().split('T')[0];
+  var enviados = 0;
+
+  for (var i = 0; i < cobros.length; i++) {
+    var c = cobros[i];
+    var estado = cbzDerivarEstado(c);
+    var monto = cbzFmtMoney(c.monto);
+    var cliente = c.clienteNombre || '—';
+    var msg = null;
+    var tipo = null;
+
+    // 1. Pre-vencimiento (3 días antes)
+    if ((estado === 'pendiente' || estado === 'bloqueado') && c.fechaVencimiento === en3str) {
+      msg = '⚠️ ' + cliente + ' vence en 3 días — ' + monto + '. Revisa en Finanzas.';
+      tipo = 'pre-vencimiento';
+    }
+    // 2. Vencimiento (hoy)
+    else if (estado === 'pendiente' && c.fechaVencimiento === hoy) {
+      msg = '🔴 ' + cliente + ' vence HOY — ' + monto + ' sin pagar.';
+      tipo = 'vencimiento';
+    }
+    // 3. Seguimiento post-vencimiento
+    else if (estado === 'vencido' && !c.fechaPromesaPago) {
+      var diasVencido = Math.floor((hoyDate - new Date(c.fechaVencimiento)) / 86400000);
+      msg = '📋 ' + cliente + ' lleva ' + diasVencido + ' días vencido — ' + monto + '. ¿Qué hacemos?';
+      tipo = 'seguimiento';
+    }
+
+    if (!msg) continue;
+
+    // 4. Escalación: 2+ seguimientos sin respuesta
+    var recs = Array.isArray(c.recordatorios) ? c.recordatorios : [];
+    var seguimientos = recs.filter(function(r) { return r.tipo && r.tipo.indexOf('seguimiento') !== -1; });
+    if (seguimientos.length >= 2 && !c.escaladoAnwar) {
+      msg = '🚨 ' + cliente + ' escalado — ' + seguimientos.length + ' seguimientos sin respuesta. Requiere acción manual.';
+      tipo = 'escalacion';
+      c.escaladoAnwar = true;
+    }
+
+    // Dedup: no enviar el mismo tipo al mismo cobro el mismo día
+    var yaEnviado = recs.some(function(r) {
+      return r.tipo === tipo && r.fecha && r.fecha.startsWith(hoy);
+    });
+    if (yaEnviado) continue;
+
+    var ok = await cbzSlackDM(CBZ_ANWAR_SLACK, msg);
+    if (ok) {
+      if (!Array.isArray(c.recordatorios)) c.recordatorios = [];
+      c.recordatorios.push({
+        fecha: new Date().toISOString(),
+        tipo: tipo,
+        canal: 'slack_dm',
+        estado: 'enviado',
+        mensaje: msg
+      });
+      c.updatedAt = new Date().toISOString();
+      enviados++;
+    }
+  }
+
+  if (enviados > 0) {
+    await cbzSaveToFirestore(_cobranzaState.cobros);
+  }
+  return enviados;
+}
+
+// Hook into existing "🔔 Revisar" button: run alerts + existing recordatorios
+async function cbzRevisarCompleto() {
+  showToast('Revisando alertas...', '🔔');
+  var alertas = await cbzCheckAlertas();
+  cbzGenerarRecordatorios();
+  if (alertas > 0) showToast(alertas + ' alerta' + (alertas>1?'s':'') + ' enviada' + (alertas>1?'s':'') + ' a Slack', '📤');
+}
 
 // ── Cobranza v3: Auto-desbloqueo ──────────────────────────────
 function cbzAutoUnblock() {
