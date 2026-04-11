@@ -2405,7 +2405,7 @@
   }
   .cbz-preview-modal {
     background:var(--surface); border:1px solid var(--border); border-radius:8px;
-    width:90vw; max-width:800px; height:90vh;
+    width:90vw; max-width:1100px; height:90vh;
     display:flex; flex-direction:column; overflow:hidden;
   }
   .cbz-preview-header {
@@ -2416,11 +2416,38 @@
     font-family:'DM Sans',sans-serif; font-size:14px; font-weight:700; color:var(--text1);
   }
   .cbz-preview-actions { display:flex; gap:6px; align-items:center; }
+  .cbz-preview-content {
+    flex:1; display:flex; overflow:hidden;
+  }
+  .cbz-preview-editor {
+    width:280px; flex-shrink:0; border-right:1px solid var(--border);
+    padding:14px 16px; overflow-y:auto;
+    display:flex; flex-direction:column; gap:10px;
+  }
+  .cbz-preview-editor label {
+    display:flex; flex-direction:column; gap:4px;
+    font-family:'DM Mono',monospace; font-size:9.5px; color:var(--text3);
+    text-transform:uppercase; letter-spacing:0.05em;
+  }
+  .cbz-preview-editor input, .cbz-preview-editor textarea {
+    background:var(--bg2); border:1px solid var(--border); color:var(--text);
+    font-family:'DM Sans',sans-serif; font-size:12px; padding:7px 9px;
+    border-radius:4px; outline:none;
+  }
+  .cbz-preview-editor input:focus, .cbz-preview-editor textarea:focus { border-color:#635bff; }
+  .cbz-preview-editor textarea { resize:vertical; min-height:60px; }
+  .cbz-preview-editor .hint {
+    font-size:9px; color:var(--text3); font-style:italic; margin-top:-4px;
+  }
   .cbz-preview-body {
     flex:1; overflow-y:auto; padding:0; background:#fff;
   }
   .cbz-preview-body iframe {
     width:100%; height:100%; border:none;
+  }
+  @media (max-width: 700px) {
+    .cbz-preview-content { flex-direction:column; }
+    .cbz-preview-editor { width:100%; border-right:none; border-bottom:1px solid var(--border); max-height:200px; }
   }
 
 
@@ -9057,24 +9084,34 @@ function cbzVerRemision(id) {
   var c = _cobranzaState.cobros.find(function(x){return x.id===id;});
   if (!c) return;
   var folio = c.documentoFolio || '—';
-  var html = cbzBuildRemisionHTML(c, folio);
-  // View-only modal — no state change
-  cbzShowPreviewModal(html, id);
+  // View-only uses saved values; _previewCobro enables Descargar to work without re-saving
+  _cobranzaState._previewCobro = { id: id, folio: folio, viewOnly: false };
+  _cobranzaState._previewEdits = {
+    concepto: c.concepto || 'Servicio de publicidad en Internet',
+    monto: c.monto || 0,
+    cuenta: c.cuentaDestino || '',
+    notas: ''
+  };
+  cbzShowPreviewModal(c, folio);
 }
 function cbzGenerarRemision(id) {
   var c = _cobranzaState.cobros.find(function(x){return x.id===id;});
   if (!c) return;
-  // Assign a provisional folio for preview (not saved until user commits)
   var folio = c.documentoFolio || cbzNextFolio();
   _cobranzaState._previewCobro = { id: id, folio: folio };
-  var html = cbzBuildRemisionHTML(c, folio);
-  cbzShowPreviewModal(html, id);
+  _cobranzaState._previewEdits = {
+    concepto: c.concepto || 'Servicio de publicidad en Internet',
+    monto: c.monto || 0,
+    cuenta: c.cuentaDestino || '',
+    notas: ''
+  };
+  cbzShowPreviewModal(c, folio);
 }
 
-function cbzShowPreviewModal(html, cobroId) {
-  // Remove existing
+function cbzShowPreviewModal(cobro, folio) {
   var old = document.getElementById('cbz-preview-overlay');
   if (old) old.remove();
+  var ed = _cobranzaState._previewEdits;
   var overlay = document.createElement('div');
   overlay.id = 'cbz-preview-overlay';
   overlay.className = 'cbz-preview-overlay';
@@ -9087,19 +9124,55 @@ function cbzShowPreviewModal(html, cobroId) {
     + '<button class="cbz-btn cbz-btn-primary" onclick="cbzPreviewEnviar()">📤 Enviar</button>'
     + '<button class="cbz-btn" onclick="cbzClosePreview()" style="color:var(--text3);">✕</button>'
     + '</div></div>'
+    + '<div class="cbz-preview-content">'
+    + '<div class="cbz-preview-editor">'
+    + '<label>Concepto<input id="cbz-ed-concepto" type="text" value="' + escapeHtml(ed.concepto) + '" oninput="cbzPreviewRefresh()"></label>'
+    + '<label>Monto MXN<input id="cbz-ed-monto" type="number" step="0.01" value="' + ed.monto + '" oninput="cbzPreviewRefresh()"></label>'
+    + '<label>Cuenta destino<input id="cbz-ed-cuenta" type="text" value="' + escapeHtml(ed.cuenta) + '" oninput="cbzPreviewRefresh()"></label>'
+    + '<label>Notas adicionales<textarea id="cbz-ed-notas" rows="3" placeholder="Aparece al pie del documento (opcional)" oninput="cbzPreviewRefresh()">' + escapeHtml(ed.notas || '') + '</textarea></label>'
+    + '<div class="hint">Los cambios se reflejan en tiempo real en el preview.</div>'
+    + '</div>'
     + '<div class="cbz-preview-body"><iframe id="cbz-preview-iframe"></iframe></div>'
-    + '</div>';
+    + '</div></div>';
   document.body.appendChild(overlay);
-  // Write HTML to iframe
+  cbzPreviewRefresh();
+}
+
+function cbzPreviewReadEdits() {
+  var concepto = document.getElementById('cbz-ed-concepto');
+  var monto = document.getElementById('cbz-ed-monto');
+  var cuenta = document.getElementById('cbz-ed-cuenta');
+  var notas = document.getElementById('cbz-ed-notas');
+  var ed = _cobranzaState._previewEdits || {};
+  ed.concepto = concepto ? concepto.value : ed.concepto;
+  ed.monto = monto ? parseFloat(monto.value) || 0 : ed.monto;
+  ed.cuenta = cuenta ? cuenta.value : ed.cuenta;
+  ed.notas = notas ? notas.value.trim() : ed.notas;
+  _cobranzaState._previewEdits = ed;
+  return ed;
+}
+
+function cbzPreviewRefresh() {
+  var ctx = _cobranzaState._previewCobro;
+  if (!ctx) return;
+  var c = _cobranzaState.cobros.find(function(x){return x.id===ctx.id;});
+  if (!c) return;
+  var ed = cbzPreviewReadEdits();
+  // Build a temp cobro-like object with edits applied
+  var tmp = Object.assign({}, c, { concepto: ed.concepto, monto: ed.monto, cuentaDestino: ed.cuenta });
+  var html = cbzBuildRemisionHTML(tmp, ctx.folio, ed.notas);
   var iframe = document.getElementById('cbz-preview-iframe');
+  if (!iframe) return;
   var doc = iframe.contentDocument || iframe.contentWindow.document;
   doc.open(); doc.write(html); doc.close();
 }
 
 function cbzClosePreview() {
+  // ✕ closes without changing documentoEstado — confirmed by MEJORA 2
   var el = document.getElementById('cbz-preview-overlay');
   if (el) el.remove();
   _cobranzaState._previewCobro = null;
+  _cobranzaState._previewEdits = null;
 }
 
 async function cbzPreviewDescargar() {
@@ -9107,13 +9180,20 @@ async function cbzPreviewDescargar() {
   if (!ctx) return;
   var c = _cobranzaState.cobros.find(function(x){return x.id===ctx.id;});
   if (!c) return;
+  var ed = cbzPreviewReadEdits();
   // Mark as generado
   c.documentoEstado = 'generado';
   c.documentoFolio = ctx.folio;
   c.documentoFechaGenerado = new Date().toISOString();
+  // Track monto difference
+  if (Math.round(ed.monto * 100) !== Math.round((parseFloat(c.monto)||0) * 100)) {
+    c.documentoMonto = ed.monto;
+  }
+  c.cuentaDestino = ed.cuenta || c.cuentaDestino;
   await cbzSaveToFirestore(_cobranzaState.cobros);
-  // Open in new window for print
-  var html = cbzBuildRemisionHTML(c, ctx.folio);
+  // Open in new window with edited values
+  var tmp = Object.assign({}, c, { concepto: ed.concepto, monto: ed.monto, cuentaDestino: ed.cuenta });
+  var html = cbzBuildRemisionHTML(tmp, ctx.folio, ed.notas);
   var w = window.open('', '_blank');
   if (w) { w.document.open(); w.document.write(html); w.document.close(); }
   cbzClosePreview();
@@ -9126,13 +9206,17 @@ async function cbzPreviewEnviar() {
   if (!ctx) return;
   var c = _cobranzaState.cobros.find(function(x){return x.id===ctx.id;});
   if (!c) return;
+  var ed = cbzPreviewReadEdits();
   // Mark as generado first
   c.documentoEstado = 'generado';
   c.documentoFolio = ctx.folio;
   c.documentoFechaGenerado = new Date().toISOString();
+  if (Math.round(ed.monto * 100) !== Math.round((parseFloat(c.monto)||0) * 100)) {
+    c.documentoMonto = ed.monto;
+  }
+  c.cuentaDestino = ed.cuenta || c.cuentaDestino;
   await cbzSaveToFirestore(_cobranzaState.cobros);
   cbzClosePreview();
-  // Open canal dropdown via existing flow
   _cobranzaState.canalDropdownForId = ctx.id;
   renderAdmin();
 }
@@ -9175,7 +9259,7 @@ function cbzNumALetra(n) {
 }
 
 // ── Remisión HTML template ────────────────────────────────────
-function cbzBuildRemisionHTML(c, folio) {
+function cbzBuildRemisionHTML(c, folio, notasExtra) {
   // FIX: usar Math.round para evitar error de punto flotante (ej: 34999.999... → 35000)
   var montoRaw = parseFloat(c.monto) || 0;
   var monto = Math.round(montoRaw * 100) / 100; // redondeo a centavos
@@ -9230,7 +9314,7 @@ function cbzBuildRemisionHTML(c, folio) {
     + '<div class="info-row"><b>Para:</b> ' + cliente + '</div>'
     + '</div>'
     + '<table><thead><tr><th>Cant.</th><th>Descripción</th><th>Importe</th></tr></thead>'
-    + '<tbody><tr><td>1</td><td>Servicio de publicidad en Internet</td><td>$' + montoFmt + '</td></tr></tbody></table>'
+    + '<tbody><tr><td>1</td><td>' + concepto + '</td><td>$' + montoFmt + '</td></tr></tbody></table>'
     + '<div class="totals">'
     + '<div class="totals-letra"><b>Total en letra:</b><br>' + enLetra + '</div>'
     + '<div class="totals-monto"><div class="label">Total</div><div class="amount">$' + montoFmt + '</div></div>'
@@ -9239,6 +9323,7 @@ function cbzBuildRemisionHTML(c, folio) {
     + '<div class="payment-row"><b>Forma de pago:</b> ' + metodo + '</div>'
     + '<div class="payment-row"><b>Cuenta destino:</b> ' + cuenta + '</div>'
     + '</div>'
+    + (notasExtra ? '<div style="margin-bottom:20px;padding:12px 16px;background:#fafafa;border:1px solid #eee;border-radius:6px;font-size:12px;color:#555;line-height:1.5;"><b style="color:#333;">Notas:</b> ' + escapeHtml(notasExtra) + '</div>' : '')
     + '<div class="footer">'
     + '<div class="footer-brand">OptimizAds</div>'
     + '<div class="footer-disclaimer">Este documento no es un comprobante fiscal</div>'
