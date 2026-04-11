@@ -2297,8 +2297,22 @@
   .cbz-chip-pag .cbz-chip-dot { background:#059669; }
   .cbz-chip-ven  { color:#dc2626; }
   .cbz-chip-ven .cbz-chip-dot { background:#dc2626; }
-  .cbz-chip-par  { color:var(--text2); }
-  .cbz-chip-par .cbz-chip-dot { background:#3b82f6; }
+  .cbz-chip-par  { color:#d97706; }
+  .cbz-chip-par .cbz-chip-dot { background:#d97706; border-radius:50%; background:conic-gradient(#d97706 50%, transparent 50%); }
+  .cbz-chip-bloq { color:var(--text3); }
+  .cbz-chip-bloq .cbz-chip-dot { background:var(--text3); }
+  .cbz-act-pay.disabled {
+    opacity:0.35; cursor:not-allowed; pointer-events:none;
+  }
+  .cbz-act-pay-wrap { position:relative; display:inline-flex; }
+  .cbz-act-pay-wrap .cbz-tooltip {
+    display:none; position:absolute; bottom:calc(100% + 6px); right:0;
+    background:var(--surface); border:1px solid var(--border); border-radius:4px;
+    padding:5px 8px; font-size:10px; color:var(--text2); white-space:nowrap;
+    box-shadow:0 4px 12px rgba(0,0,0,0.3); z-index:10;
+    font-family:'DM Sans',sans-serif;
+  }
+  .cbz-act-pay-wrap:hover .cbz-tooltip { display:block; }
 
   /* Detail expanded */
   .cbz-row.expanded .cbz-row-main { background:var(--surface2); }
@@ -8790,7 +8804,9 @@ function cbzYearStart() {
   return new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0];
 }
 function cbzDerivarEstado(c) {
-  if (c.estado === 'pagado' || c.estado === 'parcial') return c.estado;
+  if (c.estado === 'pagado') return 'pagado';
+  if (c.estado === 'parcial') return 'parcial';
+  if (c.estado === 'bloqueado') return 'bloqueado';
   if (c.fechaVencimiento && c.fechaVencimiento < cbzToday()) return 'vencido';
   return 'pendiente';
 }
@@ -8925,7 +8941,7 @@ function cbzRenderTab() {
 
   // "Por cobrar" = solo estado pendiente (no vencido) con vencimiento en el mes actual
   const porCobrarMes = cobros
-    .filter(c => cbzDerivarEstado(c) === 'pendiente' && c.fechaVencimiento >= mesStart && c.fechaVencimiento <= mesEnd)
+    .filter(c => { var e = cbzDerivarEstado(c); return (e === 'pendiente') && c.fechaVencimiento >= mesStart && c.fechaVencimiento <= mesEnd; })
     .reduce((s,c) => s + ((parseFloat(c.monto)||0) - (parseFloat(c.montoPagado)||0)), 0);
   const cobradoMes = cobros
     .filter(c => (c.estado === 'pagado' || c.estado === 'parcial') && c.fechaPago && c.fechaPago >= mesStart && c.fechaPago <= mesEnd)
@@ -8964,6 +8980,7 @@ function cbzRenderTab() {
         ${opt('pendiente','Pendientes', f.estado)}
         ${opt('vencido','Vencidos', f.estado)}
         ${opt('parcial','Parciales', f.estado)}
+        ${opt('bloqueado','Bloqueados', f.estado)}
         ${opt('pagado','Pagados', f.estado)}
       </select>
       <select onchange="cbzSetFilter('periodo', this.value)">
@@ -9001,15 +9018,30 @@ function cbzToggleView() {
 }
 
 // ── Render tabla ───────────────────────────────────────
-function cbzEstadoChip(estado) {
+function cbzPayButton(estado, id) {
+  if (estado === 'pagado') return '';
+  if (estado === 'bloqueado') return '<span class="cbz-act-pay-wrap"><button class="cbz-act cbz-act-pay disabled">✓</button><span class="cbz-tooltip">Liquida adeudos anteriores primero</span></span>';
+  return '<button class="cbz-act cbz-act-pay" title="Marcar pagado" onclick="cbzShowPayForm(\'' + id + '\')">✓</button>';
+}
+function cbzEstadoChip(estado, cobro) {
   const map = {
     pendiente: { cls: 'pend', label: 'Pendiente' },
     pagado:    { cls: 'pag',  label: 'Pagado' },
     vencido:   { cls: 'ven',  label: 'Vencido' },
-    parcial:   { cls: 'par',  label: 'Parcial' }
+    parcial:   { cls: 'par',  label: 'Parcial' },
+    bloqueado: { cls: 'bloq', label: 'Bloqueado' }
   };
   const e = map[estado] || map.pendiente;
-  return `<span class="cbz-chip cbz-chip-${e.cls}"><span class="cbz-chip-dot"></span>${e.label}</span>`;
+  var icon = estado === 'bloqueado' ? '🔒 ' : (estado === 'parcial' ? '◑ ' : '');
+  var extra = '';
+  if (estado === 'parcial' && cobro) {
+    var saldo = Math.round(((parseFloat(cobro.monto)||0) - (parseFloat(cobro.montoPagado)||0)) * 100) / 100;
+    if (saldo > 0) extra = ' · ' + cbzFmtMoney(saldo);
+  }
+  if (estado === 'bloqueado') {
+    return '<span class="cbz-chip cbz-chip-bloq">' + icon + e.label + '</span>';
+  }
+  return '<span class="cbz-chip cbz-chip-' + e.cls + '"><span class="cbz-chip-dot"></span>' + e.label + extra + '</span>';
 }
 function cbzTipoLabel(tipo) {
   return ({ retainer:'Retainer', proyecto:'Proyecto', variable:'Variable' })[tipo] || tipo || '—';
@@ -9524,10 +9556,10 @@ function cbzRenderTabla(cobros) {
           <div class="cbz-col cbz-col-monto">${cbzFmtMoney(c.monto)}</div>
           <div class="cbz-col cbz-col-doc" onclick="event.stopPropagation()">${cbzDocCell(c)}</div>
           <div class="cbz-col cbz-col-vence">${cbzFmtFecha(c.fechaVencimiento)}</div>
-          <div class="cbz-col cbz-col-estado">${cbzEstadoChip(estado)}</div>
+          <div class="cbz-col cbz-col-estado">${cbzEstadoChip(estado, c)}</div>
           <div class="cbz-col cbz-col-pagado">${pagadoTxt}</div>
           <div class="cbz-col cbz-col-acts" onclick="event.stopPropagation()">
-            ${estado !== 'pagado' ? `<button class="cbz-act cbz-act-pay" title="Marcar pagado" onclick="cbzShowPayForm('${c.id}')">✓</button>` : ''}
+            ${cbzPayButton(estado, c.id)}
             <button class="cbz-act cbz-act-edit" title="Editar" onclick="cbzEditCobro('${c.id}')">✎</button>
             <button class="cbz-act cbz-act-del" title="Eliminar" onclick="cbzDeleteCobro('${c.id}')">✕</button>
           </div>
@@ -9775,7 +9807,7 @@ function cbzRenderPorCliente(cobros) {
       return `<div class="cbz-pc-item">
         <div style="flex:1;min-width:0;"><div style="font-size:12.5px;color:var(--text1);">${escapeHtml(c.concepto || '—')}</div><div style="font-size:10.5px;color:var(--text3);font-family:'DM Mono',monospace;margin-top:2px;">${cbzTipoLabel(c.tipo)} · Vence ${cbzFmtFecha(c.fechaVencimiento)}</div></div>
         <div style="font-family:'DM Mono',monospace;font-size:11.5px;color:var(--text1);font-weight:600;margin-right:10px;">${cbzFmtMoney(c.monto)}</div>
-        ${cbzEstadoChip(estado)}
+        ${cbzEstadoChip(estado, c)}
       </div>`;
     }).join('');
     return `
@@ -10056,10 +10088,15 @@ async function cbzGenerarRetainers() {
     // Si la plantilla misma ya está en el mes activo, también cuenta
     const tplEnMes = tpl.fechaVencimiento >= mesStart && tpl.fechaVencimiento <= mesEnd;
     if (yaExiste || tplEnMes) return;
-    // REGLA DE NEGOCIO: cobros generados por retainers SIEMPRE nacen 'pendiente'.
-    // Si el cliente pagó adelantado, el usuario marca como pagado manualmente.
-    // Un cobro representa el mes vigente — nunca se genera como 'pagado'.
+    // REGLA DE NEGOCIO: si el cliente tiene vencidos → cobro nace 'bloqueado'.
+    // Si no tiene adeudos → nace 'pendiente'. Nunca se genera como 'pagado'.
     const venc = mesEnd;
+    const clienteKey = tpl.clienteId || tpl.clienteNombre;
+    const vencidosCliente = _cobranzaState.cobros.filter(function(x) {
+      return (x.clienteId || x.clienteNombre) === clienteKey && x.workspace === tpl.workspace && cbzDerivarEstado(x) === 'vencido';
+    });
+    const estNuevo = vencidosCliente.length > 0 ? 'bloqueado' : 'pendiente';
+    const bloqIds = vencidosCliente.map(function(x) { return x.id; });
     _cobranzaState.cobros.push({
       id: 'cbz-' + Date.now() + '-' + Math.random().toString(36).slice(2,6),
       clienteId: tpl.clienteId,
@@ -10070,7 +10107,9 @@ async function cbzGenerarRetainers() {
       monto: tpl.monto,
       fechaVencimiento: venc,
       recurrente: true,
-      estado: 'pendiente',
+      estado: estNuevo,
+      bloqueadoPor: bloqIds,
+      saldoPendiente: tpl.monto,
       fechaPago: null,
       montoPagado: 0,
       metodoPago: tpl.metodoPago || '',
