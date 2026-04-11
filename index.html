@@ -9080,18 +9080,28 @@ async function cbzAnularRemision(id) {
   renderAdmin();
   showToast('Remisión ' + folio + ' anulada', '🗑');
 }
+function cbzInitEdits(c) {
+  var hoy = new Date().toISOString().split('T')[0];
+  return {
+    receptor: c.clienteNombre || '',
+    concepto: c.concepto || 'Servicio de publicidad en Internet',
+    monto: c.monto || 0,
+    cuenta: c.cuentaDestino || '',
+    banco: c.documentoBanco || '',
+    clabe: c.documentoClabe || '',
+    beneficiario: c.documentoBeneficiario || '',
+    refPago: c.documentoRefPago || '',
+    fecha: c.documentoFechaEmision || hoy,
+    notas: c.documentoNotas || ''
+  };
+}
 function cbzVerRemision(id) {
   var c = _cobranzaState.cobros.find(function(x){return x.id===id;});
   if (!c) return;
   var folio = c.documentoFolio || '—';
   // View-only uses saved values; _previewCobro enables Descargar to work without re-saving
   _cobranzaState._previewCobro = { id: id, folio: folio, viewOnly: false };
-  _cobranzaState._previewEdits = {
-    concepto: c.concepto || 'Servicio de publicidad en Internet',
-    monto: c.monto || 0,
-    cuenta: c.cuentaDestino || '',
-    notas: ''
-  };
+  _cobranzaState._previewEdits = cbzInitEdits(c);
   cbzShowPreviewModal(c, folio);
 }
 function cbzGenerarRemision(id) {
@@ -9099,12 +9109,7 @@ function cbzGenerarRemision(id) {
   if (!c) return;
   var folio = c.documentoFolio || cbzNextFolio();
   _cobranzaState._previewCobro = { id: id, folio: folio };
-  _cobranzaState._previewEdits = {
-    concepto: c.concepto || 'Servicio de publicidad en Internet',
-    monto: c.monto || 0,
-    cuenta: c.cuentaDestino || '',
-    notas: ''
-  };
+  _cobranzaState._previewEdits = cbzInitEdits(c);
   cbzShowPreviewModal(c, folio);
 }
 
@@ -9113,7 +9118,7 @@ function cbzShowPreviewModal(cobro, folio) {
   if (old) old.remove();
   var ed = _cobranzaState._previewEdits;
   // Snapshot original values to detect dirty state
-  _cobranzaState._previewOriginal = { concepto: ed.concepto, monto: ed.monto, cuenta: ed.cuenta, notas: ed.notas || '' };
+  _cobranzaState._previewOriginal = JSON.parse(JSON.stringify(ed));
   var s = cobro.documentoEstado || 'sin_generar';
   var canSave = (s === 'sin_generar' || s === 'generado' || s === 'anulado');
   var overlay = document.createElement('div');
@@ -9131,11 +9136,18 @@ function cbzShowPreviewModal(cobro, folio) {
     + '</div></div>'
     + '<div class="cbz-preview-content">'
     + '<div class="cbz-preview-editor">'
+    + '<label>Fecha de emisión<input id="cbz-ed-fecha" type="date" value="' + escapeHtml(ed.fecha) + '" oninput="cbzPreviewRefresh()"></label>'
+    + '<label>Receptor<input id="cbz-ed-receptor" type="text" value="' + escapeHtml(ed.receptor) + '" oninput="cbzPreviewRefresh()"></label>'
     + '<label>Concepto<input id="cbz-ed-concepto" type="text" value="' + escapeHtml(ed.concepto) + '" oninput="cbzPreviewRefresh()"></label>'
     + '<label>Monto MXN<input id="cbz-ed-monto" type="number" step="0.01" value="' + ed.monto + '" oninput="cbzPreviewRefresh()"></label>'
+    + '<div style="border-top:1px solid var(--border);padding-top:8px;margin-top:2px;"><div style="font-family:\'DM Mono\',monospace;font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;">Datos de pago</div></div>'
     + '<label>Cuenta destino<input id="cbz-ed-cuenta" type="text" value="' + escapeHtml(ed.cuenta) + '" oninput="cbzPreviewRefresh()"></label>'
+    + '<label>Banco<input id="cbz-ed-banco" type="text" placeholder="ej. BBVA, Banorte" value="' + escapeHtml(ed.banco) + '" oninput="cbzPreviewRefresh()"></label>'
+    + '<label>Cuenta / CLABE<input id="cbz-ed-clabe" type="text" placeholder="CLABE o número de cuenta" value="' + escapeHtml(ed.clabe) + '" oninput="cbzPreviewRefresh()"></label>'
+    + '<label>Beneficiario<input id="cbz-ed-beneficiario" type="text" placeholder="Nombre del titular" value="' + escapeHtml(ed.beneficiario) + '" oninput="cbzPreviewRefresh()"></label>'
+    + '<label>Referencia<input id="cbz-ed-refpago" type="text" placeholder="Opcional" value="' + escapeHtml(ed.refPago) + '" oninput="cbzPreviewRefresh()"></label>'
+    + '<div style="border-top:1px solid var(--border);padding-top:8px;margin-top:2px;"></div>'
     + '<label>Notas adicionales<textarea id="cbz-ed-notas" rows="3" placeholder="Aparece al pie del documento (opcional)" oninput="cbzPreviewRefresh()">' + escapeHtml(ed.notas || '') + '</textarea></label>'
-    + '<div class="hint">Los cambios se reflejan en tiempo real en el preview.</div>'
     + '</div>'
     + '<div class="cbz-preview-body"><iframe id="cbz-preview-iframe"></iframe></div>'
     + '</div></div>';
@@ -9144,15 +9156,18 @@ function cbzShowPreviewModal(cobro, folio) {
 }
 
 function cbzPreviewReadEdits() {
-  var concepto = document.getElementById('cbz-ed-concepto');
-  var monto = document.getElementById('cbz-ed-monto');
-  var cuenta = document.getElementById('cbz-ed-cuenta');
-  var notas = document.getElementById('cbz-ed-notas');
   var ed = _cobranzaState._previewEdits || {};
-  ed.concepto = concepto ? concepto.value : ed.concepto;
-  ed.monto = monto ? parseFloat(monto.value) || 0 : ed.monto;
-  ed.cuenta = cuenta ? cuenta.value : ed.cuenta;
-  ed.notas = notas ? notas.value.trim() : ed.notas;
+  function v(id) { var el = document.getElementById(id); return el ? el.value : null; }
+  ed.receptor = v('cbz-ed-receptor') != null ? v('cbz-ed-receptor') : ed.receptor;
+  ed.concepto = v('cbz-ed-concepto') != null ? v('cbz-ed-concepto') : ed.concepto;
+  ed.monto = v('cbz-ed-monto') != null ? (parseFloat(v('cbz-ed-monto')) || 0) : ed.monto;
+  ed.cuenta = v('cbz-ed-cuenta') != null ? v('cbz-ed-cuenta') : ed.cuenta;
+  ed.banco = v('cbz-ed-banco') != null ? v('cbz-ed-banco') : (ed.banco || '');
+  ed.clabe = v('cbz-ed-clabe') != null ? v('cbz-ed-clabe') : (ed.clabe || '');
+  ed.beneficiario = v('cbz-ed-beneficiario') != null ? v('cbz-ed-beneficiario') : (ed.beneficiario || '');
+  ed.refPago = v('cbz-ed-refpago') != null ? v('cbz-ed-refpago') : (ed.refPago || '');
+  ed.fecha = v('cbz-ed-fecha') != null ? v('cbz-ed-fecha') : ed.fecha;
+  ed.notas = v('cbz-ed-notas') != null ? v('cbz-ed-notas').trim() : (ed.notas || '');
   _cobranzaState._previewEdits = ed;
   return ed;
 }
@@ -9164,8 +9179,8 @@ function cbzPreviewRefresh() {
   if (!c) return;
   var ed = cbzPreviewReadEdits();
   // Build a temp cobro-like object with edits applied
-  var tmp = Object.assign({}, c, { concepto: ed.concepto, monto: ed.monto, cuentaDestino: ed.cuenta });
-  var html = cbzBuildRemisionHTML(tmp, ctx.folio, ed.notas);
+  var tmp = Object.assign({}, c, { clienteNombre: ed.receptor, concepto: ed.concepto, monto: ed.monto, cuentaDestino: ed.cuenta });
+  var html = cbzBuildRemisionHTML(tmp, ctx.folio, ed);
   var iframe = document.getElementById('cbz-preview-iframe');
   if (!iframe) return;
   var doc = iframe.contentDocument || iframe.contentWindow.document;
@@ -9176,7 +9191,7 @@ function cbzPreviewIsDirty() {
   var orig = _cobranzaState._previewOriginal;
   if (!orig) return false;
   var ed = cbzPreviewReadEdits();
-  return ed.concepto !== orig.concepto || Math.round(ed.monto*100) !== Math.round(orig.monto*100) || ed.cuenta !== orig.cuenta || (ed.notas||'') !== (orig.notas||'');
+  return ed.receptor !== orig.receptor || ed.concepto !== orig.concepto || Math.round(ed.monto*100) !== Math.round(orig.monto*100) || ed.cuenta !== orig.cuenta || (ed.banco||'') !== (orig.banco||'') || (ed.clabe||'') !== (orig.clabe||'') || (ed.beneficiario||'') !== (orig.beneficiario||'') || (ed.refPago||'') !== (orig.refPago||'') || ed.fecha !== orig.fecha || (ed.notas||'') !== (orig.notas||'');
 }
 async function cbzPreviewGuardar() {
   var ctx = _cobranzaState._previewCobro;
@@ -9190,10 +9205,16 @@ async function cbzPreviewGuardar() {
   }
   c.monto = ed.monto;
   c.cuentaDestino = ed.cuenta;
+  c.documentoBanco = ed.banco || null;
+  c.documentoClabe = ed.clabe || null;
+  c.documentoBeneficiario = ed.beneficiario || null;
+  c.documentoRefPago = ed.refPago || null;
+  c.documentoFechaEmision = ed.fecha || null;
+  c.documentoNotas = ed.notas || null;
   c.updatedAt = new Date().toISOString();
   await cbzSaveToFirestore(_cobranzaState.cobros);
   // Update snapshot so dirty check resets
-  _cobranzaState._previewOriginal = { concepto: ed.concepto, monto: ed.monto, cuenta: ed.cuenta, notas: ed.notas || '' };
+  _cobranzaState._previewOriginal = JSON.parse(JSON.stringify(ed));
   showToast('Cambios guardados', '✓');
 }
 function cbzClosePreview() {
@@ -9225,8 +9246,8 @@ async function cbzPreviewDescargar() {
   c.cuentaDestino = ed.cuenta || c.cuentaDestino;
   await cbzSaveToFirestore(_cobranzaState.cobros);
   // Open in new window with edited values
-  var tmp = Object.assign({}, c, { concepto: ed.concepto, monto: ed.monto, cuentaDestino: ed.cuenta });
-  var html = cbzBuildRemisionHTML(tmp, ctx.folio, ed.notas);
+  var tmp = Object.assign({}, c, { clienteNombre: ed.receptor, concepto: ed.concepto, monto: ed.monto, cuentaDestino: ed.cuenta });
+  var html = cbzBuildRemisionHTML(tmp, ctx.folio, ed);
   var w = window.open('', '_blank');
   if (w) { w.document.open(); w.document.write(html); w.document.close(); }
   cbzClosePreview();
@@ -9292,7 +9313,8 @@ function cbzNumALetra(n) {
 }
 
 // ── Remisión HTML template ────────────────────────────────────
-function cbzBuildRemisionHTML(c, folio, notasExtra) {
+function cbzBuildRemisionHTML(c, folio, edits) {
+  var notasExtra = (edits && edits.notas) || (typeof edits === 'string' ? edits : '');
   // FIX: usar Math.round para evitar error de punto flotante (ej: 34999.999... → 35000)
   var montoRaw = parseFloat(c.monto) || 0;
   var monto = Math.round(montoRaw * 100) / 100; // redondeo a centavos
@@ -9300,8 +9322,10 @@ function cbzBuildRemisionHTML(c, folio, notasExtra) {
   var montoEntero = Math.round(monto); // entero sin decimales fantasma
   var centavos = Math.round((monto - Math.floor(monto)) * 100);
   var enLetra = cbzNumALetra(montoEntero) + ' PESOS ' + String(centavos).padStart(2,'0') + '/100 MXN';
-  var fecha = new Date();
-  var fechaFmt = fecha.toLocaleDateString('es-MX', { day:'2-digit', month:'long', year:'numeric' });
+  var fechaStr = (edits && edits.fecha) || new Date().toISOString().split('T')[0];
+  var fechaParts = fechaStr.split('-');
+  var fechaObj = new Date(fechaParts[0], parseInt(fechaParts[1],10)-1, fechaParts[2]);
+  var fechaFmt = fechaObj.toLocaleDateString('es-MX', { day:'2-digit', month:'long', year:'numeric' });
   var cliente = escapeHtml(c.clienteNombre || '—');
   var concepto = escapeHtml(c.concepto || 'Servicio de publicidad en Internet');
   var cuenta = escapeHtml(c.cuentaDestino || '—');
@@ -9357,6 +9381,10 @@ function cbzBuildRemisionHTML(c, folio, notasExtra) {
     + '<div class="payment">'
     + '<div class="payment-row"><b>Forma de pago:</b> ' + metodo + '</div>'
     + '<div class="payment-row"><b>Cuenta destino:</b> ' + cuenta + '</div>'
+    + ((edits && edits.banco) ? '<div class="payment-row"><b>Banco:</b> ' + escapeHtml(edits.banco) + '</div>' : '')
+    + ((edits && edits.clabe) ? '<div class="payment-row"><b>Cuenta / CLABE:</b> ' + escapeHtml(edits.clabe) + '</div>' : '')
+    + ((edits && edits.beneficiario) ? '<div class="payment-row"><b>Beneficiario:</b> ' + escapeHtml(edits.beneficiario) + '</div>' : '')
+    + ((edits && edits.refPago) ? '<div class="payment-row"><b>Referencia:</b> ' + escapeHtml(edits.refPago) + '</div>' : '')
     + '</div>'
     + (notasExtra ? '<div style="margin-bottom:20px;padding:12px 16px;background:#fafafa;border:1px solid #eee;border-radius:6px;font-size:12px;color:#555;line-height:1.5;"><b style="color:#333;">Notas:</b> ' + escapeHtml(notasExtra) + '</div>' : '')
     + '<div class="footer">'
