@@ -9379,8 +9379,8 @@ function cbzBuildRemisionHTML(c, folio, edits) {
     + '<div class="totals-monto"><div class="label">Total</div><div class="amount">$' + montoFmt + '</div></div>'
     + '</div>'
     + '<div class="payment">'
-    + '<div class="payment-row"><b>Forma de pago:</b> ' + metodo + '</div>'
-    + '<div class="payment-row"><b>Cuenta destino:</b> ' + cuenta + '</div>'
+    + (metodo ? '<div class="payment-row"><b>Forma de pago:</b> ' + metodo + '</div>' : '')
+    + (cuenta ? '<div class="payment-row"><b>Cuenta destino:</b> ' + cuenta + '</div>' : '')
     + ((edits && edits.banco) ? '<div class="payment-row"><b>Banco:</b> ' + escapeHtml(edits.banco) + '</div>' : '')
     + ((edits && edits.clabe) ? '<div class="payment-row"><b>Cuenta / CLABE:</b> ' + escapeHtml(edits.clabe) + '</div>' : '')
     + ((edits && edits.beneficiario) ? '<div class="payment-row"><b>Beneficiario:</b> ' + escapeHtml(edits.beneficiario) + '</div>' : '')
