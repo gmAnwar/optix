@@ -2803,6 +2803,7 @@
         <button onclick="enterAs('senior')" style="background:transparent;color:var(--text3);font-size:11px;padding:4px 12px;border-radius:6px;border:none;cursor:pointer;font-family:'DM Mono',monospace;transition:all 0.2s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text3)'">★ Senior</button>
         <button onclick="enterAs('junior')" style="background:transparent;color:var(--text3);font-size:11px;padding:4px 12px;border-radius:6px;border:none;cursor:pointer;font-family:'DM Mono',monospace;transition:all 0.2s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text3)'">▲ Junior</button>
       </div>
+      <button onclick="optixResumenSemanal()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);font-size:11px;font-family:'DM Mono',monospace;padding:6px 12px;border-radius:8px;cursor:pointer;transition:all 0.15s;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text)'">📊 Resumen</button>
       <button onclick="window.openTeamPanel && window.openTeamPanel()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);font-size:11px;font-family:'DM Mono',monospace;padding:6px 12px;border-radius:8px;cursor:pointer;transition:all 0.15s;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text)'">👥 Equipo</button>
       <div class="user-badge-slot"></div>
     </div>
@@ -2932,6 +2933,7 @@
         <button id="jr-btn-dia" onclick="setJrView('dia')" style="background:var(--accent);color:#000;font-size:11px;padding:4px 12px;border-radius:6px;border:none;cursor:pointer;font-family:'DM Mono',monospace;font-weight:600;transition:all 0.2s;">Día</button>
         <button id="jr-btn-semana" onclick="setJrView('semana')" style="background:transparent;color:var(--text3);font-size:11px;padding:4px 12px;border-radius:6px;border:none;cursor:pointer;font-family:'DM Mono',monospace;transition:all 0.2s;">Semana</button>
       </div>
+      <button id="jr-checkin-btn" onclick="optixCheckInMario()" style="display:none;background:var(--surface2);border:1px solid var(--border);color:var(--text);font-size:11px;font-family:'DM Mono',monospace;padding:6px 12px;border-radius:8px;cursor:pointer;transition:all 0.15s;" onmouseover="this.style.borderColor='var(--green)';this.style.color='var(--green)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text)'">✅ Check-in</button>
       <div class="user-badge-slot"></div>
     </div>
   </div>
@@ -4733,6 +4735,7 @@ function enterAs(rol) {
   } else if (rol === 'junior') {
     renderJuniorHome();
     showScreen('junior');
+    optixShowCheckInBtn();
   } else if (rol === 'auris') {
     renderAuris();
     showScreen('auris');
@@ -10261,6 +10264,152 @@ async function cbzRevisarCompleto() {
   var alertas = await cbzCheckAlertas();
   cbzGenerarRecordatorios();
   if (alertas > 0) showToast(alertas + ' alerta' + (alertas>1?'s':'') + ' enviada' + (alertas>1?'s':'') + ' a Slack', '📤');
+}
+
+
+// ══════════════════════════════════════════════════════════════
+// Automatizaciones: Resumen semanal + Check-in Mario + Inactividad
+// ══════════════════════════════════════════════════════════════
+
+var OPTIX_SLACK_CANAL = 'C0AK7NXJ5L2'; // #contexto-claude
+var OPTIX_MARIO_UID = null; // se detecta por rol junior
+var OPTIX_WORKER = 'https://optix-proxy.anwarhsg.workers.dev';
+
+// ── Check-in Mario ────────────────────────────────────────────
+function optixShowCheckInBtn() {
+  var btn = document.getElementById('jr-checkin-btn');
+  if (!btn) return;
+  var p = window.currentUserProfile;
+  var show = p && (p.rol === 'junior');
+  btn.style.display = show ? '' : 'none';
+  // Check if already checked in today
+  var key = 'optix-checkin-' + cbzToday();
+  if (show && localStorage.getItem(key)) {
+    btn.textContent = '✅ Reportado';
+    btn.style.opacity = '0.5';
+    btn.style.cursor = 'default';
+    btn.onclick = null;
+  }
+}
+async function optixCheckInMario() {
+  var key = 'optix-checkin-' + cbzToday();
+  if (localStorage.getItem(key)) { showToast('Ya reportaste hoy', 'ℹ️'); return; }
+  var p = window.currentUserProfile;
+  var nombre = p ? (p.nombre || p.email || 'Junior') : 'Junior';
+  var clienteActivo = '—';
+  var jrTitle = document.getElementById('jr-client-title');
+  if (jrTitle && jrTitle.textContent && jrTitle.textContent !== '') clienteActivo = jrTitle.textContent;
+  var hoy = new Date().toLocaleDateString('es-MX', { day:'numeric', month:'short', year:'numeric' });
+  var msg = '📝 *Check-in ' + nombre + '* — ' + hoy + '\nCliente activo: ' + clienteActivo;
+  var ok = await cbzSlackDM(OPTIX_SLACK_CANAL, msg);
+  if (ok) {
+    localStorage.setItem(key, new Date().toISOString());
+    showToast('Check-in enviado', '✅');
+    optixShowCheckInBtn();
+  } else {
+    showToast('Error enviando check-in', '⚠️');
+  }
+}
+
+// ── Resumen semanal ───────────────────────────────────────────
+async function optixResumenSemanal() {
+  showToast('Generando resumen...', '📊');
+  var hoy = new Date();
+  var fechaFmt = hoy.toLocaleDateString('es-MX', { day:'numeric', month:'long', year:'numeric' });
+  var mesStart = cbzMonthStart();
+  var mesEnd = cbzMonthEnd();
+  var yearStart = cbzYearStart();
+  var todayStr = cbzToday();
+
+  // ── Cobranza KPIs ──
+  var cobros = _cobranzaState.cobros || [];
+  var porCobrar = cobros
+    .filter(function(c) { return cbzDerivarEstado(c) === 'pendiente' && c.fechaVencimiento >= mesStart && c.fechaVencimiento <= mesEnd; })
+    .reduce(function(s,c) { return s + ((parseFloat(c.monto)||0) - (parseFloat(c.montoPagado)||0)); }, 0);
+  var vencidos = cobros.filter(function(c) { return cbzDerivarEstado(c) === 'vencido'; });
+  var totalVencido = vencidos.reduce(function(s,c) { return s + ((parseFloat(c.monto)||0) - (parseFloat(c.montoPagado)||0)); }, 0);
+  var clientesVencidos = [];
+  vencidos.forEach(function(c) { if (clientesVencidos.indexOf(c.clienteNombre) === -1) clientesVencidos.push(c.clienteNombre); });
+  var bloqueados = cobros.filter(function(c) { return cbzDerivarEstado(c) === 'bloqueado'; }).length;
+  var cobrado = cobros
+    .filter(function(c) { return (c.estado === 'pagado' || c.estado === 'parcial') && c.fechaPago && c.fechaPago >= mesStart; })
+    .reduce(function(s,c) { return s + (parseFloat(c.montoPagado)||parseFloat(c.monto)||0); }, 0);
+
+  // ── Tareas vencidas ──
+  var tareasVencidas = [];
+  try {
+    var td = tareasLoad();
+    (td.areas || []).forEach(function(area) {
+      (area.proyectos || []).forEach(function(proy) {
+        (proy.tareas || []).forEach(function(t) {
+          if (!t.completado && t.fechaLimite && t.fechaLimite < todayStr) {
+            tareasVencidas.push({ area: area.nombre, texto: t.texto, fecha: t.fechaLimite });
+          }
+        });
+      });
+    });
+  } catch(e) {}
+
+  // ── Inactividad de clientes (+7 días) ──
+  var inactivos = optixClientesInactivos();
+
+  // ── Check-in Mario (últimos 7 días) ──
+  var diasSinCheckin = 0;
+  for (var d = 6; d >= 0; d--) {
+    var dia = new Date(hoy); dia.setDate(dia.getDate() - d);
+    if (dia.getDay() === 0 || dia.getDay() === 6) continue; // skip weekends
+    var k = 'optix-checkin-' + dia.toISOString().split('T')[0];
+    // We can only check localStorage for the current browser — approximate
+  }
+
+  // ── Build message ──
+  var msg = '📊 *Resumen semanal Optix — ' + fechaFmt + '*\n\n';
+  msg += '*💰 Cobranza*\n';
+  msg += '- Por cobrar este mes: ' + cbzFmtMoney(porCobrar) + '\n';
+  msg += '- Vencido: ' + cbzFmtMoney(totalVencido) + ' — ' + clientesVencidos.length + ' cliente(s)';
+  if (clientesVencidos.length > 0) msg += ' (' + clientesVencidos.join(', ') + ')';
+  msg += '\n';
+  msg += '- Bloqueados: ' + bloqueados + ' cobro(s)\n';
+  msg += '- Cobrado este mes: ' + cbzFmtMoney(cobrado) + '\n';
+
+  if (tareasVencidas.length > 0) {
+    msg += '\n*✅ Tareas vencidas*\n';
+    tareasVencidas.forEach(function(t) {
+      msg += '- ' + t.area + ': ' + t.texto + ' (vencía ' + cbzFmtFecha(t.fecha) + ')\n';
+    });
+  } else {
+    msg += '\n*✅ Tareas vencidas*\n- Ninguna 🎉\n';
+  }
+
+  if (inactivos.length > 0) {
+    msg += '\n*📋 Clientes sin actividad +7 días*\n';
+    inactivos.forEach(function(c) {
+      msg += '- ⚠️ ' + c.nombre + ' (última act: ' + (c.lastUpdate || 'nunca') + ')\n';
+    });
+  }
+
+  var ok = await cbzSlackDM(OPTIX_SLACK_CANAL, msg);
+  if (ok) {
+    showToast('Resumen enviado a #contexto-claude', '📊');
+  } else {
+    showToast('Error enviando resumen', '⚠️');
+  }
+}
+
+// ── Inactividad de clientes ───────────────────────────────────
+function optixClientesInactivos() {
+  var resultado = [];
+  var hace7 = new Date();
+  hace7.setDate(hace7.getDate() - 7);
+  var hace7str = hace7.toISOString().split('T')[0];
+  (clients || []).forEach(function(c) {
+    // Aproximar "última actividad" por updatedAt del cliente o semáforo
+    var lastUpdate = c.updatedAt || c.createdAt || null;
+    if (!lastUpdate || lastUpdate < hace7str) {
+      resultado.push({ nombre: c.nombre || c.id, lastUpdate: lastUpdate ? cbzFmtFecha(lastUpdate.split('T')[0]) : 'nunca' });
+    }
+  });
+  return resultado;
 }
 
 // ── Cobranza v3: Auto-desbloqueo ──────────────────────────────
