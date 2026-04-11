@@ -9328,8 +9328,8 @@ function cbzBuildRemisionHTML(c, folio, edits) {
   var fechaFmt = fechaObj.toLocaleDateString('es-MX', { day:'2-digit', month:'long', year:'numeric' });
   var cliente = escapeHtml(c.clienteNombre || '—');
   var concepto = escapeHtml(c.concepto || 'Servicio de publicidad en Internet');
-  var cuenta = escapeHtml(c.cuentaDestino || '—');
-  var metodo = escapeHtml(c.metodoPago === 'efectivo' ? 'Pago en efectivo' : 'Transferencia electrónica de fondos');
+  var cuenta = c.cuentaDestino ? escapeHtml(c.cuentaDestino) : '';
+  var metodo = c.metodoPago ? escapeHtml(c.metodoPago === 'efectivo' ? 'Pago en efectivo' : 'Transferencia electrónica de fondos') : '';
 
   return '<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
     + '<title>Remisión ' + escapeHtml(folio) + '</title>'
