@@ -2403,6 +2403,18 @@
   }
   .cbz-pc-name { font-family:'DM Sans',sans-serif; font-size:14px; font-weight:700; }
   .cbz-pc-meta { font-family:'DM Mono',monospace; font-size:11px; color:var(--text3); }
+  .cbz-pc-adeudo {
+    font-family:'DM Mono',monospace; font-size:10px; color:#dc2626;
+    background:rgba(239,68,68,0.1); padding:2px 8px; border-radius:12px;
+    margin-left:8px;
+  }
+  .cbz-pc-pay-btn {
+    background:none; border:1px solid var(--border); color:var(--text2);
+    font-family:'DM Sans',sans-serif; font-size:11px; font-weight:500;
+    padding:5px 12px; border-radius:4px; cursor:pointer; transition:all 0.1s;
+    margin-left:auto;
+  }
+  .cbz-pc-pay-btn:hover { border-color:#635bff; color:#635bff; }
   .cbz-pc-items { display:flex; flex-direction:column; }
   .cbz-pc-item {
     display:flex; align-items:center; gap:8px;
@@ -9004,11 +9016,15 @@ function cbzWsFilterOpts(selected) {
   return o;
 }
 function cbzRenderTab() {
-  const cobros = _cobranzaState.cobros;
+  const allCobros = _cobranzaState.cobros;
   const hoy = cbzToday();
   const mesStart = cbzMonthStart();
   const mesEnd = cbzMonthEnd();
   const yearStart = cbzYearStart();
+
+  // KPIs use workspace-filtered cobros (not estado/periodo filtered)
+  var wsFilter = _cobranzaState.filters.workspace;
+  const cobros = wsFilter !== 'all' ? allCobros.filter(function(c) { return c.workspace === wsFilter; }) : allCobros;
 
   // "Por cobrar" = solo estado pendiente (no vencido) con vencimiento en el mes actual
   const porCobrarMes = cobros
@@ -9067,14 +9083,14 @@ function cbzRenderTab() {
       <button class="cbz-btn cbz-btn-primary" onclick="cbzShowForm()">＋ Nuevo cobro</button>
     </div>`;
 
-  const filtrados = cbzFiltrar(cobros);
+  const filtrados = cbzFiltrar(allCobros);
   const contenido = _cobranzaState.view === 'tabla'
     ? cbzRenderTabla(filtrados)
     : cbzRenderPorCliente(filtrados);
 
   const formBlock = _cobranzaState.formOpen ? cbzRenderForm() : '';
 
-  const bandeja = cbzRenderBandeja(cobros);
+  const bandeja = cbzRenderBandeja(allCobros);
   return bandeja + kpis + filtros + formBlock + contenido;
 }
 
@@ -9873,6 +9889,16 @@ function cbzRenderPorCliente(cobros) {
     const g = grupos[k];
     const pend = g.items.filter(c => cbzDerivarEstado(c) !== 'pagado').reduce((s,c) => s + ((parseFloat(c.monto)||0) - (parseFloat(c.montoPagado)||0)), 0);
     const pag = g.items.filter(c => c.estado === 'pagado' || c.estado === 'parcial').reduce((s,c) => s + (parseFloat(c.montoPagado)||parseFloat(c.monto)||0), 0);
+    const vencidos = g.items.filter(c => cbzDerivarEstado(c) === 'vencido');
+    const totalVencido = vencidos.reduce((s,c) => s + ((parseFloat(c.monto)||0) - (parseFloat(c.montoPagado)||0)), 0);
+    const adeudoBadge = vencidos.length >= 2
+      ? '<span class="cbz-pc-adeudo">' + vencidos.length + ' meses · ' + cbzFmtMoney(totalVencido) + ' vencidos</span>'
+      : (vencidos.length === 1 ? '<span class="cbz-pc-adeudo">' + cbzFmtMoney(totalVencido) + ' vencido</span>' : '');
+    const unpaid = g.items.filter(c => { var e = cbzDerivarEstado(c); return e === 'vencido' || e === 'pendiente' || e === 'parcial'; });
+    const firstUnpaid = unpaid.length > 0 ? unpaid[0] : null;
+    const payBtn = unpaid.length > 0
+      ? '<button class="cbz-pc-pay-btn" onclick="event.stopPropagation();cbzShowPayForm(\'' + firstUnpaid.id + '\')">' + (unpaid.length > 1 ? '💰 Registrar pago (' + unpaid.length + ')' : '💰 Registrar pago') + '</button>'
+      : '';
     const lista = g.items.map(c => {
       const estado = cbzDerivarEstado(c);
       return `<div class="cbz-pc-item">
@@ -9884,8 +9910,8 @@ function cbzRenderPorCliente(cobros) {
     return `
       <div class="cbz-pc-group">
         <div class="cbz-pc-header">
-          <div class="cbz-pc-name">${escapeHtml(g.nombre)}</div>
-          <div class="cbz-pc-meta">Pendiente: <b style="color:var(--text1)">${cbzFmtMoney(pend)}</b> · Cobrado: <b style="color:var(--accent)">${cbzFmtMoney(pag)}</b></div>
+          <div class="cbz-pc-name">${escapeHtml(g.nombre)}${adeudoBadge}</div>
+          <div class="cbz-pc-meta">Pendiente: <b style="color:var(--text1)">${cbzFmtMoney(pend)}</b> · Cobrado: <b style="color:var(--accent)">${cbzFmtMoney(pag)}</b>${payBtn}</div>
         </div>
         <div class="cbz-pc-items">${lista}</div>
       </div>`;
