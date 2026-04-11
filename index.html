@@ -9112,6 +9112,10 @@ function cbzShowPreviewModal(cobro, folio) {
   var old = document.getElementById('cbz-preview-overlay');
   if (old) old.remove();
   var ed = _cobranzaState._previewEdits;
+  // Snapshot original values to detect dirty state
+  _cobranzaState._previewOriginal = { concepto: ed.concepto, monto: ed.monto, cuenta: ed.cuenta, notas: ed.notas || '' };
+  var s = cobro.documentoEstado || 'sin_generar';
+  var canSave = (s === 'sin_generar' || s === 'generado' || s === 'anulado');
   var overlay = document.createElement('div');
   overlay.id = 'cbz-preview-overlay';
   overlay.className = 'cbz-preview-overlay';
@@ -9120,6 +9124,7 @@ function cbzShowPreviewModal(cobro, folio) {
     + '<div class="cbz-preview-header">'
     + '<div class="cbz-preview-title">Preview de remisión</div>'
     + '<div class="cbz-preview-actions">'
+    + (canSave ? '<button class="cbz-btn" onclick="cbzPreviewGuardar()">💾 Guardar</button>' : '')
     + '<button class="cbz-btn" onclick="cbzPreviewDescargar()" title="Abrir ventana de impresión / guardar como PDF">⬇️ Descargar PDF</button>'
     + '<button class="cbz-btn cbz-btn-primary" onclick="cbzPreviewEnviar()">📤 Enviar</button>'
     + '<button class="cbz-btn" onclick="cbzClosePreview()" style="color:var(--text3);">✕</button>'
@@ -9167,12 +9172,40 @@ function cbzPreviewRefresh() {
   doc.open(); doc.write(html); doc.close();
 }
 
+function cbzPreviewIsDirty() {
+  var orig = _cobranzaState._previewOriginal;
+  if (!orig) return false;
+  var ed = cbzPreviewReadEdits();
+  return ed.concepto !== orig.concepto || Math.round(ed.monto*100) !== Math.round(orig.monto*100) || ed.cuenta !== orig.cuenta || (ed.notas||'') !== (orig.notas||'');
+}
+async function cbzPreviewGuardar() {
+  var ctx = _cobranzaState._previewCobro;
+  if (!ctx) return;
+  var c = _cobranzaState.cobros.find(function(x){return x.id===ctx.id;});
+  if (!c) return;
+  var ed = cbzPreviewReadEdits();
+  c.concepto = ed.concepto;
+  if (Math.round(ed.monto*100) !== Math.round((parseFloat(c.monto)||0)*100)) {
+    c.documentoMonto = ed.monto;
+  }
+  c.monto = ed.monto;
+  c.cuentaDestino = ed.cuenta;
+  c.updatedAt = new Date().toISOString();
+  await cbzSaveToFirestore(_cobranzaState.cobros);
+  // Update snapshot so dirty check resets
+  _cobranzaState._previewOriginal = { concepto: ed.concepto, monto: ed.monto, cuenta: ed.cuenta, notas: ed.notas || '' };
+  showToast('Cambios guardados', '✓');
+}
 function cbzClosePreview() {
-  // ✕ closes without changing documentoEstado — confirmed by MEJORA 2
+  // ✕ closes without changing documentoEstado
+  if (cbzPreviewIsDirty()) {
+    if (!confirm('¿Cerrar sin guardar los cambios?')) return;
+  }
   var el = document.getElementById('cbz-preview-overlay');
   if (el) el.remove();
   _cobranzaState._previewCobro = null;
   _cobranzaState._previewEdits = null;
+  _cobranzaState._previewOriginal = null;
 }
 
 async function cbzPreviewDescargar() {
