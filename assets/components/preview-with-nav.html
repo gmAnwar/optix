@@ -22,42 +22,95 @@
   body { margin: 0; padding: 0; }
   .app-redesign { min-height: 100vh; }
 
-  /* --- MOCK SIDEBAR (visual only, no behavior) --- */
+  /* --- MOCK SIDEBAR (visual only, no behavior) ---
+     Scope: one client is fixed for the session; the sidebar lists
+     VIEWS of that client, not a list of clients. Client switcher at top. */
   .sidebar-mock {
     position: fixed;
     left: 0; top: 0;
     width: 240px; height: 100vh;
     background: var(--color-surface);
     border-right: 1px solid var(--color-border);
-    padding: var(--space-6);
+    padding: var(--space-5) var(--space-4);
     display: flex;
     flex-direction: column;
-    gap: var(--space-4);
+    gap: var(--space-3);
   }
-  .sidebar-mock h3 {
-    margin: 0;
+  .sidebar-mock__brand {
     font-size: var(--font-size-lg);
     font-weight: var(--font-weight-bold);
     color: var(--color-text-primary);
     letter-spacing: -0.02em;
+    padding: 0 var(--space-2);
   }
-  .sidebar-mock .sidebar-items {
+  .sidebar-mock__switcher {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+    color: var(--color-text-primary);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    cursor: pointer;
+    font-family: inherit;
+    width: 100%;
+    transition: border-color var(--transition-fast);
+  }
+  .sidebar-mock__switcher:hover { border-color: var(--color-border-strong); }
+  .sidebar-mock__switcher-caret {
+    color: var(--color-text-tertiary);
+    font-size: var(--font-size-xs);
+  }
+  .sidebar-mock__sep {
+    border: 0;
+    border-top: 1px solid var(--color-border);
+    margin: var(--space-2) 0;
+  }
+  .sidebar-mock__views {
     display: flex;
     flex-direction: column;
     gap: var(--space-1);
-    margin-top: var(--space-2);
   }
-  .sidebar-mock .sidebar-item {
-    padding: var(--space-2) var(--space-3);
+  .sidebar-mock__view {
+    padding: var(--space-2) var(--space-4);
     border-radius: var(--radius-md);
     font-size: var(--font-size-sm);
     color: var(--color-text-secondary);
+    cursor: pointer;
+    text-decoration: none;
+    transition: background var(--transition-fast), color var(--transition-fast);
   }
-  .sidebar-mock .sidebar-item.active {
-    background: var(--color-bg);
+  .sidebar-mock__view:hover {
+    background: var(--color-surface-raised);
+    color: var(--color-text-primary);
+  }
+  .sidebar-mock__view--active {
+    background: var(--color-surface-raised);
     color: var(--color-accent);
     font-weight: var(--font-weight-medium);
   }
+  .sidebar-mock__footer {
+    margin-top: auto;
+    padding: var(--space-3) var(--space-2);
+    border-top: 1px solid var(--color-border);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+  .sidebar-mock__user {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+    font-weight: var(--font-weight-medium);
+  }
+  .sidebar-mock__signout {
+    font-size: var(--font-size-xs);
+    color: var(--color-text-tertiary);
+    cursor: pointer;
+  }
+  .sidebar-mock__signout:hover { color: var(--color-text-secondary); }
 
   /* --- MAIN content offset --- */
   .page-main {
@@ -170,15 +223,24 @@
 <body>
 <div class="app-redesign">
 
-  <!-- MOCK SIDEBAR — visual only, no behavior -->
+  <!-- MOCK SIDEBAR — visual only, no behavior.
+       Scope: lists views of the current client, not the client list.
+       Client is session scope via the switcher below. -->
   <aside class="sidebar-mock" aria-label="Mock navigation">
-    <h3>Optix</h3>
-    <div class="sidebar-items">
-      <div class="sidebar-item active">EnPagos</div>
-      <div class="sidebar-item">Inmobili</div>
-      <div class="sidebar-item">Tuyo</div>
-      <div class="sidebar-item">Tareas</div>
-      <div class="sidebar-item">Admin</div>
+    <div class="sidebar-mock__brand">Optix</div>
+    <button type="button" class="sidebar-mock__switcher" aria-haspopup="listbox" aria-expanded="false">
+      <span>EnPagos</span>
+      <span class="sidebar-mock__switcher-caret" aria-hidden="true">▾</span>
+    </button>
+    <hr class="sidebar-mock__sep">
+    <nav class="sidebar-mock__views" aria-label="Vistas del cliente">
+      <a class="sidebar-mock__view sidebar-mock__view--active" aria-current="page">Overview</a>
+      <a class="sidebar-mock__view">Diario</a>
+      <a class="sidebar-mock__view">Semanal</a>
+    </nav>
+    <div class="sidebar-mock__footer">
+      <div class="sidebar-mock__user">Usuario</div>
+      <div class="sidebar-mock__signout">Cerrar sesión</div>
     </div>
   </aside>
 
