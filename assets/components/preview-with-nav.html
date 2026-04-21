@@ -25,7 +25,7 @@
   /* --- MOCK SIDEBAR (visual only, no behavior) ---
      Scope: one client is fixed for the session; the sidebar lists
      VIEWS of that client, not a list of clients. Client switcher at top. */
-  .sidebar-mock {
+  .app-redesign .sidebar-mock {
     position: fixed;
     left: 0; top: 0;
     width: 240px; height: 100vh;
@@ -36,14 +36,14 @@
     flex-direction: column;
     gap: var(--space-3);
   }
-  .sidebar-mock__brand {
+  .app-redesign .sidebar-mock__brand {
     font-size: var(--font-size-lg);
     font-weight: var(--font-weight-bold);
     color: var(--color-text-primary);
     letter-spacing: -0.02em;
     padding: 0 var(--space-2);
   }
-  .sidebar-mock__switcher {
+  .app-redesign .sidebar-mock__switcher {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -59,22 +59,22 @@
     width: 100%;
     transition: border-color var(--transition-fast);
   }
-  .sidebar-mock__switcher:hover { border-color: var(--color-border-strong); }
-  .sidebar-mock__switcher-caret {
+  .app-redesign .sidebar-mock__switcher:hover { border-color: var(--color-border-strong); }
+  .app-redesign .sidebar-mock__switcher-caret {
     color: var(--color-text-tertiary);
     font-size: var(--font-size-xs);
   }
-  .sidebar-mock__sep {
+  .app-redesign .sidebar-mock__sep {
     border: 0;
     border-top: 1px solid var(--color-border);
     margin: var(--space-2) 0;
   }
-  .sidebar-mock__views {
+  .app-redesign .sidebar-mock__views {
     display: flex;
     flex-direction: column;
     gap: var(--space-1);
   }
-  .sidebar-mock__view {
+  .app-redesign .sidebar-mock__view {
     display: flex;
     align-items: center;
     gap: var(--space-2);
@@ -87,39 +87,39 @@
     border-left: 2px solid transparent;
     transition: background var(--transition-fast), color var(--transition-fast);
   }
-  .sidebar-mock__view-icon {
+  .app-redesign .sidebar-mock__view-icon {
     flex-shrink: 0;
     color: var(--color-text-secondary);
     transition: color var(--transition-fast);
   }
-  .sidebar-mock__view:hover:not(.sidebar-mock__view--active):not(.sidebar-mock__view--soon) {
+  .app-redesign .sidebar-mock__view:hover:not(.sidebar-mock__view--active):not(.sidebar-mock__view--soon) {
     background: var(--color-surface-raised);
     color: var(--color-text-primary);
   }
-  .sidebar-mock__view:hover:not(.sidebar-mock__view--soon) .sidebar-mock__view-icon {
+  .app-redesign .sidebar-mock__view:hover:not(.sidebar-mock__view--soon) .sidebar-mock__view-icon {
     color: var(--color-text-primary);
   }
-  .sidebar-mock__view--active {
+  .app-redesign .sidebar-mock__view--active {
     background: var(--color-surface-raised);
     color: var(--color-text-primary);
     border-left: 2px solid var(--color-accent);
     padding-left: calc(var(--space-4) - 2px);
     font-weight: var(--font-weight-medium);
   }
-  .sidebar-mock__view--active .sidebar-mock__view-icon {
+  .app-redesign .sidebar-mock__view--active .sidebar-mock__view-icon {
     color: var(--color-text-primary);
   }
-  .sidebar-mock__view--soon {
+  .app-redesign .sidebar-mock__view--soon {
     opacity: 0.5;
     cursor: not-allowed;
   }
-  .sidebar-mock__view--soon .sidebar-mock__view-icon { opacity: 1; }
-  .sidebar-mock__view--soon:hover {
+  .app-redesign .sidebar-mock__view--soon .sidebar-mock__view-icon { opacity: 1; }
+  .app-redesign .sidebar-mock__view--soon:hover {
     background: transparent;
     color: var(--color-text-secondary);
   }
-  .sidebar-mock__view .orx-sidebar-badge-soon { margin-left: auto; }
-  .orx-sidebar-badge-soon {
+  .app-redesign .sidebar-mock__view .orx-sidebar-badge-soon { margin-left: auto; }
+  .app-redesign .orx-sidebar-badge-soon {
     font-size: var(--font-size-xs);
     padding: 1px var(--space-2);
     border-radius: var(--radius-pill);
@@ -129,7 +129,7 @@
     font-weight: var(--font-weight-normal);
     line-height: 1.4;
   }
-  .sidebar-mock__footer {
+  .app-redesign .sidebar-mock__footer {
     margin-top: auto;
     padding: var(--space-3) var(--space-2);
     border-top: 1px solid var(--color-border);
@@ -137,17 +137,17 @@
     flex-direction: column;
     gap: var(--space-1);
   }
-  .sidebar-mock__user {
+  .app-redesign .sidebar-mock__user {
     font-size: var(--font-size-sm);
     color: var(--color-text-secondary);
     font-weight: var(--font-weight-medium);
   }
-  .sidebar-mock__signout {
+  .app-redesign .sidebar-mock__signout {
     font-size: var(--font-size-xs);
     color: var(--color-text-tertiary);
     cursor: pointer;
   }
-  .sidebar-mock__signout:hover { color: var(--color-text-secondary); }
+  .app-redesign .sidebar-mock__signout:hover { color: var(--color-text-secondary); }
 
   /* --- MAIN content offset --- */
   .page-main {
