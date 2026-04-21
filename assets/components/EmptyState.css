@@ -1,0 +1,48 @@
+.app-redesign .orx-empty {
+  padding: var(--space-6) var(--space-5);
+  border: 1px dashed var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.app-redesign .orx-empty__icon {
+  font-size: var(--font-size-2xl);
+  color: var(--color-text-tertiary);
+  line-height: 1;
+}
+
+.app-redesign .orx-empty__title {
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.app-redesign .orx-empty__msg {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  max-width: 420px;
+}
+
+.app-redesign .orx-empty__action {
+  margin-top: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border-strong);
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  text-decoration: none;
+  cursor: pointer;
+  transition: border-color var(--transition-fast);
+}
+
+.app-redesign .orx-empty__action:hover {
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+}

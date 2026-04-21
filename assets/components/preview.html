@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Optix Redesign · Component Preview</title>
+
+<link rel="stylesheet" href="../css/tokens.css">
+<link rel="stylesheet" href="../css/base.css">
+<link rel="stylesheet" href="Section.css">
+<link rel="stylesheet" href="TierPill.css">
+<link rel="stylesheet" href="KPICard.css">
+<link rel="stylesheet" href="ProgressBar.css">
+<link rel="stylesheet" href="DataTable.css">
+<link rel="stylesheet" href="Banner.css">
+<link rel="stylesheet" href="BenchmarkBanner.css">
+<link rel="stylesheet" href="EmptyState.css">
+<link rel="stylesheet" href="Sparkline.css">
+
+<style>
+  body { margin: 0; padding: 0; }
+  .app-redesign {
+    min-height: 100vh;
+    padding: var(--space-8);
+  }
+  .preview-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--space-8);
+    padding-bottom: var(--space-4);
+    border-bottom: 1px solid var(--color-border);
+  }
+  .preview-title {
+    font-size: var(--font-size-2xl);
+    font-weight: var(--font-weight-bold);
+    letter-spacing: -0.02em;
+  }
+  .preview-subtitle {
+    color: var(--color-text-tertiary);
+    font-size: var(--font-size-sm);
+    margin-top: var(--space-1);
+  }
+  .theme-btn {
+    padding: var(--space-2) var(--space-4);
+    border: 1px solid var(--color-border-strong);
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+    color: var(--color-text-primary);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    transition: border-color var(--transition-fast);
+  }
+  .theme-btn:hover { border-color: var(--color-accent); }
+
+  .preview-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--space-6);
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+  .block-label {
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: var(--space-2);
+  }
+</style>
+
+<script src="../js/theme-toggle.js"></script>
+</head>
+
+<body>
+<div class="app-redesign">
+
+  <header class="preview-header">
+    <div>
+      <div class="preview-title">Optix Redesign · Component Preview</div>
+      <div class="preview-subtitle">9 base components · tokens + dark mode · Fase 3a Bloque 3</div>
+    </div>
+    <button class="theme-btn" data-theme-toggle aria-pressed="false">
+      <span data-theme-icon>☾</span>
+      <span data-theme-label>Oscuro</span>
+    </button>
+  </header>
+
+  <div class="preview-grid">
+
+    <!-- 1. BenchmarkBanner -->
+    <div>
+      <div class="block-label">1. BenchmarkBanner</div>
+      <div id="preview-bench"></div>
+    </div>
+
+    <!-- 2. Banner (4 variants) -->
+    <div>
+      <div class="block-label">2. Banner · info · warning · danger · success</div>
+      <div class="stack-4" id="preview-banners"></div>
+    </div>
+
+    <!-- 3. Section wrapper -->
+    <div>
+      <div class="block-label">3. Section · content · loading · error</div>
+      <div class="stack-4" id="preview-sections"></div>
+    </div>
+
+    <!-- 4. KPICard grid -->
+    <div>
+      <div class="block-label">4. KPICard · plain · with tier · with delta · null value</div>
+      <div class="grid-kpi" id="preview-kpis"></div>
+    </div>
+
+    <!-- 5. TierPill triad -->
+    <div>
+      <div class="block-label">5. TierPill · green · yellow · red · neutral</div>
+      <div class="row-4" id="preview-pills"></div>
+    </div>
+
+    <!-- 6. ProgressBar triad -->
+    <div>
+      <div class="block-label">6. ProgressBar · green · yellow · red</div>
+      <div class="stack-4" id="preview-progress"></div>
+    </div>
+
+    <!-- 7. EmptyState -->
+    <div>
+      <div class="block-label">7. EmptyState · pending goal</div>
+      <div id="preview-empty"></div>
+    </div>
+
+    <!-- 8. Sparkline -->
+    <div>
+      <div class="block-label">8. Sparkline · inline trend</div>
+      <div id="preview-spark" style="display:flex; gap:var(--space-6); align-items:center;"></div>
+    </div>
+
+    <!-- 9. DataTable -->
+    <div>
+      <div class="block-label">9. DataTable · sortable · tier-tinted rows</div>
+      <div id="preview-table"></div>
+    </div>
+
+  </div>
+</div>
+
+<script src="Section.js"></script>
+<script src="TierPill.js"></script>
+<script src="KPICard.js"></script>
+<script src="ProgressBar.js"></script>
+<script src="DataTable.js"></script>
+<script src="Banner.js"></script>
+<script src="BenchmarkBanner.js"></script>
+<script src="EmptyState.js"></script>
+<script src="Sparkline.js"></script>
+
+<script>
+  // ── 1. BenchmarkBanner (both styles) ─────────────────────────────────
+  BenchmarkBanner.create(document.getElementById('preview-bench'), {
+    label: 'Semana récord — 16-22 feb 2026',
+    metrics: [
+      { key: 'Preaut positivos', value: 31 },
+      { key: 'Cierres', value: 3 },
+      { key: 'Costo / preaut', value: '$588' }
+    ]
+  });
+
+  // ── 2. Banners ───────────────────────────────────────────────────────
+  const banners = document.getElementById('preview-banners');
+  Banner.create(banners, { variant: 'info',    title: 'Loop Diario',  message: 'Última actualización hace 3h 12m.' });
+  Banner.create(banners, { variant: 'warning', title: 'Data incompleta', message: 'Faltan 2 días de captura: 2026-04-09, 2026-04-20. Proyecciones usan los días disponibles.' });
+  Banner.create(banners, { variant: 'danger',  title: 'Token inválido', message: 'No se pudo autenticar la llamada a /client_data.',
+                           action: { label: 'Reintentar' } });
+  Banner.create(banners, { variant: 'success', title: 'Meta superada', message: '✨ Cierres del mes por encima de objetivo.' });
+
+  // ── 3. Sections (content / loading / error) ──────────────────────────
+  const sections = document.getElementById('preview-sections');
+  const s1 = document.createElement('div'); sections.appendChild(s1);
+  Section.create(s1, { title: 'Cierres', children: '<p class="muted">Contenido de ejemplo dentro de una Section.</p>' });
+  const s2 = document.createElement('div'); sections.appendChild(s2);
+  Section.create(s2, { title: 'Preautorizados · cargando', loading: true });
+  const s3 = document.createElement('div'); sections.appendChild(s3);
+  Section.create(s3, { title: 'Inversión · error', error: 'No se pudo cargar la sección inversion.' });
+
+  // ── 4. KPICards ──────────────────────────────────────────────────────
+  const kpis = document.getElementById('preview-kpis');
+  KPICard.create(kpis, { label: 'Cierres mes', value: 2, formattedValue: '2', hint: 'Proyección EOM: 3' });
+  KPICard.create(kpis, { label: 'CAC actual', value: 20699, formattedValue: '$20,699', tier: 'red' });
+  KPICard.create(kpis, { label: 'Preauts positivos', value: 22, formattedValue: '22',
+                          delta: { value: 3, unit:' vs ayer', positiveIsGood: true } });
+  KPICard.create(kpis, { label: 'Costo / preaut +', value: 1882, formattedValue: '$1,882', tier: 'red',
+                          delta: { value: -200, unit:' MoM', positiveIsGood: false } });
+  KPICard.create(kpis, { label: 'Inversión hoy', value: null });
+  KPICard.create(kpis, { label: 'Promedio diario', value: 0.1, formattedValue: '0.1 / día', tier: 'yellow' });
+
+  // ── 5. TierPills ─────────────────────────────────────────────────────
+  const pills = document.getElementById('preview-pills');
+  TierPill.create(pills, { tier: 'green' });
+  TierPill.create(pills, { tier: 'yellow' });
+  TierPill.create(pills, { tier: 'red' });
+  TierPill.create(pills, { tier: 'red', label: 'Rojo · CAC > $3,500' });
+  TierPill.create(pills, { tier: 'neutral', label: 'Sin datos' });
+
+  // ── 6. ProgressBars ──────────────────────────────────────────────────
+  const prog = document.getElementById('preview-progress');
+  const fmtMoney = v => '$' + (Math.round(v)).toLocaleString('es-MX');
+  ProgressBar.create(prog, { label: 'Cierres vs meta', value: 8, max: 10, tier: 'green', formatValue: v => v + ' cierres' });
+  ProgressBar.create(prog, { label: 'Preauts positivos vs meta', value: 22, max: 40, tier: 'yellow', formatValue: v => v + ' preaut' });
+  ProgressBar.create(prog, { label: 'Inversión vs planeada', value: 41398.38, max: 80000, tier: 'red', formatValue: fmtMoney });
+
+  // ── 7. EmptyState ────────────────────────────────────────────────────
+  EmptyState.create(document.getElementById('preview-empty'), {
+    icon: '⏳',
+    title: 'Meta pendiente',
+    message: 'Validar con Kike antes del 30 abr.',
+    action: { label: 'Abrir Slack', href: '#' }
+  });
+
+  // ── 8. Sparklines ────────────────────────────────────────────────────
+  const spark = document.getElementById('preview-spark');
+  Sparkline.create(spark, { points: [3, 4, 2, 5, 6, 4, 7, 8], width: 100, height: 28 });
+  Sparkline.create(spark, { points: [10, 8, 9, 7, 5, 4, 3], width: 100, height: 28, color: 'var(--color-danger)' });
+  Sparkline.create(spark, { points: [1, 2, 3, 4, 5, 6, 7, 8, 9], width: 120, height: 28, color: 'var(--color-success)' });
+  Sparkline.create(spark, { points: [5], width: 80, height: 24 });
+
+  // ── 9. DataTable ─────────────────────────────────────────────────────
+  const moneyFmt = v => v == null ? '—' : '$' + Math.round(v).toLocaleString('es-MX');
+  const intFmt   = v => v == null ? '—' : v;
+  DataTable.create(document.getElementById('preview-table'), {
+    sortable: true,
+    rowClass: (row) => row.cac == null ? '' : (row.cac < 2500 ? 'orx-dt__row--green' : row.cac <= 3500 ? 'orx-dt__row--yellow' : 'orx-dt__row--red'),
+    columns: [
+      { key:'adset', label:'Adset' },
+      { key:'ad',    label:'Ad' },
+      { key:'cierres', label:'Cierres', align:'right', format: r => intFmt(r.cierres), sortKey: r => r.cierres ?? -1 },
+      { key:'inversion', label:'Inversión', align:'right', format: r => moneyFmt(r.inversion), sortKey: r => r.inversion ?? -1 },
+      { key:'cac', label:'CAC', align:'right', format: r => moneyFmt(r.cac), sortKey: r => r.cac ?? Number.MAX_SAFE_INTEGER },
+      { key:'preauts', label:'Preauts +', align:'right', format: r => intFmt(r.preauts) },
+      { key:'costo_preaut', label:'Costo / preaut +', align:'right', format: r => moneyFmt(r.costo_preaut), sortKey: r => r.costo_preaut ?? Number.MAX_SAFE_INTEGER }
+    ],
+    rows: [
+      { adset:'OA15 NL Público Similar', ad:'OA9 Video testimonial MH9', cierres:1, inversion:3308.29, cac:3308, preauts:7, costo_preaut:472 },
+      { adset:'OA4 GDL Enfriadores',     ad:'OA2 Secuencia GDLE2',       cierres:0, inversion:2956.51, cac:null, preauts:3, costo_preaut:985 },
+      { adset:'OA15 NL Vitrinas',        ad:'OA22 Video testimonio V22', cierres:1, inversion:2515.98, cac:2515, preauts:4, costo_preaut:628 },
+      { adset:'OA14 NL Enfriadores',     ad:'OA7 Secuencia NLE7',        cierres:0, inversion:2431.49, cac:null, preauts:2, costo_preaut:1215 },
+      { adset:'OA15 NL Vitrinas',        ad:'OA21 Secuencia V20',        cierres:0, inversion:1989.47, cac:null, preauts:0, costo_preaut:null },
+      { adset:'OA2 GTO Enfriadores',     ad:'OA4 Secuencia Enfriadores', cierres:0, inversion:1841.86, cac:null, preauts:1, costo_preaut:1841 }
+    ]
+  });
+</script>
+
+</body>
+</html>

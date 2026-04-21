@@ -1,0 +1,91 @@
+.app-redesign .orx-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  border: 1px solid transparent;
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-base);
+}
+
+.app-redesign .orx-banner__icon {
+  flex: 0 0 auto;
+  width: 24px; height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-pill);
+  font-weight: var(--font-weight-bold);
+}
+
+.app-redesign .orx-banner__body { flex: 1 1 auto; }
+
+.app-redesign .orx-banner__title {
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  margin-bottom: var(--space-1);
+}
+
+.app-redesign .orx-banner__msg { color: var(--color-text-secondary); }
+
+.app-redesign .orx-banner__action {
+  flex: 0 0 auto;
+  align-self: center;
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-md);
+  border: 1px solid currentColor;
+  background: transparent;
+  color: inherit;
+  font-weight: var(--font-weight-semibold);
+  font-size: var(--font-size-xs);
+  cursor: pointer;
+  text-decoration: none;
+  transition: background var(--transition-fast);
+}
+
+.app-redesign .orx-banner__action:hover { background: rgba(255,255,255,0.08); }
+
+.app-redesign .orx-banner--info {
+  background: rgba(37, 99, 235, 0.06);
+  border-color: rgba(37, 99, 235, 0.25);
+  color: var(--color-accent);
+}
+.app-redesign .orx-banner--info .orx-banner__icon {
+  background: rgba(37, 99, 235, 0.15);
+}
+
+.app-redesign .orx-banner--warning {
+  background: var(--color-warning-soft);
+  border-color: var(--color-warning);
+  color: var(--color-warning);
+}
+.app-redesign .orx-banner--warning .orx-banner__icon {
+  background: var(--color-warning-soft);
+}
+
+.app-redesign .orx-banner--danger {
+  background: var(--color-danger-soft);
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+}
+.app-redesign .orx-banner--danger .orx-banner__icon {
+  background: var(--color-danger-soft);
+}
+
+.app-redesign .orx-banner--success {
+  background: var(--color-success-soft);
+  border-color: var(--color-success);
+  color: var(--color-success);
+}
+.app-redesign .orx-banner--success .orx-banner__icon {
+  background: var(--color-success-soft);
+}
+
+[data-theme="dark"] .app-redesign .orx-banner--info {
+  background: rgba(96, 165, 250, 0.10);
+  border-color: rgba(96, 165, 250, 0.35);
+}
+[data-theme="dark"] .app-redesign .orx-banner--info .orx-banner__icon {
+  background: rgba(96, 165, 250, 0.22);
+}
