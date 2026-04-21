@@ -11,10 +11,28 @@
 }
 
 .app-redesign .orx-progress__track {
+  position: relative;
   height: 10px;
   background: var(--color-border);
   border-radius: var(--radius-pill);
-  overflow: hidden;
+  /* overflow: visible so the tick can protrude above/below */
+}
+
+.app-redesign .orx-progress__tick {
+  position: absolute;
+  top: -4px;
+  bottom: -4px;
+  width: 1.5px;
+  background: var(--color-text-secondary);
+  transform: translateX(-50%);
+  pointer-events: none;
+  border-radius: 1px;
+}
+
+.app-redesign .orx-progress__expected {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+  font-variant-numeric: tabular-nums;
 }
 
 .app-redesign .orx-progress__fill {

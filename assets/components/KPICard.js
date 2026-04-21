@@ -5,11 +5,22 @@
  *   @param {string}  label
  *   @param {number|string=} value          Raw value (used for title tooltip).
  *   @param {string=} formattedValue        Display string; defaults to String(value) or "—" when value is null/undefined.
- *   @param {{value:number, unit?:string, positiveIsGood?:boolean}=} delta
+ *   @param {{value:number, period?:string, format?:(abs:number)=>string, positiveIsGood?:boolean}=} delta
+ *                                          period defaults to "vs 7d". format receives the absolute value.
+ *                                          Rules (enforced by convention):
+ *                                          - Volume metrics (cierres, preauts, inversión) → period "vs 7d"
+ *                                          - Ratio metrics (CAC, costo/preaut)           → period "vs 7d" or "vs ayer"
+ *                                          - Never MoM. Keep short.
  *   @param {'green'|'yellow'|'red'|'verde'|'amarillo'|'rojo'=} tier  Adds a TierPill next to label.
  *   @param {string=} hint                  Small caption below the value.
+ *   @param {{points:number[], width?:number, height?:number, color?:string}=} sparkline  Inline trend next to value.
  *
  * Exposes: KPICard.create(container, props), KPICard.html(props).
+ *
+ * // [FASE-3B-TODO] Deltas 'vs 7d' require endpoint to return 7d averages.
+ * // Current /overview endpoint may not include *_7d_avg fields.
+ * // If not present in response, frontend will need second fetch to /weekly
+ * // or endpoint must extend. Verify in Phase 3b before cabling real data.
  */
 (function () {
   var RED_TIERS = { red: 1, rojo: 1 };
@@ -31,7 +42,7 @@
       }
       var arrow = d > 0 ? '▲' : (d < 0 ? '▼' : '—');
       deltaHtml = '<span class="orx-kpi__delta ' + cls + '">'
-                + arrow + ' ' + escapeHtml(formatDelta(d, props.delta.unit)) + '</span>';
+                + arrow + ' ' + escapeHtml(formatDelta(d, props.delta)) + '</span>';
     }
     var pillHtml = props.tier ? (window.TierPill ? window.TierPill.html({ tier: props.tier }) : '') : '';
     var hint = props.hint ? '<div class="orx-kpi__hint">' + escapeHtml(props.hint) + '</div>' : '';
@@ -58,10 +69,12 @@
       + '</div>';
   }
 
-  function formatDelta(v, unit) {
-    var s = (v > 0 ? '+' : '') + v;
-    if (unit) s += unit;
-    return s;
+  function formatDelta(v, delta) {
+    var sign = v > 0 ? '+' : (v < 0 ? '-' : '');
+    var abs = Math.abs(v);
+    var body = typeof delta.format === 'function' ? delta.format(abs) : String(abs);
+    var period = delta.period || 'vs 7d';
+    return sign + body + ' ' + period;
   }
 
   function escapeHtml(s) {

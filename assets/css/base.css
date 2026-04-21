@@ -90,3 +90,38 @@
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: var(--space-4);
 }
+
+/* Hero KPI layout — 1 prominent metric + grid of secondary metrics.
+   Stacks to vertical below 960px (or when sidebar leaves content < ~900px). */
+.app-redesign .kpi-layout {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: var(--space-5);
+  align-items: stretch;
+}
+
+.app-redesign .kpi-hero .orx-kpi {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: var(--space-6);
+}
+
+.app-redesign .kpi-hero .orx-kpi__value {
+  font-size: 3rem;
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+
+.app-redesign .kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--space-4);
+}
+
+@media (max-width: 960px) {
+  .app-redesign .kpi-layout {
+    grid-template-columns: 1fr;
+  }
+}

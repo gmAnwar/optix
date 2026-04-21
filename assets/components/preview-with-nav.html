@@ -16,6 +16,7 @@
 <link rel="stylesheet" href="BenchmarkBanner.css">
 <link rel="stylesheet" href="EmptyState.css">
 <link rel="stylesheet" href="Sparkline.css">
+<link rel="stylesheet" href="MetaStrip.css">
 
 <style>
   body { margin: 0; padding: 0; }
@@ -110,6 +111,57 @@
     letter-spacing: 0.08em;
     margin-bottom: var(--space-2);
   }
+
+  /* --- Channel breakdown mock --- */
+  .channel-watermark {
+    background: var(--color-warning-soft);
+    border: 1px dashed var(--color-warning);
+    padding: var(--space-3) var(--space-4);
+    border-radius: var(--radius-md);
+    margin-bottom: var(--space-4);
+    font-size: var(--font-size-sm);
+    color: var(--color-warning);
+  }
+  .channel-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: var(--space-3);
+  }
+  .channel-card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: var(--space-4);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+  .channel-card__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+  }
+  .channel-card__name {
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text-primary);
+  }
+  .channel-card__val {
+    font-size: var(--font-size-xl);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text-primary);
+  }
+  .channel-card__val-label {
+    font-size: var(--font-size-xs);
+    color: var(--color-text-tertiary);
+    font-weight: var(--font-weight-normal);
+    margin-left: var(--space-1);
+  }
+  .channel-card__foot {
+    font-size: var(--font-size-xs);
+    color: var(--color-text-secondary);
+  }
 </style>
 
 <script src="../js/theme-toggle.js"></script>
@@ -145,6 +197,11 @@
     <div class="preview-grid">
 
       <div>
+        <div class="block-label">0. MetaStrip · orientation context</div>
+        <div id="preview-meta"></div>
+      </div>
+
+      <div>
         <div class="block-label">1. BenchmarkBanner</div>
         <div id="preview-bench"></div>
       </div>
@@ -160,17 +217,73 @@
       </div>
 
       <div>
-        <div class="block-label">4. KPICards · varios estados · auto-fit grid</div>
-        <div class="grid-kpi" id="preview-kpis"></div>
+        <div class="block-label">4. KPIs · Hero layout (grid 1fr 2fr, stacks &lt; 960px)</div>
+        <div class="kpi-layout">
+          <div class="kpi-hero" id="preview-hero"></div>
+          <div class="kpi-grid" id="preview-hero-grid"></div>
+        </div>
       </div>
 
       <div>
-        <div class="block-label">5. ProgressBars · tiers</div>
+        <div class="block-label">5. CHANNEL BREAKDOWN (mock — aplicación real en Fase 3b)</div>
+        <div class="channel-watermark">
+          ⚠️ MOCK VISUAL — datos inventados para preview de layout, NO usar para decisiones operativas.
+        </div>
+        <div class="channel-grid">
+          <div class="channel-card">
+            <div class="channel-card__head">
+              <div class="channel-card__name">Meta</div>
+              <span class="orx-pill orx-pill--red">Rojo</span>
+            </div>
+            <div class="channel-card__val num">2 <span class="channel-card__val-label">cierres</span></div>
+            <div class="channel-card__foot">
+              <span class="muted">Spend</span> <span class="num">$30,755</span>
+              <span class="muted"> · CAC</span> <span class="num">$15,377</span>
+            </div>
+          </div>
+          <div class="channel-card">
+            <div class="channel-card__head">
+              <div class="channel-card__name">Google</div>
+              <span class="orx-pill orx-pill--neutral">Sin datos</span>
+            </div>
+            <div class="channel-card__val num">0 <span class="channel-card__val-label">cierres</span></div>
+            <div class="channel-card__foot">
+              <span class="muted">Spend</span> <span class="num">$0</span>
+              <span class="muted"> · CAC</span> <span class="num">—</span>
+            </div>
+          </div>
+          <div class="channel-card">
+            <div class="channel-card__head">
+              <div class="channel-card__name">WhatsApp Orgánico</div>
+              <span class="orx-pill orx-pill--neutral">Free</span>
+            </div>
+            <div class="channel-card__val num">0 <span class="channel-card__val-label">cierres</span></div>
+            <div class="channel-card__foot">
+              <span class="muted">Spend</span> <span>Free</span>
+              <span class="muted"> · CAC</span> <span>no CAC</span>
+            </div>
+          </div>
+          <div class="channel-card">
+            <div class="channel-card__head">
+              <div class="channel-card__name">Referido</div>
+              <span class="orx-pill orx-pill--neutral">Free</span>
+            </div>
+            <div class="channel-card__val num">0 <span class="channel-card__val-label">cierres</span></div>
+            <div class="channel-card__foot">
+              <span class="muted">Spend</span> <span>Free</span>
+              <span class="muted"> · CAC</span> <span>no CAC</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="block-label">6. ProgressBars · expected-today tick (LINEAR mock)</div>
         <div class="stack-4" id="preview-progress"></div>
       </div>
 
       <div>
-        <div class="block-label">6. DataTable · sortable · tier-tinted rows</div>
+        <div class="block-label">7. DataTable · sortable · tier-tinted rows</div>
         <div id="preview-table"></div>
       </div>
 
@@ -180,15 +293,26 @@
 
 <script src="Section.js"></script>
 <script src="TierPill.js"></script>
+<script src="Sparkline.js"></script>
 <script src="KPICard.js"></script>
 <script src="ProgressBar.js"></script>
 <script src="DataTable.js"></script>
 <script src="Banner.js"></script>
 <script src="BenchmarkBanner.js"></script>
 <script src="EmptyState.js"></script>
-<script src="Sparkline.js"></script>
+<script src="MetaStrip.js"></script>
 
 <script>
+  MetaStrip.create(document.getElementById('preview-meta'), {
+    client: 'enpagos',
+    view: 'overview',
+    period: '2026-04',
+    dayOfMonth: 21,
+    totalDaysInMonth: 30,
+    plannedBudget: 80000,
+    cacTarget: 2500
+  });
+
   BenchmarkBanner.create(document.getElementById('preview-bench'), {
     label: 'Semana récord — 16-22 feb 2026',
     metrics: [
@@ -211,20 +335,29 @@
   const s2 = document.createElement('div'); sections.appendChild(s2);
   Section.create(s2, { title: 'Preautorizados · cargando', loading: true });
 
-  const kpis = document.getElementById('preview-kpis');
-  KPICard.create(kpis, { label: 'Cierres mes', value: 2, formattedValue: '2', hint: 'Proyección EOM: 3' });
-  KPICard.create(kpis, { label: 'CAC actual', value: 20699, formattedValue: '$20,699', tier: 'red',
-                          delta: { value: -200, unit:' MoM', positiveIsGood: false } });
-  KPICard.create(kpis, { label: 'Preauts positivos', value: 22, formattedValue: '22',
-                          delta: { value: 3, unit:' vs ayer', positiveIsGood: true } });
-  KPICard.create(kpis, { label: 'Costo / preaut +', value: 1882, formattedValue: '$1,882', tier: 'red' });
-  KPICard.create(kpis, { label: 'Inversión hoy', value: null });
+  const money = v => '$' + v.toLocaleString('es-MX');
+  KPICard.create(document.getElementById('preview-hero'), {
+    label: 'CAC actual',
+    value: 20699,
+    formattedValue: '$20,699',
+    tier: 'red',
+    delta: { value: 340, format: money, period: 'vs 7d', positiveIsGood: false },
+    hint: 'Objetivo $2,500 · límite $3,500'
+  });
+  const heroGrid = document.getElementById('preview-hero-grid');
+  KPICard.create(heroGrid, { label: 'Cierres mes', value: 2, formattedValue: '2', hint: 'Proyección EOM: 3' });
+  KPICard.create(heroGrid, { label: 'Preauts +', value: 22, formattedValue: '22',
+                              delta: { value: 3, period: 'vs 7d', positiveIsGood: true } });
+  KPICard.create(heroGrid, { label: 'Costo / preaut+', value: 1882, formattedValue: '$1,882', tier: 'red',
+                              delta: { value: -45, format: money, period: 'vs 7d', positiveIsGood: false } });
+  KPICard.create(heroGrid, { label: 'Inversión mes', value: 41398, formattedValue: '$41.4K',
+                              sparkline: { points: [1, 2.5, 3.2, 4.1, 5.2, 6, 41.4], width: 72, height: 22 } });
 
   const prog = document.getElementById('preview-progress');
   const fmtMoney = v => '$' + (Math.round(v)).toLocaleString('es-MX');
-  ProgressBar.create(prog, { label: 'Cierres vs meta', value: 8, max: 10, tier: 'green', formatValue: v => v + ' cierres' });
-  ProgressBar.create(prog, { label: 'Preauts positivos vs meta', value: 22, max: 40, tier: 'yellow', formatValue: v => v + ' preaut' });
-  ProgressBar.create(prog, { label: 'Inversión vs planeada', value: 41398.38, max: 80000, tier: 'red', formatValue: fmtMoney });
+  ProgressBar.create(prog, { label: 'Cierres vs meta', value: 8, max: 10, expectedValue: 7, formatValue: v => v + ' cierres' });
+  ProgressBar.create(prog, { label: 'Preauts positivos vs meta', value: 22, max: 40, expectedValue: 28, formatValue: v => v + ' preaut' });
+  ProgressBar.create(prog, { label: 'Inversión vs planeada', value: 41398.38, max: 80000, expectedValue: 56000, formatValue: fmtMoney });
 
   const moneyFmt = v => v == null ? '—' : '$' + Math.round(v).toLocaleString('es-MX');
   const intFmt   = v => v == null ? '—' : v;

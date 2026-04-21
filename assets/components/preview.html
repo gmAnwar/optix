@@ -16,6 +16,7 @@
 <link rel="stylesheet" href="BenchmarkBanner.css">
 <link rel="stylesheet" href="EmptyState.css">
 <link rel="stylesheet" href="Sparkline.css">
+<link rel="stylesheet" href="MetaStrip.css">
 
 <style>
   body { margin: 0; padding: 0; }
@@ -92,6 +93,12 @@
 
   <div class="preview-grid">
 
+    <!-- 0. MetaStrip (orientation) -->
+    <div>
+      <div class="block-label">0. MetaStrip · orientation context</div>
+      <div id="preview-meta"></div>
+    </div>
+
     <!-- 1. BenchmarkBanner -->
     <div>
       <div class="block-label">1. BenchmarkBanner</div>
@@ -114,6 +121,15 @@
     <div>
       <div class="block-label">4. KPICard · plain · with tier · with delta · null value</div>
       <div class="grid-kpi" id="preview-kpis"></div>
+    </div>
+
+    <!-- 4a. Hero KPI layout (operational pattern) -->
+    <div>
+      <div class="block-label">4a. Hero KPI layout · primary metric + secondary grid · stacks below 960px</div>
+      <div class="kpi-layout">
+        <div class="kpi-hero" id="preview-hero"></div>
+        <div class="kpi-grid" id="preview-hero-grid"></div>
+      </div>
     </div>
 
     <!-- 5. TierPill triad -->
@@ -151,16 +167,28 @@
 
 <script src="Section.js"></script>
 <script src="TierPill.js"></script>
+<script src="Sparkline.js"></script>
 <script src="KPICard.js"></script>
 <script src="ProgressBar.js"></script>
 <script src="DataTable.js"></script>
 <script src="Banner.js"></script>
 <script src="BenchmarkBanner.js"></script>
 <script src="EmptyState.js"></script>
-<script src="Sparkline.js"></script>
+<script src="MetaStrip.js"></script>
 
 <script>
   // ── 1. BenchmarkBanner (both styles) ─────────────────────────────────
+  // ── 0. MetaStrip ─────────────────────────────────────────────────────
+  MetaStrip.create(document.getElementById('preview-meta'), {
+    client: 'enpagos',
+    view: 'overview',
+    period: '2026-04',
+    dayOfMonth: 21,
+    totalDaysInMonth: 30,
+    plannedBudget: 80000,
+    cacTarget: 2500
+  });
+
   BenchmarkBanner.create(document.getElementById('preview-bench'), {
     label: 'Semana récord — 16-22 feb 2026',
     metrics: [
@@ -189,17 +217,36 @@
 
   // ── 4. KPICards ──────────────────────────────────────────────────────
   const kpis = document.getElementById('preview-kpis');
+  const money = v => '$' + v.toLocaleString('es-MX');
   KPICard.create(kpis, { label: 'Cierres mes', value: 2, formattedValue: '2', hint: 'Proyección EOM: 3' });
   KPICard.create(kpis, { label: 'CAC actual', value: 20699, formattedValue: '$20,699', tier: 'red',
-                          delta: { value: 1200, unit:' MoM', positiveIsGood: false } });
+                          delta: { value: 340, format: money, period: 'vs 7d', positiveIsGood: false } });
   KPICard.create(kpis, { label: 'Preauts positivos', value: 22, formattedValue: '22',
-                          delta: { value: 3, unit:' vs ayer', positiveIsGood: true },
+                          delta: { value: 3, period: 'vs 7d', positiveIsGood: true },
                           sparkline: { points: [1, 2, 1, 3, 2, 4, 3, 5], width: 72, height: 22 } });
   KPICard.create(kpis, { label: 'Costo / preaut +', value: 1882, formattedValue: '$1,882', tier: 'red',
-                          delta: { value: -200, unit:' MoM', positiveIsGood: false } });
+                          delta: { value: -45, format: money, period: 'vs 7d', positiveIsGood: false } });
   KPICard.create(kpis, { label: 'Inversión hoy', value: null });
   KPICard.create(kpis, { label: 'Promedio diario', value: 0.1, formattedValue: '0.1 / día', tier: 'yellow',
                           sparkline: { points: [2, 1, 3, 2, 1, 0.5, 0.1], width: 72, height: 22, color: 'var(--color-warning)' } });
+
+  // ── 4a. Hero KPI layout ──────────────────────────────────────────────
+  KPICard.create(document.getElementById('preview-hero'), {
+    label: 'CAC actual',
+    value: 20699,
+    formattedValue: '$20,699',
+    tier: 'red',
+    delta: { value: 340, format: money, period: 'vs 7d', positiveIsGood: false },
+    hint: 'Objetivo $2,500 · límite $3,500'
+  });
+  const heroGrid = document.getElementById('preview-hero-grid');
+  KPICard.create(heroGrid, { label: 'Cierres mes',   value: 2,  formattedValue: '2',      hint: 'Proyección EOM: 3' });
+  KPICard.create(heroGrid, { label: 'Preauts +',     value: 22, formattedValue: '22',
+                              delta: { value: 3, period: 'vs 7d', positiveIsGood: true } });
+  KPICard.create(heroGrid, { label: 'Costo / preaut+',value: 1882, formattedValue: '$1,882', tier: 'red',
+                              delta: { value: -45, format: money, period: 'vs 7d', positiveIsGood: false } });
+  KPICard.create(heroGrid, { label: 'Inversión mes', value: 41398, formattedValue: '$41.4K',
+                              sparkline: { points: [1000, 2500, 3200, 4100, 5200, 6000, 41398].map(v => v/1000), width: 72, height: 22 } });
 
   // ── 5. TierPills ─────────────────────────────────────────────────────
   const pills = document.getElementById('preview-pills');
@@ -212,9 +259,9 @@
   // ── 6. ProgressBars ──────────────────────────────────────────────────
   const prog = document.getElementById('preview-progress');
   const fmtMoney = v => '$' + (Math.round(v)).toLocaleString('es-MX');
-  ProgressBar.create(prog, { label: 'Cierres vs meta', value: 8, max: 10, tier: 'green', formatValue: v => v + ' cierres' });
-  ProgressBar.create(prog, { label: 'Preauts positivos vs meta', value: 22, max: 40, tier: 'yellow', formatValue: v => v + ' preaut' });
-  ProgressBar.create(prog, { label: 'Inversión vs planeada', value: 41398.38, max: 80000, tier: 'red', formatValue: fmtMoney });
+  ProgressBar.create(prog, { label: 'Cierres vs meta', value: 8, max: 10, expectedValue: 7, formatValue: v => v + ' cierres' });
+  ProgressBar.create(prog, { label: 'Preauts positivos vs meta', value: 22, max: 40, expectedValue: 28, formatValue: v => v + ' preaut' });
+  ProgressBar.create(prog, { label: 'Inversión vs planeada', value: 41398.38, max: 80000, expectedValue: 56000, formatValue: fmtMoney });
 
   // ── 7. EmptyState ────────────────────────────────────────────────────
   EmptyState.create(document.getElementById('preview-empty'), {
