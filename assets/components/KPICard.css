@@ -53,9 +53,26 @@
   font-family: var(--font-family-mono);
 }
 
-.app-redesign .orx-kpi__delta--good { color: var(--color-success); }
-.app-redesign .orx-kpi__delta--bad  { color: var(--color-danger); }
-.app-redesign .orx-kpi__delta--flat { color: var(--color-text-tertiary); }
+.app-redesign .orx-kpi__delta--good    { color: var(--color-success); }
+.app-redesign .orx-kpi__delta--bad     { color: var(--color-danger); }
+.app-redesign .orx-kpi__delta--flat    { color: var(--color-text-tertiary); }
+.app-redesign .orx-kpi__delta--neutral { color: var(--color-text-tertiary); }
+
+.app-redesign .orx-kpi__valueRow {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.app-redesign .orx-kpi__spark {
+  flex: 0 0 auto;
+  color: var(--color-text-tertiary);
+  opacity: 0.9;
+  line-height: 0;
+}
+
+.app-redesign .orx-kpi--critical .orx-kpi__spark { color: var(--color-danger); }
 
 .app-redesign .orx-kpi__hint {
   font-size: var(--font-size-xs);

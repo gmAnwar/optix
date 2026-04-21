@@ -42,25 +42,25 @@
     margin-top: var(--space-1);
   }
   .theme-btn {
-    padding: var(--space-2) var(--space-4);
+    width: 34px; height: 34px;
+    padding: 0;
     border: 1px solid var(--color-border-strong);
     border-radius: var(--radius-md);
     background: var(--color-surface);
     color: var(--color-text-primary);
-    font-size: var(--font-size-sm);
-    font-weight: var(--font-weight-medium);
     cursor: pointer;
     display: inline-flex;
     align-items: center;
-    gap: var(--space-2);
-    transition: border-color var(--transition-fast);
+    justify-content: center;
+    transition: border-color var(--transition-fast), background var(--transition-fast);
   }
-  .theme-btn:hover { border-color: var(--color-accent); }
+  .theme-btn:hover { border-color: var(--color-accent); background: var(--color-surface-raised); }
+  .theme-btn svg { display: block; }
 
   .preview-grid {
     display: grid;
     grid-template-columns: 1fr;
-    gap: var(--space-6);
+    gap: var(--space-4);
     max-width: 1200px;
     margin: 0 auto;
   }
@@ -85,9 +85,8 @@
       <div class="preview-title">Optix Redesign · Component Preview</div>
       <div class="preview-subtitle">9 base components · tokens + dark mode · Fase 3a Bloque 3</div>
     </div>
-    <button class="theme-btn" data-theme-toggle aria-pressed="false">
-      <span data-theme-icon>☾</span>
-      <span data-theme-label>Oscuro</span>
+    <button class="theme-btn" data-theme-toggle aria-pressed="false" aria-label="Cambiar a tema oscuro">
+      <span data-theme-icon style="display:inline-flex"></span>
     </button>
   </header>
 
@@ -177,7 +176,7 @@
   Banner.create(banners, { variant: 'warning', title: 'Data incompleta', message: 'Faltan 2 días de captura: 2026-04-09, 2026-04-20. Proyecciones usan los días disponibles.' });
   Banner.create(banners, { variant: 'danger',  title: 'Token inválido', message: 'No se pudo autenticar la llamada a /client_data.',
                            action: { label: 'Reintentar' } });
-  Banner.create(banners, { variant: 'success', title: 'Meta superada', message: '✨ Cierres del mes por encima de objetivo.' });
+  Banner.create(banners, { variant: 'success', title: 'Meta superada', message: 'Cierres del mes por encima de objetivo.' });
 
   // ── 3. Sections (content / loading / error) ──────────────────────────
   const sections = document.getElementById('preview-sections');
@@ -191,13 +190,16 @@
   // ── 4. KPICards ──────────────────────────────────────────────────────
   const kpis = document.getElementById('preview-kpis');
   KPICard.create(kpis, { label: 'Cierres mes', value: 2, formattedValue: '2', hint: 'Proyección EOM: 3' });
-  KPICard.create(kpis, { label: 'CAC actual', value: 20699, formattedValue: '$20,699', tier: 'red' });
+  KPICard.create(kpis, { label: 'CAC actual', value: 20699, formattedValue: '$20,699', tier: 'red',
+                          delta: { value: 1200, unit:' MoM', positiveIsGood: false } });
   KPICard.create(kpis, { label: 'Preauts positivos', value: 22, formattedValue: '22',
-                          delta: { value: 3, unit:' vs ayer', positiveIsGood: true } });
+                          delta: { value: 3, unit:' vs ayer', positiveIsGood: true },
+                          sparkline: { points: [1, 2, 1, 3, 2, 4, 3, 5], width: 72, height: 22 } });
   KPICard.create(kpis, { label: 'Costo / preaut +', value: 1882, formattedValue: '$1,882', tier: 'red',
                           delta: { value: -200, unit:' MoM', positiveIsGood: false } });
   KPICard.create(kpis, { label: 'Inversión hoy', value: null });
-  KPICard.create(kpis, { label: 'Promedio diario', value: 0.1, formattedValue: '0.1 / día', tier: 'yellow' });
+  KPICard.create(kpis, { label: 'Promedio diario', value: 0.1, formattedValue: '0.1 / día', tier: 'yellow',
+                          sparkline: { points: [2, 1, 3, 2, 1, 0.5, 0.1], width: 72, height: 22, color: 'var(--color-warning)' } });
 
   // ── 5. TierPills ─────────────────────────────────────────────────────
   const pills = document.getElementById('preview-pills');

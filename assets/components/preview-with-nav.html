@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Optix Redesign · Preview with Sidebar</title>
+
+<link rel="stylesheet" href="../css/tokens.css">
+<link rel="stylesheet" href="../css/base.css">
+<link rel="stylesheet" href="Section.css">
+<link rel="stylesheet" href="TierPill.css">
+<link rel="stylesheet" href="KPICard.css">
+<link rel="stylesheet" href="ProgressBar.css">
+<link rel="stylesheet" href="DataTable.css">
+<link rel="stylesheet" href="Banner.css">
+<link rel="stylesheet" href="BenchmarkBanner.css">
+<link rel="stylesheet" href="EmptyState.css">
+<link rel="stylesheet" href="Sparkline.css">
+
+<style>
+  body { margin: 0; padding: 0; }
+  .app-redesign { min-height: 100vh; }
+
+  /* --- MOCK SIDEBAR (visual only, no behavior) --- */
+  .sidebar-mock {
+    position: fixed;
+    left: 0; top: 0;
+    width: 240px; height: 100vh;
+    background: var(--color-surface);
+    border-right: 1px solid var(--color-border);
+    padding: var(--space-6);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+  }
+  .sidebar-mock h3 {
+    margin: 0;
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-bold);
+    color: var(--color-text-primary);
+    letter-spacing: -0.02em;
+  }
+  .sidebar-mock .sidebar-items {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    margin-top: var(--space-2);
+  }
+  .sidebar-mock .sidebar-item {
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+  }
+  .sidebar-mock .sidebar-item.active {
+    background: var(--color-bg);
+    color: var(--color-accent);
+    font-weight: var(--font-weight-medium);
+  }
+
+  /* --- MAIN content offset --- */
+  .page-main {
+    margin-left: 240px;
+    padding: var(--space-6) var(--space-8);
+  }
+
+  .preview-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--space-6);
+    padding-bottom: var(--space-4);
+    border-bottom: 1px solid var(--color-border);
+  }
+  .preview-title {
+    font-size: var(--font-size-2xl);
+    font-weight: var(--font-weight-bold);
+    letter-spacing: -0.02em;
+  }
+  .preview-subtitle {
+    color: var(--color-text-tertiary);
+    font-size: var(--font-size-sm);
+    margin-top: var(--space-1);
+  }
+  .theme-btn {
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--color-border-strong);
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+    color: var(--color-text-primary);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    transition: border-color var(--transition-fast);
+  }
+  .theme-btn:hover { border-color: var(--color-accent); }
+  .theme-btn svg { width: 16px; height: 16px; }
+
+  .preview-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--space-4);
+  }
+  .block-label {
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: var(--space-2);
+  }
+</style>
+
+<script src="../js/theme-toggle.js"></script>
+</head>
+
+<body>
+<div class="app-redesign">
+
+  <!-- MOCK SIDEBAR — visual only, no behavior -->
+  <aside class="sidebar-mock" aria-label="Mock navigation">
+    <h3>Optix</h3>
+    <div class="sidebar-items">
+      <div class="sidebar-item active">EnPagos</div>
+      <div class="sidebar-item">Inmobili</div>
+      <div class="sidebar-item">Tuyo</div>
+      <div class="sidebar-item">Tareas</div>
+      <div class="sidebar-item">Admin</div>
+    </div>
+  </aside>
+
+  <div class="page-main">
+
+    <header class="preview-header">
+      <div>
+        <div class="preview-title">EnPagos · Preview con sidebar</div>
+        <div class="preview-subtitle">Validación de layout con nav 240px · Fase 3a Bloque 3 (checkpoint v2)</div>
+      </div>
+      <button class="theme-btn" data-theme-toggle aria-label="Cambiar tema" aria-pressed="false">
+        <span data-theme-icon>☾</span>
+      </button>
+    </header>
+
+    <div class="preview-grid">
+
+      <div>
+        <div class="block-label">1. BenchmarkBanner</div>
+        <div id="preview-bench"></div>
+      </div>
+
+      <div>
+        <div class="block-label">2. Banners · info · warning · danger · success</div>
+        <div class="stack-4" id="preview-banners"></div>
+      </div>
+
+      <div>
+        <div class="block-label">3. Sections · content · loading · error</div>
+        <div class="stack-4" id="preview-sections"></div>
+      </div>
+
+      <div>
+        <div class="block-label">4. KPICards · varios estados · auto-fit grid</div>
+        <div class="grid-kpi" id="preview-kpis"></div>
+      </div>
+
+      <div>
+        <div class="block-label">5. ProgressBars · tiers</div>
+        <div class="stack-4" id="preview-progress"></div>
+      </div>
+
+      <div>
+        <div class="block-label">6. DataTable · sortable · tier-tinted rows</div>
+        <div id="preview-table"></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script src="Section.js"></script>
+<script src="TierPill.js"></script>
+<script src="KPICard.js"></script>
+<script src="ProgressBar.js"></script>
+<script src="DataTable.js"></script>
+<script src="Banner.js"></script>
+<script src="BenchmarkBanner.js"></script>
+<script src="EmptyState.js"></script>
+<script src="Sparkline.js"></script>
+
+<script>
+  BenchmarkBanner.create(document.getElementById('preview-bench'), {
+    label: 'Semana récord — 16-22 feb 2026',
+    metrics: [
+      { key: 'Preaut positivos', value: 31 },
+      { key: 'Cierres', value: 3 },
+      { key: 'Costo / preaut', value: '$588' }
+    ]
+  });
+
+  const banners = document.getElementById('preview-banners');
+  Banner.create(banners, { variant: 'info',    title: 'Loop Diario',  message: 'Última actualización hace 3h 12m.' });
+  Banner.create(banners, { variant: 'warning', title: 'Data incompleta', message: 'Faltan 2 días de captura: 2026-04-09, 2026-04-20.' });
+  Banner.create(banners, { variant: 'danger',  title: 'Token inválido', message: 'No se pudo autenticar la llamada a /client_data.',
+                           action: { label: 'Reintentar' } });
+  Banner.create(banners, { variant: 'success', title: 'Meta superada', message: 'Cierres del mes por encima de objetivo.' });
+
+  const sections = document.getElementById('preview-sections');
+  const s1 = document.createElement('div'); sections.appendChild(s1);
+  Section.create(s1, { title: 'Cierres', children: '<p class="muted">Contenido de ejemplo dentro de una Section.</p>' });
+  const s2 = document.createElement('div'); sections.appendChild(s2);
+  Section.create(s2, { title: 'Preautorizados · cargando', loading: true });
+
+  const kpis = document.getElementById('preview-kpis');
+  KPICard.create(kpis, { label: 'Cierres mes', value: 2, formattedValue: '2', hint: 'Proyección EOM: 3' });
+  KPICard.create(kpis, { label: 'CAC actual', value: 20699, formattedValue: '$20,699', tier: 'red',
+                          delta: { value: -200, unit:' MoM', positiveIsGood: false } });
+  KPICard.create(kpis, { label: 'Preauts positivos', value: 22, formattedValue: '22',
+                          delta: { value: 3, unit:' vs ayer', positiveIsGood: true } });
+  KPICard.create(kpis, { label: 'Costo / preaut +', value: 1882, formattedValue: '$1,882', tier: 'red' });
+  KPICard.create(kpis, { label: 'Inversión hoy', value: null });
+
+  const prog = document.getElementById('preview-progress');
+  const fmtMoney = v => '$' + (Math.round(v)).toLocaleString('es-MX');
+  ProgressBar.create(prog, { label: 'Cierres vs meta', value: 8, max: 10, tier: 'green', formatValue: v => v + ' cierres' });
+  ProgressBar.create(prog, { label: 'Preauts positivos vs meta', value: 22, max: 40, tier: 'yellow', formatValue: v => v + ' preaut' });
+  ProgressBar.create(prog, { label: 'Inversión vs planeada', value: 41398.38, max: 80000, tier: 'red', formatValue: fmtMoney });
+
+  const moneyFmt = v => v == null ? '—' : '$' + Math.round(v).toLocaleString('es-MX');
+  const intFmt   = v => v == null ? '—' : v;
+  DataTable.create(document.getElementById('preview-table'), {
+    sortable: true,
+    rowClass: (row) => row.cac == null ? '' : (row.cac < 2500 ? 'orx-dt__row--green' : row.cac <= 3500 ? 'orx-dt__row--yellow' : 'orx-dt__row--red'),
+    columns: [
+      { key:'adset', label:'Adset' },
+      { key:'ad',    label:'Ad' },
+      { key:'cierres', label:'Cierres', align:'right', format: r => intFmt(r.cierres), sortKey: r => r.cierres ?? -1 },
+      { key:'inversion', label:'Inversión', align:'right', format: r => moneyFmt(r.inversion), sortKey: r => r.inversion ?? -1 },
+      { key:'cac', label:'CAC', align:'right', format: r => moneyFmt(r.cac), sortKey: r => r.cac ?? Number.MAX_SAFE_INTEGER },
+      { key:'preauts', label:'Preauts +', align:'right', format: r => intFmt(r.preauts) },
+      { key:'costo_preaut', label:'Costo / preaut +', align:'right', format: r => moneyFmt(r.costo_preaut), sortKey: r => r.costo_preaut ?? Number.MAX_SAFE_INTEGER }
+    ],
+    rows: [
+      { adset:'OA15 NL Público Similar', ad:'OA9 Video testimonial MH9', cierres:1, inversion:3308.29, cac:3308, preauts:7, costo_preaut:472 },
+      { adset:'OA4 GDL Enfriadores',     ad:'OA2 Secuencia GDLE2',       cierres:0, inversion:2956.51, cac:null, preauts:3, costo_preaut:985 },
+      { adset:'OA15 NL Vitrinas',        ad:'OA22 Video testimonio V22', cierres:1, inversion:2515.98, cac:2515, preauts:4, costo_preaut:628 },
+      { adset:'OA14 NL Enfriadores',     ad:'OA7 Secuencia NLE7',        cierres:0, inversion:2431.49, cac:null, preauts:2, costo_preaut:1215 }
+    ]
+  });
+</script>
+
+</body>
+</html>

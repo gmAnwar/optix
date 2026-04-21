@@ -10,6 +10,13 @@
  * Exposes: EmptyState.create(container, props), EmptyState.html(props).
  */
 (function () {
+  var DEFAULT_ICON_SVG = ''
+    + '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"'
+    +      ' stroke-linecap="round" stroke-linejoin="round" width="20" height="20" aria-hidden="true">'
+    +   '<circle cx="12" cy="12" r="9"/>'
+    +   '<path d="M12 7.5v5l3 1.8"/>'
+    + '</svg>';
+
   function html(props) {
     var action = '';
     if (props.action && props.action.label) {
@@ -23,9 +30,10 @@
     }
     var msg = props.message
       ? '<div class="orx-empty__msg">' + escapeHtml(props.message) + '</div>' : '';
+    var iconHtml = props.icon ? escapeHtml(props.icon) : DEFAULT_ICON_SVG;
     return ''
       + '<div class="orx-empty">'
-      +   '<div class="orx-empty__icon" aria-hidden="true">' + escapeHtml(props.icon || '⏳') + '</div>'
+      +   '<div class="orx-empty__icon" aria-hidden="true">' + iconHtml + '</div>'
       +   '<div class="orx-empty__title">' + escapeHtml(props.title || '') + '</div>'
       +   msg
       +   action

@@ -2,7 +2,7 @@
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
-  padding: var(--space-6);
+  padding: var(--space-5);
   box-shadow: var(--shadow-sm);
 }
 
@@ -13,10 +13,10 @@
 }
 
 .app-redesign .orx-section__title {
-  font-size: var(--font-size-lg);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text-primary);
-  letter-spacing: -0.01em;
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-accent);
+  letter-spacing: -0.005em;
 }
 
 .app-redesign .orx-section__body { min-height: 40px; }
