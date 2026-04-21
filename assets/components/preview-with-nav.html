@@ -92,6 +92,28 @@
     color: var(--color-accent);
     font-weight: var(--font-weight-medium);
   }
+  .sidebar-mock__view--soon {
+    opacity: 0.5;
+    cursor: not-allowed;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+  }
+  .sidebar-mock__view--soon:hover {
+    background: transparent;
+    color: var(--color-text-secondary);
+  }
+  .orx-sidebar-badge-soon {
+    font-size: var(--font-size-xs);
+    padding: 1px var(--space-2);
+    border-radius: var(--radius-pill);
+    background: var(--color-surface-raised);
+    color: var(--color-text-tertiary);
+    border: 1px solid var(--color-border);
+    font-weight: var(--font-weight-normal);
+    line-height: 1.4;
+  }
   .sidebar-mock__footer {
     margin-top: auto;
     padding: var(--space-3) var(--space-2);
@@ -233,10 +255,24 @@
       <span class="sidebar-mock__switcher-caret" aria-hidden="true">▾</span>
     </button>
     <hr class="sidebar-mock__sep">
+    <!-- [FASE-3B-TODO] Sidebar con 5 vistas: 3 activas (Overview/Diario/Semanal)
+         cubren el endpoint /client_data actual. 2 placeholders (Segmentación/Leads)
+         reflejan las pestañas que Alan/Kike llenan hoy en los sheets pero que
+         aún no están en el backend. Fase 3b: conectar estas 2 vistas al endpoint
+         cuando el backend las exponga. Ver DATA EnPagos F0AU85FCLD7 para detalle
+         de pestañas. -->
     <nav class="sidebar-mock__views" aria-label="Vistas del cliente">
       <a class="sidebar-mock__view sidebar-mock__view--active" aria-current="page">Overview</a>
       <a class="sidebar-mock__view">Diario</a>
       <a class="sidebar-mock__view">Semanal</a>
+      <a class="sidebar-mock__view sidebar-mock__view--soon" aria-disabled="true">
+        <span>Segmentación</span>
+        <span class="orx-sidebar-badge-soon">Próximamente</span>
+      </a>
+      <a class="sidebar-mock__view sidebar-mock__view--soon" aria-disabled="true">
+        <span>Leads</span>
+        <span class="orx-sidebar-badge-soon">Próximamente</span>
+      </a>
     </nav>
     <div class="sidebar-mock__footer">
       <div class="sidebar-mock__user">Usuario</div>
