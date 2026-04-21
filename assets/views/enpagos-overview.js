@@ -1,16 +1,15 @@
 /**
- * EnPagos Overview — live view wired to GET /client_data?client=enpagos&view=overview.
+ * EnPagos Overview — live view wired to GET /client_data_public.
  *
  * Public API:
  *   EnPagosOverview.mount(rootElement)   Renders loading → fetch → success/error.
  *
- * Auth:
- *   Reads token from URLSearchParams ?token= (then wipes it via history.replaceState)
- *   OR from sessionStorage.optix_token. Never commits the token anywhere.
- *
- * // [FASE-3B-TODO] Auth is a placeholder: token is read from ?token= or
- * //   sessionStorage. Migrate to Firebase ID token once the Worker accepts
- * //   firebase.auth().currentUser.getIdToken() in lieu of the shared secret.
+ * // [S50.5-TEMP] Unauthenticated GET to Worker /client_data_public.
+ * //   Endpoint is scope-locked server-side to client=enpagos view=overview,
+ * //   so query params cannot widen scope. Defenses: Origin allowlist
+ * //   (heuristic, blocks browsers not curl) + Cloudflare zone rate limit.
+ * //   Firebase Auth migration (F0AKSTMSKSS) ~05 May 2026 adds ID token
+ * //   verification per-request.
  *
  * // [FASE-3B-TODO] The endpoint does not yet return:
  * //   - *_7d_avg fields for KPI deltas (rendered without delta today)
@@ -19,32 +18,12 @@
  * //   - firmas_goal / preaut_positivo_goal (rendered as EmptyState when null)
  */
 (function () {
-  var ENDPOINT = 'https://optix-proxy.anwarhsg.workers.dev/client_data?client=enpagos&view=overview';
-  var STORAGE_KEY = 'optix_token';
+  var ENDPOINT = 'https://optix-proxy.anwarhsg.workers.dev/client_data_public';
 
   var state = {
     root: null,
-    data: null,     // cached response — used for both light & dark screenshots
-    token: null
+    data: null     // cached response — used for both light & dark screenshots
   };
-
-  // ── Auth helpers ─────────────────────────────────────────────────────
-  function readToken() {
-    try {
-      var params = new URLSearchParams(location.search);
-      var fromUrl = params.get('token');
-      if (fromUrl) {
-        try { sessionStorage.setItem(STORAGE_KEY, fromUrl); } catch (_) {}
-        params.delete('token');
-        var clean = location.pathname
-                  + (params.toString() ? '?' + params.toString() : '')
-                  + location.hash;
-        history.replaceState(null, '', clean);
-        return fromUrl;
-      }
-      return sessionStorage.getItem(STORAGE_KEY) || null;
-    } catch (_) { return null; }
-  }
 
   // ── Formatters ───────────────────────────────────────────────────────
   var fmtMoney  = function (v) { return v == null || isNaN(v) ? '—' : '$' + Math.round(v).toLocaleString('es-MX'); };
@@ -73,18 +52,12 @@
   // ── Top-level render dispatcher ──────────────────────────────────────
   function mount(root) {
     state.root = root;
-    renderLoading();
-    state.token = readToken();
-    if (!state.token) {
-      renderNoToken();
-      return;
-    }
     fetchAndRender();
   }
 
   function fetchAndRender() {
     renderLoading();
-    fetch(ENDPOINT, { headers: { 'X-Optix-Token': state.token } })
+    fetch(ENDPOINT)
       .then(function (r) {
         if (!r.ok) return Promise.reject(new Error(String(r.status)));
         return r.json();
@@ -141,21 +114,12 @@
     })[id] || 'Cargando';
   }
 
-  function renderNoToken() {
-    state.root.innerHTML = '<div id="ov-noauth"></div>';
-    window.Banner.create(document.getElementById('ov-noauth'), {
-      variant: 'danger',
-      title: 'Token no provisto',
-      message: 'Abre devtools y ejecuta: sessionStorage.setItem(\'optix_token\', \'TU_TOKEN\'). Después recarga. También puedes pasar ?token=... en la URL (se limpia al cargar).'
-    });
-  }
-
   function renderError(msg) {
     state.root.innerHTML = '<div id="ov-err"></div>';
     window.Banner.create(document.getElementById('ov-err'), {
       variant: 'danger',
       title: 'No se pudo cargar la vista',
-      message: 'Error ' + msg + '. Verifica tu conexión o el token.',
+      message: 'Error ' + msg + '. Verifica tu conexión.',
       action: { label: 'Reintentar', onClick: fetchAndRender }
     });
   }
