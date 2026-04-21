@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EnPagos · Overview</title>
+
+<link rel="stylesheet" href="assets/css/tokens.css">
+<link rel="stylesheet" href="assets/css/base.css">
+<link rel="stylesheet" href="assets/components/Section.css">
+<link rel="stylesheet" href="assets/components/TierPill.css">
+<link rel="stylesheet" href="assets/components/KPICard.css">
+<link rel="stylesheet" href="assets/components/ProgressBar.css">
+<link rel="stylesheet" href="assets/components/DataTable.css">
+<link rel="stylesheet" href="assets/components/Banner.css">
+<link rel="stylesheet" href="assets/components/BenchmarkBanner.css">
+<link rel="stylesheet" href="assets/components/EmptyState.css">
+<link rel="stylesheet" href="assets/components/Sparkline.css">
+<link rel="stylesheet" href="assets/components/MetaStrip.css">
+<link rel="stylesheet" href="assets/views/enpagos-overview.css">
+
+<style>
+  body { margin: 0; padding: 0; }
+  .app-redesign { min-height: 100vh; }
+
+  /* --- MOCK SIDEBAR (copy of preview-with-nav, mounted here as session scope) --- */
+  .sidebar-mock {
+    position: fixed;
+    left: 0; top: 0;
+    width: 240px; height: 100vh;
+    background: var(--color-surface);
+    border-right: 1px solid var(--color-border);
+    padding: var(--space-5) var(--space-4);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+  .sidebar-mock__brand {
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-bold);
+    color: var(--color-text-primary);
+    letter-spacing: -0.02em;
+    padding: 0 var(--space-2);
+  }
+  .sidebar-mock__switcher {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+    color: var(--color-text-primary);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    cursor: pointer;
+    font-family: inherit;
+    width: 100%;
+  }
+  .sidebar-mock__switcher:hover { border-color: var(--color-border-strong); }
+  .sidebar-mock__switcher-caret { color: var(--color-text-tertiary); font-size: var(--font-size-xs); }
+  .sidebar-mock__sep { border: 0; border-top: 1px solid var(--color-border); margin: var(--space-2) 0; }
+  .sidebar-mock__views { display: flex; flex-direction: column; gap: var(--space-1); }
+  .sidebar-mock__view {
+    padding: var(--space-2) var(--space-4);
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    text-decoration: none;
+  }
+  .sidebar-mock__view:hover { background: var(--color-surface-raised); color: var(--color-text-primary); }
+  .sidebar-mock__view--active {
+    background: var(--color-surface-raised);
+    color: var(--color-accent);
+    font-weight: var(--font-weight-medium);
+  }
+  .sidebar-mock__view--soon {
+    opacity: 0.5; cursor: not-allowed;
+    display: flex; align-items: center; justify-content: space-between; gap: var(--space-2);
+  }
+  .sidebar-mock__view--soon:hover { background: transparent; color: var(--color-text-secondary); }
+  .orx-sidebar-badge-soon {
+    font-size: var(--font-size-xs); padding: 1px var(--space-2);
+    border-radius: var(--radius-pill);
+    background: var(--color-surface-raised);
+    color: var(--color-text-tertiary);
+    border: 1px solid var(--color-border);
+    font-weight: var(--font-weight-normal); line-height: 1.4;
+  }
+  .sidebar-mock__footer {
+    margin-top: auto;
+    padding: var(--space-3) var(--space-2);
+    border-top: 1px solid var(--color-border);
+    display: flex; flex-direction: column; gap: var(--space-1);
+  }
+  .sidebar-mock__user { font-size: var(--font-size-sm); color: var(--color-text-secondary); font-weight: var(--font-weight-medium); }
+  .sidebar-mock__signout { font-size: var(--font-size-xs); color: var(--color-text-tertiary); cursor: pointer; }
+
+  /* --- Main area --- */
+  .page-main {
+    margin-left: 240px;
+    padding: var(--space-5) var(--space-6);
+  }
+  .page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--space-4);
+  }
+  .page-title {
+    font-size: var(--font-size-xl);
+    font-weight: var(--font-weight-bold);
+    letter-spacing: -0.02em;
+  }
+  .page-subtitle {
+    color: var(--color-text-tertiary);
+    font-size: var(--font-size-xs);
+    margin-top: var(--space-1);
+  }
+  .theme-btn {
+    width: 34px; height: 34px;
+    padding: 0;
+    border: 1px solid var(--color-border-strong);
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+    color: var(--color-text-primary);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .theme-btn:hover { border-color: var(--color-accent); background: var(--color-surface-raised); }
+  .theme-btn svg { display: block; }
+</style>
+
+<script src="assets/js/theme-toggle.js"></script>
+</head>
+
+<body>
+<div class="app-redesign">
+
+  <aside class="sidebar-mock" aria-label="Navegación">
+    <div class="sidebar-mock__brand">Optix</div>
+    <button type="button" class="sidebar-mock__switcher" aria-haspopup="listbox" aria-expanded="false">
+      <span>EnPagos</span>
+      <span class="sidebar-mock__switcher-caret" aria-hidden="true">▾</span>
+    </button>
+    <hr class="sidebar-mock__sep">
+    <!-- [FASE-3B-TODO] Sidebar con 5 vistas: 3 activas (Overview/Diario/Semanal)
+         cubren el endpoint /client_data actual. 2 placeholders (Segmentación/Leads)
+         reflejan las pestañas que Alan/Kike llenan hoy en los sheets pero que
+         aún no están en el backend. Ver DATA EnPagos F0AU85FCLD7. -->
+    <nav class="sidebar-mock__views" aria-label="Vistas del cliente">
+      <a class="sidebar-mock__view sidebar-mock__view--active" aria-current="page">Overview</a>
+      <a class="sidebar-mock__view">Diario</a>
+      <a class="sidebar-mock__view">Semanal</a>
+      <a class="sidebar-mock__view sidebar-mock__view--soon" aria-disabled="true">
+        <span>Segmentación</span>
+        <span class="orx-sidebar-badge-soon">Próximamente</span>
+      </a>
+      <a class="sidebar-mock__view sidebar-mock__view--soon" aria-disabled="true">
+        <span>Leads</span>
+        <span class="orx-sidebar-badge-soon">Próximamente</span>
+      </a>
+    </nav>
+    <div class="sidebar-mock__footer">
+      <div class="sidebar-mock__user">Usuario</div>
+      <div class="sidebar-mock__signout">Cerrar sesión</div>
+    </div>
+  </aside>
+
+  <div class="page-main">
+
+    <header class="page-header">
+      <div>
+        <div class="page-title">EnPagos · Overview</div>
+        <div class="page-subtitle">Live · GET /client_data?client=enpagos&amp;view=overview</div>
+      </div>
+      <button class="theme-btn" data-theme-toggle aria-pressed="false" aria-label="Cambiar a tema oscuro">
+        <span data-theme-icon style="display:inline-flex"></span>
+      </button>
+    </header>
+
+    <div id="enpagos-overview-root"></div>
+
+  </div>
+</div>
+
+<script src="assets/components/Section.js"></script>
+<script src="assets/components/TierPill.js"></script>
+<script src="assets/components/Sparkline.js"></script>
+<script src="assets/components/KPICard.js"></script>
+<script src="assets/components/ProgressBar.js"></script>
+<script src="assets/components/DataTable.js"></script>
+<script src="assets/components/Banner.js"></script>
+<script src="assets/components/BenchmarkBanner.js"></script>
+<script src="assets/components/EmptyState.js"></script>
+<script src="assets/components/MetaStrip.js"></script>
+<script src="assets/views/enpagos-overview.js"></script>
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    window.EnPagosOverview.mount(document.getElementById('enpagos-overview-root'));
+  });
+</script>
+
+</body>
+</html>
