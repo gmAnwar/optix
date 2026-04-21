@@ -20,14 +20,14 @@
   --color-accent: #2563eb;
   --color-accent-hover: #1d4ed8;
 
-  --color-success: #10b981;
-  --color-warning: #f59e0b;
-  --color-danger:  #ef4444;
+  --color-success: #059669;
+  --color-warning: #b45309;
+  --color-danger:  #b91c1c;
 
-  /* Tier tints for subtle row highlights */
-  --color-success-soft: rgba(16, 185, 129, 0.08);
-  --color-warning-soft: rgba(245, 158, 11, 0.10);
-  --color-danger-soft:  rgba(239, 68, 68, 0.08);
+  /* Tier tints for subtle row highlights (light: 8% flat) */
+  --color-success-soft: rgba(5, 150, 105, 0.08);
+  --color-warning-soft: rgba(180, 83, 9, 0.08);
+  --color-danger-soft:  rgba(185, 28, 28, 0.08);
 
   /* Focus ring */
   --color-focus-ring: rgba(37, 99, 235, 0.4);
@@ -123,9 +123,10 @@
   --color-warning: #fbbf24;
   --color-danger:  #f87171;
 
+  /* Dark: 10% flat across tiers */
   --color-success-soft: rgba(52, 211, 153, 0.10);
-  --color-warning-soft: rgba(251, 191, 36, 0.12);
-  --color-danger-soft:  rgba(248, 113, 113, 0.12);
+  --color-warning-soft: rgba(251, 191, 36, 0.10);
+  --color-danger-soft:  rgba(248, 113, 113, 0.10);
 
   --color-focus-ring: rgba(96, 165, 250, 0.45);
 

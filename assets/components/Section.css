@@ -15,7 +15,7 @@
 .app-redesign .orx-section__title {
   font-size: var(--font-size-base);
   font-weight: var(--font-weight-medium);
-  color: var(--color-accent);
+  color: var(--color-text-primary);
   letter-spacing: -0.005em;
 }
 
