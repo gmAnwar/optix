@@ -1,0 +1,35 @@
+.app-redesign .orx-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px var(--space-3);
+  border-radius: var(--radius-pill);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: 0.02em;
+  line-height: 1.6;
+  border: 1px solid transparent;
+}
+
+.app-redesign .orx-pill--green {
+  background: var(--color-success-soft);
+  color: var(--color-success);
+  border-color: var(--color-success);
+}
+
+.app-redesign .orx-pill--yellow {
+  background: var(--color-warning-soft);
+  color: var(--color-warning);
+  border-color: var(--color-warning);
+}
+
+.app-redesign .orx-pill--red {
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
+  border-color: var(--color-danger);
+}
+
+.app-redesign .orx-pill--neutral {
+  background: transparent;
+  color: var(--color-text-tertiary);
+  border-color: var(--color-border-strong);
+}

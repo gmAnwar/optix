@@ -1,0 +1,60 @@
+.app-redesign .orx-progress {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.app-redesign .orx-progress__label {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
+}
+
+.app-redesign .orx-progress__track {
+  position: relative;
+  height: 10px;
+  background: var(--color-border);
+  border-radius: var(--radius-pill);
+  /* overflow: visible so the tick can protrude above/below */
+}
+
+.app-redesign .orx-progress__tick {
+  position: absolute;
+  top: -4px;
+  bottom: -4px;
+  width: 1.5px;
+  background: var(--color-text-secondary);
+  transform: translateX(-50%);
+  pointer-events: none;
+  border-radius: 1px;
+}
+
+.app-redesign .orx-progress__expected {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+.app-redesign .orx-progress__fill {
+  height: 100%;
+  border-radius: var(--radius-pill);
+  transition: width var(--transition-base);
+}
+
+.app-redesign .orx-progress__fill--green   { background: var(--color-success); }
+.app-redesign .orx-progress__fill--yellow  { background: var(--color-warning); }
+.app-redesign .orx-progress__fill--red     { background: var(--color-danger); }
+.app-redesign .orx-progress__fill--neutral { background: var(--color-accent); }
+
+.app-redesign .orx-progress__caption {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+  display: flex;
+  gap: var(--space-1);
+  align-items: baseline;
+}
+
+.app-redesign .orx-progress__pct {
+  color: var(--color-text-tertiary);
+  margin-left: auto;
+}

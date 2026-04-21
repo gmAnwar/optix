@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Optix Redesign · Preview with Sidebar</title>
+
+<link rel="stylesheet" href="../css/tokens.css">
+<link rel="stylesheet" href="../css/base.css">
+<link rel="stylesheet" href="Section.css">
+<link rel="stylesheet" href="TierPill.css">
+<link rel="stylesheet" href="KPICard.css">
+<link rel="stylesheet" href="ProgressBar.css">
+<link rel="stylesheet" href="DataTable.css">
+<link rel="stylesheet" href="Banner.css">
+<link rel="stylesheet" href="BenchmarkBanner.css">
+<link rel="stylesheet" href="EmptyState.css">
+<link rel="stylesheet" href="Sparkline.css">
+<link rel="stylesheet" href="MetaStrip.css">
+
+<style>
+  body { margin: 0; padding: 0; }
+  .app-redesign { min-height: 100vh; }
+
+  /* --- MOCK SIDEBAR (visual only, no behavior) ---
+     Scope: one client is fixed for the session; the sidebar lists
+     VIEWS of that client, not a list of clients. Client switcher at top. */
+  .app-redesign .sidebar-mock {
+    position: fixed;
+    left: 0; top: 0;
+    width: 240px; height: 100vh;
+    background: var(--color-surface);
+    border-right: 1px solid var(--color-border);
+    padding: var(--space-5) var(--space-4);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+  .app-redesign .sidebar-mock__brand {
+    font-size: var(--font-size-lg);
+    font-weight: var(--font-weight-bold);
+    color: var(--color-text-primary);
+    letter-spacing: -0.02em;
+    padding: 0 var(--space-2);
+  }
+  .app-redesign .sidebar-mock__switcher {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+    color: var(--color-text-primary);
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    cursor: pointer;
+    font-family: inherit;
+    width: 100%;
+    transition: border-color var(--transition-fast);
+  }
+  .app-redesign .sidebar-mock__switcher:hover { border-color: var(--color-border-strong); }
+  .app-redesign .sidebar-mock__switcher-caret {
+    color: var(--color-text-tertiary);
+    font-size: var(--font-size-xs);
+  }
+  .app-redesign .sidebar-mock__sep {
+    border: 0;
+    border-top: 1px solid var(--color-border);
+    margin: var(--space-2) 0;
+  }
+  .app-redesign .sidebar-mock__views {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+  .app-redesign .sidebar-mock__view {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-4);
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    text-decoration: none;
+    border-left: 2px solid transparent;
+    transition: background var(--transition-fast), color var(--transition-fast);
+  }
+  .app-redesign .sidebar-mock__view-icon {
+    flex-shrink: 0;
+    color: var(--color-text-secondary);
+    transition: color var(--transition-fast);
+  }
+  .app-redesign .sidebar-mock__view:hover:not(.sidebar-mock__view--active):not(.sidebar-mock__view--soon) {
+    background: var(--color-surface-raised);
+    color: var(--color-text-primary);
+  }
+  .app-redesign .sidebar-mock__view:hover:not(.sidebar-mock__view--soon) .sidebar-mock__view-icon {
+    color: var(--color-text-primary);
+  }
+  .app-redesign .sidebar-mock__view--active {
+    background: var(--color-surface-raised);
+    color: var(--color-text-primary);
+    border-left: 2px solid var(--color-accent);
+    padding-left: calc(var(--space-4) - 2px);
+    font-weight: var(--font-weight-medium);
+  }
+  .app-redesign .sidebar-mock__view--active .sidebar-mock__view-icon {
+    color: var(--color-text-primary);
+  }
+  .app-redesign .sidebar-mock__view--soon {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  .app-redesign .sidebar-mock__view--soon .sidebar-mock__view-icon { opacity: 1; }
+  .app-redesign .sidebar-mock__view--soon:hover {
+    background: transparent;
+    color: var(--color-text-secondary);
+  }
+  .app-redesign .sidebar-mock__view .orx-sidebar-badge-soon { margin-left: auto; }
+  .app-redesign .orx-sidebar-badge-soon {
+    font-size: var(--font-size-xs);
+    padding: 1px var(--space-2);
+    border-radius: var(--radius-pill);
+    background: var(--color-surface-raised);
+    color: var(--color-text-tertiary);
+    border: 1px solid var(--color-border);
+    font-weight: var(--font-weight-normal);
+    line-height: 1.4;
+  }
+  .app-redesign .sidebar-mock__footer {
+    margin-top: auto;
+    padding: var(--space-3) var(--space-2);
+    border-top: 1px solid var(--color-border);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+  .app-redesign .sidebar-mock__user {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+    font-weight: var(--font-weight-medium);
+  }
+  .app-redesign .sidebar-mock__signout {
+    font-size: var(--font-size-xs);
+    color: var(--color-text-tertiary);
+    cursor: pointer;
+  }
+  .app-redesign .sidebar-mock__signout:hover { color: var(--color-text-secondary); }
+
+  /* --- MAIN content offset --- */
+  .page-main {
+    margin-left: 240px;
+    padding: var(--space-6) var(--space-8);
+  }
+
+  .preview-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--space-6);
+    padding-bottom: var(--space-4);
+    border-bottom: 1px solid var(--color-border);
+  }
+  .preview-title {
+    font-size: var(--font-size-2xl);
+    font-weight: var(--font-weight-bold);
+    letter-spacing: -0.02em;
+  }
+  .preview-subtitle {
+    color: var(--color-text-tertiary);
+    font-size: var(--font-size-sm);
+    margin-top: var(--space-1);
+  }
+  .theme-btn {
+    padding: var(--space-2) var(--space-3);
+    border: 1px solid var(--color-border-strong);
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
+    color: var(--color-text-primary);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    transition: border-color var(--transition-fast);
+  }
+  .theme-btn:hover { border-color: var(--color-accent); }
+  .theme-btn svg { width: 16px; height: 16px; }
+
+  .preview-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--space-4);
+  }
+  .block-label {
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: var(--space-2);
+  }
+
+  /* --- Channel breakdown mock --- */
+  .channel-watermark {
+    background: rgba(100, 116, 139, 0.08);
+    border: 1px dashed var(--color-border-strong);
+    padding: var(--space-3) var(--space-4);
+    border-radius: var(--radius-md);
+    margin-bottom: var(--space-4);
+    font-size: var(--font-size-sm);
+    color: var(--color-text-tertiary);
+  }
+  .channel-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: var(--space-3);
+  }
+  .channel-card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: var(--space-4);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+  .channel-card__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+  }
+  .channel-card__name {
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text-primary);
+  }
+  .channel-card__val {
+    font-size: var(--font-size-xl);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text-primary);
+  }
+  .channel-card__val-label {
+    font-size: var(--font-size-xs);
+    color: var(--color-text-tertiary);
+    font-weight: var(--font-weight-normal);
+    margin-left: var(--space-1);
+  }
+  .channel-card__foot {
+    font-size: var(--font-size-xs);
+    color: var(--color-text-secondary);
+  }
+</style>
+
+<script src="../js/theme-toggle.js"></script>
+</head>
+
+<!-- [FASE-FUTURE-AUTH] data-role="admin" es mock. En producción este
+     valor debe venir de la sesión autenticada del usuario. Componentes
+     que condicionan visibilidad por rol deben leer este attribute.
+     Ver PENDIENTE "Auth multi-tenant + role system" en PENDIENTES
+     canvas F0AKSTMSKSS. -->
+<body data-role="admin">
+<div class="app-redesign">
+
+  <!-- MOCK SIDEBAR — visual only, no behavior.
+       Scope: lists views of the current client, not the client list.
+       Client is session scope via the switcher below. -->
+  <aside class="sidebar-mock" aria-label="Mock navigation">
+    <div class="sidebar-mock__brand">Optix</div>
+    <button type="button" class="sidebar-mock__switcher" aria-haspopup="listbox" aria-expanded="false">
+      <span>EnPagos</span>
+      <span class="sidebar-mock__switcher-caret" aria-hidden="true">▾</span>
+    </button>
+    <hr class="sidebar-mock__sep">
+    <!-- [FASE-3B-TODO] Sidebar con 5 vistas: 3 activas (Overview/Diario/Semanal)
+         cubren el endpoint /client_data actual. 2 placeholders (Segmentación/Leads)
+         reflejan las pestañas que Alan/Kike llenan hoy en los sheets pero que
+         aún no están en el backend. Fase 3b: conectar estas 2 vistas al endpoint
+         cuando el backend las exponga. Ver DATA EnPagos F0AU85FCLD7 para detalle
+         de pestañas. -->
+    <nav class="sidebar-mock__views" aria-label="Vistas del cliente">
+      <a class="sidebar-mock__view sidebar-mock__view--active" aria-current="page">
+        <svg class="sidebar-mock__view-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        <span>Overview</span>
+      </a>
+      <a class="sidebar-mock__view">
+        <svg class="sidebar-mock__view-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        <span>Diario</span>
+      </a>
+      <a class="sidebar-mock__view">
+        <svg class="sidebar-mock__view-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01M16 18h.01"/></svg>
+        <span>Semanal</span>
+      </a>
+      <a class="sidebar-mock__view sidebar-mock__view--soon" aria-disabled="true">
+        <svg class="sidebar-mock__view-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/></svg>
+        <span>Segmentación</span>
+        <span class="orx-sidebar-badge-soon">Próximamente</span>
+      </a>
+      <a class="sidebar-mock__view sidebar-mock__view--soon" aria-disabled="true">
+        <svg class="sidebar-mock__view-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        <span>Leads</span>
+        <span class="orx-sidebar-badge-soon">Próximamente</span>
+      </a>
+    </nav>
+    <div class="sidebar-mock__footer">
+      <div class="sidebar-mock__user">Usuario</div>
+      <div class="sidebar-mock__signout">Cerrar sesión</div>
+    </div>
+  </aside>
+
+  <div class="page-main">
+
+    <header class="preview-header">
+      <div>
+        <div class="preview-title">EnPagos · Preview con sidebar</div>
+        <div class="preview-subtitle">Validación de layout con nav 240px · Fase 3a Bloque 3 (checkpoint v2)</div>
+      </div>
+      <button class="theme-btn" data-theme-toggle aria-label="Cambiar tema" aria-pressed="false">
+        <span data-theme-icon>☾</span>
+      </button>
+    </header>
+
+    <div class="preview-grid">
+
+      <div>
+        <div class="block-label">0. MetaStrip · orientation context</div>
+        <div id="preview-meta"></div>
+      </div>
+
+      <div>
+        <div class="block-label">1. BenchmarkBanner</div>
+        <div id="preview-bench"></div>
+      </div>
+
+      <div>
+        <div class="block-label">2. Banners · info · warning · danger · success</div>
+        <div class="stack-4" id="preview-banners"></div>
+      </div>
+
+      <div>
+        <div class="block-label">3. Sections · content · loading · error</div>
+        <div class="stack-4" id="preview-sections"></div>
+      </div>
+
+      <div>
+        <div class="block-label">4. KPIs · Hero layout (grid 1fr 2fr, stacks &lt; 960px)</div>
+        <div class="kpi-layout">
+          <div class="kpi-hero" id="preview-hero"></div>
+          <div class="kpi-grid" id="preview-hero-grid"></div>
+        </div>
+      </div>
+
+      <div>
+        <div class="block-label">5. CHANNEL BREAKDOWN (mock — aplicación real en Fase 3b)</div>
+        <div class="channel-watermark">
+          ⚠️ MOCK VISUAL — datos inventados para preview de layout, NO usar para decisiones operativas.
+        </div>
+        <div class="channel-grid">
+          <div class="channel-card">
+            <div class="channel-card__head">
+              <div class="channel-card__name">Meta</div>
+              <span class="orx-pill orx-pill--red">Rojo</span>
+            </div>
+            <div class="channel-card__val num">2 <span class="channel-card__val-label">cierres</span></div>
+            <div class="channel-card__foot">
+              <span class="muted">Spend</span> <span class="num">$30,755</span>
+              <span class="muted"> · CAC</span> <span class="num">$15,377</span>
+            </div>
+          </div>
+          <div class="channel-card">
+            <div class="channel-card__head">
+              <div class="channel-card__name">Google</div>
+              <span class="orx-pill orx-pill--neutral">Sin datos</span>
+            </div>
+            <div class="channel-card__val num">0 <span class="channel-card__val-label">cierres</span></div>
+            <div class="channel-card__foot">
+              <span class="muted">Spend</span> <span class="num">$0</span>
+              <span class="muted"> · CAC</span> <span class="num">—</span>
+            </div>
+          </div>
+          <div class="channel-card">
+            <div class="channel-card__head">
+              <div class="channel-card__name">WhatsApp Orgánico</div>
+              <span class="orx-pill orx-pill--neutral">Free</span>
+            </div>
+            <div class="channel-card__val num">0 <span class="channel-card__val-label">cierres</span></div>
+            <div class="channel-card__foot">
+              <span class="muted">Spend</span> <span>Free</span>
+              <span class="muted"> · CAC</span> <span>no CAC</span>
+            </div>
+          </div>
+          <div class="channel-card">
+            <div class="channel-card__head">
+              <div class="channel-card__name">Referido</div>
+              <span class="orx-pill orx-pill--neutral">Free</span>
+            </div>
+            <div class="channel-card__val num">0 <span class="channel-card__val-label">cierres</span></div>
+            <div class="channel-card__foot">
+              <span class="muted">Spend</span> <span>Free</span>
+              <span class="muted"> · CAC</span> <span>no CAC</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="block-label">6. ProgressBars · expected-today tick (LINEAR mock)</div>
+        <div class="stack-4" id="preview-progress"></div>
+      </div>
+
+      <div>
+        <div class="block-label">7. DataTable · sortable · tier-tinted rows</div>
+        <div id="preview-table"></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script src="Section.js"></script>
+<script src="TierPill.js"></script>
+<script src="Sparkline.js"></script>
+<script src="KPICard.js"></script>
+<script src="ProgressBar.js"></script>
+<script src="DataTable.js"></script>
+<script src="Banner.js"></script>
+<script src="BenchmarkBanner.js"></script>
+<script src="EmptyState.js"></script>
+<script src="MetaStrip.js"></script>
+
+<script>
+  MetaStrip.create(document.getElementById('preview-meta'), {
+    client: 'enpagos',
+    view: 'overview',
+    period: '2026-04',
+    dayOfMonth: 21,
+    totalDaysInMonth: 30,
+    plannedBudget: 80000,
+    cacTarget: 2500
+  });
+
+  BenchmarkBanner.create(document.getElementById('preview-bench'), {
+    label: 'Semana récord — 16-22 feb 2026',
+    metrics: [
+      { key: 'Preaut positivos', value: 31 },
+      { key: 'Cierres', value: 3 },
+      { key: 'Costo / preaut', value: '$588' }
+    ]
+  });
+
+  const banners = document.getElementById('preview-banners');
+  Banner.create(banners, { variant: 'info',    title: 'Loop Diario',  message: 'Última actualización hace 3h 12m.' });
+  Banner.create(banners, { variant: 'warning', title: 'Data incompleta', message: 'Faltan 2 días de captura: 2026-04-09, 2026-04-20.' });
+  Banner.create(banners, { variant: 'danger',  title: 'Token inválido', message: 'No se pudo autenticar la llamada a /client_data.',
+                           action: { label: 'Reintentar' } });
+  Banner.create(banners, { variant: 'success', title: 'Meta superada', message: 'Cierres del mes por encima de objetivo.' });
+
+  const sections = document.getElementById('preview-sections');
+  const s1 = document.createElement('div'); sections.appendChild(s1);
+  Section.create(s1, { title: 'Cierres', children: '<p class="muted">Contenido de ejemplo dentro de una Section.</p>' });
+  const s2 = document.createElement('div'); sections.appendChild(s2);
+  Section.create(s2, { title: 'Preautorizados · cargando', loading: true });
+
+  const money = v => '$' + v.toLocaleString('es-MX');
+  KPICard.create(document.getElementById('preview-hero'), {
+    label: 'CAC actual',
+    value: 20699,
+    formattedValue: '$20,699',
+    tier: 'red',
+    delta: { value: 340, format: money, period: 'vs 7d', positiveIsGood: false },
+    hint: 'Objetivo $2,500 · límite $3,500'
+  });
+  const heroGrid = document.getElementById('preview-hero-grid');
+  KPICard.create(heroGrid, { label: 'Cierres mes', value: 2, formattedValue: '2', hint: 'Proyección EOM: 3' });
+  KPICard.create(heroGrid, { label: 'Preauts +', value: 22, formattedValue: '22',
+                              delta: { value: 3, period: 'vs 7d', positiveIsGood: true } });
+  KPICard.create(heroGrid, { label: 'Costo / preaut+', value: 1882, formattedValue: '$1,882', tier: 'red',
+                              delta: { value: -45, format: money, period: 'vs 7d', positiveIsGood: false } });
+  KPICard.create(heroGrid, { label: 'Inversión mes', value: 41398, formattedValue: '$41.4K',
+                              sparkline: { points: [1, 2.5, 3.2, 4.1, 5.2, 6, 41.4], width: 72, height: 22 } });
+
+  const prog = document.getElementById('preview-progress');
+  const fmtMoney = v => '$' + (Math.round(v)).toLocaleString('es-MX');
+  ProgressBar.create(prog, { label: 'Cierres vs meta', value: 8, max: 10, expectedValue: 7, formatValue: v => v + ' cierres' });
+  ProgressBar.create(prog, { label: 'Preauts positivos vs meta', value: 22, max: 40, expectedValue: 28, formatValue: v => v + ' preaut' });
+  ProgressBar.create(prog, { label: 'Inversión vs planeada', value: 41398.38, max: 80000, expectedValue: 56000, formatValue: fmtMoney });
+
+  const moneyFmt = v => v == null ? '—' : '$' + Math.round(v).toLocaleString('es-MX');
+  const intFmt   = v => v == null ? '—' : v;
+  DataTable.create(document.getElementById('preview-table'), {
+    sortable: true,
+    rowClass: (row) => row.cac == null ? '' : (row.cac < 2500 ? 'orx-dt__row--green' : row.cac <= 3500 ? 'orx-dt__row--yellow' : 'orx-dt__row--red'),
+    columns: [
+      { key:'adset', label:'Adset' },
+      { key:'ad',    label:'Ad' },
+      { key:'cierres', label:'Cierres', align:'right', format: r => intFmt(r.cierres), sortKey: r => r.cierres ?? -1 },
+      { key:'inversion', label:'Inversión', align:'right', format: r => moneyFmt(r.inversion), sortKey: r => r.inversion ?? -1 },
+      { key:'cac', label:'CAC', align:'right', format: r => moneyFmt(r.cac), sortKey: r => r.cac ?? Number.MAX_SAFE_INTEGER },
+      { key:'preauts', label:'Preauts +', align:'right', format: r => intFmt(r.preauts) },
+      { key:'costo_preaut', label:'Costo / preaut +', align:'right', format: r => moneyFmt(r.costo_preaut), sortKey: r => r.costo_preaut ?? Number.MAX_SAFE_INTEGER }
+    ],
+    rows: [
+      { adset:'OA15 NL Público Similar', ad:'OA9 Video testimonial MH9', cierres:1, inversion:3308.29, cac:3308, preauts:7, costo_preaut:472 },
+      { adset:'OA4 GDL Enfriadores',     ad:'OA2 Secuencia GDLE2',       cierres:0, inversion:2956.51, cac:null, preauts:3, costo_preaut:985 },
+      { adset:'OA15 NL Vitrinas',        ad:'OA22 Video testimonio V22', cierres:1, inversion:2515.98, cac:2515, preauts:4, costo_preaut:628 },
+      { adset:'OA14 NL Enfriadores',     ad:'OA7 Secuencia NLE7',        cierres:0, inversion:2431.49, cac:null, preauts:2, costo_preaut:1215 }
+    ]
+  });
+</script>
+
+</body>
+</html>

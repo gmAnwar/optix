@@ -1,0 +1,47 @@
+.app-redesign .orx-section {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+  box-shadow: var(--shadow-sm);
+}
+
+.app-redesign .orx-section__header {
+  margin-bottom: var(--space-4);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.app-redesign .orx-section__title {
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+  letter-spacing: -0.005em;
+}
+
+.app-redesign .orx-section__body { min-height: 40px; }
+
+.app-redesign .orx-section__skeleton {
+  height: 120px;
+  border-radius: var(--radius-md);
+  background: linear-gradient(90deg,
+              var(--color-border) 0%,
+              var(--color-border-strong) 50%,
+              var(--color-border) 100%);
+  background-size: 200% 100%;
+  animation: orxSkel 1.4s var(--ease) infinite;
+}
+
+@keyframes orxSkel {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.app-redesign .orx-section__error {
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+}

@@ -1,0 +1,127 @@
+/* ==========================================================================
+   Optix Redesign v1 — Base styles (namespaced to .app-redesign)
+   Consumes tokens from tokens.css. Does NOT leak to legacy screens.
+   ========================================================================== */
+
+.app-redesign {
+  font-family: var(--font-family-base);
+  font-size: var(--font-size-base);
+  line-height: var(--line-height-base);
+  color: var(--color-text-primary);
+  background: var(--color-bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+.app-redesign *,
+.app-redesign *::before,
+.app-redesign *::after {
+  box-sizing: border-box;
+}
+
+.app-redesign h1,
+.app-redesign h2,
+.app-redesign h3,
+.app-redesign h4 {
+  margin: 0;
+  color: var(--color-text-primary);
+  line-height: var(--line-height-tight);
+  font-weight: var(--font-weight-semibold);
+}
+
+.app-redesign h1 { font-size: var(--font-size-3xl); }
+.app-redesign h2 { font-size: var(--font-size-2xl); }
+.app-redesign h3 { font-size: var(--font-size-xl); }
+.app-redesign h4 { font-size: var(--font-size-lg); }
+
+.app-redesign p {
+  margin: 0;
+  color: var(--color-text-secondary);
+}
+
+.app-redesign a {
+  color: var(--color-accent);
+  text-decoration: none;
+  transition: color var(--transition-fast);
+}
+
+.app-redesign a:hover {
+  color: var(--color-accent-hover);
+}
+
+.app-redesign :focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+.app-redesign button {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.app-redesign .num,
+.app-redesign code {
+  font-family: var(--font-family-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.app-redesign .muted {
+  color: var(--color-text-tertiary);
+}
+
+.app-redesign .sr-only {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Layout helpers used by the Overview and preview */
+.app-redesign .stack-4  { display: flex; flex-direction: column; gap: var(--space-4); }
+.app-redesign .stack-6  { display: flex; flex-direction: column; gap: var(--space-6); }
+.app-redesign .row-4    { display: flex; gap: var(--space-4); flex-wrap: wrap; }
+.app-redesign .grid-kpi {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: var(--space-4);
+}
+
+/* Hero KPI layout — 1 prominent metric + grid of secondary metrics.
+   Stacks to vertical below 960px (or when sidebar leaves content < ~900px). */
+.app-redesign .kpi-layout {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: var(--space-5);
+  align-items: stretch;
+}
+
+.app-redesign .kpi-hero .orx-kpi {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: var(--space-6);
+}
+
+.app-redesign .kpi-hero .orx-kpi__value {
+  font-size: 3rem;
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+
+.app-redesign .kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--space-4);
+}
+
+@media (max-width: 960px) {
+  .app-redesign .kpi-layout {
+    grid-template-columns: 1fr;
+  }
+}
