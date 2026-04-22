@@ -194,6 +194,20 @@
 .app-redesign .daily-kpi__delta--bad  { color: var(--color-danger); }
 .app-redesign .daily-kpi__delta--flat { color: var(--color-text-tertiary); }
 
+/* UX FIX 2 (Gate 0): "vs ayer" / "vs MARZO (1-22)" annotation next to the delta */
+.app-redesign .daily-kpi__delta-sub {
+  font-size: 11px;
+  color: var(--color-text-tertiary);
+  font-weight: var(--font-weight-normal);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.app-redesign .daily-kpi__goal-hint {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+}
+
 /* ── Skeleton (initial load, no old data yet) ─────────────────────────── */
 
 .app-redesign .daily-kpi--skeleton {
@@ -370,6 +384,30 @@
 .app-redesign .daily-card__delta--good { color: var(--color-success); }
 .app-redesign .daily-card__delta--bad  { color: var(--color-danger); }
 .app-redesign .daily-card__delta--flat { color: var(--color-text-tertiary); }
+
+/* UX FIX 2 + 3 (Gate 0) */
+.app-redesign .daily-card__delta-row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.app-redesign .daily-card__delta-sub {
+  font-size: 11px;
+  color: var(--color-text-tertiary);
+  font-weight: var(--font-weight-normal);
+  font-family: var(--font-family-base);
+}
+
+.app-redesign .daily-card__metric-sub {
+  font-family: var(--font-family-base);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-normal);
+  color: var(--color-text-tertiary);
+  letter-spacing: 0;
+  white-space: nowrap;
+}
 
 .app-redesign .daily-card__foot {
   font-size: var(--font-size-xs);
