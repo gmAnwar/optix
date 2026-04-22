@@ -190,6 +190,7 @@
       '  </section>',
       '</div>',
       '<div class="daily-banners" id="daily-banners" aria-live="polite"></div>',
+      '<div class="daily-cards" id="daily-cards-root" aria-label="Desglose por plaza"></div>',
       '<div id="daily-view-root"></div>'
     ].join('\n');
 
@@ -322,6 +323,140 @@
     slot.classList.toggle('daily-freshness--stale', stale);
   }
 
+  // ── Render: per-plaza cards grid (Gate 3) ────────────────────────────
+  //
+  // Variant A (cierres>0): label "CAC" + value + chip from vs_goal.cac_status
+  //   + delta (direct color from delta.cierres_abs) + sparkline + footer
+  //   "Objetivo CAC: $N".
+  // Variant B (cierres=0, preaut+>0): label "Costo/preaut+" + value. Delta
+  //   omitted per Gate 3 spec — by_city.delta shape is typically
+  //   {cierres_abs} only; no preaut_positivos_abs available at per-city.
+  // Variant C (cierres=0, preaut+=0): plaza name header + "Sin actividad"
+  //   empty-state body + dashed border.
+  //
+  // KPICard NOT reused here: its tier=red override forces delta=neutral,
+  // which would subvert Gate 3 spec's "color DIRECTO" for cierres delta
+  // in Variante A. Custom cards mirror the sticky-bar pattern instead.
+  function renderCards(data) {
+    var mount = document.getElementById('daily-cards-root');
+    if (!mount) return;
+
+    var byCity = data && data.by_city;
+    if (!byCity || typeof byCity !== 'object' || Object.keys(byCity).length === 0) {
+      mount.innerHTML = '';
+      var banners = document.getElementById('daily-banners');
+      if (banners) {
+        window.Banner.create(banners, {
+          variant: 'danger',
+          title: 'No hay data de plazas',
+          message: 'El pipeline no envió desglose por plaza. Revisa el pipeline optix-loops.'
+        });
+      }
+      return;
+    }
+
+    var plazas = Object.keys(byCity).sort();
+    mount.innerHTML = plazas.map(function (plaza) {
+      return cardHtml(plaza, byCity[plaza] || {});
+    }).join('');
+  }
+
+  function cardHtml(plaza, city) {
+    var current = city.current || {};
+    var delta   = city.delta   || {};
+    var vsGoal  = city.vs_goal || {};
+    var cierres = current.cierres;
+    var preaut  = current.preaut_positivos;
+
+    if (cierres > 0) {
+      return cardVariantA(plaza, current, delta, vsGoal, city.sparkline_cierres);
+    }
+    if (preaut > 0) {
+      return cardVariantB(plaza, current, city.sparkline_cierres);
+    }
+    return cardVariantC(plaza);
+  }
+
+  function cardVariantA(plaza, current, delta, vsGoal, sparkData) {
+    var chip = chipSpecFor(vsGoal.cac_status);
+    var cacGoal = vsGoal.cac_objetivo;
+    var cacHint = cacGoal != null
+      ? 'Objetivo CAC: ' + fmtMoney(cacGoal)
+      : 'Objetivo CAC: no definido';
+    var cierresAbs = delta.cierres_abs;
+    var deltaHtml = '';
+    if (cierresAbs == null || isNaN(cierresAbs)) {
+      deltaHtml = '<span class="daily-card__delta daily-card__delta--flat">—</span>';
+    } else {
+      var cls = colorDirect(cierresAbs);
+      var prefix = (cierresAbs === 0) ? '' : (arrowFor(cierresAbs) + ' ');
+      var label = cierresAbs === 0
+        ? '±0 cierres'
+        : (prefix + escapeHtml(fmtDeltaAbs(cierresAbs)) + ' cierre' + (Math.abs(cierresAbs) === 1 ? '' : 's'));
+      deltaHtml = '<span class="daily-card__delta daily-card__delta--' + cls + '">' + label + '</span>';
+    }
+
+    return ''
+      + '<div class="daily-card" data-variant="A" data-plaza="' + escapeHtml(plaza) + '">'
+      +   '<div class="daily-card__header">'
+      +     '<h3 class="daily-card__plaza">' + escapeHtml(plaza) + '</h3>'
+      +     '<span class="daily-kpi__chip daily-kpi__chip--' + chip.className + '">' + escapeHtml(chip.label) + '</span>'
+      +   '</div>'
+      +   '<div class="daily-card__body">'
+      +     '<div class="daily-card__metric-label">CAC</div>'
+      +     '<div class="daily-card__metric-value">' + escapeHtml(fmtMoney(current.cac)) + '</div>'
+      +     deltaHtml
+      +     sparklineHtml(sparkData)
+      +   '</div>'
+      +   '<div class="daily-card__foot">' + escapeHtml(cacHint) + '</div>'
+      + '</div>';
+  }
+
+  function cardVariantB(plaza, current, sparkData) {
+    return ''
+      + '<div class="daily-card" data-variant="B" data-plaza="' + escapeHtml(plaza) + '">'
+      +   '<div class="daily-card__header">'
+      +     '<h3 class="daily-card__plaza">' + escapeHtml(plaza) + '</h3>'
+      +   '</div>'
+      +   '<div class="daily-card__body">'
+      +     '<div class="daily-card__metric-label">Costo / preaut+</div>'
+      +     '<div class="daily-card__metric-value">' + escapeHtml(fmtMoney(current.costo_preaut_positivo)) + '</div>'
+      +     '<div class="daily-card__delta daily-card__delta--flat">Sin cierres todavía</div>'
+      +     sparklineHtml(sparkData)
+      +   '</div>'
+      +   '<div class="daily-card__foot">Preaut+ sin cierre — data de referencia</div>'
+      + '</div>';
+  }
+
+  function cardVariantC(plaza) {
+    return ''
+      + '<div class="daily-card daily-card--empty" data-variant="C" data-plaza="' + escapeHtml(plaza) + '">'
+      +   '<div class="daily-card__header">'
+      +     '<h3 class="daily-card__plaza">' + escapeHtml(plaza) + '</h3>'
+      +   '</div>'
+      +   '<div class="daily-card__empty-body">'
+      +     '<svg class="daily-card__empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+      +       '<circle cx="12" cy="12" r="9"/><path d="M8 12h8"/>'
+      +     '</svg>'
+      +     '<div class="daily-card__empty-text">Sin actividad</div>'
+      +   '</div>'
+      + '</div>';
+  }
+
+  function sparklineHtml(points) {
+    if (!Array.isArray(points) || points.length < 2) {
+      return '<div class="daily-card__spark" aria-hidden="true"></div>';
+    }
+    var allZero = points.every(function (n) { return n === 0 || n == null; });
+    if (allZero) {
+      return '<div class="daily-card__spark" aria-hidden="true"></div>';
+    }
+    var svg = window.Sparkline && window.Sparkline.html
+      ? window.Sparkline.html({ points: points, width: 200, height: 28, showDot: true })
+      : '';
+    return '<div class="daily-card__spark" aria-hidden="true">' + svg + '</div>';
+  }
+
   // ── Render: subtitle (period label from meta) ────────────────────────
   function updateSubtitle(data) {
     var slot = document.getElementById('daily-subtitle');
@@ -439,10 +574,14 @@
       .then(function (data) {
         state.data = data;
         state.hasRenderedOnce = true;
+        // Clear any retry/loading banners before rendering, so any
+        // defensive banner added by renderCards (e.g., missing by_city)
+        // survives instead of being wiped post-render.
+        clearBanners();
         renderStickyBar(data);
+        renderCards(data);
         updateSubtitle(data);
         updateFreshness(data);
-        clearBanners();
         setRefreshing(false);
         setDropdownEnabled(true);
       })
