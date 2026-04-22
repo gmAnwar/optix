@@ -1,0 +1,267 @@
+/* ==========================================================================
+   EnPagos Daily — view-level layout (Sprint 2a: shell + sticky bar + filters).
+   Namespaced to .app-redesign. Consumes tokens + base.
+   ========================================================================== */
+
+.app-redesign .daily-backlink {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: 44px;
+  padding: var(--space-2) var(--space-3);
+  margin: 0 calc(-1 * var(--space-3)) var(--space-2);
+  color: var(--color-text-tertiary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  border-radius: var(--radius-md);
+  text-decoration: none;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.app-redesign .daily-backlink:hover {
+  background: var(--color-surface-raised);
+  color: var(--color-text-primary);
+}
+
+.app-redesign .daily-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-4);
+}
+
+.app-redesign .daily-period-select {
+  appearance: none;
+  -webkit-appearance: none;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+  color: var(--color-text-primary);
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  padding: var(--space-2) var(--space-8) var(--space-2) var(--space-3);
+  min-height: 36px;
+  cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none' stroke='%2364748b' stroke-width='2'%3E%3Cpolyline points='3,4.5 6,7.5 9,4.5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right var(--space-3) center;
+}
+
+.app-redesign .daily-period-select:hover { border-color: var(--color-accent); }
+.app-redesign .daily-period-select:focus-visible { border-color: var(--color-accent); }
+
+.app-redesign .daily-freshness {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+.app-redesign .daily-freshness--stale {
+  color: var(--color-warning);
+  font-weight: var(--font-weight-medium);
+}
+
+.app-redesign .daily-freshness:empty { display: none; }
+
+/* ── Sticky bar ────────────────────────────────────────────────────────── */
+
+.app-redesign .daily-sticky {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-sticky);
+  background: var(--color-bg);
+  padding: var(--space-3) 0;
+  margin-bottom: var(--space-4);
+  transition: opacity var(--transition-fast);
+}
+
+.app-redesign .daily-sticky--refreshing { opacity: 0.55; }
+
+.app-redesign .daily-sticky__grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-3);
+}
+
+@media (max-width: 767px) {
+  .app-redesign .daily-sticky__grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* ── Individual KPI cell (custom — KPICard's red-tier→neutral-delta override
+   conflicts with spec's inverted-color-for-CAC rule, so sticky bar ships
+   purpose-built) ───────────────────────────────────────────────────────── */
+
+.app-redesign .daily-kpi {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-height: 110px;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.app-redesign .daily-kpi:hover {
+  border-color: var(--color-border-strong);
+  box-shadow: var(--shadow-sm);
+}
+
+.app-redesign .daily-kpi__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  min-height: 20px;
+}
+
+.app-redesign .daily-kpi__label {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-tertiary);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.app-redesign .daily-kpi__chip {
+  font-size: 0.65rem;
+  font-weight: var(--font-weight-semibold);
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-pill);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.app-redesign .daily-kpi__chip--red {
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
+  border: 1px solid var(--color-danger);
+}
+
+.app-redesign .daily-kpi__chip--amber {
+  background: var(--color-warning-soft);
+  color: var(--color-warning);
+  border: 1px solid var(--color-warning);
+}
+
+.app-redesign .daily-kpi__chip--green {
+  background: var(--color-success-soft);
+  color: var(--color-success);
+  border: 1px solid var(--color-success);
+}
+
+.app-redesign .daily-kpi__chip--neutral {
+  background: var(--color-surface-raised);
+  color: var(--color-text-tertiary);
+  border: 1px solid var(--color-border);
+}
+
+.app-redesign .daily-kpi__value {
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  line-height: var(--line-height-tight);
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  font-family: var(--font-family-mono);
+  word-break: break-word;
+}
+
+.app-redesign .daily-kpi__sub {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  margin-top: auto;
+}
+
+.app-redesign .daily-kpi__delta {
+  font-family: var(--font-family-mono);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+}
+
+.app-redesign .daily-kpi__delta--good { color: var(--color-success); }
+.app-redesign .daily-kpi__delta--bad  { color: var(--color-danger); }
+.app-redesign .daily-kpi__delta--flat { color: var(--color-text-tertiary); }
+
+/* ── Skeleton (initial load, no old data yet) ─────────────────────────── */
+
+.app-redesign .daily-kpi--skeleton {
+  background: var(--color-surface);
+  position: relative;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.app-redesign .daily-kpi--skeleton::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--color-surface-raised) 50%,
+    transparent 100%
+  );
+  animation: daily-shimmer 1.4s infinite;
+}
+
+.app-redesign .daily-kpi__skeleton-line {
+  height: 12px;
+  border-radius: var(--radius-sm);
+  background: var(--color-border);
+}
+
+.app-redesign .daily-kpi__skeleton-line--title { width: 40%; }
+.app-redesign .daily-kpi__skeleton-line--value { width: 70%; height: 28px; }
+.app-redesign .daily-kpi__skeleton-line--sub   { width: 55%; }
+
+@keyframes daily-shimmer {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+/* ── Spinner overlay (subsequent period changes) ──────────────────────── */
+
+.app-redesign .daily-spinner {
+  position: absolute;
+  top: var(--space-3);
+  right: var(--space-3);
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--color-border);
+  border-top-color: var(--color-accent);
+  border-radius: var(--radius-pill);
+  animation: daily-spin 0.8s linear infinite;
+  pointer-events: none;
+  z-index: calc(var(--z-sticky) + 1);
+}
+
+@keyframes daily-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Sticky wrapper needs relative for absolute spinner ───────────────── */
+.app-redesign .daily-sticky { position: sticky; }
+.app-redesign .daily-sticky-wrapper { position: relative; }
+
+/* ── Banners area ─────────────────────────────────────────────────────── */
+
+.app-redesign .daily-banners {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.app-redesign .daily-banners:empty { display: none; }
