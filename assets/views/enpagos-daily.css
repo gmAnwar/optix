@@ -319,6 +319,36 @@
   border: 1px dashed var(--color-border-strong);
 }
 
+/* Gate 0.5 Variante D — leads sin preaut+ · un tono más claro que --empty */
+.app-redesign .daily-card--leads-only {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  /* subtly de-emphasized vs Variante A/B full-color */
+  box-shadow: none;
+}
+
+.app-redesign .daily-card--leads-only .daily-card__metric-value {
+  color: var(--color-text-secondary);
+}
+
+/* Gate 0.5 Variante E — spend sin leads · borde ámbar informativo
+   (no rojo, porque el cliente lo va a ver). */
+.app-redesign .daily-card--spend-only {
+  background: var(--color-surface);
+  border: 1px solid var(--color-warning);
+  /* warning-soft wash to signal "needs attention" without looking punitive */
+  background: var(--color-warning-soft);
+}
+
+.app-redesign .daily-card--spend-only .daily-card__metric-value {
+  color: var(--color-text-primary);
+}
+
+.app-redesign .daily-card--spend-only .daily-card__foot {
+  color: var(--color-warning);
+  font-weight: var(--font-weight-medium);
+}
+
 .app-redesign .daily-card__header {
   display: flex;
   align-items: center;

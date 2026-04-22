@@ -401,18 +401,37 @@
     }).join('');
   }
 
+  // 5-way variant dispatch. Order matters — each case is mutually exclusive
+  // and the first match wins. The escalation tells a story top-to-bottom:
+  //   A → "this plaza is producing cierres"
+  //   B → "plaza has preaut+ but hasn't closed yet"
+  //   D → "plaza has raw leads but none qualified through bureau"  (NEW)
+  //   E → "plaza burning spend with zero leads — revisar"          (NEW)
+  //   C → "plaza dormant: nothing at all happening"
+  // D and E need the pipeline's new current.leads_brutos field. If that field
+  // is absent (old response shape pre-Gate-0.5), leads_brutos defaults to 0
+  // and the card safely falls through to C/E without crashing — so deploy
+  // order (pipeline-first) is a preference, not a hard block.
   function cardHtml(plaza, city, deltaSub) {
     var current = city.current || {};
     var delta   = city.delta   || {};
     var vsGoal  = city.vs_goal || {};
-    var cierres = current.cierres;
-    var preaut  = current.preaut_positivos;
+    var cierres      = current.cierres || 0;
+    var preaut       = current.preaut_positivos || 0;
+    var leadsBrutos  = current.leads_brutos || 0;
+    var spend        = current.inversion_atribuida || 0;
 
     if (cierres > 0) {
       return cardVariantA(plaza, current, delta, vsGoal, city.sparkline_cierres, deltaSub);
     }
     if (preaut > 0) {
       return cardVariantB(plaza, current, city.sparkline_cierres);
+    }
+    if (leadsBrutos > 0) {
+      return cardVariantD(plaza, current, city.sparkline_cierres);
+    }
+    if (spend > 0) {
+      return cardVariantE(plaza, current, city.sparkline_inversion);
     }
     return cardVariantC(plaza);
   }
@@ -485,6 +504,53 @@
       +     sparklineHtml(sparkData)
       +   '</div>'
       +   '<div class="daily-card__foot">Preaut+ sin cierre — data de referencia</div>'
+      + '</div>';
+  }
+
+  // Variante D — LEADS_SIN_PREAUT: leads entraron pero ninguno llegó a
+  // preaut+ todavía. Métrica principal "N leads · 0 preaut+" informa a Mario
+  // que el tráfico SÍ existe pero el filtro bureau está cortando. Sin chip
+  // (no hay CAC aún para marcar status). Card gris un tono más claro que
+  // variante C (sentido: no está muerta, solo sin conversión aún).
+  function cardVariantD(plaza, current, sparkData) {
+    var n = current.leads_brutos || 0;
+    return ''
+      + '<div class="daily-card daily-card--leads-only" data-variant="D" data-plaza="' + escapeHtml(plaza) + '">'
+      +   '<div class="daily-card__header">'
+      +     '<h3 class="daily-card__plaza">' + escapeHtml(plaza) + '</h3>'
+      +   '</div>'
+      +   '<div class="daily-card__body">'
+      +     '<div class="daily-card__metric-label">Leads sin preaut+</div>'
+      +     '<div class="daily-card__metric-value">' + n + ' lead' + (n === 1 ? '' : 's')
+      +       ' <span class="daily-card__metric-sub">· 0 preaut+</span></div>'
+      +     '<div class="daily-card__delta daily-card__delta--flat">Bureau aún no aprueba</div>'
+      +     sparklineHtml(sparkData)
+      +   '</div>'
+      +   '<div class="daily-card__foot">Revisar calidad del tráfico</div>'
+      + '</div>';
+  }
+
+  // Variante E — SPEND_SIN_LEADS: hay gasto en ads pero cero leads. Chip
+  // "Revisar" ámbar informativo (NO rojo alarma — el cliente lo va a ver
+  // y el mensaje es "revisar" no "falla crítica"). Borde ámbar sutil.
+  // Sparkline de inversión (si hay data) muestra si el gasto es sostenido
+  // o reciente.
+  function cardVariantE(plaza, current, sparkInversion) {
+    var spend = current.inversion_atribuida || 0;
+    return ''
+      + '<div class="daily-card daily-card--spend-only" data-variant="E" data-plaza="' + escapeHtml(plaza) + '">'
+      +   '<div class="daily-card__header">'
+      +     '<h3 class="daily-card__plaza">' + escapeHtml(plaza) + '</h3>'
+      +     '<span class="daily-kpi__chip daily-kpi__chip--amber">Revisar</span>'
+      +   '</div>'
+      +   '<div class="daily-card__body">'
+      +     '<div class="daily-card__metric-label">Spend sin leads</div>'
+      +     '<div class="daily-card__metric-value">' + escapeHtml(fmtMoney(spend))
+      +       ' <span class="daily-card__metric-sub">· 0 leads</span></div>'
+      +     '<div class="daily-card__delta daily-card__delta--flat">Gasto sin atribución</div>'
+      +     sparklineHtml(sparkInversion)
+      +   '</div>'
+      +   '<div class="daily-card__foot">Revisar mapping ads → plaza</div>'
       + '</div>';
   }
 
