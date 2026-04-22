@@ -536,7 +536,7 @@
       +     '<div class="daily-card__metric-label">Leads sin preaut+</div>'
       +     '<div class="daily-card__metric-value">' + n + ' lead' + (n === 1 ? '' : 's')
       +       ' <span class="daily-card__metric-sub">· 0 preaut+</span></div>'
-      +     '<div class="daily-card__delta daily-card__delta--flat">Bureau aún no aprueba</div>'
+      +     '<div class="daily-card__delta daily-card__delta--flat">Lead sin calificar</div>'
       +     investedLineHtml(current)
       +     sparklineHtml(sparkData)
       +   '</div>'
