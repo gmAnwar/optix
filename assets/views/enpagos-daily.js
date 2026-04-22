@@ -218,6 +218,8 @@
       ? null
       : current.cac;
 
+    var deltaSub = deltaSubLabelFor(state.period, data);
+
     var cells = [
       {
         label: 'Inversión',
@@ -226,7 +228,7 @@
         deltaText: fmtDeltaPct(delta.inversion_pct),
         deltaSrc:  delta.inversion_pct,
         deltaColor: colorDirect(delta.inversion_pct),
-        sub: 'vs periodo anterior'
+        deltaSub:  deltaSub
       },
       {
         label: 'Cierres',
@@ -235,6 +237,7 @@
         deltaText: fmtDeltaAbs(delta.cierres_abs),
         deltaSrc:  delta.cierres_abs,
         deltaColor: colorDirect(delta.cierres_abs),
+        deltaSub:  deltaSub,
         sub: cierresGoal != null ? ('de ~' + cierresGoal) : 'meta pendiente'
       },
       {
@@ -245,7 +248,7 @@
         deltaSrc:  delta.cac_pct,
         deltaColor: colorInverted(delta.cac_pct),
         chip: chipSpecFor(vsGoal.cac_status),
-        sub: 'vs periodo anterior'
+        deltaSub:  cacValue == null ? null : deltaSub
       },
       {
         label: 'Preaut+',
@@ -254,7 +257,7 @@
         deltaText: fmtDeltaAbs(delta.preaut_positivos_abs),
         deltaSrc:  delta.preaut_positivos_abs,
         deltaColor: colorDirect(delta.preaut_positivos_abs),
-        sub: 'vs periodo anterior'
+        deltaSub:  deltaSub
       }
     ];
 
@@ -263,11 +266,41 @@
     grid.innerHTML = cells.map(kpiHtml).join('');
   }
 
+  // UX FIX 1 (Gate 0, feedback Mario/Anwar): chips show what they MEAN for Mario
+  // rather than a color name. null → no chip (don't render "Sin meta" either —
+  // signal absence of a threshold by absence of a chip).
   function chipSpecFor(status) {
-    if (status === 'red')   return { className: 'red',   label: 'Rojo' };
-    if (status === 'amber') return { className: 'amber', label: 'Amarillo' };
-    if (status === 'green') return { className: 'green', label: 'Verde' };
-    return { className: 'neutral', label: 'Sin meta' };
+    if (status === 'red')   return { className: 'red',   label: 'Por debajo de meta' };
+    if (status === 'amber') return { className: 'amber', label: 'Cerca de meta' };
+    if (status === 'green') return { className: 'green', label: 'En meta' };
+    return null;
+  }
+
+  // UX FIX 2 (Gate 0): delta sub-label tells Mario WHAT the comparison is.
+  // "+182% vs periodo anterior" is ambiguous when periods vary; spell it out.
+  // For mtd, pull the actual range from meta.previous_period so the label
+  // updates daily as the current month progresses.
+  var MONTH_NAMES_UPPER = [
+    'ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO',
+    'JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE'
+  ];
+  function deltaSubLabelFor(period, data) {
+    if (period === 'today')     return 'vs ayer';
+    if (period === 'yesterday') return 'vs anteayer';
+    if (period === '7d')        return 'vs 7d anteriores';
+    if (period === '30d')       return 'vs 30d anteriores';
+    if (period === 'mtd') {
+      var prev = data && data.meta && data.meta.previous_period;
+      if (!prev || !prev.from || !prev.to) return 'vs mes anterior';
+      var fromParts = String(prev.from).split('-');
+      var toParts   = String(prev.to).split('-');
+      var monthNum  = parseInt(fromParts[1], 10);
+      var toDay     = parseInt(toParts[2], 10);
+      var monthName = MONTH_NAMES_UPPER[monthNum - 1];
+      if (!monthName || isNaN(toDay)) return 'vs mes anterior';
+      return 'vs ' + monthName + ' (1-' + toDay + ')';
+    }
+    return 'vs periodo anterior';
   }
 
   function kpiHtml(cell) {
@@ -287,6 +320,12 @@
     } else if (cell.deltaSrc === undefined || cell.deltaSrc === null || cell.value === '—') {
       deltaHtml = '<span class="daily-kpi__delta daily-kpi__delta--flat">—</span>';
     }
+    var deltaSubHtml = cell.deltaSub
+      ? '<span class="daily-kpi__delta-sub">' + escapeHtml(cell.deltaSub) + '</span>'
+      : '';
+    var goalHintHtml = cell.sub
+      ? '<span class="daily-kpi__goal-hint">' + escapeHtml(cell.sub) + '</span>'
+      : '';
     return ''
       + '<div class="daily-kpi">'
       +   '<div class="daily-kpi__head">'
@@ -294,7 +333,7 @@
       +     chip
       +   '</div>'
       +   '<div class="daily-kpi__value num"' + titleAttr + '>' + escapeHtml(cell.value) + '</div>'
-      +   '<div class="daily-kpi__sub">' + deltaHtml + (cell.sub ? '<span>' + escapeHtml(cell.sub) + '</span>' : '') + '</div>'
+      +   '<div class="daily-kpi__sub">' + deltaHtml + deltaSubHtml + goalHintHtml + '</div>'
       + '</div>';
   }
 
@@ -356,12 +395,13 @@
     }
 
     var plazas = Object.keys(byCity).sort();
+    var deltaSub = deltaSubLabelFor(state.period, data);
     mount.innerHTML = plazas.map(function (plaza) {
-      return cardHtml(plaza, byCity[plaza] || {});
+      return cardHtml(plaza, byCity[plaza] || {}, deltaSub);
     }).join('');
   }
 
-  function cardHtml(plaza, city) {
+  function cardHtml(plaza, city, deltaSub) {
     var current = city.current || {};
     var delta   = city.delta   || {};
     var vsGoal  = city.vs_goal || {};
@@ -369,7 +409,7 @@
     var preaut  = current.preaut_positivos;
 
     if (cierres > 0) {
-      return cardVariantA(plaza, current, delta, vsGoal, city.sparkline_cierres);
+      return cardVariantA(plaza, current, delta, vsGoal, city.sparkline_cierres, deltaSub);
     }
     if (preaut > 0) {
       return cardVariantB(plaza, current, city.sparkline_cierres);
@@ -377,35 +417,55 @@
     return cardVariantC(plaza);
   }
 
-  function cardVariantA(plaza, current, delta, vsGoal, sparkData) {
+  function cardVariantA(plaza, current, delta, vsGoal, sparkData, deltaSub) {
+    // UX FIX 1: chip label semantic, null status → no chip at all.
     var chip = chipSpecFor(vsGoal.cac_status);
     var cacGoal = vsGoal.cac_objetivo;
     var cacHint = cacGoal != null
       ? 'Objetivo CAC: ' + fmtMoney(cacGoal)
       : 'Objetivo CAC: no definido';
-    var cierresAbs = delta.cierres_abs;
+
+    // UX FIX 3: append absolute cierres count to CAC value ("$2,206 · 1 cierre")
+    // so Mario sees the denominator when CAC looks too good / too bad.
+    var cierresAbsCount = current.cierres;
+    var cierresLabel = '';
+    if (cierresAbsCount != null && cierresAbsCount > 0) {
+      cierresLabel = ' <span class="daily-card__metric-sub">· '
+                   + cierresAbsCount + ' cierre'
+                   + (cierresAbsCount === 1 ? '' : 's')
+                   + '</span>';
+    }
+
+    // UX FIX 2: delta sub-label per card (same period ctx as the sticky bar).
+    var cierresDelta = delta.cierres_abs;
     var deltaHtml = '';
-    if (cierresAbs == null || isNaN(cierresAbs)) {
+    if (cierresDelta == null || isNaN(cierresDelta)) {
       deltaHtml = '<span class="daily-card__delta daily-card__delta--flat">—</span>';
     } else {
-      var cls = colorDirect(cierresAbs);
-      var prefix = (cierresAbs === 0) ? '' : (arrowFor(cierresAbs) + ' ');
-      var label = cierresAbs === 0
+      var cls = colorDirect(cierresDelta);
+      var prefix = (cierresDelta === 0) ? '' : (arrowFor(cierresDelta) + ' ');
+      var label = cierresDelta === 0
         ? '±0 cierres'
-        : (prefix + escapeHtml(fmtDeltaAbs(cierresAbs)) + ' cierre' + (Math.abs(cierresAbs) === 1 ? '' : 's'));
+        : (prefix + escapeHtml(fmtDeltaAbs(cierresDelta)) + ' cierre' + (Math.abs(cierresDelta) === 1 ? '' : 's'));
       deltaHtml = '<span class="daily-card__delta daily-card__delta--' + cls + '">' + label + '</span>';
     }
+    var deltaSubHtml = deltaSub
+      ? '<span class="daily-card__delta-sub">' + escapeHtml(deltaSub) + '</span>'
+      : '';
+    var chipHtml = chip
+      ? '<span class="daily-kpi__chip daily-kpi__chip--' + chip.className + '">' + escapeHtml(chip.label) + '</span>'
+      : '';
 
     return ''
       + '<div class="daily-card" data-variant="A" data-plaza="' + escapeHtml(plaza) + '">'
       +   '<div class="daily-card__header">'
       +     '<h3 class="daily-card__plaza">' + escapeHtml(plaza) + '</h3>'
-      +     '<span class="daily-kpi__chip daily-kpi__chip--' + chip.className + '">' + escapeHtml(chip.label) + '</span>'
+      +     chipHtml
       +   '</div>'
       +   '<div class="daily-card__body">'
       +     '<div class="daily-card__metric-label">CAC</div>'
-      +     '<div class="daily-card__metric-value">' + escapeHtml(fmtMoney(current.cac)) + '</div>'
-      +     deltaHtml
+      +     '<div class="daily-card__metric-value">' + escapeHtml(fmtMoney(current.cac)) + cierresLabel + '</div>'
+      +     '<div class="daily-card__delta-row">' + deltaHtml + deltaSubHtml + '</div>'
       +     sparklineHtml(sparkData)
       +   '</div>'
       +   '<div class="daily-card__foot">' + escapeHtml(cacHint) + '</div>'
