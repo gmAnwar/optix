@@ -436,6 +436,17 @@
     return cardVariantC(plaza);
   }
 
+  // Shared: "Inversión $X,XXX" line shown on A/B/D when the plaza received
+  // attributed spend in the period. Variante E already surfaces spend as its
+  // main metric (would duplicate); Variante C / SIN-ATRIBUCION / ORGANICOS
+  // hit the inv<=0 guard and render nothing — no special-case needed.
+  function investedLineHtml(current) {
+    var inv = current && current.inversion_atribuida;
+    if (inv == null || isNaN(inv) || inv <= 0) return '';
+    return '<div class="daily-card__invested">Inversión '
+         + escapeHtml(fmtMoney(inv)) + '</div>';
+  }
+
   function cardVariantA(plaza, current, delta, vsGoal, sparkData, deltaSub) {
     // UX FIX 1: chip label semantic, null status → no chip at all.
     var chip = chipSpecFor(vsGoal.cac_status);
@@ -485,6 +496,7 @@
       +     '<div class="daily-card__metric-label">CAC</div>'
       +     '<div class="daily-card__metric-value">' + escapeHtml(fmtMoney(current.cac)) + cierresLabel + '</div>'
       +     '<div class="daily-card__delta-row">' + deltaHtml + deltaSubHtml + '</div>'
+      +     investedLineHtml(current)
       +     sparklineHtml(sparkData)
       +   '</div>'
       +   '<div class="daily-card__foot">' + escapeHtml(cacHint) + '</div>'
@@ -501,6 +513,7 @@
       +     '<div class="daily-card__metric-label">Costo / preaut+</div>'
       +     '<div class="daily-card__metric-value">' + escapeHtml(fmtMoney(current.costo_preaut_positivo)) + '</div>'
       +     '<div class="daily-card__delta daily-card__delta--flat">Sin cierres todavía</div>'
+      +     investedLineHtml(current)
       +     sparklineHtml(sparkData)
       +   '</div>'
       +   '<div class="daily-card__foot">Preaut+ sin cierre — data de referencia</div>'
@@ -524,6 +537,7 @@
       +     '<div class="daily-card__metric-value">' + n + ' lead' + (n === 1 ? '' : 's')
       +       ' <span class="daily-card__metric-sub">· 0 preaut+</span></div>'
       +     '<div class="daily-card__delta daily-card__delta--flat">Bureau aún no aprueba</div>'
+      +     investedLineHtml(current)
       +     sparklineHtml(sparkData)
       +   '</div>'
       +   '<div class="daily-card__foot">Revisar calidad del tráfico</div>'

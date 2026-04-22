@@ -439,6 +439,15 @@
   white-space: nowrap;
 }
 
+/* Gate 2026-04-23 — "Inversión $X,XXX" line per card (A/B/D where
+   inversion_atribuida > 0). Slot lives between delta and sparkline. */
+.app-redesign .daily-card__invested {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-tertiary);
+  font-variant-numeric: tabular-nums;
+  font-family: var(--font-family-mono);
+}
+
 .app-redesign .daily-card__foot {
   font-size: var(--font-size-xs);
   color: var(--color-text-tertiary);
