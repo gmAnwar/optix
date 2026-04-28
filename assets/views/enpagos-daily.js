@@ -496,13 +496,22 @@
       + '</div>';
   }
 
+  // S60 batch 4: layout grid 3-cols (label | monto | cantidad). Para mantener
+  // la cantidad alineada a la derecha entre cards, todas las filas intermedias
+  // usan esta firma. Cuando una fila no tiene monto (Cancelados), pasar cpa=null
+  // y se renderea un span vacío que ocupa el track del grid (alineación visual
+  // preservada).
   function metricRowWithCpaHtml(label, value, cpa, opts) {
     var modClass = (opts && opts.header) ? ' daily-card__metric-row--header' : '';
+    var cpaHasValue = cpa != null && cpa !== '';
+    var cpaSpan = cpaHasValue
+      ? '<span class="daily-card__metric-row-cpa">' + escapeHtml(cpa) + '</span>'
+      : '<span class="daily-card__metric-row-cpa daily-card__metric-row-cpa--empty" aria-hidden="true"></span>';
     return ''
       + '<div class="daily-card__metric-row daily-card__metric-row--with-cpa' + modClass + '">'
       +   '<span class="daily-card__metric-row-label">' + escapeHtml(label) + '</span>'
+      +   cpaSpan
       +   '<span class="daily-card__metric-row-value">' + escapeHtml(value) + '</span>'
-      +   '<span class="daily-card__metric-row-cpa">' + escapeHtml(cpa) + '</span>'
       + '</div>';
   }
 
@@ -553,7 +562,7 @@
       + metricRowHtml('Inversión',                   fmtMoney(inv))
       + metricRowWithCpaHtml('Preautorizados',       fmtNum(current.leads_brutos),        cpaText(inv, current.leads_brutos),        { header: true })
       + metricRowWithCpaHtml('Preaut+',              fmtNum(current.preaut_positivos),    cpaText(inv, current.preaut_positivos))
-      + metricRowHtml('Cancelados',                  fmtNum(current.cancelados))
+      + metricRowWithCpaHtml('Cancelados',           fmtNum(current.cancelados),          null)
       + metricRowWithCpaHtml('Firmas Programadas',   fmtNum(current.firmas_programadas),  cpaText(inv, current.firmas_programadas))
       + cierresCacRowHtml(current.cierres,           cacText);
 
