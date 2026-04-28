@@ -220,14 +220,25 @@
 
     var deltaSub = deltaSubLabelFor(state.period, data);
 
+    // S60: orden fijo Inversión → Preaut+ → Cierres → CAC. Inversión exacta
+    // (sin K abreviado) para que Mario/Kike vean el monto real, no redondeado.
     var cells = [
       {
         label: 'Inversión',
-        value: fmtMoneyK(current.inversion_total_meta_ads),
+        value: fmtMoney(current.inversion_total_meta_ads),
         rawValue: current.inversion_total_meta_ads,
         deltaText: fmtDeltaPct(delta.inversion_pct),
         deltaSrc:  delta.inversion_pct,
         deltaColor: colorDirect(delta.inversion_pct),
+        deltaSub:  deltaSub
+      },
+      {
+        label: 'Preaut+',
+        value: fmtNum(current.preaut_positivos),
+        rawValue: current.preaut_positivos,
+        deltaText: fmtDeltaAbs(delta.preaut_positivos_abs),
+        deltaSrc:  delta.preaut_positivos_abs,
+        deltaColor: colorDirect(delta.preaut_positivos_abs),
         deltaSub:  deltaSub
       },
       {
@@ -249,15 +260,6 @@
         deltaColor: colorInverted(delta.cac_pct),
         chip: chipSpecFor(vsGoal.cac_status),
         deltaSub:  cacValue == null ? null : deltaSub
-      },
-      {
-        label: 'Preaut+',
-        value: fmtNum(current.preaut_positivos),
-        rawValue: current.preaut_positivos,
-        deltaText: fmtDeltaAbs(delta.preaut_positivos_abs),
-        deltaSrc:  delta.preaut_positivos_abs,
-        deltaColor: colorDirect(delta.preaut_positivos_abs),
-        deltaSub:  deltaSub
       }
     ];
 
@@ -269,10 +271,13 @@
   // UX FIX 1 (Gate 0, feedback Mario/Anwar): chips show what they MEAN for Mario
   // rather than a color name. null → no chip (don't render "Sin meta" either —
   // signal absence of a threshold by absence of a chip).
+  // S60: "Por debajo / por encima" eran ambiguos para Mario/Kike (¿debajo del
+  // costo o debajo del rendimiento?). "FUERA DE META" es operacionalmente claro:
+  // hay que actuar. Texto en MAYÚSCULAS para enfatizar el chip.
   function chipSpecFor(status) {
-    if (status === 'red')   return { className: 'red',   label: 'Por debajo de meta' };
-    if (status === 'amber') return { className: 'amber', label: 'Cerca de meta' };
-    if (status === 'green') return { className: 'green', label: 'En meta' };
+    if (status === 'red')   return { className: 'red',   label: 'FUERA DE META' };
+    if (status === 'amber') return { className: 'amber', label: 'CERCA DE META' };
+    if (status === 'green') return { className: 'green', label: 'EN META' };
     return null;
   }
 
@@ -376,6 +381,25 @@
   // KPICard NOT reused here: its tier=red override forces delta=neutral,
   // which would subvert Gate 3 spec's "color DIRECTO" for cierres delta
   // in Variante A. Custom cards mirror the sticky-bar pattern instead.
+  // S60: cards uniformes con 5 métricas en orden fijo. Orden de plazas: regulares
+  // ordenadas por inversion_atribuida desc, luego SIN-ATRIBUCION y ORGANICOS
+  // al final. SIN-ATRIBUCION/ORGANICOS se esconden si todas sus métricas (inv,
+  // preaut+, firmas_programadas, cierres) están en 0. Plazas regulares siempre
+  // se muestran aunque tengan 0 (mantiene visibilidad de las 9 plazas canónicas).
+  var SPECIAL_PLAZAS_ORDER = ['SIN-ATRIBUCION', 'ORGANICOS'];
+
+  function isSpecialPlaza(plaza) {
+    return SPECIAL_PLAZAS_ORDER.indexOf(plaza) !== -1;
+  }
+
+  function shouldHideSpecial(city) {
+    var c = (city && city.current) || {};
+    return (c.inversion_atribuida || 0) === 0
+        && (c.preaut_positivos || 0) === 0
+        && (c.firmas_programadas || 0) === 0
+        && (c.cierres || 0) === 0;
+  }
+
   function renderCards(data) {
     var mount = document.getElementById('daily-cards-root');
     if (!mount) return;
@@ -394,192 +418,110 @@
       return;
     }
 
-    var plazas = Object.keys(byCity).sort();
+    // Particionar plazas en regulares + especiales.
+    var allPlazas = Object.keys(byCity);
+    var regulares = allPlazas.filter(function (p) { return !isSpecialPlaza(p); });
+    var especiales = SPECIAL_PLAZAS_ORDER.filter(function (p) {
+      // Solo incluir especiales si existen en el response Y tienen actividad.
+      return byCity[p] && !shouldHideSpecial(byCity[p]);
+    });
+
+    // Orden regulares: inversión desc; tie-break alfabético para estabilidad.
+    regulares.sort(function (a, b) {
+      var invA = ((byCity[a] && byCity[a].current) || {}).inversion_atribuida || 0;
+      var invB = ((byCity[b] && byCity[b].current) || {}).inversion_atribuida || 0;
+      if (invA !== invB) return invB - invA;
+      return a < b ? -1 : (a > b ? 1 : 0);
+    });
+
+    var plazasOrdered = regulares.concat(especiales);
     var deltaSub = deltaSubLabelFor(state.period, data);
-    mount.innerHTML = plazas.map(function (plaza) {
+    mount.innerHTML = plazasOrdered.map(function (plaza) {
       return cardHtml(plaza, byCity[plaza] || {}, deltaSub);
     }).join('');
   }
 
-  // 5-way variant dispatch. Order matters — each case is mutually exclusive
-  // and the first match wins. The escalation tells a story top-to-bottom:
-  //   A → "this plaza is producing cierres"
-  //   B → "plaza has preaut+ but hasn't closed yet"
-  //   D → "plaza has raw leads but none qualified through bureau"  (NEW)
-  //   E → "plaza burning spend with zero leads — revisar"          (NEW)
-  //   C → "plaza dormant: nothing at all happening"
-  // D and E need the pipeline's new current.leads_brutos field. If that field
-  // is absent (old response shape pre-Gate-0.5), leads_brutos defaults to 0
-  // and the card safely falls through to C/E without crashing — so deploy
-  // order (pipeline-first) is a preference, not a hard block.
+  // Variante (A/B/C/D/E) — calculada solo para data-variant attribute (CSS hooks)
+  // y para el chip contextual opcional. El cuerpo de la card es uniforme: 5
+  // métricas en orden fijo Inversión → Preaut+ → Firmas Programadas → Firmas → CAC.
+  function variantOf(current) {
+    var cierres     = current.cierres || 0;
+    var preaut      = current.preaut_positivos || 0;
+    var leadsBrutos = current.leads_brutos || 0;
+    var spend       = current.inversion_atribuida || 0;
+    if (cierres > 0)     return 'A';
+    if (preaut > 0)      return 'B';
+    if (leadsBrutos > 0) return 'D';
+    if (spend > 0)       return 'E';
+    return 'C';
+  }
+
+  function variantContextChip(variant) {
+    if (variant === 'E') return { className: 'amber', label: 'Revisar' };
+    return null;
+  }
+
+  function variantFootMessage(variant) {
+    if (variant === 'B') return 'Preaut+ sin cierre — data de referencia';
+    if (variant === 'D') return 'Lead sin calificar — revisar tráfico';
+    if (variant === 'E') return 'Revisar mapping ads → plaza';
+    if (variant === 'C') return 'Sin actividad en el periodo';
+    return '';
+  }
+
+  function metricRowHtml(label, value) {
+    return ''
+      + '<div class="daily-card__metric-row">'
+      +   '<span class="daily-card__metric-row-label">' + escapeHtml(label) + '</span>'
+      +   '<span class="daily-card__metric-row-value">' + escapeHtml(value) + '</span>'
+      + '</div>';
+  }
+
   function cardHtml(plaza, city, deltaSub) {
     var current = city.current || {};
-    var delta   = city.delta   || {};
     var vsGoal  = city.vs_goal || {};
-    var cierres      = current.cierres || 0;
-    var preaut       = current.preaut_positivos || 0;
-    var leadsBrutos  = current.leads_brutos || 0;
-    var spend        = current.inversion_atribuida || 0;
+    var variant = variantOf(current);
+    var sparkData = (variant === 'E') ? city.sparkline_inversion : city.sparkline_cierres;
 
-    if (cierres > 0) {
-      return cardVariantA(plaza, current, delta, vsGoal, city.sparkline_cierres, deltaSub);
-    }
-    if (preaut > 0) {
-      return cardVariantB(plaza, current, city.sparkline_cierres);
-    }
-    if (leadsBrutos > 0) {
-      return cardVariantD(plaza, current, city.sparkline_cierres);
-    }
-    if (spend > 0) {
-      return cardVariantE(plaza, current, city.sparkline_inversion);
-    }
-    return cardVariantC(plaza);
-  }
-
-  // Shared: "Inversión $X,XXX" line shown on A/B/D when the plaza received
-  // attributed spend in the period. Variante E already surfaces spend as its
-  // main metric (would duplicate); Variante C / SIN-ATRIBUCION / ORGANICOS
-  // hit the inv<=0 guard and render nothing — no special-case needed.
-  function investedLineHtml(current) {
-    var inv = current && current.inversion_atribuida;
-    if (inv == null || isNaN(inv) || inv <= 0) return '';
-    return '<div class="daily-card__invested">Inversión '
-         + escapeHtml(fmtMoney(inv)) + '</div>';
-  }
-
-  function cardVariantA(plaza, current, delta, vsGoal, sparkData, deltaSub) {
-    // UX FIX 1: chip label semantic, null status → no chip at all.
-    var chip = chipSpecFor(vsGoal.cac_status);
-    var cacGoal = vsGoal.cac_objetivo;
-    var cacHint = cacGoal != null
-      ? 'Objetivo CAC: ' + fmtMoney(cacGoal)
-      : 'Objetivo CAC: no definido';
-
-    // UX FIX 3: append absolute cierres count to CAC value ("$2,206 · 1 cierre")
-    // so Mario sees the denominator when CAC looks too good / too bad.
-    var cierresAbsCount = current.cierres;
-    var cierresLabel = '';
-    if (cierresAbsCount != null && cierresAbsCount > 0) {
-      cierresLabel = ' <span class="daily-card__metric-sub">· '
-                   + cierresAbsCount + ' cierre'
-                   + (cierresAbsCount === 1 ? '' : 's')
-                   + '</span>';
+    // Chip vs_goal (cac_status). Solo se renderiza cuando hay status y hay
+    // CAC computable (cierres > 0). Sino el chip diría algo sin denominador.
+    var goalChip = (current.cierres > 0) ? chipSpecFor(vsGoal.cac_status) : null;
+    var ctxChip = variantContextChip(variant);
+    var chipHtml = '';
+    if (goalChip) {
+      chipHtml += '<span class="daily-kpi__chip daily-kpi__chip--' + goalChip.className + '">'
+                + escapeHtml(goalChip.label) + '</span>';
+    } else if (ctxChip) {
+      chipHtml += '<span class="daily-kpi__chip daily-kpi__chip--' + ctxChip.className + '">'
+                + escapeHtml(ctxChip.label) + '</span>';
     }
 
-    // UX FIX 2: delta sub-label per card (same period ctx as the sticky bar).
-    var cierresDelta = delta.cierres_abs;
-    var deltaHtml = '';
-    if (cierresDelta == null || isNaN(cierresDelta)) {
-      deltaHtml = '<span class="daily-card__delta daily-card__delta--flat">—</span>';
-    } else {
-      var cls = colorDirect(cierresDelta);
-      var prefix = (cierresDelta === 0) ? '' : (arrowFor(cierresDelta) + ' ');
-      var label = cierresDelta === 0
-        ? '±0 cierres'
-        : (prefix + escapeHtml(fmtDeltaAbs(cierresDelta)) + ' cierre' + (Math.abs(cierresDelta) === 1 ? '' : 's'));
-      deltaHtml = '<span class="daily-card__delta daily-card__delta--' + cls + '">' + label + '</span>';
-    }
-    var deltaSubHtml = deltaSub
-      ? '<span class="daily-card__delta-sub">' + escapeHtml(deltaSub) + '</span>'
-      : '';
-    var chipHtml = chip
-      ? '<span class="daily-kpi__chip daily-kpi__chip--' + chip.className + '">' + escapeHtml(chip.label) + '</span>'
+    // CAC value: dash cuando no hay cierres (evita $0 / div-by-zero noise).
+    var cacText = (current.cierres > 0) ? fmtMoney(current.cac) : '—';
+
+    var metrics = ''
+      + metricRowHtml('Inversión',          fmtMoney(current.inversion_atribuida))
+      + metricRowHtml('Preaut+',            fmtNum(current.preaut_positivos))
+      + metricRowHtml('Firmas Programadas', fmtNum(current.firmas_programadas))
+      + metricRowHtml('Firmas',             fmtNum(current.cierres))
+      + metricRowHtml('CAC',                cacText);
+
+    var foot = variantFootMessage(variant);
+    var footHtml = foot
+      ? '<div class="daily-card__foot">' + escapeHtml(foot) + '</div>'
       : '';
 
     return ''
-      + '<div class="daily-card" data-variant="A" data-plaza="' + escapeHtml(plaza) + '">'
+      + '<div class="daily-card" data-variant="' + variant + '" data-plaza="' + escapeHtml(plaza) + '">'
       +   '<div class="daily-card__header">'
       +     '<h3 class="daily-card__plaza">' + escapeHtml(plaza) + '</h3>'
       +     chipHtml
       +   '</div>'
       +   '<div class="daily-card__body">'
-      +     '<div class="daily-card__metric-label">CAC</div>'
-      +     '<div class="daily-card__metric-value">' + escapeHtml(fmtMoney(current.cac)) + cierresLabel + '</div>'
-      +     '<div class="daily-card__delta-row">' + deltaHtml + deltaSubHtml + '</div>'
-      +     investedLineHtml(current)
+      +     '<div class="daily-card__metrics">' + metrics + '</div>'
       +     sparklineHtml(sparkData)
       +   '</div>'
-      +   '<div class="daily-card__foot">' + escapeHtml(cacHint) + '</div>'
-      + '</div>';
-  }
-
-  function cardVariantB(plaza, current, sparkData) {
-    return ''
-      + '<div class="daily-card" data-variant="B" data-plaza="' + escapeHtml(plaza) + '">'
-      +   '<div class="daily-card__header">'
-      +     '<h3 class="daily-card__plaza">' + escapeHtml(plaza) + '</h3>'
-      +   '</div>'
-      +   '<div class="daily-card__body">'
-      +     '<div class="daily-card__metric-label">Costo / preaut+</div>'
-      +     '<div class="daily-card__metric-value">' + escapeHtml(fmtMoney(current.costo_preaut_positivo)) + '</div>'
-      +     '<div class="daily-card__delta daily-card__delta--flat">Sin cierres todavía</div>'
-      +     investedLineHtml(current)
-      +     sparklineHtml(sparkData)
-      +   '</div>'
-      +   '<div class="daily-card__foot">Preaut+ sin cierre — data de referencia</div>'
-      + '</div>';
-  }
-
-  // Variante D — LEADS_SIN_PREAUT: leads entraron pero ninguno llegó a
-  // preaut+ todavía. Métrica principal "N leads · 0 preaut+" informa a Mario
-  // que el tráfico SÍ existe pero el filtro bureau está cortando. Sin chip
-  // (no hay CAC aún para marcar status). Card gris un tono más claro que
-  // variante C (sentido: no está muerta, solo sin conversión aún).
-  function cardVariantD(plaza, current, sparkData) {
-    var n = current.leads_brutos || 0;
-    return ''
-      + '<div class="daily-card daily-card--leads-only" data-variant="D" data-plaza="' + escapeHtml(plaza) + '">'
-      +   '<div class="daily-card__header">'
-      +     '<h3 class="daily-card__plaza">' + escapeHtml(plaza) + '</h3>'
-      +   '</div>'
-      +   '<div class="daily-card__body">'
-      +     '<div class="daily-card__metric-label">Leads sin preaut+</div>'
-      +     '<div class="daily-card__metric-value">' + n + ' lead' + (n === 1 ? '' : 's')
-      +       ' <span class="daily-card__metric-sub">· 0 preaut+</span></div>'
-      +     '<div class="daily-card__delta daily-card__delta--flat">Lead sin calificar</div>'
-      +     investedLineHtml(current)
-      +     sparklineHtml(sparkData)
-      +   '</div>'
-      +   '<div class="daily-card__foot">Revisar calidad del tráfico</div>'
-      + '</div>';
-  }
-
-  // Variante E — SPEND_SIN_LEADS: hay gasto en ads pero cero leads. Chip
-  // "Revisar" ámbar informativo (NO rojo alarma — el cliente lo va a ver
-  // y el mensaje es "revisar" no "falla crítica"). Borde ámbar sutil.
-  // Sparkline de inversión (si hay data) muestra si el gasto es sostenido
-  // o reciente.
-  function cardVariantE(plaza, current, sparkInversion) {
-    var spend = current.inversion_atribuida || 0;
-    return ''
-      + '<div class="daily-card daily-card--spend-only" data-variant="E" data-plaza="' + escapeHtml(plaza) + '">'
-      +   '<div class="daily-card__header">'
-      +     '<h3 class="daily-card__plaza">' + escapeHtml(plaza) + '</h3>'
-      +     '<span class="daily-kpi__chip daily-kpi__chip--amber">Revisar</span>'
-      +   '</div>'
-      +   '<div class="daily-card__body">'
-      +     '<div class="daily-card__metric-label">Spend sin leads</div>'
-      +     '<div class="daily-card__metric-value">' + escapeHtml(fmtMoney(spend))
-      +       ' <span class="daily-card__metric-sub">· 0 leads</span></div>'
-      +     '<div class="daily-card__delta daily-card__delta--flat">Gasto sin atribución</div>'
-      +     sparklineHtml(sparkInversion)
-      +   '</div>'
-      +   '<div class="daily-card__foot">Revisar mapping ads → plaza</div>'
-      + '</div>';
-  }
-
-  function cardVariantC(plaza) {
-    return ''
-      + '<div class="daily-card daily-card--empty" data-variant="C" data-plaza="' + escapeHtml(plaza) + '">'
-      +   '<div class="daily-card__header">'
-      +     '<h3 class="daily-card__plaza">' + escapeHtml(plaza) + '</h3>'
-      +   '</div>'
-      +   '<div class="daily-card__empty-body">'
-      +     '<svg class="daily-card__empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
-      +       '<circle cx="12" cy="12" r="9"/><path d="M8 12h8"/>'
-      +     '</svg>'
-      +     '<div class="daily-card__empty-text">Sin actividad</div>'
-      +   '</div>'
+      +   footHtml
       + '</div>';
   }
 
