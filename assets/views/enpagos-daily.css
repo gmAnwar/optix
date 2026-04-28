@@ -543,3 +543,21 @@
   min-width: 5.5em;
   text-align: right;
 }
+
+/* PREAUTORIZADOS = encabezado de grupo. Las 4 filas debajo (Preaut+,
+   Cancelados, Firmas Programadas, Firmas) son subsets. Se destaca
+   con label semibold y value un grado más grande para señalar la
+   jerarquía visual. */
+.app-redesign .daily-card__metric-row--header .daily-card__metric-row-label {
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-secondary);
+}
+
+.app-redesign .daily-card__metric-row--header .daily-card__metric-row-value {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-bold);
+}
+
+.app-redesign .daily-card__metric-row--header .daily-card__metric-row-cpa {
+  color: var(--color-text-secondary);
+}

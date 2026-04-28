@@ -395,7 +395,9 @@
   function shouldHideSpecial(city) {
     var c = (city && city.current) || {};
     return (c.inversion_atribuida || 0) === 0
+        && (c.leads_brutos || 0) === 0
         && (c.preaut_positivos || 0) === 0
+        && (c.cancelados || 0) === 0
         && (c.firmas_programadas || 0) === 0
         && (c.cierres || 0) === 0;
   }
@@ -486,9 +488,10 @@
       + '</div>';
   }
 
-  function metricRowWithCpaHtml(label, value, cpa) {
+  function metricRowWithCpaHtml(label, value, cpa, opts) {
+    var modClass = (opts && opts.header) ? ' daily-card__metric-row--header' : '';
     return ''
-      + '<div class="daily-card__metric-row daily-card__metric-row--with-cpa">'
+      + '<div class="daily-card__metric-row daily-card__metric-row--with-cpa' + modClass + '">'
       +   '<span class="daily-card__metric-row-label">' + escapeHtml(label) + '</span>'
       +   '<span class="daily-card__metric-row-value">' + escapeHtml(value) + '</span>'
       +   '<span class="daily-card__metric-row-cpa">CPA ' + escapeHtml(cpa) + '</span>'
@@ -517,8 +520,14 @@
     var cacText = (current.cierres > 0) ? fmtMoney(current.cac) : '—';
 
     var inv = current.inversion_atribuida;
+    // PREAUTORIZADOS = leads_brutos (encabezado de grupo): cuenta TODA solicitud
+    // que entró al funnel. Las 4 sub-métricas debajo (Preaut+, Cancelados,
+    // Firmas Programadas, Firmas) son subsets de PREAUTORIZADOS — hoy se
+    // suman aproximadamente; cuando S61 agregue Rechazados al backend se
+    // cerrará la conciliación exacta.
     var metrics = ''
       + metricRowHtml('Inversión',                   fmtMoney(inv))
+      + metricRowWithCpaHtml('Preautorizados',       fmtNum(current.leads_brutos),        cpaText(inv, current.leads_brutos),        { header: true })
       + metricRowWithCpaHtml('Preaut+',              fmtNum(current.preaut_positivos),    cpaText(inv, current.preaut_positivos))
       + metricRowWithCpaHtml('Cancelados',           fmtNum(current.cancelados),          cpaText(inv, current.cancelados))
       + metricRowWithCpaHtml('Firmas Programadas',   fmtNum(current.firmas_programadas),  cpaText(inv, current.firmas_programadas))
