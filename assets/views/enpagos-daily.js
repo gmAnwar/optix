@@ -395,7 +395,9 @@
   function shouldHideSpecial(city) {
     var c = (city && city.current) || {};
     return (c.inversion_atribuida || 0) === 0
+        && (c.leads_brutos || 0) === 0
         && (c.preaut_positivos || 0) === 0
+        && (c.cancelados || 0) === 0
         && (c.firmas_programadas || 0) === 0
         && (c.cierres || 0) === 0;
   }
@@ -469,6 +471,15 @@
     return '';
   }
 
+  // S60 (continuación): cada fila intermedia (Preaut+, Cancelados, Firmas
+  // Programadas, Firmas) muestra valor + CPA al lado. CPA = inversion / N.
+  // Si N == 0 o nullish → "—" (evita div-by-zero / "$Infinity").
+  function cpaText(inversion, count) {
+    if (!count || count <= 0) return '—';
+    if (inversion == null || isNaN(inversion)) return '—';
+    return fmtMoney(inversion / count);
+  }
+
   function metricRowHtml(label, value) {
     return ''
       + '<div class="daily-card__metric-row">'
@@ -477,11 +488,20 @@
       + '</div>';
   }
 
+  function metricRowWithCpaHtml(label, value, cpa, opts) {
+    var modClass = (opts && opts.header) ? ' daily-card__metric-row--header' : '';
+    return ''
+      + '<div class="daily-card__metric-row daily-card__metric-row--with-cpa' + modClass + '">'
+      +   '<span class="daily-card__metric-row-label">' + escapeHtml(label) + '</span>'
+      +   '<span class="daily-card__metric-row-value">' + escapeHtml(value) + '</span>'
+      +   '<span class="daily-card__metric-row-cpa">CPA ' + escapeHtml(cpa) + '</span>'
+      + '</div>';
+  }
+
   function cardHtml(plaza, city, deltaSub) {
     var current = city.current || {};
     var vsGoal  = city.vs_goal || {};
     var variant = variantOf(current);
-    var sparkData = (variant === 'E') ? city.sparkline_inversion : city.sparkline_cierres;
 
     // Chip vs_goal (cac_status). Solo se renderiza cuando hay status y hay
     // CAC computable (cierres > 0). Sino el chip diría algo sin denominador.
@@ -499,12 +519,20 @@
     // CAC value: dash cuando no hay cierres (evita $0 / div-by-zero noise).
     var cacText = (current.cierres > 0) ? fmtMoney(current.cac) : '—';
 
+    var inv = current.inversion_atribuida;
+    // PREAUTORIZADOS = leads_brutos (encabezado de grupo): cuenta TODA solicitud
+    // que entró al funnel. Las 4 sub-métricas debajo (Preaut+, Cancelados,
+    // Firmas Programadas, Firmas) son subsets de PREAUTORIZADOS — hoy se
+    // suman aproximadamente; cuando S61 agregue Rechazados al backend se
+    // cerrará la conciliación exacta.
     var metrics = ''
-      + metricRowHtml('Inversión',          fmtMoney(current.inversion_atribuida))
-      + metricRowHtml('Preaut+',            fmtNum(current.preaut_positivos))
-      + metricRowHtml('Firmas Programadas', fmtNum(current.firmas_programadas))
-      + metricRowHtml('Firmas',             fmtNum(current.cierres))
-      + metricRowHtml('CAC',                cacText);
+      + metricRowHtml('Inversión',                   fmtMoney(inv))
+      + metricRowWithCpaHtml('Preautorizados',       fmtNum(current.leads_brutos),        cpaText(inv, current.leads_brutos),        { header: true })
+      + metricRowWithCpaHtml('Preaut+',              fmtNum(current.preaut_positivos),    cpaText(inv, current.preaut_positivos))
+      + metricRowWithCpaHtml('Cancelados',           fmtNum(current.cancelados),          cpaText(inv, current.cancelados))
+      + metricRowWithCpaHtml('Firmas Programadas',   fmtNum(current.firmas_programadas),  cpaText(inv, current.firmas_programadas))
+      + metricRowWithCpaHtml('Firmas',               fmtNum(current.cierres),             cpaText(inv, current.cierres))
+      + metricRowHtml('CAC',                         cacText);
 
     var foot = variantFootMessage(variant);
     var footHtml = foot
@@ -519,25 +547,12 @@
       +   '</div>'
       +   '<div class="daily-card__body">'
       +     '<div class="daily-card__metrics">' + metrics + '</div>'
-      +     sparklineHtml(sparkData)
       +   '</div>'
       +   footHtml
       + '</div>';
   }
 
-  function sparklineHtml(points) {
-    if (!Array.isArray(points) || points.length < 2) {
-      return '<div class="daily-card__spark" aria-hidden="true"></div>';
-    }
-    var allZero = points.every(function (n) { return n === 0 || n == null; });
-    if (allZero) {
-      return '<div class="daily-card__spark" aria-hidden="true"></div>';
-    }
-    var svg = window.Sparkline && window.Sparkline.html
-      ? window.Sparkline.html({ points: points, width: 200, height: 28, showDot: true })
-      : '';
-    return '<div class="daily-card__spark" aria-hidden="true">' + svg + '</div>';
-  }
+
 
   // ── Render: subtitle (period label from meta) ────────────────────────
   function updateSubtitle(data) {
