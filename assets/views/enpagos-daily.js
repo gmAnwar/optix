@@ -233,8 +233,13 @@
         deltaSub:  deltaSub
       },
       {
+        // S60 batch 3: aux = costo por preaut+ (totals.current.costo_preaut_positivo).
+        // Se muestra al lado del valor sin el prefijo "CPA" (decisión Anwar).
         label: 'Preaut+',
         value: fmtNum(current.preaut_positivos),
+        aux: (current.preaut_positivos != null && current.preaut_positivos > 0)
+              ? fmtMoney(current.costo_preaut_positivo)
+              : null,
         rawValue: current.preaut_positivos,
         deltaText: fmtDeltaAbs(delta.preaut_positivos_abs),
         deltaSrc:  delta.preaut_positivos_abs,
@@ -331,13 +336,16 @@
     var goalHintHtml = cell.sub
       ? '<span class="daily-kpi__goal-hint">' + escapeHtml(cell.sub) + '</span>'
       : '';
+    var auxHtml = cell.aux
+      ? ' <span class="daily-kpi__value-aux">' + escapeHtml(cell.aux) + '</span>'
+      : '';
     return ''
       + '<div class="daily-kpi">'
       +   '<div class="daily-kpi__head">'
       +     '<div class="daily-kpi__label">' + escapeHtml(cell.label) + '</div>'
       +     chip
       +   '</div>'
-      +   '<div class="daily-kpi__value num"' + titleAttr + '>' + escapeHtml(cell.value) + '</div>'
+      +   '<div class="daily-kpi__value num"' + titleAttr + '>' + escapeHtml(cell.value) + auxHtml + '</div>'
       +   '<div class="daily-kpi__sub">' + deltaHtml + deltaSubHtml + goalHintHtml + '</div>'
       + '</div>';
   }
@@ -494,7 +502,22 @@
       + '<div class="daily-card__metric-row daily-card__metric-row--with-cpa' + modClass + '">'
       +   '<span class="daily-card__metric-row-label">' + escapeHtml(label) + '</span>'
       +   '<span class="daily-card__metric-row-value">' + escapeHtml(value) + '</span>'
-      +   '<span class="daily-card__metric-row-cpa">CPA ' + escapeHtml(cpa) + '</span>'
+      +   '<span class="daily-card__metric-row-cpa">' + escapeHtml(cpa) + '</span>'
+      + '</div>';
+  }
+
+  // Footer fila combinada CIERRES N | CAC $X,XXX. Reemplaza las filas
+  // separadas de "Firmas" y "CAC" del batch anterior.
+  function cierresCacRowHtml(cierres, cacText) {
+    return ''
+      + '<div class="daily-card__metric-row daily-card__metric-row--cierres-cac">'
+      +   '<span class="daily-card__cierres-cac">'
+      +     '<span class="daily-card__cierres-cac-label">CIERRES</span>'
+      +     '<span class="daily-card__cierres-cac-value">' + escapeHtml(fmtNum(cierres)) + '</span>'
+      +     '<span class="daily-card__cierres-cac-sep">|</span>'
+      +     '<span class="daily-card__cierres-cac-label">CAC</span>'
+      +     '<span class="daily-card__cierres-cac-value">' + escapeHtml(cacText) + '</span>'
+      +   '</span>'
       + '</div>';
   }
 
@@ -521,18 +544,18 @@
 
     var inv = current.inversion_atribuida;
     // PREAUTORIZADOS = leads_brutos (encabezado de grupo): cuenta TODA solicitud
-    // que entró al funnel. Las 4 sub-métricas debajo (Preaut+, Cancelados,
-    // Firmas Programadas, Firmas) son subsets de PREAUTORIZADOS — hoy se
-    // suman aproximadamente; cuando S61 agregue Rechazados al backend se
-    // cerrará la conciliación exacta.
+    // que entró al funnel. Las sub-métricas debajo (Preaut+, Cancelados,
+    // Firmas Programadas) son subsets de PREAUTORIZADOS — hoy se suman
+    // aproximadamente; cuando S61 agregue Rechazados al backend se cerrará la
+    // conciliación exacta. CIERRES + CAC viven en una fila combinada al final.
+    // Cancelados va sin CPA (decisión Anwar S60: el CPA cancelado no es accionable).
     var metrics = ''
       + metricRowHtml('Inversión',                   fmtMoney(inv))
       + metricRowWithCpaHtml('Preautorizados',       fmtNum(current.leads_brutos),        cpaText(inv, current.leads_brutos),        { header: true })
       + metricRowWithCpaHtml('Preaut+',              fmtNum(current.preaut_positivos),    cpaText(inv, current.preaut_positivos))
-      + metricRowWithCpaHtml('Cancelados',           fmtNum(current.cancelados),          cpaText(inv, current.cancelados))
+      + metricRowHtml('Cancelados',                  fmtNum(current.cancelados))
       + metricRowWithCpaHtml('Firmas Programadas',   fmtNum(current.firmas_programadas),  cpaText(inv, current.firmas_programadas))
-      + metricRowWithCpaHtml('Firmas',               fmtNum(current.cierres),             cpaText(inv, current.cierres))
-      + metricRowHtml('CAC',                         cacText);
+      + cierresCacRowHtml(current.cierres,           cacText);
 
     var foot = variantFootMessage(variant);
     var footHtml = foot
