@@ -1,0 +1,1367 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Luzyla · Sistema de Arranque · OptimizAds</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,300;1,9..144,400;1,9..144,500&family=Figtree:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #FFFFFF;
+  --bg-soft: #F7F7F7;
+  --bg-deep: #EFEFEF;
+  --ink: #0A0A0A;
+  --ink-soft: #1F1F1F;
+  --ink-mid: #4A4A4A;
+  --ink-dim: #8A8A8A;
+  --line: rgba(10, 10, 10, 0.1);
+  --line-soft: rgba(10, 10, 10, 0.05);
+  --serif: 'Fraunces', 'Times New Roman', serif;
+  --sans: 'Figtree', -apple-system, BlinkMacSystemFont, sans-serif;
+  --mono: 'JetBrains Mono', 'Courier New', monospace;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-weight: 400;
+  line-height: 1.6;
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+}
+
+/* ============ PASSWORD GATE ============ */
+.gate {
+  position: fixed; inset: 0; z-index: 1000;
+  background: var(--ink);
+  display: flex; align-items: center; justify-content: center;
+  transition: opacity 0.6s ease, visibility 0.6s;
+}
+.gate.unlocked { opacity: 0; visibility: hidden; pointer-events: none; }
+
+.gate-grain {
+  position: absolute; inset: 0; opacity: 0.18;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.4'/%3E%3C/svg%3E");
+  pointer-events: none; mix-blend-mode: overlay;
+}
+
+.gate-inner {
+  position: relative; z-index: 2;
+  width: min(440px, 90vw);
+  padding: 48px 40px;
+  text-align: center;
+  color: #FFFFFF;
+}
+
+.gate-mark {
+  font-family: var(--serif);
+  font-size: 12px; font-weight: 400;
+  letter-spacing: 0.4em; text-transform: uppercase;
+  color: rgba(255,255,255,0.55);
+  margin-bottom: 48px;
+  display: flex; align-items: center; justify-content: center; gap: 14px;
+}
+.gate-mark::before, .gate-mark::after {
+  content: ''; width: 24px; height: 1px;
+  background: rgba(255,255,255,0.4);
+}
+
+.gate h1 {
+  font-family: var(--serif);
+  font-weight: 300; font-size: 44px; font-style: italic;
+  line-height: 1; margin-bottom: 16px; letter-spacing: -0.02em;
+}
+.gate h1 strong {
+  font-weight: 500; font-style: normal; display: block;
+  font-size: 56px; letter-spacing: -0.03em; margin-top: 6px;
+}
+
+.gate p {
+  font-size: 14px; color: rgba(255,255,255,0.55);
+  margin-bottom: 36px; line-height: 1.7;
+}
+
+.gate-form { display: flex; flex-direction: column; gap: 12px; }
+
+.gate input {
+  width: 100%; padding: 16px 18px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.18);
+  color: #FFFFFF;
+  font-family: var(--sans); font-size: 15px;
+  letter-spacing: 0.02em; outline: none;
+  transition: border-color 0.2s, background 0.2s;
+}
+.gate input:focus {
+  border-color: rgba(255,255,255,0.7);
+  background: rgba(255,255,255,0.1);
+}
+.gate input::placeholder { color: rgba(255,255,255,0.35); }
+
+.gate button {
+  padding: 16px 18px; background: #FFFFFF; color: var(--ink);
+  border: none; font-family: var(--sans);
+  font-weight: 600; font-size: 12px;
+  letter-spacing: 0.16em; text-transform: uppercase;
+  cursor: pointer; transition: background 0.2s, transform 0.1s;
+}
+.gate button:hover { background: #ECECEC; }
+.gate button:active { transform: translateY(1px); }
+
+.gate-error {
+  color: #d68b8b; font-size: 13px;
+  margin-top: 8px; min-height: 18px;
+}
+
+.gate-footer {
+  margin-top: 56px; font-size: 10px;
+  letter-spacing: 0.3em; text-transform: uppercase;
+  color: rgba(255,255,255,0.3);
+}
+
+/* ============ NAV ============ */
+.nav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  padding: 18px 40px;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--line-soft);
+  display: flex; align-items: center; justify-content: space-between;
+}
+@media (max-width: 800px) { .nav { padding: 14px 20px; } }
+
+.nav-brand {
+  display: flex; align-items: center; gap: 14px;
+  font-family: var(--serif); font-weight: 500; font-size: 16px;
+  color: var(--ink);
+}
+.nav-brand-mark {
+  width: 28px; height: 28px;
+  border: 1px solid var(--ink); border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-style: italic; font-weight: 400;
+  letter-spacing: -0.05em;
+}
+.nav-brand-sub {
+  font-family: var(--sans);
+  font-size: 11px; font-weight: 400;
+  letter-spacing: 0.18em; text-transform: uppercase;
+  color: var(--ink-dim);
+  margin-left: 8px; padding-left: 14px;
+  border-left: 1px solid var(--line);
+}
+
+.nav-links { display: flex; gap: 26px; }
+@media (max-width: 1100px) { .nav-links { display: none; } }
+
+.navlink {
+  font-family: var(--sans);
+  font-size: 11px; font-weight: 500;
+  letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--ink-dim); text-decoration: none;
+  transition: color 0.2s;
+}
+.navlink:hover, .navlink.active { color: var(--ink); }
+
+.nav-count {
+  font-family: var(--mono); font-size: 11px; font-weight: 500;
+  color: var(--ink-dim); letter-spacing: 0.05em;
+}
+
+/* ============ HERO ============ */
+.hero {
+  min-height: 100vh; padding: 120px 40px 80px;
+  display: flex; flex-direction: column;
+  position: relative; background: var(--bg);
+}
+@media (max-width: 700px) { .hero { padding: 110px 20px 60px; } }
+
+.hero-meta {
+  display: flex; justify-content: space-between;
+  margin-bottom: auto;
+  font-family: var(--mono); font-size: 11px;
+  color: var(--ink-mid); letter-spacing: 0.05em;
+  position: relative; z-index: 2;
+}
+.hero-meta-block b {
+  display: block; font-weight: 500; color: var(--ink);
+  margin-bottom: 6px; text-transform: uppercase;
+  letter-spacing: 0.18em; font-size: 10px;
+}
+.hero-meta-block { line-height: 1.7; }
+
+.hero-title-wrap { margin: 80px 0; position: relative; z-index: 2; }
+@media (max-width: 700px) { .hero-title-wrap { margin: 60px 0; } }
+
+.hero-kicker {
+  font-family: var(--sans);
+  font-size: 11px; font-weight: 500;
+  letter-spacing: 0.3em; text-transform: uppercase;
+  color: var(--ink); margin-bottom: 28px;
+  display: flex; align-items: center; gap: 14px;
+}
+.hero-kicker::before {
+  content: ''; width: 32px; height: 1px;
+  background: var(--ink);
+}
+
+.hero h1 {
+  font-family: var(--serif);
+  font-weight: 300; font-size: clamp(56px, 9vw, 124px);
+  line-height: 0.92; letter-spacing: -0.04em;
+  color: var(--ink);
+}
+.hero h1 em { font-style: italic; font-weight: 300; }
+
+.hero-desc {
+  margin-top: 40px; max-width: 580px;
+  font-size: 17px; line-height: 1.7;
+  color: var(--ink-soft); font-weight: 400;
+}
+
+.hero-footer {
+  display: flex; justify-content: space-between; align-items: flex-end;
+  margin-top: auto; padding-top: 60px;
+  border-top: 1px solid var(--line);
+  position: relative; z-index: 2;
+  flex-wrap: wrap; gap: 30px;
+}
+
+.hero-scroll {
+  font-family: var(--mono); font-size: 11px;
+  text-transform: uppercase; letter-spacing: 0.2em;
+  color: var(--ink-dim);
+  display: flex; align-items: center; gap: 12px;
+}
+.hero-scroll-line {
+  width: 24px; height: 1px;
+  background: var(--ink-dim); display: inline-block;
+}
+
+.hero-stats { display: flex; gap: 48px; flex-wrap: wrap; }
+@media (max-width: 700px) { .hero-stats { gap: 28px; } }
+
+.stat { text-align: right; }
+.stat-num {
+  font-family: var(--serif);
+  font-size: 38px; font-weight: 400; font-style: italic;
+  color: var(--ink); line-height: 1; letter-spacing: -0.02em;
+}
+.stat-lbl {
+  font-family: var(--sans);
+  font-size: 10px; text-transform: uppercase;
+  letter-spacing: 0.2em; color: var(--ink-dim);
+  margin-top: 6px; font-weight: 500;
+}
+
+/* ============ SECTIONS ============ */
+section { padding: 140px 40px; position: relative; }
+@media (max-width: 700px) { section { padding: 90px 20px; } }
+.container { max-width: 1200px; margin: 0 auto; }
+
+.section-head {
+  display: grid; grid-template-columns: 200px 1fr;
+  gap: 60px; margin-bottom: 80px;
+  padding-bottom: 32px; border-bottom: 1px solid var(--line);
+}
+@media (max-width: 800px) {
+  .section-head { grid-template-columns: 1fr; gap: 18px; margin-bottom: 50px; }
+}
+
+.section-num {
+  font-family: var(--mono);
+  font-size: 12px; font-weight: 500;
+  letter-spacing: 0.2em; color: var(--ink); text-transform: uppercase;
+}
+.section-num b {
+  display: block; font-family: var(--serif);
+  font-weight: 300; font-size: 48px; font-style: italic;
+  color: var(--ink); letter-spacing: -0.02em;
+  margin-top: 6px; text-transform: lowercase;
+}
+@media (max-width: 800px) { .section-num b { font-size: 36px; } }
+
+.section-title h2 {
+  font-family: var(--serif);
+  font-weight: 400; font-size: clamp(36px, 5vw, 60px);
+  line-height: 1; letter-spacing: -0.02em;
+  color: var(--ink); margin-bottom: 18px;
+}
+.section-title h2 em { font-style: italic; font-weight: 300; }
+.section-title p {
+  font-size: 16px; line-height: 1.7;
+  color: var(--ink-mid); max-width: 580px;
+}
+
+/* === BULLETS === */
+ul.bullet-list { list-style: none; }
+ul.bullet-list li {
+  position: relative; padding-left: 22px;
+  font-size: 14px; line-height: 1.55;
+  color: var(--ink-soft);
+  margin-bottom: 12px;
+}
+ul.bullet-list li:last-child { margin-bottom: 0; }
+ul.bullet-list li::before {
+  content: '—'; position: absolute;
+  left: 0; top: 0;
+  color: var(--ink); font-weight: 500;
+}
+
+/* === SEC 01 — TRABAJO === */
+.work-grid {
+  display: grid; grid-template-columns: repeat(2, 1fr);
+  gap: 1px; background: var(--line);
+  border: 1px solid var(--line);
+}
+@media (max-width: 800px) { .work-grid { grid-template-columns: 1fr; } }
+
+.work-card { background: var(--bg); padding: 44px 36px; }
+
+.work-tag {
+  font-family: var(--mono);
+  font-size: 10px; letter-spacing: 0.2em;
+  text-transform: uppercase; color: var(--ink);
+  margin-bottom: 22px; font-weight: 500;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--line);
+}
+.work-card h3 {
+  font-family: var(--serif);
+  font-weight: 400; font-size: 26px;
+  line-height: 1.15; letter-spacing: -0.01em;
+  margin-bottom: 22px; color: var(--ink);
+}
+.work-card h3 em { font-style: italic; font-weight: 300; }
+
+.work-callout {
+  margin-top: 64px; padding: 36px 40px;
+  background: var(--bg-soft);
+  border-left: 2px solid var(--ink);
+  display: grid; grid-template-columns: 200px 1fr;
+  gap: 36px; align-items: start;
+}
+@media (max-width: 700px) {
+  .work-callout { grid-template-columns: 1fr; gap: 18px; padding: 28px; }
+}
+.work-callout-tag {
+  font-family: var(--mono);
+  font-size: 10px; letter-spacing: 0.2em;
+  text-transform: uppercase; color: var(--ink);
+  font-weight: 500;
+}
+.work-callout p {
+  font-family: var(--serif);
+  font-style: italic; font-weight: 300;
+  font-size: 22px; line-height: 1.45;
+  color: var(--ink); letter-spacing: -0.01em;
+}
+@media (max-width: 700px) { .work-callout p { font-size: 18px; } }
+
+/* === SEC 02 — COMPROMISOS === */
+.sec-commit {
+  background: var(--ink); color: #FFFFFF;
+}
+.sec-commit .section-num { color: rgba(255,255,255,0.7); }
+.sec-commit .section-num b { color: #FFFFFF; }
+.sec-commit .section-title h2 { color: #FFFFFF; }
+.sec-commit .section-title p { color: rgba(255,255,255,0.65); }
+.sec-commit .section-head { border-bottom-color: rgba(255,255,255,0.15); }
+
+.commit-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 1px; background: rgba(255,255,255,0.12);
+  border: 1px solid rgba(255,255,255,0.12);
+}
+@media (max-width: 900px) { .commit-grid { grid-template-columns: 1fr; } }
+
+.commit-card { background: var(--ink); padding: 44px 32px; }
+
+.commit-num {
+  font-family: var(--mono);
+  font-size: 10px; letter-spacing: 0.25em;
+  color: rgba(255,255,255,0.6);
+  text-transform: uppercase; margin-bottom: 8px; font-weight: 500;
+}
+.commit-num b {
+  display: block; font-family: var(--serif);
+  font-style: italic; font-weight: 300; font-size: 56px;
+  letter-spacing: -0.04em; color: #FFFFFF;
+  line-height: 1; margin-top: 4px; margin-bottom: 28px;
+}
+
+.commit-card h3 {
+  font-family: var(--serif);
+  font-weight: 400; font-size: 24px;
+  line-height: 1.2; letter-spacing: -0.01em;
+  color: #FFFFFF; margin-bottom: 20px;
+}
+.commit-card h3 em { font-style: italic; font-weight: 300; }
+
+.commit-card ul.bullet-list li {
+  color: rgba(255,255,255,0.78);
+  font-size: 14px;
+}
+.commit-card ul.bullet-list li::before { color: #FFFFFF; }
+
+/* === SEC 03 — SETUP === */
+.setup-list {
+  display: grid; gap: 0;
+  border-top: 1px solid var(--line);
+}
+
+.setup-item {
+  display: grid; grid-template-columns: 100px 1fr;
+  gap: 60px; padding: 48px 0;
+  border-bottom: 1px solid var(--line);
+  align-items: start;
+}
+@media (max-width: 800px) {
+  .setup-item { grid-template-columns: 1fr; gap: 16px; padding: 36px 0; }
+}
+
+.setup-num {
+  font-family: var(--mono);
+  font-size: 12px; letter-spacing: 0.18em;
+  color: var(--ink); font-weight: 500;
+  padding-top: 4px; text-transform: uppercase;
+}
+.setup-num b {
+  display: block; font-family: var(--serif);
+  font-style: italic; font-weight: 300; font-size: 64px;
+  letter-spacing: -0.04em; color: var(--ink);
+  line-height: 1; margin-top: 4px;
+}
+@media (max-width: 800px) { .setup-num b { font-size: 44px; } }
+
+.setup-content h3 {
+  font-family: var(--serif);
+  font-weight: 400; font-size: 30px;
+  line-height: 1.15; letter-spacing: -0.015em;
+  color: var(--ink); margin-bottom: 22px;
+}
+.setup-content h3 em { font-style: italic; font-weight: 300; }
+
+/* === SEC 04 — CALENDARIO === */
+.sec-calendar { background: var(--bg-soft); }
+
+.cal-grid {
+  display: grid; grid-template-columns: repeat(5, 1fr);
+  gap: 1px; background: var(--line);
+  border: 1px solid var(--line);
+}
+@media (max-width: 1000px) { .cal-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 600px) { .cal-grid { grid-template-columns: 1fr; } }
+
+.cal-week {
+  background: var(--bg-soft); padding: 32px 24px;
+  display: flex; flex-direction: column; min-height: 320px;
+}
+
+.cal-week-num {
+  font-family: var(--mono);
+  font-size: 10px; letter-spacing: 0.25em;
+  color: var(--ink-mid); text-transform: uppercase;
+  margin-bottom: 8px; font-weight: 500;
+}
+
+.cal-week-label {
+  font-family: var(--serif);
+  font-style: italic; font-weight: 300; font-size: 36px;
+  color: var(--ink); line-height: 1;
+  letter-spacing: -0.03em; margin-bottom: 24px;
+}
+
+.cal-week-event {
+  font-family: var(--sans);
+  font-size: 11px; font-weight: 600;
+  letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--ink-mid);
+  padding: 8px 0; margin-bottom: 14px;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  text-align: center;
+}
+.cal-week-event.session {
+  color: #FFFFFF; background: var(--ink);
+  padding: 8px 12px; border: none;
+  letter-spacing: 0.1em;
+}
+
+.cal-week-content {
+  font-size: 13px; line-height: 1.6;
+  color: var(--ink-soft); flex: 1;
+}
+.cal-week-content ul.bullet-list li {
+  font-size: 13px; margin-bottom: 8px;
+}
+
+.cal-week-actor {
+  margin-top: 20px; padding-top: 14px;
+  border-top: 1px solid var(--line);
+  font-family: var(--mono);
+  font-size: 10px; letter-spacing: 0.12em;
+  text-transform: uppercase; color: var(--ink-dim);
+}
+.cal-week-actor b {
+  display: block; color: var(--ink);
+  font-weight: 600; margin-bottom: 4px;
+  letter-spacing: 0.18em;
+}
+
+.cal-note {
+  margin-top: 40px; padding: 28px 32px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  font-size: 14px; line-height: 1.7;
+  color: var(--ink-soft);
+}
+.cal-note b { color: var(--ink); font-weight: 600; }
+
+/* === SEC 05 — ACOMPAÑAMIENTO === */
+.accomp-intro {
+  font-family: var(--serif);
+  font-style: italic; font-weight: 300;
+  font-size: clamp(22px, 2.6vw, 30px);
+  line-height: 1.45; color: var(--ink);
+  max-width: 880px; margin-bottom: 56px;
+  letter-spacing: -0.01em;
+}
+
+.accomp-grid {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 1px; background: var(--line);
+  border: 1px solid var(--line);
+}
+@media (max-width: 800px) { .accomp-grid { grid-template-columns: 1fr; } }
+
+.accomp-card { background: var(--bg); padding: 44px 40px; }
+
+.accomp-tag {
+  font-family: var(--mono);
+  font-size: 10px; letter-spacing: 0.2em;
+  text-transform: uppercase; color: var(--ink);
+  font-weight: 500; margin-bottom: 20px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.accomp-card h3 {
+  font-family: var(--serif);
+  font-weight: 300; font-style: italic; font-size: 36px;
+  letter-spacing: -0.02em;
+  margin-bottom: 6px; color: var(--ink);
+  line-height: 1;
+}
+.accomp-card h3 strong {
+  display: block; font-style: normal;
+  font-weight: 500; font-size: 13px;
+  letter-spacing: 0.14em; color: var(--ink-mid);
+  margin-top: 14px; text-transform: uppercase;
+}
+
+.accomp-card .bullet-list {
+  margin-top: 24px; padding-top: 20px;
+  border-top: 1px solid var(--line);
+}
+
+.accomp-note {
+  margin-top: 32px;
+  font-family: var(--sans);
+  font-size: 13px; color: var(--ink-mid);
+  font-style: italic; letter-spacing: 0.02em;
+}
+
+/* === SEC 06 — ALCANCE === */
+.exclude-grid {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 60px; align-items: start;
+}
+@media (max-width: 900px) { .exclude-grid { grid-template-columns: 1fr; gap: 40px; } }
+
+.exclude-list-title {
+  font-family: var(--mono);
+  font-size: 11px; letter-spacing: 0.2em;
+  text-transform: uppercase; color: var(--ink);
+  margin-bottom: 24px; font-weight: 500;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.exclude-list { list-style: none; }
+.exclude-list li {
+  font-family: var(--serif);
+  font-style: italic; font-weight: 300;
+  font-size: 22px; line-height: 1.4;
+  color: var(--ink); padding: 16px 0;
+  border-bottom: 1px solid var(--line-soft);
+  letter-spacing: -0.01em;
+  position: relative; padding-left: 36px;
+}
+.exclude-list li:last-child { border-bottom: none; }
+.exclude-list li::before {
+  content: '×'; position: absolute;
+  left: 0; top: 14px; color: var(--ink);
+  font-style: normal; font-family: var(--sans);
+  font-weight: 300; font-size: 28px; line-height: 1;
+}
+
+.exclude-note h4 {
+  font-family: var(--serif);
+  font-weight: 400; font-size: 26px;
+  letter-spacing: -0.01em; line-height: 1.3;
+  color: var(--ink); margin-bottom: 22px;
+}
+.exclude-note h4 em { font-style: italic; font-weight: 300; }
+.exclude-note .bullet-list li {
+  font-size: 15px; line-height: 1.6; margin-bottom: 14px;
+}
+
+/* === SEC 07 — FUTURO === */
+.sec-future {
+  background: var(--bg-soft);
+  text-align: center; padding: 160px 40px;
+}
+@media (max-width: 700px) { .sec-future { padding: 100px 20px; } }
+
+.future-eyebrow {
+  font-family: var(--mono);
+  font-size: 11px; letter-spacing: 0.3em;
+  text-transform: uppercase; color: var(--ink);
+  margin-bottom: 30px; font-weight: 500;
+  display: inline-flex; align-items: center; gap: 14px;
+}
+.future-eyebrow::before, .future-eyebrow::after {
+  content: ''; width: 32px; height: 1px;
+  background: var(--ink); opacity: 0.5;
+}
+
+.future-title {
+  font-family: var(--serif);
+  font-weight: 300; font-size: clamp(36px, 5.2vw, 64px);
+  line-height: 1.1; letter-spacing: -0.03em;
+  color: var(--ink); margin-bottom: 32px;
+  max-width: 920px; margin-left: auto; margin-right: auto;
+}
+.future-title em { font-style: italic; font-weight: 300; }
+
+.future-desc {
+  font-size: 16px; line-height: 1.75;
+  color: var(--ink-soft);
+  max-width: 620px; margin: 0 auto;
+}
+
+/* === SEC 08 — SIGUIENTE === */
+.next-list {
+  margin-top: 30px; display: grid; gap: 0;
+  border-top: 1px solid var(--line);
+}
+
+.next-step {
+  display: grid; grid-template-columns: 60px 1fr 200px;
+  gap: 40px; padding: 36px 0;
+  border-bottom: 1px solid var(--line);
+  align-items: center;
+}
+@media (max-width: 800px) {
+  .next-step { grid-template-columns: 50px 1fr; gap: 20px; padding: 24px 0; }
+  .next-step .next-meta { grid-column: 2; }
+}
+
+.next-num {
+  font-family: var(--serif);
+  font-style: italic; font-weight: 300; font-size: 36px;
+  color: var(--ink); letter-spacing: -0.02em; line-height: 1;
+}
+
+.next-text h4 {
+  font-family: var(--serif);
+  font-weight: 400; font-size: 22px;
+  letter-spacing: -0.01em; line-height: 1.3;
+  color: var(--ink); margin-bottom: 8px;
+}
+.next-text p {
+  font-size: 14px; line-height: 1.6; color: var(--ink-soft);
+}
+
+.next-meta {
+  font-family: var(--mono);
+  font-size: 11px; letter-spacing: 0.1em;
+  text-transform: uppercase; color: var(--ink-dim);
+  text-align: right;
+}
+.next-meta b {
+  display: block; color: var(--ink);
+  font-weight: 600; margin-bottom: 4px;
+}
+@media (max-width: 800px) { .next-meta { text-align: left; } }
+
+/* === FOOTER === */
+footer {
+  padding: 80px 40px 60px;
+  background: var(--ink); color: #FFFFFF;
+}
+
+.footer-line {
+  display: flex; justify-content: space-between; align-items: flex-end;
+  flex-wrap: wrap; gap: 40px;
+  max-width: 1200px; margin: 0 auto;
+}
+
+.footer-brand {
+  font-family: var(--serif);
+  font-weight: 300; font-style: italic;
+  font-size: 28px; letter-spacing: -0.02em; line-height: 1;
+}
+.footer-brand b {
+  font-weight: 500; font-style: normal;
+  display: inline-block; margin-left: 8px;
+}
+
+.footer-meta {
+  font-family: var(--mono);
+  font-size: 11px; letter-spacing: 0.1em;
+  color: rgba(255,255,255,0.55);
+  line-height: 1.8; text-align: right;
+}
+@media (max-width: 700px) { .footer-meta { text-align: left; } }
+
+.footer-meta b {
+  display: block; color: #FFFFFF;
+  font-weight: 500; text-transform: uppercase;
+  letter-spacing: 0.2em; margin-bottom: 4px;
+}
+
+.footer-bottom {
+  margin-top: 60px; padding-top: 30px;
+  border-top: 1px solid rgba(255,255,255,0.12);
+  display: flex; justify-content: space-between;
+  font-family: var(--mono);
+  font-size: 10px; letter-spacing: 0.2em;
+  text-transform: uppercase; color: rgba(255,255,255,0.45);
+  flex-wrap: wrap; gap: 12px;
+  max-width: 1200px; margin-left: auto; margin-right: auto;
+}
+
+/* === REVEAL === */
+.reveal {
+  opacity: 0; transform: translateY(24px);
+  transition: opacity 0.8s ease, transform 0.8s ease;
+}
+.reveal.visible { opacity: 1; transform: translateY(0); }
+.reveal.delay-1 { transition-delay: 0.1s; }
+.reveal.delay-2 { transition-delay: 0.2s; }
+</style>
+</head>
+<body>
+
+<!-- ============ PASSWORD GATE ============ -->
+<div class="gate" id="gate">
+  <div class="gate-grain"></div>
+  <div class="gate-inner">
+    <div class="gate-mark">OptimizAds · Documento Privado</div>
+    <h1>
+      <span>Para</span>
+      <strong>Luzyla.</strong>
+    </h1>
+    <p>Sistema de arranque estratégico. Alcance, tiempos y proceso de trabajo. Documento exclusivo para Rafa e Irene.</p>
+    <form class="gate-form" id="gateForm">
+      <input type="password" id="gatePass" placeholder="Contraseña" autocomplete="off" autofocus />
+      <button type="submit">Entrar</button>
+      <div class="gate-error" id="gateErr"></div>
+    </form>
+    <div class="gate-footer">Mayo 2026</div>
+  </div>
+</div>
+
+<!-- ============ NAV ============ -->
+<nav class="nav" id="nav">
+  <div class="nav-brand">
+    <span class="nav-brand-mark">L<em style="font-size:9px;">z</em></span>
+    Luzyla
+    <span class="nav-brand-sub">SAE · v1</span>
+  </div>
+  <div class="nav-links">
+    <a href="#trabajo" class="navlink">Trabajo</a>
+    <a href="#compromisos" class="navlink">Compromisos</a>
+    <a href="#setup" class="navlink">Setup</a>
+    <a href="#calendario" class="navlink">Calendario</a>
+    <a href="#acompanamiento" class="navlink">Acompañamiento</a>
+    <a href="#alcance" class="navlink">Alcance</a>
+    <a href="#siguiente" class="navlink">Siguiente</a>
+  </div>
+  <div class="nav-count" id="navCount">00 / 08</div>
+</nav>
+
+<!-- ============ HERO ============ -->
+<header class="hero" id="hero">
+  <div class="hero-meta">
+    <div class="hero-meta-block">
+      <b>Cliente</b>
+      Luzyla Joyería<br>
+      Rafa e Irene
+    </div>
+    <div class="hero-meta-block" style="text-align:right;">
+      <b>Preparado por</b>
+      OptimizAds
+    </div>
+  </div>
+
+  <div class="hero-title-wrap">
+    <div class="hero-kicker">Sistema de Arranque Estratégico</div>
+    <h1>
+      Una base<br>
+      <em>bien armada</em><br>
+      para arrancar.
+    </h1>
+    <p class="hero-desc">
+      Cómo dejamos sus campañas correctamente estructuradas. Qué hacemos, qué no,
+      en cuánto tiempo y qué necesitamos de su lado para que el sistema arranque
+      con la mejor base posible.
+    </p>
+  </div>
+
+  <div class="hero-footer">
+    <div class="hero-scroll">
+      <span class="hero-scroll-line"></span>
+      Scroll
+    </div>
+    <div class="hero-stats">
+      <div class="stat">
+        <div class="stat-num">08</div>
+        <div class="stat-lbl">Secciones</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num">05</div>
+        <div class="stat-lbl">Pasos del setup</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num">5sem</div>
+        <div class="stat-lbl">Hasta lanzamiento</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num">3</div>
+        <div class="stat-lbl">Sesiones juntos</div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- ============ SEC 01 — TRABAJO ============ -->
+<section id="trabajo">
+  <div class="container">
+    <div class="section-head reveal">
+      <div class="section-num">01 <b>i</b>Trabajo</div>
+      <div class="section-title">
+        <h2>Cómo vamos a<br><em>trabajar juntos.</em></h2>
+        <p>Antes de hablar del proceso, definimos cómo se siente la consultoría. Modo, velocidad y qué esperamos uno del otro.</p>
+      </div>
+    </div>
+
+    <div class="work-grid reveal">
+      <div class="work-card">
+        <div class="work-tag">Modo · Aprendizaje</div>
+        <h3>Te explicamos el <em>porqué</em> de cada decisión</h3>
+        <ul class="bullet-list">
+          <li>No solo decimos qué hacer, decimos por qué</li>
+          <li>Al final pueden replicar la metodología sin acompañamiento</li>
+          <li>El objetivo es que entiendan el sistema, no que dependan de OptimizAds</li>
+        </ul>
+      </div>
+      <div class="work-card">
+        <div class="work-tag">Velocidad · MVP</div>
+        <h3>Lanzamos <em>rápido</em> y optimizamos sobre datos reales</h3>
+        <ul class="bullet-list">
+          <li>No esperamos a tener todo perfecto para arrancar</li>
+          <li>Definimos lo mínimo necesario y lanzamos</li>
+          <li>Los datos nos dicen qué afinar — aprendizaje real, no teórico</li>
+        </ul>
+      </div>
+      <div class="work-card">
+        <div class="work-tag">Formato · Sesiones</div>
+        <h3>Las decisiones se toman <em>en sesión,</em> no por chat</h3>
+        <ul class="bullet-list">
+          <li>Cada paso del proceso tiene su sesión</li>
+          <li>Trabajo en conjunto, no entrega pasiva</li>
+          <li>Necesitamos a Rafa y a Irene presentes en cada sesión</li>
+        </ul>
+      </div>
+      <div class="work-card">
+        <div class="work-tag">Roles · Claros</div>
+        <h3>Ustedes <em>operan,</em> nosotros <em>dirigimos</em></h3>
+        <ul class="bullet-list">
+          <li>OptimizAds: estrategia, estructura, dirección, configuración</li>
+          <li>Ustedes: atención de leads, ventas, producción de creativos</li>
+          <li>La velocidad de respuesta a leads define mucho del resultado</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="work-callout reveal">
+      <div class="work-callout-tag">Filosofía</div>
+      <p>"El objetivo es construir un sistema que se pague con la venta. La consultoría existe para acortar la curva de aprendizaje, no para reemplazarla."</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ SEC 02 — COMPROMISOS ============ -->
+<section class="sec-commit" id="compromisos">
+  <div class="container">
+    <div class="section-head reveal">
+      <div class="section-num">02 <b>ii</b>Compromisos</div>
+      <div class="section-title">
+        <h2>Lo que necesitamos<br><em>de su lado.</em></h2>
+        <p>Tres compromisos operativos sin los cuales el sistema no se sostiene. No son negociables — son la base para que el setup tenga sentido.</p>
+      </div>
+    </div>
+
+    <div class="commit-grid reveal">
+      <div class="commit-card">
+        <div class="commit-num">Uno<b>01</b></div>
+        <h3>Atención <em>rápida de leads</em></h3>
+        <ul class="bullet-list">
+          <li>Definir tiempo objetivo en Sesión 1</li>
+          <li>Idealmente menor a 1 hora en horario laboral</li>
+          <li>Responsable claro: quién contesta, en qué canal</li>
+          <li>Sin esto, el costo de adquisición se infla y se pierden ventas</li>
+        </ul>
+      </div>
+
+      <div class="commit-card">
+        <div class="commit-num">Dos<b>02</b></div>
+        <h3>Análisis <em>diario de leads</em></h3>
+        <ul class="bullet-list">
+          <li>Plantilla que damos nosotros</li>
+          <li>Llenan diario lo que pasa con cada lead</li>
+          <li>5 a 10 minutos al día — proceso simple</li>
+          <li>Sin esto no hay forma de saber qué optimizar y se pierde el control</li>
+        </ul>
+      </div>
+
+      <div class="commit-card">
+        <div class="commit-num">Tres<b>03</b></div>
+        <h3>Producción <em>de creativos</em></h3>
+        <ul class="bullet-list">
+          <li>OptimizAds entrega los briefs y los guiones</li>
+          <li>Ustedes graban / fotografían según indicaciones</li>
+          <li>Foto y video con celular, sin necesidad de producción profesional</li>
+          <li>Para joyería normalmente lo orgánico funciona mejor</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ SEC 03 — SETUP ============ -->
+<section id="setup">
+  <div class="container">
+    <div class="section-head reveal">
+      <div class="section-num">03 <b>iii</b>Setup</div>
+      <div class="section-title">
+        <h2>Fase 01 ·<br><em>Setup Estratégico.</em></h2>
+        <p>Cinco pasos para dejar todo armado. Pago único, una sola vez. Las bases no se reconstruyen cada mes.</p>
+      </div>
+    </div>
+
+    <div class="setup-list">
+      <div class="setup-item reveal">
+        <div class="setup-num">Paso<b>01</b></div>
+        <div class="setup-content">
+          <h3>Diagnóstico <em>del negocio</em></h3>
+          <ul class="bullet-list">
+            <li>Modelo de negocio, oferta, propuesta de valor</li>
+            <li>Cliente ideal y perfil de comprador</li>
+            <li>Decisión clave: arrancar con cliente final o con modelo de emprendedoras</li>
+            <li>Capacidad operativa para atender leads</li>
+            <li>Objetivos comerciales para los primeros meses</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="setup-item reveal">
+        <div class="setup-num">Paso<b>02</b></div>
+        <div class="setup-content">
+          <h3>Investigación <em>y competencia</em></h3>
+          <ul class="bullet-list">
+            <li>Análisis de competencia activa en Meta Ads Library</li>
+            <li>Benchmarks de la categoría joyería</li>
+            <li>Ángulos diferenciados con mejor probabilidad de conversión</li>
+            <li>Trabajo interno de OptimizAds — no requiere su tiempo</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="setup-item reveal">
+        <div class="setup-num">Paso<b>03</b></div>
+        <div class="setup-content">
+          <h3>Mensaje, ángulos <em>y guiones</em></h3>
+          <ul class="bullet-list">
+            <li>Mensaje principal y enfoque de comunicación</li>
+            <li>Ángulos prioritarios a probar primero</li>
+            <li>Guiones específicos de los anuncios</li>
+            <li>Briefs claros para que ustedes produzcan creativos</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="setup-item reveal">
+        <div class="setup-num">Paso<b>04</b></div>
+        <div class="setup-content">
+          <h3>Arquitectura <em>de campañas</em></h3>
+          <ul class="bullet-list">
+            <li>Tipo de campañas y objetivos</li>
+            <li>Segmentación inicial</li>
+            <li>Distribución de presupuesto</li>
+            <li>Estructura documentada que permanece — solo se itera en creativos encima</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="setup-item reveal">
+        <div class="setup-num">Paso<b>05</b></div>
+        <div class="setup-content">
+          <h3>Setup técnico <em>y arranque</em></h3>
+          <ul class="bullet-list">
+            <li>Business Manager, Ad Account, Pixel, audiencias</li>
+            <li>Subida de campañas y validación técnica</li>
+            <li>Las campañas quedan corriendo — ustedes no tienen que picarle a nada</li>
+            <li>Objetivo: validar que el sistema funciona, no escalar todavía</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ SEC 04 — CALENDARIO ============ -->
+<section class="sec-calendar" id="calendario">
+  <div class="container">
+    <div class="section-head reveal">
+      <div class="section-num">04 <b>iv</b>Tiempos</div>
+      <div class="section-title">
+        <h2>Cinco semanas hasta<br><em>tener campañas corriendo.</em></h2>
+        <p>Calendario de la Fase 01. Tres sesiones de trabajo en conjunto y dos semanas de trabajo nuestro y de producción de su lado.</p>
+      </div>
+    </div>
+
+    <div class="cal-grid reveal">
+      <div class="cal-week">
+        <div class="cal-week-num">Semana 01</div>
+        <div class="cal-week-label">Diagnóstico</div>
+        <div class="cal-week-event session">Sesión 1 · 90 min</div>
+        <div class="cal-week-content">
+          <ul class="bullet-list">
+            <li>Información del negocio y oferta</li>
+            <li>Cliente ideal y embudo</li>
+            <li>Definición de objetivos</li>
+          </ul>
+        </div>
+        <div class="cal-week-actor">
+          <b>Quién</b>Rafa + Irene + OptimizAds
+        </div>
+      </div>
+
+      <div class="cal-week">
+        <div class="cal-week-num">Semana 02</div>
+        <div class="cal-week-label">Investigación</div>
+        <div class="cal-week-event">Trabajo nuestro</div>
+        <div class="cal-week-content">
+          <ul class="bullet-list">
+            <li>Análisis de competencia</li>
+            <li>Benchmarks de categoría</li>
+            <li>Ángulos diferenciados</li>
+          </ul>
+        </div>
+        <div class="cal-week-actor">
+          <b>Quién</b>OptimizAds
+        </div>
+      </div>
+
+      <div class="cal-week">
+        <div class="cal-week-num">Semana 03</div>
+        <div class="cal-week-label">Estrategia</div>
+        <div class="cal-week-event session">Sesión 2 · 90 min</div>
+        <div class="cal-week-content">
+          <ul class="bullet-list">
+            <li>Mensaje y ángulos</li>
+            <li>Guiones de anuncios</li>
+            <li>Arquitectura de campañas</li>
+            <li>Briefs creativos</li>
+          </ul>
+        </div>
+        <div class="cal-week-actor">
+          <b>Quién</b>Rafa + Irene + OptimizAds
+        </div>
+      </div>
+
+      <div class="cal-week">
+        <div class="cal-week-num">Semana 04</div>
+        <div class="cal-week-label">Producción</div>
+        <div class="cal-week-event">Trabajo paralelo</div>
+        <div class="cal-week-content">
+          <ul class="bullet-list">
+            <li>Ustedes producen creativos según briefs</li>
+            <li>OptimizAds configura cuentas técnicas</li>
+            <li>Pixel, audiencias, eventos</li>
+          </ul>
+        </div>
+        <div class="cal-week-actor">
+          <b>Quién</b>Rafa + Irene · OptimizAds
+        </div>
+      </div>
+
+      <div class="cal-week">
+        <div class="cal-week-num">Semana 05</div>
+        <div class="cal-week-label">Lanzamiento</div>
+        <div class="cal-week-event session">Sesión 3 · 60 min</div>
+        <div class="cal-week-content">
+          <ul class="bullet-list">
+            <li>Subida de campañas en conjunto</li>
+            <li>Validación técnica</li>
+            <li>Ajustes finales antes de salir</li>
+          </ul>
+        </div>
+        <div class="cal-week-actor">
+          <b>Quién</b>Rafa + Irene + OptimizAds
+        </div>
+      </div>
+    </div>
+
+    <div class="cal-note reveal">
+      <b>Sobre los tiempos.</b>
+      Cinco semanas es el rango objetivo. Si hay imprevistos en producción de su lado o en
+      coordinación de agendas, el plazo puede extenderse máximo a seis semanas. Si avanzan
+      rápido, puede acortarse a cuatro. El pago del Setup se hace al inicio, antes de la Sesión 1.
+    </div>
+  </div>
+</section>
+
+<!-- ============ SEC 05 — ACOMPAÑAMIENTO ============ -->
+<section id="acompanamiento">
+  <div class="container">
+    <div class="section-head reveal">
+      <div class="section-num">05 <b>v</b>Acompañamiento</div>
+      <div class="section-title">
+        <h2>Fase 02 ·<br><em>Sesiones DWY.</em></h2>
+        <p>Done With You. Una vez que las campañas están corriendo, sesiones recurrentes para revisar números y tomar decisiones juntos. Opcional e independiente del Setup.</p>
+      </div>
+    </div>
+
+    <p class="accomp-intro reveal">
+      No son reportes. Son sesiones de trabajo donde nos sentamos juntos a ver qué está
+      funcionando, qué pausar, qué escalar y qué cambiar — con criterio, no de manera reactiva.
+    </p>
+
+    <div class="accomp-grid reveal">
+      <div class="accomp-card">
+        <div class="accomp-tag">Opción A · Quincenal</div>
+        <h3>2 sesiones<strong>al mes · 1 hr c/u</strong></h3>
+        <ul class="bullet-list">
+          <li>Revisión de métricas y rendimiento por anuncio</li>
+          <li>Decisiones de presupuesto y reasignación entre adsets</li>
+          <li>Identificación de qué iterar en creativos</li>
+          <li>Ajustes de segmentación si hace falta</li>
+        </ul>
+      </div>
+
+      <div class="accomp-card">
+        <div class="accomp-tag">Opción B · Semanal</div>
+        <h3>4 sesiones<strong>al mes · 1 hr c/u</strong></h3>
+        <ul class="bullet-list">
+          <li>Todo lo de la quincenal</li>
+          <li>Velocidad de iteración mucho más rápida</li>
+          <li>Ajustes antes de que un mal anuncio queme presupuesto</li>
+          <li>Acompañamiento más cercano en escalamiento</li>
+        </ul>
+      </div>
+    </div>
+
+    <p class="accomp-note reveal">
+      Para Luzyla en arranque sugerimos quincenal. La semanal tiene sentido cuando ya hay
+      tracción y quieren acelerar. Pueden cambiar de modalidad mes con mes según necesidad.
+    </p>
+  </div>
+</section>
+
+<!-- ============ SEC 06 — ALCANCE ============ -->
+<section id="alcance">
+  <div class="container">
+    <div class="section-head reveal">
+      <div class="section-num">06 <b>vi</b>Alcance</div>
+      <div class="section-title">
+        <h2>Lo que <em>no</em><br>está incluido.</h2>
+        <p>Importante mencionarlo antes que después para que no haya confusión. Esto no se hace dentro del Setup ni del Acompañamiento.</p>
+      </div>
+    </div>
+
+    <div class="exclude-grid">
+      <div class="exclude-content reveal">
+        <div class="exclude-list-title">No incluye</div>
+        <ul class="exclude-list">
+          <li>Producción de fotografía profesional</li>
+          <li>Grabación de videos</li>
+          <li>Edición de creativos</li>
+          <li>Diseño gráfico</li>
+          <li>Operación diaria de la cuenta</li>
+          <li>Manejo de redes orgánicas</li>
+          <li>Atención de leads</li>
+          <li>Reportes recurrentes por escrito</li>
+        </ul>
+      </div>
+
+      <div class="exclude-note reveal delay-1">
+        <h4>Sobre los <em>creativos.</em></h4>
+        <ul class="bullet-list">
+          <li>OptimizAds entrega los guiones, briefs y todo lo que tienen que contener los anuncios</li>
+          <li>OptimizAds no graba ni diseña — ustedes producen</li>
+          <li>Para joyería, lo orgánico funciona mejor que lo producido tipo catálogo</li>
+          <li>Foto y video con celular, buena luz, piezas reales</li>
+          <li>Si llega un punto donde quieren producción más elaborada, los conectamos con quien la haga</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ SEC 07 — FUTURO ============ -->
+<section class="sec-future" id="futuro">
+  <div class="container">
+    <div class="future-eyebrow reveal">Mirando hacia adelante</div>
+    <h2 class="future-title reveal delay-1">
+      Cuando el sistema tenga <em>tracción,</em><br>
+      podemos llevar todo nosotros.
+    </h2>
+    <p class="future-desc reveal delay-2">
+      Esto se llama DFY — Done For You. OptimizAds opera las campañas día a día, ustedes
+      reciben los resultados. La mensualidad es mayor, pero a esas alturas se justifica con
+      la operación. No es ahora — es horizonte. Cuando el momento sea el correcto, lo platicamos.
+    </p>
+  </div>
+</section>
+
+<!-- ============ SEC 08 — SIGUIENTE ============ -->
+<section id="siguiente">
+  <div class="container">
+    <div class="section-head reveal">
+      <div class="section-num">08 <b>viii</b>Siguiente</div>
+      <div class="section-title">
+        <h2>Lo que sigue<br><em>para arrancar.</em></h2>
+        <p>Tres pasos simples. Una vez que estos están listos, agendamos la Sesión 1 y empezamos a contar las cinco semanas.</p>
+      </div>
+    </div>
+
+    <div class="next-list">
+      <div class="next-step reveal">
+        <div class="next-num">01</div>
+        <div class="next-text">
+          <h4>Confirman que arrancan</h4>
+          <p>Mensaje confirmando que entran y eligen modalidad de acompañamiento — quincenal o semanal — si la quieren contratar desde el día uno.</p>
+        </div>
+        <div class="next-meta"><b>Su lado</b>Cuando estén listos</div>
+      </div>
+
+      <div class="next-step reveal">
+        <div class="next-num">02</div>
+        <div class="next-text">
+          <h4>Pago del Setup</h4>
+          <p>Se hace una sola vez por adelantado, antes de la Sesión 1. Esto detona el proceso y reserva el espacio en agenda.</p>
+        </div>
+        <div class="next-meta"><b>Su lado</b>Antes de Sesión 1</div>
+      </div>
+
+      <div class="next-step reveal">
+        <div class="next-num">03</div>
+        <div class="next-text">
+          <h4>Agendamos Sesión 1</h4>
+          <p>Coordinamos día y hora con Rafa y con Irene. Sesión de 90 minutos por videollamada. Salen con tareas claras para los siguientes días.</p>
+        </div>
+        <div class="next-meta"><b>Juntos</b>Semana 1</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FOOTER ============ -->
+<footer>
+  <div class="footer-line">
+    <div class="footer-brand">
+      Luzyla<b>· SAE</b>
+    </div>
+    <div class="footer-meta">
+      <b>OptimizAds</b>
+      Mayo 2026 · v1
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <div>Documento privado · No distribuir</div>
+    <div>Preparado para Rafa e Irene</div>
+  </div>
+</footer>
+
+<script>
+  (function(){
+    const PASS = 'luzyla';
+    const gate = document.getElementById('gate');
+    const form = document.getElementById('gateForm');
+    const inp = document.getElementById('gatePass');
+    const err = document.getElementById('gateErr');
+    if (sessionStorage.getItem('luzyla_unlocked') === '1') gate.classList.add('unlocked');
+    form.addEventListener('submit', function(e){
+      e.preventDefault();
+      const v = (inp.value || '').trim().toLowerCase();
+      if (v === PASS) {
+        sessionStorage.setItem('luzyla_unlocked', '1');
+        gate.classList.add('unlocked');
+        err.textContent = '';
+      } else {
+        err.textContent = 'Contraseña incorrecta.';
+        inp.value = ''; inp.focus();
+      }
+    });
+  })();
+
+  (function(){
+    const io = new IntersectionObserver(function(entries){
+      entries.forEach(function(entry){
+        if (entry.isIntersecting) {
+          entry.target.classList.add('visible');
+          io.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.12, rootMargin: '0px 0px -8% 0px' });
+    document.querySelectorAll('.reveal').forEach(function(el){ io.observe(el); });
+  })();
+
+  (function(){
+    const sectionIds = ['trabajo','compromisos','setup','calendario','acompanamiento','alcance','futuro','siguiente'];
+    const navCount = document.getElementById('navCount');
+    const total = sectionIds.length;
+    function update() {
+      const scrollY = window.scrollY + window.innerHeight * 0.4;
+      let activeIndex = 0;
+      sectionIds.forEach(function(id, i){
+        const el = document.getElementById(id);
+        if (el && el.offsetTop <= scrollY) activeIndex = i + 1;
+      });
+      const num = String(activeIndex).padStart(2, '0');
+      const tot = String(total).padStart(2, '0');
+      navCount.textContent = num + ' / ' + tot;
+      document.querySelectorAll('.navlink').forEach(function(link, i){
+        link.classList.toggle('active', i + 1 === activeIndex);
+      });
+    }
+    window.addEventListener('scroll', update, { passive: true });
+    update();
+  })();
+</script>
+
+</body>
+</html>
