@@ -9419,13 +9419,17 @@ async function tareasCliDrop(e) {
       const targetClientId = target.dataset.clientId;
       if (targetClientId !== drag.clientId) return; // cross-cliente: ignorar
       if (targetObjId === drag.fromObjId && targetTareaId === drag.tareaId) return; // self
-      await tareasCliReorderOrMoveTarea(drag.clientId, drag.fromObjId, drag.tareaId, targetObjId, targetTareaId);
+      // Heurística Trello/Notion: drop arriba de la mitad → before, abajo de la mitad → after.
+      const rect = target.getBoundingClientRect();
+      const position = (e.clientY < rect.top + rect.height / 2) ? 'before' : 'after';
+      await tareasCliReorderOrMoveTarea(drag.clientId, drag.fromObjId, drag.tareaId, targetObjId, targetTareaId, position);
     } else if (type === 'objetivo') {
       const targetObjId = target.dataset.objId;
       const targetClientId = target.dataset.clientId;
       if (targetClientId !== drag.clientId) return; // cross-cliente: ignorar
       if (targetObjId === drag.fromObjId) return;
-      await tareasCliReorderOrMoveTarea(drag.clientId, drag.fromObjId, drag.tareaId, targetObjId, null);
+      // Drop sobre wrapper de objetivo (no sobre tarea específica) → al final.
+      await tareasCliReorderOrMoveTarea(drag.clientId, drag.fromObjId, drag.tareaId, targetObjId, null, null);
     } else if (type === 'dia') {
       const fecha = target.dataset.fecha;
       await tareasCliSetFechaLimite(drag.clientId, drag.fromObjId, drag.tareaId, fecha);
@@ -9443,35 +9447,123 @@ async function tareasCliDrop(e) {
 }
 
 // ── Mutators (Fase 5) ──────────────────────────────────────
-async function tareasCliReorderOrMoveTarea(clientId, fromObjId, tareaId, toObjId, beforeTareaId) {
+// Reorder/move tarea con anclaje explícito.
+// anchorTareaId + position son opcionales; si ambos null → push al final del objetivo destino.
+// position: 'before' | 'after' (relativo al estado ORIGINAL del array, antes del splice).
+// Diseñado para ser robusto a same-objetivo y cross-objetivo (mismo cliente).
+async function tareasCliReorderOrMoveTarea(clientId, fromObjId, tareaId, toObjId, anchorTareaId, position) {
   await tareasCliSave(clientId, function(d) {
     const fromObj = (d.objetivos || []).find(function(x) { return x.id === fromObjId; });
     if (!fromObj || !Array.isArray(fromObj.tareas)) return d;
-    const idx = fromObj.tareas.findIndex(function(x) { return x.id === tareaId; });
-    if (idx === -1) return d;
-    const tarea = fromObj.tareas.splice(idx, 1)[0];
+    const fromIdx = fromObj.tareas.findIndex(function(x) { return x.id === tareaId; });
+    if (fromIdx === -1) return d;
 
     const toObj = (d.objetivos || []).find(function(x) { return x.id === toObjId; });
-    if (!toObj) {
-      // Destino inexistente: restaurar
-      fromObj.tareas.splice(idx, 0, tarea);
-      return d;
-    }
+    if (!toObj) return d; // destino inexistente: no-op
     if (!Array.isArray(toObj.tareas)) toObj.tareas = [];
 
-    if (beforeTareaId) {
-      const insertIdx = toObj.tareas.findIndex(function(x) { return x.id === beforeTareaId; });
-      if (insertIdx === -1) toObj.tareas.push(tarea);
-      else toObj.tareas.splice(insertIdx, 0, tarea);
-    } else {
-      toObj.tareas.push(tarea);
+    // Captura el anchor index ANTES del splice (más predecible para razonar).
+    let anchorIdxOriginal = -1;
+    if (anchorTareaId) {
+      anchorIdxOriginal = toObj.tareas.findIndex(function(x) { return x.id === anchorTareaId; });
     }
+
+    // Remover de origen.
+    const tarea = fromObj.tareas.splice(fromIdx, 1)[0];
+
+    // Computar insertIdx en el array destino DESPUÉS del splice.
+    let insertIdx;
+    if (!anchorTareaId || anchorIdxOriginal === -1) {
+      // Sin ancla o ancla no encontrada → push al final.
+      insertIdx = toObj.tareas.length;
+    } else {
+      // Ajuste por splice: si same-obj y removimos antes del anchor, anchor bajó 1.
+      const sameObj = (fromObj === toObj);
+      let adjustedAnchor = anchorIdxOriginal;
+      if (sameObj && fromIdx < anchorIdxOriginal) adjustedAnchor--;
+      insertIdx = (position === 'after') ? adjustedAnchor + 1 : adjustedAnchor;
+      // Clamp por seguridad.
+      if (insertIdx < 0) insertIdx = 0;
+      if (insertIdx > toObj.tareas.length) insertIdx = toObj.tareas.length;
+    }
+
+    toObj.tareas.splice(insertIdx, 0, tarea);
 
     toObj.tareas.forEach(function(t, i) { t.orden = i; });
     if (fromObj !== toObj) fromObj.tareas.forEach(function(t, i) { t.orden = i; });
     return d;
   });
   renderTareasCli();
+}
+
+// Test runner inline — ejecuta los 3 escenarios reportados + edge cases.
+// Uso desde consola: await window.tareasCli._test('enpagos').
+// Crea un objetivo de prueba, corre los tests, lo elimina al final.
+async function _tareasCliRunReorderTests(clientId) {
+  if (!clientId) clientId = 'enpagos';
+  const log = function(msg, ok) { console.log('%c' + (ok ? '✓ ' : '✗ ') + msg, ok ? 'color:#10b981' : 'color:#ef4444;font-weight:bold'); };
+  const eq = function(a, b) { return JSON.stringify(a) === JSON.stringify(b); };
+  let passed = 0, failed = 0;
+
+  // Setup: crear objetivo con 3 tareas T1, T2, T3
+  const objNombre = '__test_reorder_' + Date.now();
+  await tareasCliAddObjetivo(clientId, objNombre);
+  let cache = _tareasCliMemCache[clientId];
+  let testObj = cache.objetivos.find(function(o) { return o.nombre === objNombre; });
+  if (!testObj) { console.error('Setup falló: objetivo no creado'); return; }
+  await tareasCliAddTarea(clientId, testObj.id, 'T1');
+  await tareasCliAddTarea(clientId, testObj.id, 'T2');
+  await tareasCliAddTarea(clientId, testObj.id, 'T3');
+  cache = _tareasCliMemCache[clientId];
+  testObj = cache.objetivos.find(function(o) { return o.id === testObj.id; });
+  const ids = testObj.tareas.map(function(t) { return t.id; });
+  const [T1, T2, T3] = ids;
+  const objId = testObj.id;
+
+  function getOrder() {
+    const o = _tareasCliMemCache[clientId].objetivos.find(function(x) { return x.id === objId; });
+    return o.tareas.map(function(t) { return t.texto; });
+  }
+
+  // Test 1: idx 2 → before idx 0 → [T3, T1, T2]
+  await tareasCliReorderOrMoveTarea(clientId, objId, T3, objId, T1, 'before');
+  if (eq(getOrder(), ['T3','T1','T2'])) { log('idx 2 → before idx 0 = [T3,T1,T2]', true); passed++; }
+  else { log('idx 2 → before idx 0: got ' + JSON.stringify(getOrder()), false); failed++; }
+
+  // Test 2: estado [T3,T1,T2], mover T2 (idx 2) → after T3 (idx 0) → [T3, T2, T1]
+  await tareasCliReorderOrMoveTarea(clientId, objId, T2, objId, T3, 'after');
+  if (eq(getOrder(), ['T3','T2','T1'])) { log('idx 2 → after idx 0 = [T3,T2,T1]', true); passed++; }
+  else { log('idx 2 → after idx 0: got ' + JSON.stringify(getOrder()), false); failed++; }
+
+  // Test 3: estado [T3,T2,T1], mover T3 (idx 0) → after T1 (idx 2) → [T2, T1, T3]
+  await tareasCliReorderOrMoveTarea(clientId, objId, T3, objId, T1, 'after');
+  if (eq(getOrder(), ['T2','T1','T3'])) { log('idx 0 → after idx 2 = [T2,T1,T3]', true); passed++; }
+  else { log('idx 0 → after idx 2: got ' + JSON.stringify(getOrder()), false); failed++; }
+
+  // Test 4: no-op — mover T1 (idx 1) → after T2 (idx 0). Same posición resultante.
+  await tareasCliReorderOrMoveTarea(clientId, objId, T1, objId, T2, 'after');
+  if (eq(getOrder(), ['T2','T1','T3'])) { log('mismo lugar (after T2) = no-op', true); passed++; }
+  else { log('no-op test: got ' + JSON.stringify(getOrder()), false); failed++; }
+
+  // Test 5: mover T1 → before T1 (self) — debería no-op natural
+  await tareasCliReorderOrMoveTarea(clientId, objId, T1, objId, T1, 'before');
+  if (eq(getOrder(), ['T2','T1','T3'])) { log('self-anchor before = no-op', true); passed++; }
+  else { log('self-anchor: got ' + JSON.stringify(getOrder()), false); failed++; }
+
+  // Test 6: ancla null → push al final. Estado [T2,T1,T3], mover T2 → null = [T1, T3, T2]
+  await tareasCliReorderOrMoveTarea(clientId, objId, T2, objId, null, null);
+  if (eq(getOrder(), ['T1','T3','T2'])) { log('anchor null = push al final = [T1,T3,T2]', true); passed++; }
+  else { log('anchor null: got ' + JSON.stringify(getOrder()), false); failed++; }
+
+  // Test 7: idx 0 → idx N (último). Estado [T1,T3,T2], mover T1 → after T2 = [T3,T2,T1]
+  await tareasCliReorderOrMoveTarea(clientId, objId, T1, objId, T2, 'after');
+  if (eq(getOrder(), ['T3','T2','T1'])) { log('idx 0 → after último idx = [T3,T2,T1]', true); passed++; }
+  else { log('idx 0 → after último: got ' + JSON.stringify(getOrder()), false); failed++; }
+
+  // Cleanup
+  await tareasCliDeleteObjetivo(clientId, objId);
+  console.log('%c' + passed + ' passed, ' + failed + ' failed', failed === 0 ? 'color:#10b981;font-weight:bold' : 'color:#ef4444;font-weight:bold');
+  return { passed: passed, failed: failed };
 }
 
 async function tareasCliSetFechaLimite(clientId, objId, tareaId, fechaStr) {
@@ -9790,6 +9882,9 @@ window.tareasCli = {
   setVista: tareasSetVista,
   getVista: tareasGetVistaActiva,
   render: renderTareasCli,
+  reorderOrMove: tareasCliReorderOrMoveTarea,
+  setFechaLimite: tareasCliSetFechaLimite,
+  _test: _tareasCliRunReorderTests,
   cache: _tareasCliMemCache,
   COLORS: TAREAS_CLIENTE_COLORS
 };
