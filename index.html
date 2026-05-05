@@ -4285,16 +4285,22 @@
   <!-- Body -->
   <div style="flex:1; overflow-y:auto; padding:32px 28px;">
 
-    <!-- Título + acciones -->
+    <!-- Título + toggle vista + acciones -->
     <div style="display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:28px; flex-wrap:wrap; gap:12px;">
       <div>
         <div style="font-family:'Syne',sans-serif; font-weight:800; font-size:22px; color:var(--text); letter-spacing:-0.3px;">✅ Tareas</div>
         <div id="tareas-subtitle" style="font-family:'DM Mono',monospace; font-size:11px; color:var(--text3); margin-top:4px;">Revisión semanal · áreas y proyectos</div>
       </div>
-      <button onclick="tareasAddArea()" class="btn btn-ghost" style="font-size:12px; flex-shrink:0;">＋ Nueva área</button>
+      <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+        <div id="tareas-vista-toggle" class="tareas-vista-toggle">
+          <button data-vista="areas" onclick="tareasSetVista('areas')">Áreas internas</button>
+          <button data-vista="clientes" onclick="tareasSetVista('clientes')">Clientes</button>
+        </div>
+        <button id="btn-tareas-add-area" onclick="tareasAddArea()" class="btn btn-ghost" style="font-size:12px; flex-shrink:0;">＋ Nueva área</button>
+      </div>
     </div>
 
-    <!-- Grid de flashcards — responsivo -->
+    <!-- Grid de flashcards — responsivo (vista Áreas) -->
     <div id="tareas-body" style="
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
@@ -4302,6 +4308,18 @@
       align-items: start;
     ">
       <!-- Renderizado dinámico por renderTareas() -->
+    </div>
+
+    <!-- Vista Clientes (Fase 3+) — oculta por default -->
+    <div id="tareas-cli-body" style="display:none;">
+      <!-- Renderizado dinámico por renderTareasCli() -->
+    </div>
+
+    <!-- Mensaje viewport <1280px (corrección S62.6.2 #7) -->
+    <div id="tareas-cli-viewport-msg" style="display:none; padding:60px 40px; text-align:center; color:var(--text3);">
+      <div style="font-size:48px; margin-bottom:16px;">🖥️</div>
+      <div style="font-family:'Syne',sans-serif; font-weight:700; font-size:16px; color:var(--text2); margin-bottom:8px;">Vista de Clientes solo disponible en desktop</div>
+      <div style="font-size:13px; line-height:1.6;">Tareas → Clientes requiere pantalla de 1280px o más. Usa la vista de Áreas internas o abre Optix en desktop.</div>
     </div>
 
   </div>
@@ -4740,7 +4758,8 @@ function enterAs(rol) {
     renderAuris();
     showScreen('auris');
   } else if (rol === 'tareas') {
-    renderTareas();
+    if (typeof tareasApplyVista === 'function') tareasApplyVista();
+    else renderTareas();
     showScreen('tareas');
   } else if (rol === 'admin') {
     if (!adminCanAccess()) { showToast('Sin acceso a Finanzas', '🔒'); showScreen('rol'); return; }
@@ -8207,6 +8226,8 @@ function tareasUpdateBadge() {
 function renderTareas() {
   const container = document.getElementById('tareas-body');
   if (!container) return;
+  // Guard: si la vista activa es Clientes, no renderear Áreas (toggle v4.0)
+  if (typeof tareasGetVistaActiva === 'function' && tareasGetVistaActiva() === 'clientes') return;
 
   // Lazy init/resubscribe Firestore para el (ws, uid) actual
   if (window.currentUser) {
@@ -9002,6 +9023,170 @@ async function tareasCliSave(clientId, mutator) {
   return null;
 }
 
+// ── Vista toggle Áreas/Clientes (corrección S62.6.3.E) ───────────────────────
+// localStorage: 'tareas-vista-active' = 'areas' | 'clientes'
+
+function tareasGetVistaActiva() {
+  const stored = localStorage.getItem('tareas-vista-active');
+  if (stored === 'areas' || stored === 'clientes') return stored;
+  return 'areas';
+}
+
+function tareasSetVista(vista) {
+  if (vista !== 'areas' && vista !== 'clientes') vista = 'areas';
+  localStorage.setItem('tareas-vista-active', vista);
+  tareasApplyVista();
+}
+
+function tareasApplyVista() {
+  const vista = tareasGetVistaActiva();
+  const areasBody = document.getElementById('tareas-body');
+  const cliBody = document.getElementById('tareas-cli-body');
+  const viewportMsg = document.getElementById('tareas-cli-viewport-msg');
+  const btnAddArea = document.getElementById('btn-tareas-add-area');
+  const toggle = document.getElementById('tareas-vista-toggle');
+  if (toggle) {
+    toggle.querySelectorAll('button').forEach(function(b) {
+      b.classList.toggle('active', b.dataset.vista === vista);
+    });
+  }
+  if (vista === 'areas') {
+    if (areasBody) areasBody.style.display = '';
+    if (cliBody) cliBody.style.display = 'none';
+    if (viewportMsg) viewportMsg.style.display = 'none';
+    if (btnAddArea) btnAddArea.style.display = '';
+    if (typeof renderTareas === 'function') renderTareas();
+    return;
+  }
+  // vista === 'clientes'
+  if (areasBody) areasBody.style.display = 'none';
+  if (btnAddArea) btnAddArea.style.display = 'none';
+  if (window.innerWidth < 1280) {
+    if (cliBody) cliBody.style.display = 'none';
+    if (viewportMsg) viewportMsg.style.display = '';
+    return;
+  }
+  if (viewportMsg) viewportMsg.style.display = 'none';
+  if (cliBody) cliBody.style.display = '';
+  renderTareasCli();
+}
+
+// Re-evaluar al cruzar el threshold 1280
+window.addEventListener('resize', function() {
+  if (tareasGetVistaActiva() === 'clientes') {
+    const screen = document.getElementById('screen-tareas');
+    if (screen && screen.classList.contains('active')) tareasApplyVista();
+  }
+});
+
+// ── CSS toggle (lazy, solo se inyecta una vez) ─────────────
+function _ensureTareasCliCSS() {
+  if (document.getElementById('tareasCliVistaCSS')) return;
+  const s = document.createElement('style');
+  s.id = 'tareasCliVistaCSS';
+  s.textContent = ''
+    + '.tareas-vista-toggle { display:inline-flex; background:var(--surface2); border:1px solid var(--border); border-radius:8px; padding:3px; gap:2px; }'
+    + '.tareas-vista-toggle button { background:transparent; border:none; color:var(--text3); font-family:\'DM Sans\',sans-serif; font-size:12px; font-weight:600; padding:6px 12px; border-radius:6px; cursor:pointer; transition:all 0.15s; }'
+    + '.tareas-vista-toggle button:hover:not(.active) { color:var(--text2); }'
+    + '.tareas-vista-toggle button.active { background:var(--accent); color:#000; }'
+    + '.tareas-cli-card { transition:border-color 0.15s; }'
+    + '.tareas-cli-card:hover { border-color:var(--border2); }';
+  document.head.appendChild(s);
+}
+_ensureTareasCliCSS();
+
+// ── Render vista Clientes (Fase 3) ─────────────────────────
+// Lee DEFAULT_CLIENTS_<wsId> filtrado por workspaceId === currentAgencia (S62.6.2 #3).
+// Cards vacías sin objetivos muestran botón "+ Objetivo" (Fase 4 lo activa).
+
+function renderTareasCli() {
+  const container = document.getElementById('tareas-cli-body');
+  if (!container) return;
+  const wsId = currentAgencia || 'optimizads';
+  const catalog = (typeof getDefaultClients === 'function' ? getDefaultClients(wsId) : [])
+    .filter(function(c) { return c.workspaceId === wsId; });
+
+  if (catalog.length === 0) {
+    container.innerHTML = '<div style="text-align:center;padding:60px 40px;color:var(--text3);">No hay clientes activos en este workspace.</div>';
+    return;
+  }
+
+  // Init Firestore para cada cliente del catálogo (idempotente, no resubscribe).
+  catalog.forEach(function(c) {
+    if (!_tareasCliUnsubs[c.id]) {
+      tareasCliInitFromFirestore(c.id);
+    }
+  });
+
+  const cards = catalog.map(function(c) {
+    const color = TAREAS_CLIENTE_COLORS[c.id] || TAREAS_CLIENTE_COLORS._fallback;
+    const cached = _tareasCliMemCache[c.id] || tareasCliLoadCache(c.id);
+    const objetivos = (cached && Array.isArray(cached.objetivos)) ? cached.objetivos : [];
+    return tareasCliRenderCard(c, color, objetivos);
+  }).join('');
+
+  container.innerHTML = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:16px;align-items:start;">' + cards + '</div>';
+}
+
+function tareasCliRenderCard(client, color, objetivos) {
+  const totalTareas = objetivos.reduce(function(s, o) { return s + ((o.tareas || []).length); }, 0);
+  const totalDone = objetivos.reduce(function(s, o) { return s + ((o.tareas || []).filter(function(t) { return t.completado; }).length); }, 0);
+  const subtitle = totalTareas === 0
+    ? (objetivos.length === 0 ? 'Sin objetivos · agrega el primero' : objetivos.length + ' objetivo' + (objetivos.length === 1 ? '' : 's') + ' · sin tareas')
+    : objetivos.length + ' objetivo' + (objetivos.length === 1 ? '' : 's') + ' · ' + totalDone + '/' + totalTareas + ' completadas';
+  const nicho = client.nicho ? escapeHtml(String(client.nicho)) : '';
+
+  return ''
+    + '<div class="tareas-cli-card" data-client-id="' + escapeHtml(client.id) + '" style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;border-top:3px solid ' + color + ';">'
+    +   '<div style="padding:14px 16px;border-bottom:1px solid var(--border);">'
+    +     '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">'
+    +       '<div style="display:flex;align-items:center;gap:10px;min-width:0;">'
+    +         '<div style="width:10px;height:10px;border-radius:50%;background:' + color + ';flex-shrink:0;"></div>'
+    +         '<div style="font-family:\'Syne\',sans-serif;font-weight:700;font-size:14px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escapeHtml(client.nombre || client.id) + '</div>'
+    +       '</div>'
+    +       (nicho ? '<div style="font-family:\'DM Mono\',monospace;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em;flex-shrink:0;text-align:right;">' + nicho + '</div>' : '')
+    +     '</div>'
+    +     '<div style="font-family:\'DM Mono\',monospace;font-size:10px;color:var(--text3);margin-top:6px;">' + subtitle + '</div>'
+    +   '</div>'
+    +   '<div style="padding:12px 16px;">'
+    +     tareasCliRenderObjetivosList(client, objetivos)
+    +   '</div>'
+    +   '<div style="padding:0 16px 14px;">'
+    +     '<button disabled title="Agregar objetivo · disponible en Fase 4" style="width:100%;background:transparent;border:1px dashed var(--border2);color:var(--text3);padding:8px 12px;border-radius:8px;font-family:\'DM Sans\',sans-serif;font-size:12px;cursor:not-allowed;">＋ Objetivo (Fase 4)</button>'
+    +   '</div>'
+    + '</div>';
+}
+
+function tareasCliRenderObjetivosList(client, objetivos) {
+  if (!objetivos || objetivos.length === 0) {
+    return '<div style="padding:14px 0;color:var(--text3);font-size:12px;text-align:center;font-family:\'DM Mono\',monospace;">Sin objetivos creados</div>';
+  }
+  return objetivos.map(function(o) {
+    const tareas = Array.isArray(o.tareas) ? o.tareas : [];
+    const done = tareas.filter(function(t) { return t.completado; }).length;
+    const tareasHtml = tareas.length === 0
+      ? '<div style="font-family:\'DM Mono\',monospace;font-size:10px;color:var(--text3);margin-top:6px;">Sin tareas</div>'
+      : tareas.map(function(t) {
+          const completed = !!t.completado;
+          return '<div style="display:flex;align-items:flex-start;gap:8px;margin-top:6px;font-size:12px;color:'
+            + (completed ? 'var(--text3)' : 'var(--text)') + ';'
+            + (completed ? 'text-decoration:line-through;' : '')
+            + '">'
+            + '<span style="opacity:0.6;flex-shrink:0;">' + (completed ? '☑' : '☐') + '</span>'
+            + '<span style="overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(t.texto || '') + '</span>'
+            + '</div>';
+        }).join('');
+    return ''
+      + '<div style="border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:8px;background:var(--surface2);">'
+      +   '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">'
+      +     '<div style="font-family:\'DM Sans\',sans-serif;font-weight:600;font-size:12px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escapeHtml(o.nombre || '') + '</div>'
+      +     '<div style="font-family:\'DM Mono\',monospace;font-size:10px;color:var(--text3);flex-shrink:0;">' + done + '/' + tareas.length + '</div>'
+      +   '</div>'
+      +   tareasHtml
+      + '</div>';
+  }).join('');
+}
+
 // API expuesta para test manual desde consola del browser
 window.tareasCli = {
   ref: tareasCliFirestoreRef,
@@ -9011,6 +9196,10 @@ window.tareasCli = {
   save: tareasCliSave,
   unsubAll: tareasCliUnsubAll,
   emptyDoc: tareasCliEmptyDoc,
+  applyVista: tareasApplyVista,
+  setVista: tareasSetVista,
+  getVista: tareasGetVistaActiva,
+  render: renderTareasCli,
   cache: _tareasCliMemCache,
   COLORS: TAREAS_CLIENTE_COLORS
 };
