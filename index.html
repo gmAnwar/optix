@@ -4310,6 +4310,9 @@
       <!-- Renderizado dinámico por renderTareas() -->
     </div>
 
+    <!-- Banner sem pasada (Fase 6 — corrección S62.6.2 #6) -->
+    <div id="tareas-cli-atrasadas-banner" style="display:none;"></div>
+
     <!-- Vista Clientes (Fase 3+) — oculta por default -->
     <div id="tareas-cli-body" style="display:none;">
       <!-- Renderizado dinámico por renderTareasCli() -->
@@ -5640,16 +5643,23 @@ function loadJrChecklist(nombre) {
     `<a href="${l.url}" target="_blank" style="background:var(--surface2); border:1px solid var(--border); color:var(--text2); font-size:11px; padding:6px 12px; border-radius:8px; text-decoration:none; font-family:'DM Mono',monospace; transition:all 0.2s;" onmouseover="this.style.color='var(--accent)'; this.style.borderColor='var(--accent)'" onmouseout="this.style.color='var(--text2)'; this.style.borderColor='var(--border)'">${l.label}</a>`
   ).join('');
 
-  // F4: Tareas pendientes hoy del módulo Tareas (matching por nombre de área)
+  // F4 + Fase 6: Tareas pendientes hoy del módulo Áreas (substring) + módulo
+  // Clientes (clientId). Sin deduplicar (corrección S62.6.3.C) — ambas listas
+  // se renderean con chip de origen para que el Junior vea sus duplicados.
   const hoySection = document.getElementById('jr-tareas-hoy-section');
   const hoyList = document.getElementById('jr-tareas-hoy-list');
   if (hoySection && hoyList) {
-    const pendientesHoy = tareasGetPendientesHoy(clienteNombre);
-    if (pendientesHoy.length === 0) {
+    const pendientesAreas = tareasGetPendientesHoy(clienteNombre);
+    if (typeof tareasCliEnsureAllInitialized === 'function') tareasCliEnsureAllInitialized();
+    const pendientesCli = (typeof tareasCliGetPendientesHoy === 'function') ? tareasCliGetPendientesHoy(clienteNombre) : [];
+    const total = pendientesAreas.length + pendientesCli.length;
+    if (total === 0) {
       hoySection.style.display = 'none';
     } else {
       hoySection.style.display = 'block';
-      hoyList.innerHTML = pendientesHoy.map(m => renderJrTareaPendiente(m)).join('');
+      hoyList.innerHTML = ''
+        + pendientesAreas.map(m => renderJrTareaPendiente(m)).join('')
+        + pendientesCli.map(m => renderJrTareaPendienteCli(m)).join('');
     }
   }
 
@@ -8768,6 +8778,7 @@ function renderJrTareaPendiente(m) {
   const chip = fl
     ? `<span style="font-size:10px;font-family:'DM Mono',monospace;background:${venc ? 'rgba(239,68,68,0.14)' : 'rgba(245,158,11,0.14)'};color:${venc ? 'var(--red)' : 'var(--yellow)'};padding:2px 7px;border-radius:4px;flex-shrink:0;">${venc ? '🔴' : '⚠️'} ${tareasFormatFecha(fl)}</span>`
     : '';
+  const origenChip = '<span style="font-size:10px;font-family:\'DM Mono\',monospace;background:rgba(245,158,11,0.14);color:var(--yellow);padding:2px 7px;border-radius:4px;flex-shrink:0;">📂 Área interna</span>';
   const nota = tarea.notas
     ? `<div style="font-size:11px;color:var(--text3);font-style:italic;margin-top:4px;">${escapeHtml(tarea.notas)}</div>`
     : '';
@@ -8781,6 +8792,7 @@ function renderJrTareaPendiente(m) {
         ${nota}
       </div>
       ${chip}
+      ${origenChip}
     </div>`;
 }
 
@@ -9050,10 +9062,12 @@ function tareasApplyVista() {
       b.classList.toggle('active', b.dataset.vista === vista);
     });
   }
+  const banner = document.getElementById('tareas-cli-atrasadas-banner');
   if (vista === 'areas') {
     if (areasBody) areasBody.style.display = '';
     if (cliBody) cliBody.style.display = 'none';
     if (viewportMsg) viewportMsg.style.display = 'none';
+    if (banner) banner.style.display = 'none';
     if (btnAddArea) btnAddArea.style.display = '';
     if (typeof renderTareas === 'function') renderTareas();
     return;
@@ -9063,12 +9077,14 @@ function tareasApplyVista() {
   if (btnAddArea) btnAddArea.style.display = 'none';
   if (window.innerWidth < 1280) {
     if (cliBody) cliBody.style.display = 'none';
+    if (banner) banner.style.display = 'none';
     if (viewportMsg) viewportMsg.style.display = '';
     return;
   }
   if (viewportMsg) viewportMsg.style.display = 'none';
   if (cliBody) cliBody.style.display = '';
   renderTareasCli();
+  if (typeof tareasCliRenderAtrasadasBanner === 'function') tareasCliRenderAtrasadasBanner();
 }
 
 // Re-evaluar al cruzar el threshold 1280
@@ -9137,6 +9153,9 @@ function renderTareasCli() {
     +     '</div>'
     +   '</div>'
     + '</div>';
+
+  // Banner atrasadas (Fase 6) — refresca cada render.
+  if (typeof tareasCliRenderAtrasadasBanner === 'function') tareasCliRenderAtrasadasBanner();
 }
 
 function tareasCliRenderCard(client, color, objetivos) {
@@ -9579,6 +9598,208 @@ async function tareasCliSetFechaLimite(clientId, objId, tareaId, fechaStr) {
     return d;
   });
   renderTareasCli();
+}
+
+// ── Junior matching dual + Sem pasada (Fase 6) ─────────────
+// SPEC corrección S62.6.3.C: NO deduplicar entre módulos. Ambos se renderean
+// con chip visual de origen para que el Junior vea sus duplicados y limpie.
+
+function tareasCliFindClientByNombre(clienteNombre) {
+  if (!clienteNombre) return null;
+  const wsId = currentAgencia || 'optimizads';
+  const catalog = (typeof getDefaultClients === 'function' ? getDefaultClients(wsId) : [])
+    .filter(function(c) { return c.workspaceId === wsId; });
+  const needle = String(clienteNombre).toLowerCase().trim();
+  // Match exacto por nombre o id, fallback a substring (compat).
+  return catalog.find(function(c) { return (c.nombre || '').toLowerCase() === needle || (c.id || '').toLowerCase() === needle; })
+    || catalog.find(function(c) { return (c.nombre || '').toLowerCase().includes(needle) && needle.length >= 3; })
+    || null;
+}
+
+// Devuelve tareas-clientes pendientes para hoy (incluye atrasadas no completadas).
+// Acepta clientId directo o un nombre que se busca en el catálogo (compatibilidad
+// con loadJrChecklist que pasa clienteNombre, ej. "EnPagos").
+function tareasCliGetPendientesHoy(clientIdOrNombre) {
+  if (!clientIdOrNombre) return [];
+  let clientId = clientIdOrNombre;
+  // Si no hay cache para ese id, intentar resolver vía catálogo.
+  if (!_tareasCliMemCache[clientId]) {
+    const fromCatalog = tareasCliFindClientByNombre(clientIdOrNombre);
+    if (fromCatalog) clientId = fromCatalog.id;
+  }
+  const cached = _tareasCliMemCache[clientId] || tareasCliLoadCache(clientId);
+  if (!cached || !Array.isArray(cached.objetivos)) return [];
+  const hoy = (typeof tareasGetHoy === 'function') ? tareasGetHoy() : new Date().toISOString().slice(0, 10);
+  const matches = [];
+  cached.objetivos.forEach(function(o) {
+    (o.tareas || []).forEach(function(t) {
+      if (t.completado) return;
+      const fl = t.fechaLimite;
+      const fi = t.fechaIdeal;
+      if (fl === hoy || fi === hoy || (fl && fl < hoy)) {
+        matches.push({ clientId: clientId, objId: o.id, objNombre: o.nombre || '', tarea: t });
+      }
+    });
+  });
+  return matches;
+}
+
+// Inicializa Firestore listeners para todos los clientes del workspace —
+// necesario para que el Junior vea tareas-cli aún cuando NO está en vista Clientes.
+function tareasCliEnsureAllInitialized() {
+  const wsId = currentAgencia || 'optimizads';
+  const catalog = (typeof getDefaultClients === 'function' ? getDefaultClients(wsId) : [])
+    .filter(function(c) { return c.workspaceId === wsId; });
+  catalog.forEach(function(c) {
+    if (!_tareasCliUnsubs[c.id]) {
+      try { tareasCliInitFromFirestore(c.id); } catch (e) {}
+    }
+  });
+}
+
+function renderJrTareaPendienteCli(m) {
+  const tarea = m.tarea;
+  const clientId = m.clientId;
+  const objId = m.objId;
+  const fl = tarea.fechaLimite;
+  const hoy = (typeof tareasGetHoy === 'function') ? tareasGetHoy() : new Date().toISOString().slice(0, 10);
+  const venc = fl && fl < hoy;
+  const fmtFecha = (typeof tareasFormatFecha === 'function') ? tareasFormatFecha : function(s) { return s; };
+  const fechaChip = fl
+    ? '<span style="font-size:10px;font-family:\'DM Mono\',monospace;background:' + (venc ? 'rgba(239,68,68,0.14)' : 'rgba(245,158,11,0.14)') + ';color:' + (venc ? 'var(--red)' : 'var(--yellow)') + ';padding:2px 7px;border-radius:4px;flex-shrink:0;">' + (venc ? '🔴' : '⚠️') + ' ' + fmtFecha(fl) + '</span>'
+    : '';
+  const origenChip = '<span style="font-size:10px;font-family:\'DM Mono\',monospace;background:rgba(124,58,237,0.14);color:#a78bfa;padding:2px 7px;border-radius:4px;flex-shrink:0;">👤 Cliente</span>';
+  return ''
+    + '<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 14px;margin-bottom:8px;display:flex;align-items:flex-start;gap:12px;cursor:pointer;transition:all 0.15s;" '
+    +   'onclick="tareasCliToggleTarea(\'' + escapeHtml(clientId) + '\', \'' + escapeHtml(objId) + '\', \'' + escapeHtml(tarea.id) + '\'); setTimeout(function(){ if (window._jrSelectedClient) loadJrChecklist(window._jrSelectedClient); }, 600);" '
+    +   'onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">'
+    +   '<div style="width:18px;height:18px;border:2px solid ' + (tarea.completado ? 'var(--green)' : 'var(--border2)') + ';border-radius:5px;background:' + (tarea.completado ? 'var(--green)' : 'transparent') + ';flex-shrink:0;display:flex;align-items:center;justify-content:center;margin-top:1px;">'
+    +     (tarea.completado ? '<svg width="10" height="8" viewBox="0 0 10 8"><polyline points="1,4 4,7 9,1" fill="none" stroke="#000" stroke-width="2" stroke-linecap="round"/></svg>' : '')
+    +   '</div>'
+    +   '<div style="flex:1;min-width:0;">'
+    +     '<div style="font-size:13px;color:' + (tarea.completado ? 'var(--text3)' : 'var(--text1)') + ';text-decoration:' + (tarea.completado ? 'line-through' : 'none') + ';line-height:1.4;">' + escapeHtml(tarea.texto || '') + '</div>'
+    +     (m.objNombre ? '<div style="font-size:11px;color:var(--text3);margin-top:2px;">' + escapeHtml(m.objNombre) + '</div>' : '')
+    +   '</div>'
+    +   fechaChip
+    +   origenChip
+    + '</div>';
+}
+
+// Banner sem pasada (S62.6.2 #6: TODAS las atrasadas, sin importar antigüedad) ─
+function tareasCliCountAtrasadas() {
+  const hoy = (typeof tareasGetHoy === 'function') ? tareasGetHoy() : new Date().toISOString().slice(0, 10);
+  let count = 0;
+  Object.keys(_tareasCliMemCache).forEach(function(cid) {
+    const d = _tareasCliMemCache[cid];
+    if (!d || !Array.isArray(d.objetivos)) return;
+    d.objetivos.forEach(function(o) {
+      (o.tareas || []).forEach(function(t) {
+        if (t.completado) return;
+        if (t.fechaLimite && t.fechaLimite < hoy) count++;
+      });
+    });
+  });
+  return count;
+}
+
+function tareasCliGetAtrasadasGrouped() {
+  const hoy = (typeof tareasGetHoy === 'function') ? tareasGetHoy() : new Date().toISOString().slice(0, 10);
+  const days = tareasCliGetSemana(0);
+  const lunesActual = tareasCliFmtFecha(days[0]);
+  const lunesPrev = new Date(days[0]);
+  lunesPrev.setDate(days[0].getDate() - 7);
+  const lunesPrevStr = tareasCliFmtFecha(lunesPrev);
+  const groups = { estaSemana: [], semanaPasada: [], masAntiguas: [] };
+
+  Object.keys(_tareasCliMemCache).forEach(function(cid) {
+    const d = _tareasCliMemCache[cid];
+    if (!d || !Array.isArray(d.objetivos)) return;
+    d.objetivos.forEach(function(o) {
+      (o.tareas || []).forEach(function(t) {
+        if (t.completado) return;
+        if (!t.fechaLimite || t.fechaLimite >= hoy) return;
+        const m = { clientId: cid, objId: o.id, objNombre: o.nombre || '', tarea: t };
+        if (t.fechaLimite >= lunesActual) groups.estaSemana.push(m);
+        else if (t.fechaLimite >= lunesPrevStr) groups.semanaPasada.push(m);
+        else groups.masAntiguas.push(m);
+      });
+    });
+  });
+  return groups;
+}
+
+function tareasCliRenderAtrasadasBanner() {
+  const banner = document.getElementById('tareas-cli-atrasadas-banner');
+  if (!banner) return;
+  const count = tareasCliCountAtrasadas();
+  if (count === 0) { banner.style.display = 'none'; return; }
+  banner.style.display = '';
+  banner.innerHTML = ''
+    + '<button onclick="tareasCliShowAtrasadasModal()" '
+    +   'style="width:100%;background:rgba(239,68,68,0.10);border:1px solid rgba(239,68,68,0.35);color:var(--red);font-family:\'DM Sans\',sans-serif;font-size:13px;font-weight:600;padding:10px 16px;border-radius:8px;cursor:pointer;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between;gap:8px;text-align:left;" '
+    +   'onmouseover="this.style.background=\'rgba(239,68,68,0.16)\'" onmouseout="this.style.background=\'rgba(239,68,68,0.10)\'">'
+    +   '<span>📅 ' + count + ' tarea' + (count === 1 ? '' : 's') + ' atrasada' + (count === 1 ? '' : 's') + '</span>'
+    +   '<span style="font-family:\'DM Mono\',monospace;font-size:11px;opacity:0.8;">Revisar →</span>'
+    + '</button>';
+}
+
+function tareasCliShowAtrasadasModal() {
+  const groups = tareasCliGetAtrasadasGrouped();
+  const wsId = currentAgencia || 'optimizads';
+  const catalog = (typeof getDefaultClients === 'function' ? getDefaultClients(wsId) : []);
+  const clientName = function(cid) {
+    const c = catalog.find(function(x) { return x.id === cid; });
+    return c ? (c.nombre || cid) : cid;
+  };
+  const fmtFecha = (typeof tareasFormatFecha === 'function') ? tareasFormatFecha : function(s) { return s; };
+
+  const renderItem = function(m) {
+    const t = m.tarea;
+    const color = TAREAS_CLIENTE_COLORS[m.clientId] || TAREAS_CLIENTE_COLORS._fallback;
+    return ''
+      + '<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;margin-bottom:6px;border-left:3px solid ' + color + ';">'
+      +   '<span onclick="tareasCliToggleTarea(\'' + escapeHtml(m.clientId) + '\', \'' + escapeHtml(m.objId) + '\', \'' + escapeHtml(t.id) + '\'); tareasCliShowAtrasadasModal();" '
+      +     'style="cursor:pointer;font-size:14px;flex-shrink:0;user-select:none;" title="Marcar completada">'
+      +     (t.completado ? '☑' : '☐')
+      +   '</span>'
+      +   '<div style="flex:1;min-width:0;">'
+      +     '<div style="font-size:12px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escapeHtml(t.texto || '') + '</div>'
+      +     '<div style="font-family:\'DM Mono\',monospace;font-size:10px;color:var(--text3);margin-top:2px;">' + escapeHtml(clientName(m.clientId)) + (m.objNombre ? ' · ' + escapeHtml(m.objNombre) : '') + '</div>'
+      +   '</div>'
+      +   '<span style="font-family:\'DM Mono\',monospace;font-size:10px;color:var(--red);background:rgba(239,68,68,0.12);padding:2px 7px;border-radius:4px;flex-shrink:0;">🔴 ' + fmtFecha(t.fechaLimite) + '</span>'
+      + '</div>';
+  };
+
+  const section = function(title, items) {
+    if (!items.length) return '';
+    return ''
+      + '<div style="margin-top:14px;">'
+      +   '<div style="font-family:\'DM Mono\',monospace;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:8px;">' + title + ' · ' + items.length + '</div>'
+      +   items.map(renderItem).join('')
+      + '</div>';
+  };
+
+  const id = 'tareasCli-atrasadas-modal';
+  let el = document.getElementById(id);
+  if (el) el.remove();
+  const total = groups.estaSemana.length + groups.semanaPasada.length + groups.masAntiguas.length;
+  el = document.createElement('div');
+  el.id = id;
+  el.style.cssText = 'position:fixed;inset:0;z-index:99998;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;font-family:\'DM Sans\',sans-serif;';
+  el.innerHTML = ''
+    + '<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:22px;width:560px;max-width:90vw;max-height:80vh;overflow-y:auto;box-shadow:0 12px 32px rgba(0,0,0,0.5);">'
+    +   '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">'
+    +     '<div style="font-family:\'Syne\',sans-serif;font-weight:700;font-size:16px;color:var(--text);">📅 Tareas atrasadas</div>'
+    +     '<button onclick="document.getElementById(\'' + id + '\').remove()" style="background:transparent;border:none;color:var(--text3);font-size:18px;cursor:pointer;line-height:1;padding:4px 8px;">×</button>'
+    +   '</div>'
+    +   '<div style="font-family:\'DM Mono\',monospace;font-size:11px;color:var(--text3);margin-bottom:6px;">' + total + ' sin completar · click ☐ para marcar hecha</div>'
+    +   (total === 0 ? '<div style="text-align:center;padding:40px 0;color:var(--text3);font-size:13px;">Sin tareas atrasadas. ✨</div>' : '')
+    +   section('Esta semana', groups.estaSemana)
+    +   section('Semana pasada', groups.semanaPasada)
+    +   section('Hace 2+ semanas', groups.masAntiguas)
+    + '</div>';
+  document.body.appendChild(el);
+  el.onclick = function(ev) { if (ev.target === el) el.remove(); };
 }
 
 // ── Actions CRUD (Fase 4) ──────────────────────────────────
