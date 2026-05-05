@@ -9125,7 +9125,18 @@ function renderTareasCli() {
     return tareasCliRenderCard(c, color, objetivos);
   }).join('');
 
-  container.innerHTML = '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:16px;align-items:start;">' + cards + '</div>';
+  // Layout 2 columnas: calendario sidebar + cards-zone (drop zone para quitar fechaLimite).
+  container.innerHTML = ''
+    + '<div style="display:grid;grid-template-columns:280px 1fr;gap:20px;align-items:start;">'
+    +   '<div>' + renderTareasCliCalendar() + '</div>'
+    +   '<div class="tareas-cli-cards-zone" data-droppable-type="cards-zone" '
+    +     'ondragover="tareasCliDragOver(event)" ondrop="tareasCliDrop(event)" '
+    +     'style="min-height:200px;">'
+    +     '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:16px;align-items:start;">'
+    +       cards
+    +     '</div>'
+    +   '</div>'
+    + '</div>';
 }
 
 function tareasCliRenderCard(client, color, objetivos) {
@@ -9138,7 +9149,10 @@ function tareasCliRenderCard(client, color, objetivos) {
   const cid = escapeHtml(client.id);
 
   return ''
-    + '<div class="tareas-cli-card" data-client-id="' + cid + '" style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;border-top:3px solid ' + color + ';">'
+    + '<div class="tareas-cli-card" data-client-id="' + cid + '" '
+    +   'data-droppable-type="cliente" '
+    +   'ondragover="tareasCliDragOver(event)" ondrop="tareasCliDrop(event)" '
+    +   'style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;border-top:3px solid ' + color + ';">'
     +   '<div style="padding:14px 16px;border-bottom:1px solid var(--border);">'
     +     '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">'
     +       '<div style="display:flex;align-items:center;gap:10px;min-width:0;">'
@@ -9178,9 +9192,19 @@ function tareasCliRenderObjetivosList(client, objetivos) {
       const tid = escapeHtml(t.id);
       const completed = !!t.completado;
       const textoSafe = escapeHtml(t.texto || '');
+      const fechaChip = t.fechaLimite
+        ? '<span title="Fecha límite ' + escapeHtml(t.fechaLimite) + '" style="font-family:\'DM Mono\',monospace;font-size:9px;color:var(--text3);background:var(--surface);border:1px solid var(--border);padding:1px 5px;border-radius:3px;flex-shrink:0;line-height:1.4;">' + (typeof tareasFormatFecha === 'function' ? tareasFormatFecha(t.fechaLimite) : escapeHtml(t.fechaLimite)) + '</span>'
+        : '';
       return ''
-        + '<div class="tareas-cli-tarea-row" data-tarea-id="' + tid + '" style="display:flex;align-items:flex-start;gap:6px;margin-top:6px;font-size:12px;color:'
-        + (completed ? 'var(--text3)' : 'var(--text)') + ';">'
+        + '<div class="tareas-cli-tarea-row" '
+        +   'draggable="true" '
+        +   'ondragstart="tareasCliDragStart(event, \'' + cid + '\', \'' + oid + '\', \'' + tid + '\')" '
+        +   'ondragend="tareasCliDragEnd(event)" '
+        +   'data-droppable-type="tarea" '
+        +   'data-client-id="' + cid + '" data-obj-id="' + oid + '" data-tarea-id="' + tid + '" '
+        +   'ondragover="tareasCliDragOver(event)" ondrop="tareasCliDrop(event)" '
+        +   'style="display:flex;align-items:center;gap:6px;margin-top:6px;font-size:12px;color:'
+        +   (completed ? 'var(--text3)' : 'var(--text)') + ';cursor:grab;">'
         +   '<span onclick="tareasCliToggleTarea(\'' + cid + '\', \'' + oid + '\', \'' + tid + '\')" '
         +     'title="Marcar completada" style="cursor:pointer;flex-shrink:0;user-select:none;font-size:14px;line-height:1;">'
         +     (completed ? '☑' : '☐')
@@ -9190,6 +9214,7 @@ function tareasCliRenderObjetivosList(client, objetivos) {
         +     'onclick="tareasCliEditTareaTextoInline(event, \'' + cid + '\', \'' + oid + '\', \'' + tid + '\')">'
         +     textoSafe
         +   '</span>'
+        +   fechaChip
         +   '<button onclick="tareasCliConfirmDeleteTarea(\'' + cid + '\', \'' + oid + '\', \'' + tid + '\')" '
         +     'title="Eliminar tarea" '
         +     'style="background:transparent;border:none;color:var(--text3);cursor:pointer;padding:0 4px;font-size:11px;flex-shrink:0;line-height:1;" '
@@ -9199,7 +9224,11 @@ function tareasCliRenderObjetivosList(client, objetivos) {
         + '</div>';
     }).join('');
     return ''
-      + '<div data-obj-id="' + oid + '" style="border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:8px;background:var(--surface2);">'
+      + '<div data-obj-id="' + oid + '" '
+      +   'data-droppable-type="objetivo" '
+      +   'data-client-id="' + cid + '" '
+      +   'ondragover="tareasCliDragOver(event)" ondrop="tareasCliDrop(event)" '
+      +   'style="border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:8px;background:var(--surface2);">'
       +   '<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;">'
       +     '<span class="tareas-cli-obj-nombre" '
       +       'style="font-family:\'DM Sans\',sans-serif;font-weight:600;font-size:12px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;cursor:text;" '
@@ -9225,6 +9254,239 @@ function tareasCliRenderObjetivosList(client, objetivos) {
       +   '<div id="tareas-cli-add-tarea-container-' + cid + '-' + oid + '"></div>'
       + '</div>';
   }).join('');
+}
+
+// ── Mini-calendario sidebar (Fase 5) ──────────────────────
+let _tareasCliCalSemanaOffset = 0;
+
+function tareasCliGetSemana(offset) {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  const dow = d.getDay();
+  const diffToMonday = (dow + 6) % 7;
+  d.setDate(d.getDate() - diffToMonday + (offset * 7));
+  const days = [];
+  for (let i = 0; i < 7; i++) {
+    const dx = new Date(d);
+    dx.setDate(d.getDate() + i);
+    days.push(dx);
+  }
+  return days;
+}
+
+function tareasCliFmtFecha(date) {
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return date.getFullYear() + '-' + m + '-' + day;
+}
+
+function tareasCliCountTareasByFecha(fechaStr) {
+  let count = 0;
+  Object.keys(_tareasCliMemCache).forEach(function(cid) {
+    const d = _tareasCliMemCache[cid];
+    if (!d || !Array.isArray(d.objetivos)) return;
+    d.objetivos.forEach(function(o) {
+      (o.tareas || []).forEach(function(t) {
+        if (t.fechaLimite === fechaStr && !t.completado) count++;
+      });
+    });
+  });
+  return count;
+}
+
+function renderTareasCliCalendar() {
+  const days = tareasCliGetSemana(_tareasCliCalSemanaOffset);
+  const today = tareasCliFmtFecha(new Date());
+  const monthNames = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  const dayLabels = ['L','M','M','J','V','S','D'];
+  const weekTitle = days[0].getDate() + ' ' + monthNames[days[0].getMonth()] + ' – ' + days[6].getDate() + ' ' + monthNames[days[6].getMonth()];
+
+  const daysHtml = days.map(function(d, i) {
+    const fechaStr = tareasCliFmtFecha(d);
+    const isToday = fechaStr === today;
+    const isPast = fechaStr < today;
+    const count = tareasCliCountTareasByFecha(fechaStr);
+    const borderColor = isToday ? 'var(--accent)' : 'var(--border)';
+    const bg = isToday ? 'rgba(0,229,160,0.08)' : (isPast ? 'transparent' : 'var(--surface2)');
+    const dateColor = isToday ? 'var(--accent)' : (isPast ? 'var(--text3)' : 'var(--text)');
+    const badge = count > 0
+      ? '<span style="font-family:\'DM Mono\',monospace;font-size:10px;color:var(--accent);background:rgba(0,229,160,0.12);padding:2px 6px;border-radius:4px;">' + count + '</span>'
+      : '';
+    return ''
+      + '<div data-droppable-type="dia" data-fecha="' + fechaStr + '" '
+      +   'ondragover="tareasCliDragOver(event)" ondrop="tareasCliDrop(event)" '
+      +   'style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border-radius:6px;border:1px solid ' + borderColor + ';background:' + bg + ';font-size:11px;">'
+      +   '<div style="display:flex;align-items:center;gap:8px;">'
+      +     '<span style="font-family:\'DM Mono\',monospace;font-weight:700;color:var(--text3);width:12px;">' + dayLabels[i] + '</span>'
+      +     '<span style="font-family:\'DM Sans\',sans-serif;font-weight:600;color:' + dateColor + ';">' + d.getDate() + '</span>'
+      +   '</div>'
+      +   badge
+      + '</div>';
+  }).join('');
+
+  return ''
+    + '<div style="position:sticky;top:16px;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 16px;">'
+    +   '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">'
+    +     '<button onclick="tareasCliCalPrevWeek()" title="Semana anterior" style="background:transparent;border:none;color:var(--text2);cursor:pointer;font-size:16px;padding:2px 8px;line-height:1;">‹</button>'
+    +     '<div style="font-family:\'DM Mono\',monospace;font-size:11px;color:var(--text);text-align:center;">' + weekTitle + '</div>'
+    +     '<button onclick="tareasCliCalNextWeek()" title="Próxima semana" style="background:transparent;border:none;color:var(--text2);cursor:pointer;font-size:16px;padding:2px 8px;line-height:1;">›</button>'
+    +   '</div>'
+    +   (_tareasCliCalSemanaOffset !== 0
+        ? '<button onclick="tareasCliCalToday()" style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text2);font-size:10px;padding:5px;border-radius:6px;cursor:pointer;margin-bottom:8px;font-family:\'DM Mono\',monospace;">↺ Volver a hoy</button>'
+        : '')
+    +   '<div style="display:flex;flex-direction:column;gap:4px;">' + daysHtml + '</div>'
+    +   '<div style="font-family:\'DM Mono\',monospace;font-size:9px;color:var(--text3);margin-top:10px;line-height:1.4;text-align:center;">Arrastra tarea → día para asignar fecha</div>'
+    + '</div>';
+}
+
+function tareasCliCalPrevWeek() { _tareasCliCalSemanaOffset--; renderTareasCli(); }
+function tareasCliCalNextWeek() { _tareasCliCalSemanaOffset++; renderTareasCli(); }
+function tareasCliCalToday() { _tareasCliCalSemanaOffset = 0; renderTareasCli(); }
+
+// ── Drag handlers (Fase 5) ────────────────────────────────
+// Branching por dataset.droppableType (corrección S62.6.2 #5):
+//   tarea       → reorder dentro de objetivo o move entre objetivos
+//   objetivo    → mover tarea al final del objetivo destino
+//   dia         → asignar/reasignar fechaLimite
+//   cards-zone  → quitar fechaLimite (si tenía)
+//   cliente     → cross-cliente: ignorar (no crash, S62.6.3.B)
+
+let _tareasCliDrag = null;
+
+function tareasCliClearDragOutlines() {
+  document.querySelectorAll('[data-droppable-type]').forEach(function(el) {
+    el.style.outline = '';
+    el.style.outlineOffset = '';
+  });
+}
+
+function tareasCliDragStart(e, clientId, objId, tareaId) {
+  const cached = _tareasCliMemCache[clientId];
+  if (!cached) { e.preventDefault(); return; }
+  const o = (cached.objetivos || []).find(function(x) { return x.id === objId; });
+  if (!o) { e.preventDefault(); return; }
+  const t = (o.tareas || []).find(function(x) { return x.id === tareaId; });
+  if (!t) { e.preventDefault(); return; }
+
+  _tareasCliDrag = {
+    clientId: clientId,
+    fromObjId: objId,
+    tareaId: tareaId,
+    currentFecha: t.fechaLimite || null
+  };
+  if (e.dataTransfer) {
+    e.dataTransfer.effectAllowed = 'move';
+    try { e.dataTransfer.setData('text/plain', tareaId); } catch (err) {}
+  }
+  setTimeout(function() {
+    if (e.target && e.target.style) e.target.style.opacity = '0.4';
+  }, 0);
+}
+
+function tareasCliDragOver(e) {
+  if (!_tareasCliDrag) return;
+  const target = e.target.closest && e.target.closest('[data-droppable-type]');
+  if (!target) return;
+  e.preventDefault();
+  if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+  e.stopPropagation();
+  tareasCliClearDragOutlines();
+  target.style.outline = '2px dashed var(--accent)';
+  target.style.outlineOffset = '-2px';
+}
+
+function tareasCliDragEnd(e) {
+  if (e && e.target && e.target.style) e.target.style.opacity = '';
+  tareasCliClearDragOutlines();
+  _tareasCliDrag = null;
+}
+
+async function tareasCliDrop(e) {
+  if (!_tareasCliDrag) return;
+  const target = e.target.closest && e.target.closest('[data-droppable-type]');
+  if (!target) { tareasCliDragEnd(e); return; }
+  e.preventDefault();
+  e.stopPropagation();
+
+  const type = target.dataset.droppableType;
+  const drag = _tareasCliDrag;
+  tareasCliClearDragOutlines();
+
+  try {
+    if (type === 'tarea') {
+      const targetTareaId = target.dataset.tareaId;
+      const targetObjId = target.dataset.objId;
+      const targetClientId = target.dataset.clientId;
+      if (targetClientId !== drag.clientId) return; // cross-cliente: ignorar
+      if (targetObjId === drag.fromObjId && targetTareaId === drag.tareaId) return; // self
+      await tareasCliReorderOrMoveTarea(drag.clientId, drag.fromObjId, drag.tareaId, targetObjId, targetTareaId);
+    } else if (type === 'objetivo') {
+      const targetObjId = target.dataset.objId;
+      const targetClientId = target.dataset.clientId;
+      if (targetClientId !== drag.clientId) return; // cross-cliente: ignorar
+      if (targetObjId === drag.fromObjId) return;
+      await tareasCliReorderOrMoveTarea(drag.clientId, drag.fromObjId, drag.tareaId, targetObjId, null);
+    } else if (type === 'dia') {
+      const fecha = target.dataset.fecha;
+      await tareasCliSetFechaLimite(drag.clientId, drag.fromObjId, drag.tareaId, fecha);
+    } else if (type === 'cards-zone') {
+      if (drag.currentFecha) {
+        await tareasCliSetFechaLimite(drag.clientId, drag.fromObjId, drag.tareaId, null);
+      }
+    } else if (type === 'cliente') {
+      // ignorar (S62.6.2 #5: cross-cliente NO permitido en v4.0)
+      return;
+    }
+  } finally {
+    tareasCliDragEnd(e);
+  }
+}
+
+// ── Mutators (Fase 5) ──────────────────────────────────────
+async function tareasCliReorderOrMoveTarea(clientId, fromObjId, tareaId, toObjId, beforeTareaId) {
+  await tareasCliSave(clientId, function(d) {
+    const fromObj = (d.objetivos || []).find(function(x) { return x.id === fromObjId; });
+    if (!fromObj || !Array.isArray(fromObj.tareas)) return d;
+    const idx = fromObj.tareas.findIndex(function(x) { return x.id === tareaId; });
+    if (idx === -1) return d;
+    const tarea = fromObj.tareas.splice(idx, 1)[0];
+
+    const toObj = (d.objetivos || []).find(function(x) { return x.id === toObjId; });
+    if (!toObj) {
+      // Destino inexistente: restaurar
+      fromObj.tareas.splice(idx, 0, tarea);
+      return d;
+    }
+    if (!Array.isArray(toObj.tareas)) toObj.tareas = [];
+
+    if (beforeTareaId) {
+      const insertIdx = toObj.tareas.findIndex(function(x) { return x.id === beforeTareaId; });
+      if (insertIdx === -1) toObj.tareas.push(tarea);
+      else toObj.tareas.splice(insertIdx, 0, tarea);
+    } else {
+      toObj.tareas.push(tarea);
+    }
+
+    toObj.tareas.forEach(function(t, i) { t.orden = i; });
+    if (fromObj !== toObj) fromObj.tareas.forEach(function(t, i) { t.orden = i; });
+    return d;
+  });
+  renderTareasCli();
+}
+
+async function tareasCliSetFechaLimite(clientId, objId, tareaId, fechaStr) {
+  const nowIso = new Date().toISOString();
+  await tareasCliSave(clientId, function(d) {
+    const o = (d.objetivos || []).find(function(x) { return x.id === objId; });
+    if (!o) return d;
+    const t = (o.tareas || []).find(function(x) { return x.id === tareaId; });
+    if (t) {
+      t.fechaLimite = fechaStr || null;
+      t.updatedAt = nowIso;
+    }
+    return d;
+  });
+  renderTareasCli();
 }
 
 // ── Actions CRUD (Fase 4) ──────────────────────────────────
