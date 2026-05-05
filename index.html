@@ -4296,6 +4296,7 @@
           <button data-vista="areas" onclick="tareasSetVista('areas')">Áreas internas</button>
           <button data-vista="clientes" onclick="tareasSetVista('clientes')">Clientes</button>
         </div>
+        <button id="btn-tareas-cli-help" onclick="tareasCliShowRitualModal()" title="Ritual del primer lunes" style="display:none;background:var(--surface2);border:1px solid var(--border);color:var(--text2);width:32px;height:32px;border-radius:8px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;flex-shrink:0;">?</button>
         <button id="btn-tareas-add-area" onclick="tareasAddArea()" class="btn btn-ghost" style="font-size:12px; flex-shrink:0;">＋ Nueva área</button>
       </div>
     </div>
@@ -9063,18 +9064,21 @@ function tareasApplyVista() {
     });
   }
   const banner = document.getElementById('tareas-cli-atrasadas-banner');
+  const btnHelp = document.getElementById('btn-tareas-cli-help');
   if (vista === 'areas') {
     if (areasBody) areasBody.style.display = '';
     if (cliBody) cliBody.style.display = 'none';
     if (viewportMsg) viewportMsg.style.display = 'none';
     if (banner) banner.style.display = 'none';
     if (btnAddArea) btnAddArea.style.display = '';
+    if (btnHelp) btnHelp.style.display = 'none';
     if (typeof renderTareas === 'function') renderTareas();
     return;
   }
   // vista === 'clientes'
   if (areasBody) areasBody.style.display = 'none';
   if (btnAddArea) btnAddArea.style.display = 'none';
+  if (btnHelp) btnHelp.style.display = '';
   if (window.innerWidth < 1280) {
     if (cliBody) cliBody.style.display = 'none';
     if (banner) banner.style.display = 'none';
@@ -9085,6 +9089,8 @@ function tareasApplyVista() {
   if (cliBody) cliBody.style.display = '';
   renderTareasCli();
   if (typeof tareasCliRenderAtrasadasBanner === 'function') tareasCliRenderAtrasadasBanner();
+  // Onboarding tooltip per-uid (S62.6.2 #8) — solo primera vez por user.
+  if (typeof tareasCliMaybeShowOnboarding === 'function') tareasCliMaybeShowOnboarding();
 }
 
 // Re-evaluar al cruzar el threshold 1280
@@ -9161,9 +9167,14 @@ function renderTareasCli() {
 function tareasCliRenderCard(client, color, objetivos) {
   const totalTareas = objetivos.reduce(function(s, o) { return s + ((o.tareas || []).length); }, 0);
   const totalDone = objetivos.reduce(function(s, o) { return s + ((o.tareas || []).filter(function(t) { return t.completado; }).length); }, 0);
-  const subtitle = totalTareas === 0
+  // Soft limit visual: >3 objetivos = falta de foco (Fase 7).
+  const overLimit = objetivos.length > 3;
+  const subtitleBase = totalTareas === 0
     ? (objetivos.length === 0 ? 'Sin objetivos · agrega el primero' : objetivos.length + ' objetivo' + (objetivos.length === 1 ? '' : 's') + ' · sin tareas')
     : objetivos.length + ' objetivo' + (objetivos.length === 1 ? '' : 's') + ' · ' + totalDone + '/' + totalTareas + ' completadas';
+  const subtitle = overLimit
+    ? subtitleBase + ' · ⚠️ >3 obj, considera consolidar'
+    : subtitleBase;
   const nicho = client.nicho ? escapeHtml(String(client.nicho)) : '';
   const cid = escapeHtml(client.id);
 
@@ -9180,7 +9191,7 @@ function tareasCliRenderCard(client, color, objetivos) {
     +       '</div>'
     +       (nicho ? '<div style="font-family:\'DM Mono\',monospace;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em;flex-shrink:0;text-align:right;">' + nicho + '</div>' : '')
     +     '</div>'
-    +     '<div style="font-family:\'DM Mono\',monospace;font-size:10px;color:var(--text3);margin-top:6px;">' + subtitle + '</div>'
+    +     '<div style="font-family:\'DM Mono\',monospace;font-size:10px;color:' + (overLimit ? 'var(--yellow)' : 'var(--text3)') + ';margin-top:6px;">' + subtitle + '</div>'
     +   '</div>'
     +   '<div style="padding:12px 16px;">'
     +     tareasCliRenderObjetivosList(client, objetivos)
@@ -9598,6 +9609,80 @@ async function tareasCliSetFechaLimite(clientId, objId, tareaId, fechaStr) {
     return d;
   });
   renderTareasCli();
+}
+
+// ── Onboarding tooltip per-uid + ritual (Fase 7) ───────────
+// localStorage key: tareasCli-onboarding-shown-{uid} (S62.6.2 #8)
+
+function tareasCliMaybeShowOnboarding() {
+  const uid = (window.currentUser && window.currentUser.uid) || null;
+  if (!uid) return;
+  const key = 'tareasCli-onboarding-shown-' + uid;
+  let shown = false;
+  try { shown = localStorage.getItem(key) === '1'; } catch (e) {}
+  if (shown) return;
+  if (document.getElementById('tareasCli-onboarding-modal')) return;
+
+  const id = 'tareasCli-onboarding-modal';
+  const el = document.createElement('div');
+  el.id = id;
+  el.style.cssText = 'position:fixed;inset:0;z-index:99997;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;font-family:\'DM Sans\',sans-serif;';
+  el.innerHTML = ''
+    + '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:28px 32px;width:540px;max-width:92vw;box-shadow:0 16px 48px rgba(0,0,0,0.6);">'
+    +   '<div style="font-family:\'Syne\',sans-serif;font-weight:800;font-size:22px;color:var(--text);margin-bottom:6px;">👋 Bienvenido a vista Clientes</div>'
+    +   '<div style="font-size:13px;color:var(--text2);line-height:1.5;margin-bottom:20px;">Una nueva forma de organizar tareas — por cliente, no por área interna.</div>'
+    +   '<div style="display:flex;flex-direction:column;gap:14px;font-size:13px;color:var(--text2);line-height:1.5;">'
+    +     '<div style="display:flex;gap:12px;align-items:flex-start;"><div style="font-size:20px;flex-shrink:0;">🃏</div><div><strong style="color:var(--text);">Crea objetivos por cliente.</strong> Bajo cada objetivo agrega tareas concretas accionables.</div></div>'
+    +     '<div style="display:flex;gap:12px;align-items:flex-start;"><div style="font-size:20px;flex-shrink:0;">📅</div><div><strong style="color:var(--text);">Drag tareas al calendario.</strong> Asigna fecha límite arrastrando una tarea a un día. Drag fuera del calendario para quitarla.</div></div>'
+    +     '<div style="display:flex;gap:12px;align-items:flex-start;"><div style="font-size:20px;flex-shrink:0;">🔄</div><div><strong style="color:var(--text);">Reordena con drag.</strong> Mueve tareas dentro o entre objetivos del MISMO cliente. Para mover entre clientes: eliminar y recrear.</div></div>'
+    +     '<div style="display:flex;gap:12px;align-items:flex-start;"><div style="font-size:20px;flex-shrink:0;">🚨</div><div><strong style="color:var(--text);">Banner rojo arriba.</strong> Lista TODAS las tareas atrasadas, agrupadas por antigüedad — útil para el ritual del primer lunes.</div></div>'
+    +     '<div style="display:flex;gap:12px;align-items:flex-start;"><div style="font-size:20px;flex-shrink:0;">⚠️</div><div><strong style="color:var(--text);">Soft limit:</strong> 3 objetivos por cliente recomendado. Más es señal de falta de foco.</div></div>'
+    +   '</div>'
+    +   '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:24px;">'
+    +     '<button id="tareasCli-onboarding-show-ritual" style="background:transparent;border:1px solid var(--border);color:var(--text2);padding:10px 16px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;font-family:\'DM Sans\',sans-serif;">Ver ritual primer lunes</button>'
+    +     '<button id="tareasCli-onboarding-ok" style="background:var(--accent);border:none;color:#000;padding:10px 18px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:\'DM Sans\',sans-serif;">Entendido</button>'
+    +   '</div>'
+    + '</div>';
+  document.body.appendChild(el);
+
+  function dismiss() {
+    try { localStorage.setItem(key, '1'); } catch (e) {}
+    el.remove();
+  }
+  document.getElementById('tareasCli-onboarding-ok').onclick = dismiss;
+  document.getElementById('tareasCli-onboarding-show-ritual').onclick = function() {
+    dismiss();
+    tareasCliShowRitualModal();
+  };
+}
+
+function tareasCliShowRitualModal() {
+  const id = 'tareasCli-ritual-modal';
+  let el = document.getElementById(id);
+  if (el) el.remove();
+  el = document.createElement('div');
+  el.id = id;
+  el.style.cssText = 'position:fixed;inset:0;z-index:99997;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;font-family:\'DM Sans\',sans-serif;';
+  el.innerHTML = ''
+    + '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:24px 28px;width:560px;max-width:92vw;max-height:80vh;overflow-y:auto;box-shadow:0 12px 40px rgba(0,0,0,0.5);">'
+    +   '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">'
+    +     '<div style="font-family:\'Syne\',sans-serif;font-weight:800;font-size:18px;color:var(--text);">📋 Ritual del primer lunes</div>'
+    +     '<button onclick="document.getElementById(\'' + id + '\').remove()" style="background:transparent;border:none;color:var(--text3);font-size:18px;cursor:pointer;line-height:1;padding:4px 8px;">×</button>'
+    +   '</div>'
+    +   '<div style="font-family:\'DM Mono\',monospace;font-size:11px;color:var(--text3);margin-bottom:16px;">Repaso semanal de Tareas → Clientes (15-20 min)</div>'
+    +   '<ol style="margin:0;padding-left:22px;color:var(--text2);font-size:13px;line-height:1.7;display:flex;flex-direction:column;gap:10px;">'
+    +     '<li><strong style="color:var(--text);">Abre el banner rojo</strong> de tareas atrasadas. Por cada una: completar ahora, mover fecha al día correcto, o eliminar si ya no aplica.</li>'
+    +     '<li><strong style="color:var(--text);">Limpia objetivos vacíos</strong> o ya cumplidos. Click ✕ en el objetivo. Si tiene tareas viejas que dejaron de importar, eliminar también.</li>'
+    +     '<li><strong style="color:var(--text);">Verifica el límite blando de 3 objetivos por cliente.</strong> Si ves más, decide consolidar o pausar — más de 3 objetivos a la vez = falta de foco.</li>'
+    +     '<li><strong style="color:var(--text);">Define la próxima semana.</strong> Por cada cliente activo: 1-3 tareas concretas con fechaLimite. Drag al calendario para asignar día.</li>'
+    +     '<li><strong style="color:var(--text);">Comparte el board</strong> con quien colabore (Mario, etc.). Las tareas persisten en Firestore — los demás verán los cambios en tiempo real vía onSnapshot.</li>'
+    +   '</ol>'
+    +   '<div style="margin-top:18px;padding:12px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;font-size:12px;color:var(--text2);line-height:1.5;">'
+    +     '<strong style="color:var(--text);">💡 Tip:</strong> El ritual es housekeeping operacional, NO ajuste de plan estratégico. El plan trimestral va en otro lado (canvas Slack o spec).'
+    +   '</div>'
+    + '</div>';
+  document.body.appendChild(el);
+  el.onclick = function(ev) { if (ev.target === el) el.remove(); };
 }
 
 // ── Junior matching dual + Sem pasada (Fase 6) ─────────────
