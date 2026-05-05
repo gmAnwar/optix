@@ -8835,6 +8835,187 @@ function escapeHtml(str) {
 }
 
 // ══════════════════════════════════════════════════════════════
+// MÓDULO TAREAS — v4.0 · Vista Clientes
+// SPEC: canvas Slack F0B1GB23QH1 "SPEC Optix — Tareas v4.0"
+// Fase 2: storage layer (Firestore + localStorage cache + versionado optimista)
+// Doc: workspaces/{wsId}/tareas-clientes/{clientId}
+// ══════════════════════════════════════════════════════════════
+
+// Paleta cliente (corrección S62.6.3.A — no choca con --green/--yellow)
+const TAREAS_CLIENTE_COLORS = {
+  'enpagos':     '#059669',
+  'inmobili':    '#a855f7',
+  'bodygreen':   '#65a30d',
+  'luzyla':      '#ca8a04',
+  'divisas':     '#dc2626',
+  'tuyo-health': '#06b6d4',
+  'favio':       '#ec4899',
+  '_fallback':   '#64748b'
+};
+
+const _tareasCliMemCache = {};
+const _tareasCliUnsubs = {};       // { clientId: unsubFn }
+
+function tareasCliCacheKey(clientId) {
+  const wsId = currentAgencia || 'optimizads';
+  return 'tareasCli_v1_' + wsId + '_' + clientId;
+}
+
+function tareasCliFirestoreRef(clientId) {
+  if (!window.firebaseDb || !window.currentUser || !clientId) return null;
+  const wsId = currentAgencia || 'optimizads';
+  return window.firebaseDb
+    .collection('workspaces').doc(wsId)
+    .collection('tareas-clientes').doc(clientId);
+}
+
+function tareasCliEmptyDoc(clientId) {
+  return {
+    clientId: clientId,
+    orden: 0,
+    collapsed: false,
+    version: 0,
+    objetivos: [],
+    updatedAt: null,
+    updatedBy: null
+  };
+}
+
+function tareasCliLoadCache(clientId) {
+  try {
+    const raw = localStorage.getItem(tareasCliCacheKey(clientId));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    _tareasCliMemCache[clientId] = parsed;
+    return parsed;
+  } catch (e) {
+    console.warn('[tareasCli] loadCache failed', clientId, e);
+    return null;
+  }
+}
+
+function tareasCliSaveCache(clientId, data) {
+  try {
+    localStorage.setItem(tareasCliCacheKey(clientId), JSON.stringify(data));
+    _tareasCliMemCache[clientId] = data;
+  } catch (e) {
+    console.warn('[tareasCli] saveCache failed', clientId, e);
+  }
+}
+
+// Toast de conflicto — modal CSS, NO alert() nativo (corrección G)
+function tareasCliShowConflictToast(clientId) {
+  const id = 'tareasCli-conflict-toast';
+  let el = document.getElementById(id);
+  if (!el) {
+    el = document.createElement('div');
+    el.id = id;
+    el.style.cssText = 'position:fixed;top:20px;right:20px;z-index:99999;background:var(--surface);border:1px solid var(--red);border-radius:10px;padding:14px 18px;font-family:\'DM Sans\',sans-serif;font-size:13px;color:var(--text);box-shadow:0 8px 24px rgba(0,0,0,0.4);max-width:340px;';
+    document.body.appendChild(el);
+  }
+  el.innerHTML = '<div style="font-weight:600;color:var(--red);margin-bottom:4px;">Conflicto de versión</div>'
+    + '<div style="color:var(--text2);line-height:1.5;">Otro usuario editó <strong>' + escapeHtml(clientId) + '</strong>. Refrescando datos. Tu cambio se descartó — vuelve a aplicarlo.</div>';
+  el.style.display = 'block';
+  setTimeout(function() { if (el) el.style.display = 'none'; }, 6000);
+}
+
+async function tareasCliInitFromFirestore(clientId) {
+  const ref = tareasCliFirestoreRef(clientId);
+  if (!ref) return null;
+
+  if (_tareasCliUnsubs[clientId]) {
+    try { _tareasCliUnsubs[clientId](); } catch(e) {}
+    delete _tareasCliUnsubs[clientId];
+  }
+
+  try {
+    const snap = await ref.get();
+    const data = snap.exists ? snap.data() : tareasCliEmptyDoc(clientId);
+    tareasCliSaveCache(clientId, data);
+
+    _tareasCliUnsubs[clientId] = ref.onSnapshot(function(snap2) {
+      if (!snap2.exists) {
+        tareasCliSaveCache(clientId, tareasCliEmptyDoc(clientId));
+        return;
+      }
+      const d = snap2.data();
+      if (!d) return;
+      tareasCliSaveCache(clientId, d);
+      if (typeof renderTareasCli === 'function') {
+        try { renderTareasCli(); } catch(e) {}
+      }
+    }, function(err) { console.warn('[tareasCli] onSnapshot error', clientId, err); });
+
+    return data;
+  } catch (e) {
+    console.warn('[tareasCli] init failed, fallback cache', clientId, e);
+    return tareasCliLoadCache(clientId);
+  }
+}
+
+function tareasCliUnsubAll() {
+  Object.keys(_tareasCliUnsubs).forEach(function(k) {
+    try { _tareasCliUnsubs[k](); } catch(e) {}
+    delete _tareasCliUnsubs[k];
+  });
+}
+
+// Save con versionado optimista — 3 retries con backoff 200/400/600ms.
+// mutator: (baseDoc) => newDoc. Recibe un clon mutable; retorna el draft a persistir.
+// Conflict tras 3 retries: toast + re-fetch + descartar cambio local (Opción A simplificada, S62.6.2 #2).
+async function tareasCliSave(clientId, mutator) {
+  const ref = tareasCliFirestoreRef(clientId);
+  if (!ref) {
+    console.warn('[tareasCli] save: no ref (offline o unauth)', clientId);
+    return null;
+  }
+  const delays = [200, 400, 600];
+
+  for (let attempt = 0; attempt <= 3; attempt++) {
+    try {
+      const result = await window.firebaseDb.runTransaction(async function(tx) {
+        const snap = await tx.get(ref);
+        const baseDoc = snap.exists ? snap.data() : tareasCliEmptyDoc(clientId);
+        const draft = mutator(JSON.parse(JSON.stringify(baseDoc)));
+        if (!draft) throw new Error('MUTATOR_RETURNED_NULL');
+        draft.clientId = clientId;
+        draft.version = (baseDoc.version || 0) + 1;
+        draft.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
+        draft.updatedBy = (window.currentUser && window.currentUser.uid) || 'anon';
+        tx.set(ref, draft);
+        return draft;
+      });
+      // serverTimestamp aún sin resolver hasta onSnapshot; cache local con Date.now() temporal
+      tareasCliSaveCache(clientId, Object.assign({}, result, { updatedAt: Date.now() }));
+      return result;
+    } catch (e) {
+      if (attempt < 3) {
+        await new Promise(function(r) { setTimeout(r, delays[attempt]); });
+        continue;
+      }
+      console.warn('[tareasCli] save failed after 3 retries', clientId, e);
+      tareasCliShowConflictToast(clientId);
+      try { await tareasCliInitFromFirestore(clientId); } catch(e2) {}
+      return null;
+    }
+  }
+  return null;
+}
+
+// API expuesta para test manual desde consola del browser
+window.tareasCli = {
+  ref: tareasCliFirestoreRef,
+  loadCache: tareasCliLoadCache,
+  saveCache: tareasCliSaveCache,
+  init: tareasCliInitFromFirestore,
+  save: tareasCliSave,
+  unsubAll: tareasCliUnsubAll,
+  emptyDoc: tareasCliEmptyDoc,
+  cache: _tareasCliMemCache,
+  COLORS: TAREAS_CLIENTE_COLORS
+};
+
+// ══════════════════════════════════════════════════════════════
 // ADMIN — Cobranza (spec canvas F0AR7TXK831)
 // ══════════════════════════════════════════════════════════════
 
