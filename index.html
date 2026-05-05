@@ -9135,9 +9135,10 @@ function tareasCliRenderCard(client, color, objetivos) {
     ? (objetivos.length === 0 ? 'Sin objetivos · agrega el primero' : objetivos.length + ' objetivo' + (objetivos.length === 1 ? '' : 's') + ' · sin tareas')
     : objetivos.length + ' objetivo' + (objetivos.length === 1 ? '' : 's') + ' · ' + totalDone + '/' + totalTareas + ' completadas';
   const nicho = client.nicho ? escapeHtml(String(client.nicho)) : '';
+  const cid = escapeHtml(client.id);
 
   return ''
-    + '<div class="tareas-cli-card" data-client-id="' + escapeHtml(client.id) + '" style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;border-top:3px solid ' + color + ';">'
+    + '<div class="tareas-cli-card" data-client-id="' + cid + '" style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;border-top:3px solid ' + color + ';">'
     +   '<div style="padding:14px 16px;border-bottom:1px solid var(--border);">'
     +     '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">'
     +       '<div style="display:flex;align-items:center;gap:10px;min-width:0;">'
@@ -9152,7 +9153,13 @@ function tareasCliRenderCard(client, color, objetivos) {
     +     tareasCliRenderObjetivosList(client, objetivos)
     +   '</div>'
     +   '<div style="padding:0 16px 14px;">'
-    +     '<button disabled title="Agregar objetivo · disponible en Fase 4" style="width:100%;background:transparent;border:1px dashed var(--border2);color:var(--text3);padding:8px 12px;border-radius:8px;font-family:\'DM Sans\',sans-serif;font-size:12px;cursor:not-allowed;">＋ Objetivo (Fase 4)</button>'
+    +     '<button onclick="tareasCliShowAddObjetivoInput(\'' + cid + '\')" '
+    +       'style="width:100%;background:transparent;border:1px dashed var(--border2);color:var(--text2);padding:8px 12px;border-radius:8px;font-family:\'DM Sans\',sans-serif;font-size:12px;cursor:pointer;transition:all 0.15s;" '
+    +       'onmouseover="this.style.borderColor=\'var(--accent)\';this.style.color=\'var(--accent)\';" '
+    +       'onmouseout="this.style.borderColor=\'var(--border2)\';this.style.color=\'var(--text2)\';">'
+    +       '＋ Objetivo'
+    +     '</button>'
+    +     '<div id="tareas-cli-add-obj-container-' + cid + '"></div>'
     +   '</div>'
     + '</div>';
 }
@@ -9161,30 +9168,351 @@ function tareasCliRenderObjetivosList(client, objetivos) {
   if (!objetivos || objetivos.length === 0) {
     return '<div style="padding:14px 0;color:var(--text3);font-size:12px;text-align:center;font-family:\'DM Mono\',monospace;">Sin objetivos creados</div>';
   }
+  const cid = escapeHtml(client.id);
   return objetivos.map(function(o) {
+    const oid = escapeHtml(o.id);
     const tareas = Array.isArray(o.tareas) ? o.tareas : [];
     const done = tareas.filter(function(t) { return t.completado; }).length;
-    const tareasHtml = tareas.length === 0
-      ? '<div style="font-family:\'DM Mono\',monospace;font-size:10px;color:var(--text3);margin-top:6px;">Sin tareas</div>'
-      : tareas.map(function(t) {
-          const completed = !!t.completado;
-          return '<div style="display:flex;align-items:flex-start;gap:8px;margin-top:6px;font-size:12px;color:'
-            + (completed ? 'var(--text3)' : 'var(--text)') + ';'
-            + (completed ? 'text-decoration:line-through;' : '')
-            + '">'
-            + '<span style="opacity:0.6;flex-shrink:0;">' + (completed ? '☑' : '☐') + '</span>'
-            + '<span style="overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(t.texto || '') + '</span>'
-            + '</div>';
-        }).join('');
+    const objNombreSafe = escapeHtml(o.nombre || '');
+    const tareasHtml = tareas.map(function(t) {
+      const tid = escapeHtml(t.id);
+      const completed = !!t.completado;
+      const textoSafe = escapeHtml(t.texto || '');
+      return ''
+        + '<div class="tareas-cli-tarea-row" data-tarea-id="' + tid + '" style="display:flex;align-items:flex-start;gap:6px;margin-top:6px;font-size:12px;color:'
+        + (completed ? 'var(--text3)' : 'var(--text)') + ';">'
+        +   '<span onclick="tareasCliToggleTarea(\'' + cid + '\', \'' + oid + '\', \'' + tid + '\')" '
+        +     'title="Marcar completada" style="cursor:pointer;flex-shrink:0;user-select:none;font-size:14px;line-height:1;">'
+        +     (completed ? '☑' : '☐')
+        +   '</span>'
+        +   '<span class="tareas-cli-tarea-text" '
+        +     'style="flex:1;overflow:hidden;text-overflow:ellipsis;cursor:text;' + (completed ? 'text-decoration:line-through;' : '') + '" '
+        +     'onclick="tareasCliEditTareaTextoInline(event, \'' + cid + '\', \'' + oid + '\', \'' + tid + '\')">'
+        +     textoSafe
+        +   '</span>'
+        +   '<button onclick="tareasCliConfirmDeleteTarea(\'' + cid + '\', \'' + oid + '\', \'' + tid + '\')" '
+        +     'title="Eliminar tarea" '
+        +     'style="background:transparent;border:none;color:var(--text3);cursor:pointer;padding:0 4px;font-size:11px;flex-shrink:0;line-height:1;" '
+        +     'onmouseover="this.style.color=\'var(--red)\'" onmouseout="this.style.color=\'var(--text3)\'">'
+        +     '✕'
+        +   '</button>'
+        + '</div>';
+    }).join('');
     return ''
-      + '<div style="border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:8px;background:var(--surface2);">'
-      +   '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">'
-      +     '<div style="font-family:\'DM Sans\',sans-serif;font-weight:600;font-size:12px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escapeHtml(o.nombre || '') + '</div>'
-      +     '<div style="font-family:\'DM Mono\',monospace;font-size:10px;color:var(--text3);flex-shrink:0;">' + done + '/' + tareas.length + '</div>'
+      + '<div data-obj-id="' + oid + '" style="border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:8px;background:var(--surface2);">'
+      +   '<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;">'
+      +     '<span class="tareas-cli-obj-nombre" '
+      +       'style="font-family:\'DM Sans\',sans-serif;font-weight:600;font-size:12px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;cursor:text;" '
+      +       'onclick="tareasCliEditObjNameInline(event, \'' + cid + '\', \'' + oid + '\')">'
+      +       objNombreSafe
+      +     '</span>'
+      +     '<span style="font-family:\'DM Mono\',monospace;font-size:10px;color:var(--text3);flex-shrink:0;">' + done + '/' + tareas.length + '</span>'
+      +     '<button onclick="tareasCliConfirmDeleteObjetivo(\'' + cid + '\', \'' + oid + '\')" '
+      +       'title="Eliminar objetivo" '
+      +       'style="background:transparent;border:none;color:var(--text3);cursor:pointer;padding:0 4px;font-size:11px;flex-shrink:0;line-height:1;" '
+      +       'onmouseover="this.style.color=\'var(--red)\'" onmouseout="this.style.color=\'var(--text3)\'">'
+      +       '✕'
+      +     '</button>'
       +   '</div>'
-      +   tareasHtml
+      +   (tareas.length === 0
+          ? '<div style="font-family:\'DM Mono\',monospace;font-size:10px;color:var(--text3);margin-top:6px;">Sin tareas</div>'
+          : tareasHtml)
+      +   '<button onclick="tareasCliShowAddTareaInput(\'' + cid + '\', \'' + oid + '\')" '
+      +     'style="background:transparent;border:none;color:var(--text3);font-size:11px;padding:6px 0 0;cursor:pointer;font-family:\'DM Sans\',sans-serif;" '
+      +     'onmouseover="this.style.color=\'var(--accent)\'" onmouseout="this.style.color=\'var(--text3)\'">'
+      +     '＋ Tarea'
+      +   '</button>'
+      +   '<div id="tareas-cli-add-tarea-container-' + cid + '-' + oid + '"></div>'
       + '</div>';
   }).join('');
+}
+
+// ── Actions CRUD (Fase 4) ──────────────────────────────────
+async function tareasCliAddObjetivo(clientId, nombre) {
+  const t = String(nombre || '').trim();
+  if (!t) return;
+  await tareasCliSave(clientId, function(d) {
+    if (!Array.isArray(d.objetivos)) d.objetivos = [];
+    d.objetivos.push({
+      id: 'obj-' + Date.now() + '-' + Math.floor(Math.random() * 1000),
+      nombre: t,
+      collapsed: false,
+      orden: d.objetivos.length,
+      tareas: []
+    });
+    return d;
+  });
+  renderTareasCli();
+}
+
+async function tareasCliEditObjetivoNombre(clientId, objId, nombre) {
+  const t = String(nombre || '').trim();
+  if (!t) return;
+  await tareasCliSave(clientId, function(d) {
+    const o = (d.objetivos || []).find(function(x) { return x.id === objId; });
+    if (o) o.nombre = t;
+    return d;
+  });
+  renderTareasCli();
+}
+
+async function tareasCliDeleteObjetivo(clientId, objId) {
+  await tareasCliSave(clientId, function(d) {
+    d.objetivos = (d.objetivos || []).filter(function(x) { return x.id !== objId; });
+    return d;
+  });
+  renderTareasCli();
+}
+
+async function tareasCliAddTarea(clientId, objId, texto) {
+  const t = String(texto || '').trim();
+  if (!t) return;
+  const nowIso = new Date().toISOString();
+  await tareasCliSave(clientId, function(d) {
+    const o = (d.objetivos || []).find(function(x) { return x.id === objId; });
+    if (!o) return d;
+    if (!Array.isArray(o.tareas)) o.tareas = [];
+    o.tareas.push({
+      id: 'tarea-' + Date.now() + '-' + Math.floor(Math.random() * 1000),
+      texto: t,
+      completado: false,
+      fechaIdeal: null,
+      fechaLimite: null,
+      notas: '',
+      responsibleUsers: [],
+      orden: o.tareas.length,
+      createdAt: nowIso,
+      updatedAt: nowIso
+    });
+    return d;
+  });
+  renderTareasCli();
+}
+
+async function tareasCliEditTareaTexto(clientId, objId, tareaId, texto) {
+  const t = String(texto || '').trim();
+  if (!t) return;
+  const nowIso = new Date().toISOString();
+  await tareasCliSave(clientId, function(d) {
+    const o = (d.objetivos || []).find(function(x) { return x.id === objId; });
+    if (!o) return d;
+    const ta = (o.tareas || []).find(function(x) { return x.id === tareaId; });
+    if (ta) { ta.texto = t; ta.updatedAt = nowIso; }
+    return d;
+  });
+  renderTareasCli();
+}
+
+async function tareasCliDeleteTarea(clientId, objId, tareaId) {
+  await tareasCliSave(clientId, function(d) {
+    const o = (d.objetivos || []).find(function(x) { return x.id === objId; });
+    if (!o) return d;
+    o.tareas = (o.tareas || []).filter(function(x) { return x.id !== tareaId; });
+    return d;
+  });
+  renderTareasCli();
+}
+
+async function tareasCliToggleTarea(clientId, objId, tareaId) {
+  const nowIso = new Date().toISOString();
+  await tareasCliSave(clientId, function(d) {
+    const o = (d.objetivos || []).find(function(x) { return x.id === objId; });
+    if (!o) return d;
+    const ta = (o.tareas || []).find(function(x) { return x.id === tareaId; });
+    if (ta) {
+      ta.completado = !ta.completado;
+      ta.completadoAt = ta.completado ? nowIso : null;
+      ta.updatedAt = nowIso;
+    }
+    return d;
+  });
+  renderTareasCli();
+}
+
+// ── Inputs inline para crear (no usar prompt() nativo) ───
+function tareasCliShowAddObjetivoInput(clientId) {
+  const cont = document.getElementById('tareas-cli-add-obj-container-' + clientId);
+  if (!cont) return;
+  if (cont.dataset.open === '1') { cont.innerHTML = ''; cont.dataset.open = '0'; return; }
+  cont.dataset.open = '1';
+  cont.innerHTML = ''
+    + '<div style="display:flex;gap:6px;margin-top:8px;">'
+    +   '<input id="tareas-cli-new-obj-' + clientId + '" type="text" placeholder="Nombre del objetivo y Enter..." '
+    +     'style="flex:1;background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:\'DM Sans\',sans-serif;font-size:12px;padding:8px 10px;border-radius:6px;outline:none;" '
+    +     'onkeydown="tareasCliHandleObjInputKey(event, \'' + clientId + '\')" '
+    +     'onblur="tareasCliBlurObjInput(\'' + clientId + '\')">'
+    + '</div>';
+  setTimeout(function() {
+    const inp = document.getElementById('tareas-cli-new-obj-' + clientId);
+    if (inp) inp.focus();
+  }, 50);
+}
+
+function tareasCliHandleObjInputKey(e, clientId) {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    const inp = document.getElementById('tareas-cli-new-obj-' + clientId);
+    const t = inp ? inp.value.trim() : '';
+    if (inp) inp.onblur = null;
+    if (t) tareasCliAddObjetivo(clientId, t);
+    const cont = document.getElementById('tareas-cli-add-obj-container-' + clientId);
+    if (cont) { cont.innerHTML = ''; cont.dataset.open = '0'; }
+  } else if (e.key === 'Escape') {
+    const cont = document.getElementById('tareas-cli-add-obj-container-' + clientId);
+    if (cont) { cont.innerHTML = ''; cont.dataset.open = '0'; }
+  }
+}
+
+function tareasCliBlurObjInput(clientId) {
+  setTimeout(function() {
+    const cont = document.getElementById('tareas-cli-add-obj-container-' + clientId);
+    if (cont) { cont.innerHTML = ''; cont.dataset.open = '0'; }
+  }, 100);
+}
+
+function tareasCliShowAddTareaInput(clientId, objId) {
+  const cont = document.getElementById('tareas-cli-add-tarea-container-' + clientId + '-' + objId);
+  if (!cont) return;
+  if (cont.dataset.open === '1') { cont.innerHTML = ''; cont.dataset.open = '0'; return; }
+  cont.dataset.open = '1';
+  cont.innerHTML = ''
+    + '<div style="display:flex;gap:6px;margin-top:6px;">'
+    +   '<input id="tareas-cli-new-tarea-' + clientId + '-' + objId + '" type="text" placeholder="Nueva tarea y Enter..." '
+    +     'style="flex:1;background:var(--surface);border:1px solid var(--border);color:var(--text);font-family:\'DM Sans\',sans-serif;font-size:12px;padding:6px 8px;border-radius:6px;outline:none;" '
+    +     'onkeydown="tareasCliHandleTareaInputKey(event, \'' + clientId + '\', \'' + objId + '\')" '
+    +     'onblur="tareasCliBlurTareaInput(\'' + clientId + '\', \'' + objId + '\')">'
+    + '</div>';
+  setTimeout(function() {
+    const inp = document.getElementById('tareas-cli-new-tarea-' + clientId + '-' + objId);
+    if (inp) inp.focus();
+  }, 50);
+}
+
+function tareasCliHandleTareaInputKey(e, clientId, objId) {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    const inp = document.getElementById('tareas-cli-new-tarea-' + clientId + '-' + objId);
+    const t = inp ? inp.value.trim() : '';
+    if (inp) inp.onblur = null;
+    if (t) tareasCliAddTarea(clientId, objId, t);
+    const cont = document.getElementById('tareas-cli-add-tarea-container-' + clientId + '-' + objId);
+    if (cont) { cont.innerHTML = ''; cont.dataset.open = '0'; }
+  } else if (e.key === 'Escape') {
+    const cont = document.getElementById('tareas-cli-add-tarea-container-' + clientId + '-' + objId);
+    if (cont) { cont.innerHTML = ''; cont.dataset.open = '0'; }
+  }
+}
+
+function tareasCliBlurTareaInput(clientId, objId) {
+  setTimeout(function() {
+    const cont = document.getElementById('tareas-cli-add-tarea-container-' + clientId + '-' + objId);
+    if (cont) { cont.innerHTML = ''; cont.dataset.open = '0'; }
+  }, 100);
+}
+
+// Edit inline para nombres existentes
+function tareasCliEditObjNameInline(e, clientId, objId) {
+  e.stopPropagation();
+  const span = e.currentTarget;
+  const currentNombre = span.textContent;
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.value = currentNombre;
+  input.style.cssText = 'flex:1;background:var(--surface);border:1px solid var(--border);color:var(--text);font-family:\'DM Sans\',sans-serif;font-weight:600;font-size:12px;padding:4px 6px;border-radius:4px;outline:none;min-width:0;';
+  span.replaceWith(input);
+  input.focus();
+  input.select();
+  let saved = false;
+  function commit() {
+    if (saved) return; saved = true;
+    const v = input.value.trim();
+    if (v && v !== currentNombre) tareasCliEditObjetivoNombre(clientId, objId, v);
+    else renderTareasCli();
+  }
+  input.onblur = commit;
+  input.onkeydown = function(ev) {
+    if (ev.key === 'Enter') { ev.preventDefault(); commit(); }
+    else if (ev.key === 'Escape') { saved = true; renderTareasCli(); }
+  };
+}
+
+function tareasCliEditTareaTextoInline(e, clientId, objId, tareaId) {
+  e.stopPropagation();
+  const span = e.currentTarget;
+  const currentTexto = span.textContent;
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.value = currentTexto;
+  input.style.cssText = 'flex:1;background:var(--surface);border:1px solid var(--border);color:var(--text);font-family:\'DM Sans\',sans-serif;font-size:12px;padding:2px 6px;border-radius:4px;outline:none;min-width:0;';
+  span.replaceWith(input);
+  input.focus();
+  input.select();
+  let saved = false;
+  function commit() {
+    if (saved) return; saved = true;
+    const v = input.value.trim();
+    if (v && v !== currentTexto) tareasCliEditTareaTexto(clientId, objId, tareaId, v);
+    else renderTareasCli();
+  }
+  input.onblur = commit;
+  input.onkeydown = function(ev) {
+    if (ev.key === 'Enter') { ev.preventDefault(); commit(); }
+    else if (ev.key === 'Escape') { saved = true; renderTareasCli(); }
+  };
+}
+
+// Modal de confirmación CSS — reutilizable, sin confirm() nativo (corrección S62.6.3.G)
+function tareasCliShowConfirmModal(message, onConfirm) {
+  const id = 'tareasCli-confirm-modal';
+  let el = document.getElementById(id);
+  if (el) el.remove();
+  el = document.createElement('div');
+  el.id = id;
+  el.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;font-family:\'DM Sans\',sans-serif;';
+  el.innerHTML = ''
+    + '<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;min-width:320px;max-width:420px;box-shadow:0 12px 32px rgba(0,0,0,0.5);">'
+    +   '<div style="font-family:\'Syne\',sans-serif;font-weight:700;font-size:15px;color:var(--text);margin-bottom:8px;">¿Estás seguro?</div>'
+    +   '<div id="tareasCli-confirm-msg" style="font-size:13px;color:var(--text2);line-height:1.5;margin-bottom:18px;"></div>'
+    +   '<div style="display:flex;gap:8px;justify-content:flex-end;">'
+    +     '<button id="tareasCli-confirm-cancel" style="background:transparent;border:1px solid var(--border);color:var(--text2);padding:8px 14px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">Cancelar</button>'
+    +     '<button id="tareasCli-confirm-ok" style="background:var(--red);border:none;color:#fff;padding:8px 14px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">Eliminar</button>'
+    +   '</div>'
+    + '</div>';
+  document.body.appendChild(el);
+  document.getElementById('tareasCli-confirm-msg').textContent = message;
+  function close() { try { el.remove(); } catch(e) {} }
+  document.getElementById('tareasCli-confirm-cancel').onclick = close;
+  document.getElementById('tareasCli-confirm-ok').onclick = function() {
+    close();
+    try { onConfirm(); } catch(e) { console.error(e); }
+  };
+  el.onclick = function(ev) { if (ev.target === el) close(); };
+  document.addEventListener('keydown', function escHandler(ev) {
+    if (ev.key === 'Escape') {
+      document.removeEventListener('keydown', escHandler);
+      close();
+    }
+  });
+}
+
+function tareasCliConfirmDeleteObjetivo(clientId, objId) {
+  const cached = _tareasCliMemCache[clientId] || tareasCliLoadCache(clientId);
+  const o = ((cached && cached.objetivos) || []).find(function(x) { return x.id === objId; });
+  if (!o) return;
+  const tareaCount = (o.tareas || []).length;
+  const msg = tareaCount > 0
+    ? 'Vas a eliminar el objetivo "' + o.nombre + '" con ' + tareaCount + ' tarea' + (tareaCount === 1 ? '' : 's') + '. Esta acción no se puede deshacer.'
+    : 'Vas a eliminar el objetivo "' + o.nombre + '". Esta acción no se puede deshacer.';
+  tareasCliShowConfirmModal(msg, function() { tareasCliDeleteObjetivo(clientId, objId); });
+}
+
+function tareasCliConfirmDeleteTarea(clientId, objId, tareaId) {
+  const cached = _tareasCliMemCache[clientId] || tareasCliLoadCache(clientId);
+  const o = ((cached && cached.objetivos) || []).find(function(x) { return x.id === objId; });
+  if (!o) return;
+  const ta = (o.tareas || []).find(function(x) { return x.id === tareaId; });
+  if (!ta) return;
+  tareasCliShowConfirmModal('Vas a eliminar la tarea "' + ta.texto + '". Esta acción no se puede deshacer.', function() { tareasCliDeleteTarea(clientId, objId, tareaId); });
 }
 
 // API expuesta para test manual desde consola del browser
