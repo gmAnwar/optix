@@ -10286,10 +10286,16 @@ const CALENDAR_CLIENT_COLORS = Object.assign({}, TAREAS_CLIENTE_COLORS, {
   'agency': '#64748b'
 });
 
-const _calendarSemanaMemCache = {};   // { uid: { bloqueId: doc, ... } }
+const _calendarSemanaMemCache = {};   // { uid: { bloqueId: doc, ... } } — DA3 per-uid
 const _calendarSemanaUnsubs = {};     // { uid: unsubFn }
 let _calendarSemanaWeekOffset = 0;
 let _calendarSemanaResizeBound = false;
+
+// F3 state — switcher view + users cache
+let _msViewUid = null;                 // uid del calendar visible (default = currentUser.uid)
+const _msUsersCache = {};              // { uid: { displayName, photoURL, calendar_role, email, ... } }
+let _msUsersWatchUnsub = null;
+const _MS_DIAS_KEY = ['dom','lun','mar','mie','jue','vie','sab']; // index = Date.getDay()
 
 function calendarSemanaCacheKey(uid) {
   const wsId = currentAgencia || 'optimizads';
@@ -10496,6 +10502,76 @@ function _msFmtDateShort(date) {
   return date.getDate() + ' ' + meses[date.getMonth()];
 }
 
+// ── F3: TZ MX helpers (DA1) ───────────────────────────────
+// Todo timestamp/fecha del módulo Plan Semanal usa America/Mexico_City explícito.
+
+function _msTodayMx() {
+  // YYYY-MM-DD en America/Mexico_City via Intl.DateTimeFormat (formato 'en-CA' produce ISO).
+  const fmt = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Mexico_City', year: 'numeric', month: '2-digit', day: '2-digit'
+  });
+  return fmt.format(new Date());
+}
+
+function _msFridayOfThisWeekMx() {
+  // Viernes de la semana ACTUAL (today_mx based) — DA6 constante mientras se navega semanas.
+  const todayStr = _msTodayMx();
+  const [Y, M, D] = todayStr.split('-').map(Number);
+  const d = new Date(Y, M - 1, D);
+  const dow = d.getDay(); // 0=dom .. 5=vie .. 6=sab
+  // Si es domingo (dow=0), el viernes "de la semana actual" es el viernes que viene (+5).
+  // Para lun-sab, el viernes es (5 - dow + 7*0) ajustado: dow<=5 → +(5-dow); dow=6 (sab) → +6 (próximo vie).
+  const diff = dow === 0 ? 5 : (dow <= 5 ? (5 - dow) : 6);
+  d.setDate(d.getDate() + diff);
+  return _msIsoDate(d);
+}
+
+function _msIsoDate(d) {
+  // YYYY-MM-DD desde un Date local (componentes locales, no UTC).
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+
+// ── F3: Recurrencia virtual — expansión client-side (D17, DA2) ─────
+// Schema SPEC: recurrencia: {tipo:"diaria"|"semanal", dias, hora_inicio:"HH:MM",
+// activo_desde, activo_hasta?, excepciones:[{fecha, accion:"cancel"}]}
+// Devuelve array de instancias virtuales para los días lun-vie de la semana visible.
+function _msExpandRecurrente(b, monday) {
+  if (!b || !b.recurrencia) return [];
+  const r = b.recurrencia;
+  const dias = r.tipo === 'diaria' ? ['lun','mar','mie','jue','vie'] : (Array.isArray(r.dias) ? r.dias : []);
+  const horaInicio = r.hora_inicio || '09:00';
+  const [hH, hM] = horaInicio.split(':').map(Number);
+  const activoDesde = r.activo_desde || null;
+  const activoHasta = r.activo_hasta || null;
+  const cancelDates = new Set(
+    (Array.isArray(r.excepciones) ? r.excepciones : [])
+      .filter(function(x) { return x && x.accion === 'cancel'; })
+      .map(function(x) { return x.fecha; })
+  );
+
+  const instances = [];
+  for (let i = 0; i < 5; i++) {
+    const fecha = new Date(monday); fecha.setDate(monday.getDate() + i);
+    const fechaIso = _msIsoDate(fecha);
+    const diaKey = _MS_DIAS_KEY[fecha.getDay()];
+    if (dias.indexOf(diaKey) === -1) continue;
+    if (activoDesde && fechaIso < activoDesde) continue;
+    if (activoHasta && fechaIso > activoHasta) continue;
+    if (cancelDates.has(fechaIso)) continue;
+    const ts = new Date(fecha); ts.setHours(hH || 0, hM || 0, 0, 0);
+    const completadoEnFecha = !!(b.completado_por_fecha && b.completado_por_fecha[fechaIso]);
+    instances.push(Object.assign({}, b, {
+      _instanceId: (b.id || '') + '__' + fechaIso,
+      _instanceFecha: fechaIso,
+      _isInstance: true,
+      inicio_ts: ts,
+      completado: completadoEnFecha,
+      completado_at: (b.completado_por_fecha && b.completado_por_fecha[fechaIso]) || null
+    }));
+  }
+  return instances;
+}
+
 // Convierte Firestore Timestamp | Date | number | ISO string a Date local.
 function _msToDate(ts) {
   if (!ts) return null;
@@ -10516,6 +10592,151 @@ const MS_SLOT_HEIGHT = 24;       // px por slot
 function miSemanaPrevWeek() { _calendarSemanaWeekOffset--; renderMiSemana(); }
 function miSemanaNextWeek() { _calendarSemanaWeekOffset++; renderMiSemana(); }
 function miSemanaToday() { _calendarSemanaWeekOffset = 0; renderMiSemana(); }
+
+// ── F3: Switcher Anwar↔Mario (D2, D3, D26, D32, D40, DA3, DA9) ────
+// Owner ve dropdown con todos los users del workspace; member NO ve switcher.
+// Cache per-uid (DA3): switching no recarga si la cache está caliente.
+
+function _msEnsureUsersWatch() {
+  if (_msUsersWatchUnsub) return;
+  if (!window.firebaseDb) return;
+  _msUsersWatchUnsub = window.firebaseDb.collection('users').onSnapshot(function(snap) {
+    snap.forEach(function(d) { _msUsersCache[d.id] = Object.assign({ uid: d.id }, d.data()); });
+    const screen = document.getElementById('screen-mi-semana');
+    if (screen && screen.classList.contains('active') && typeof renderMiSemana === 'function') {
+      try { renderMiSemana(); } catch (e) {}
+    }
+  }, function(err) { console.warn('[calendarSemana] users watch error', err); });
+}
+
+function _msGetWorkspaceMembers() {
+  // Lista de users con calendar_role definido y acceso al workspace actual.
+  const wsId = currentAgencia || 'optimizads';
+  const out = [];
+  Object.keys(_msUsersCache).forEach(function(uid) {
+    const u = _msUsersCache[uid];
+    if (!u || !u.calendar_role) return;
+    const wss = Array.isArray(u.workspaces) ? u.workspaces : [];
+    if (wss.length > 0 && wss.indexOf(wsId) === -1) return;
+    out.push(u);
+  });
+  return out.sort(function(a, b) {
+    return (a.nombre || a.displayName || a.email || '').localeCompare(b.nombre || b.displayName || b.email || '');
+  });
+}
+
+function _msIsCurrentOwner() {
+  return getUserCalendarRole() === 'owner';
+}
+
+function _msIsViewingSelf() {
+  const ownUid = (window.currentUser && window.currentUser.uid) || null;
+  return !_msViewUid || _msViewUid === ownUid;
+}
+
+async function _msSwitchUser(newUid) {
+  // Cleanup: cierra TODOS los listeners de calendar-bloques + watch tareas-clientes.
+  // Cache per-uid (_calendarSemanaMemCache) se conserva caliente — DA3.
+  calendarSemanaUnsubAll();
+  _msViewUid = newUid;
+  try { localStorage.setItem('calendar_view_user', newUid || ''); } catch (e) {}
+  if (newUid) {
+    try { await calendarSemanaInit(newUid); } catch (e) { console.warn('[calendarSemana] switch init failed', e); }
+  }
+  _msEnsureUsersWatch();
+  renderMiSemana();
+}
+
+function _msInitViewUid() {
+  // Llamado al entrar a /mi-semana. Resuelve _msViewUid desde localStorage o currentUser.
+  if (_msViewUid) return; // ya inicializado
+  const ownUid = (window.currentUser && window.currentUser.uid) || null;
+  let stored = null;
+  try { stored = localStorage.getItem('calendar_view_user'); } catch (e) {}
+  // Si stored apunta a otro user pero el actual NO es owner, fallback a self.
+  if (stored && stored !== ownUid && !_msIsCurrentOwner()) stored = null;
+  _msViewUid = stored || ownUid;
+}
+
+function _msGetViewUserProfile() {
+  // El profile del usuario actualmente "visto" en el calendar.
+  if (_msIsViewingSelf()) return window.currentUserProfile || null;
+  return _msUsersCache[_msViewUid] || null;
+}
+
+function _msUserDisplay(u) {
+  if (!u) return { nombre: '—', email: '', photoURL: '', initial: '?' };
+  const nombre = (u.nombre || u.displayName || (u.email || '').split('@')[0] || '—').trim();
+  const email = u.email || '';
+  const photoURL = u.photoURL || '';
+  const initial = (nombre[0] || email[0] || '?').toUpperCase();
+  return { nombre: nombre, email: email, photoURL: photoURL, initial: initial };
+}
+
+function _msPhotoOrInitial(d, size) {
+  size = size || 24;
+  if (d.photoURL) {
+    return '<img src="' + escapeHtml(d.photoURL) + '" alt="" referrerpolicy="no-referrer" '
+      + 'style="width:' + size + 'px;height:' + size + 'px;border-radius:50%;object-fit:cover;border:1px solid var(--border);">';
+  }
+  return '<div style="width:' + size + 'px;height:' + size + 'px;border-radius:50%;background:var(--accent);color:#000;display:flex;align-items:center;justify-content:center;font-size:' + Math.round(size * 0.42) + 'px;font-weight:700;font-family:\'DM Sans\',sans-serif;">' + escapeHtml(d.initial) + '</div>';
+}
+
+// ── F3: Onboarding tooltip primera vez (DA4) ────────────────
+function _msMaybeShowOnboarding() {
+  const uid = (window.currentUser && window.currentUser.uid) || null;
+  if (!uid) return;
+  const key = 'optix_misemana_onboarded_' + uid;
+  let shown = false;
+  try { shown = localStorage.getItem(key) === '1'; } catch (e) {}
+  if (shown) return;
+  if (document.getElementById('ms-onboarding-modal')) return;
+
+  const pasos = [
+    { titulo: 'Arrastra para agendar', body: 'Arrastra tareas del panel derecho al calendario para agendar tu semana.' },
+    { titulo: 'Click directo', body: 'Click en una celda vacía para crear un bloque rápido.' },
+    { titulo: 'Edita o completa', body: 'Click en un bloque para editarlo, completarlo o eliminarlo.' }
+  ];
+
+  function dismiss() {
+    try { localStorage.setItem(key, '1'); } catch (e) {}
+    const el = document.getElementById('ms-onboarding-modal');
+    if (el) el.remove();
+  }
+
+  function render(stepIdx) {
+    const el0 = document.getElementById('ms-onboarding-modal');
+    if (el0) el0.remove();
+    const p = pasos[stepIdx];
+    const isLast = stepIdx === pasos.length - 1;
+    const dotsHtml = pasos.map(function(_, i) {
+      const isActive = i === stepIdx;
+      return '<div style="width:8px;height:8px;border-radius:50%;background:' + (isActive ? 'var(--accent)' : 'var(--border)') + ';"></div>';
+    }).join('');
+
+    const el = document.createElement('div');
+    el.id = 'ms-onboarding-modal';
+    el.style.cssText = 'position:fixed;inset:0;z-index:99997;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;font-family:\'DM Sans\',sans-serif;';
+    el.innerHTML = ''
+      + '<div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:32px;width:480px;max-width:92vw;box-shadow:0 16px 48px rgba(0,0,0,0.6);">'
+      +   '<div style="font-family:\'DM Mono\',monospace;font-size:10px;color:var(--text3);margin-bottom:8px;text-transform:uppercase;letter-spacing:0.08em;">Paso ' + (stepIdx + 1) + ' de ' + pasos.length + '</div>'
+      +   '<div style="font-family:\'Syne\',sans-serif;font-weight:800;font-size:20px;color:var(--text);margin-bottom:8px;">' + escapeHtml(p.titulo) + '</div>'
+      +   '<div style="font-size:13px;color:var(--text2);line-height:1.6;margin-bottom:24px;">' + escapeHtml(p.body) + '</div>'
+      +   '<div style="display:flex;justify-content:center;gap:6px;margin-bottom:20px;">' + dotsHtml + '</div>'
+      +   '<div style="display:flex;justify-content:space-between;gap:8px;">'
+      +     '<button id="ms-ob-skip" style="background:transparent;border:none;color:var(--text3);padding:8px 14px;font-size:12px;font-weight:600;cursor:pointer;font-family:\'DM Sans\',sans-serif;">Saltar</button>'
+      +     '<button id="ms-ob-next" style="background:var(--accent);border:none;color:#000;padding:10px 18px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;font-family:\'DM Sans\',sans-serif;">' + (isLast ? 'Empezar' : 'Siguiente →') + '</button>'
+      +   '</div>'
+      + '</div>';
+    document.body.appendChild(el);
+    document.getElementById('ms-ob-skip').onclick = dismiss;
+    document.getElementById('ms-ob-next').onclick = function() {
+      if (isLast) dismiss();
+      else render(stepIdx + 1);
+    };
+  }
+  render(0);
+}
 
 // ── Render orchestrator ───────────────────────────────────
 function renderMiSemana() {
@@ -10547,20 +10768,30 @@ function renderMiSemana() {
   gridEl.style.display = '';
   viewportMsg.style.display = 'none';
 
-  const uid = (window.currentUser && window.currentUser.uid) || null;
-  if (!uid) {
+  const ownUid = (window.currentUser && window.currentUser.uid) || null;
+  if (!ownUid) {
     headerEl.innerHTML = '<div style="color:var(--text3);font-size:13px;">Inicia sesión para ver tu plan.</div>';
     gridEl.innerHTML = '';
     return;
   }
 
-  // Lazy init Firestore listener (idempotente, no resubscribe).
-  if (!_calendarSemanaUnsubs[uid]) {
-    try { calendarSemanaInit(uid); } catch (e) {}
+  // F3: resolver _msViewUid (default = ownUid; respeta localStorage si owner).
+  _msInitViewUid();
+  const viewUid = _msViewUid || ownUid;
+
+  // F3: arrancar watch de users (para switcher) — idempotente.
+  _msEnsureUsersWatch();
+
+  // Lazy init Firestore listener para el calendar visible (idempotente, no resubscribe).
+  if (!_calendarSemanaUnsubs[viewUid]) {
+    try { calendarSemanaInit(viewUid); } catch (e) {}
   }
 
   headerEl.innerHTML = _msRenderPageHeader();
-  gridEl.innerHTML = _msRenderGrid(uid);
+  gridEl.innerHTML = _msRenderGrid(viewUid);
+
+  // F3: onboarding tooltip primera vez (DA4) — después del render para que se monte sobre la vista.
+  _msMaybeShowOnboarding();
 }
 
 function _msRenderPageHeader() {
@@ -10569,18 +10800,73 @@ function _msRenderPageHeader() {
   const isThisWeek = _calendarSemanaWeekOffset === 0;
   const range = _msFmtDateShort(monday) + ' – ' + _msFmtDateShort(friday);
 
-  // Switcher placeholder (deshabilitado — Fase 3)
-  const profile = window.currentUserProfile || {};
-  const photo = profile.photoURL
-    ? '<img src="' + escapeHtml(profile.photoURL) + '" alt="" style="width:24px;height:24px;border-radius:50%;object-fit:cover;border:1px solid var(--border);" referrerpolicy="no-referrer">'
-    : '<div style="width:24px;height:24px;border-radius:50%;background:var(--accent);color:#000;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;">' + escapeHtml(((profile.nombre || profile.email || '?')[0] || '?').toUpperCase()) + '</div>';
-  const nombre = escapeHtml(profile.nombre || (profile.email || '').split('@')[0] || '—');
+  // F3: switcher activo — owner ve dropdown con members; member NO ve switcher (DA9).
+  const ownUid = (window.currentUser && window.currentUser.uid) || null;
+  const isOwner = _msIsCurrentOwner();
+  const viewProfile = _msGetViewUserProfile();
+  const viewDisplay = _msUserDisplay(viewProfile);
+  const viewPhoto = _msPhotoOrInitial(viewDisplay, 24);
+  const members = _msGetWorkspaceMembers().filter(function(u) { return u.uid !== ownUid; });
+  const showSwitcher = isOwner && members.length > 0; // DA9
+  const isViewingSelf = _msIsViewingSelf();
+
+  let switcherHtml = '';
+  if (showSwitcher) {
+    const itemsHtml = []
+      .concat([{ uid: ownUid, label: 'Volver al mío', isOwner: true }])
+      .concat(members.map(function(u) { return { uid: u.uid, profile: u }; }))
+      .map(function(it) {
+        if (it.isOwner) {
+          if (isViewingSelf) return ''; // ya en self
+          return '<button onclick="_msSwitchUser(\'' + escapeHtml(ownUid) + '\')" '
+            + 'style="display:flex;align-items:center;gap:8px;width:100%;padding:8px 12px;background:transparent;border:none;color:var(--accent);text-align:left;cursor:pointer;font-size:12px;font-family:\'DM Sans\',sans-serif;font-weight:600;border-bottom:1px solid var(--border);">'
+            + '<span>← Volver al mío</span>'
+            + '</button>';
+        }
+        const d = _msUserDisplay(it.profile);
+        const isCurrent = it.uid === _msViewUid;
+        return '<button onclick="_msSwitchUser(\'' + escapeHtml(it.uid) + '\')" '
+          + 'style="display:flex;align-items:center;gap:8px;width:100%;padding:8px 12px;background:' + (isCurrent ? 'var(--surface2)' : 'transparent') + ';border:none;color:var(--text);text-align:left;cursor:pointer;font-size:12px;font-family:\'DM Sans\',sans-serif;">'
+          + _msPhotoOrInitial(d, 22)
+          + '<span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escapeHtml(d.nombre) + '</span>'
+          + (isCurrent ? '<span style="font-size:9px;color:var(--accent);font-family:\'DM Mono\',monospace;">●</span>' : '')
+          + '</button>';
+      }).join('');
+
+    switcherHtml = ''
+      + '<div style="position:relative;" id="ms-switcher-wrap">'
+      +   '<button onclick="_msToggleSwitcherMenu(event)" title="Cambiar usuario" '
+      +     'style="display:flex;align-items:center;gap:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:4px 10px 4px 4px;cursor:pointer;font-family:\'DM Sans\',sans-serif;color:var(--text);">'
+      +     viewPhoto
+      +     '<span style="font-size:12px;font-weight:600;">' + escapeHtml(viewDisplay.nombre) + '</span>'
+      +     '<span style="font-size:9px;color:var(--text3);">▾</span>'
+      +   '</button>'
+      +   '<div id="ms-switcher-menu" style="display:none;position:absolute;right:0;top:calc(100% + 6px);min-width:240px;background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:0 12px 32px rgba(0,0,0,0.4);z-index:1000;overflow:hidden;">'
+      +     itemsHtml
+      +   '</div>'
+      + '</div>';
+  } else {
+    // No switcher: solo badge del propio usuario (informativo, no clickable).
+    switcherHtml = '<div style="display:flex;align-items:center;gap:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:4px 10px 4px 4px;">'
+      + viewPhoto
+      + '<span style="font-size:12px;color:var(--text2);font-weight:600;">' + escapeHtml(viewDisplay.nombre) + '</span>'
+      + '</div>';
+  }
+
+  // F3: banner sticky cuando viendo otro user (DA "Viendo Mi semana de [Nombre]")
+  const bannerHtml = !isViewingSelf
+    ? '<div style="background:rgba(124,58,237,0.12);border:1px solid rgba(124,58,237,0.35);color:#a78bfa;padding:8px 14px;border-radius:8px;margin-bottom:12px;font-family:\'DM Sans\',sans-serif;font-size:12px;display:flex;align-items:center;justify-content:space-between;gap:8px;">'
+        + '<span><strong>Viendo Mi semana de ' + escapeHtml(viewDisplay.nombre) + '</strong> · cualquier cambio queda registrado a tu nombre</span>'
+        + '<button onclick="_msSwitchUser(\'' + escapeHtml(ownUid) + '\')" style="background:transparent;border:1px solid rgba(124,58,237,0.4);color:#a78bfa;padding:4px 10px;border-radius:6px;cursor:pointer;font-size:11px;font-family:\'DM Mono\',monospace;">← Volver al mío</button>'
+      + '</div>'
+    : '';
 
   return ''
+    + bannerHtml
     + '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">'
     +   '<div>'
     +     '<div style="font-family:\'Syne\',sans-serif;font-weight:800;font-size:22px;color:var(--text);letter-spacing:-0.3px;">📅 Mi semana</div>'
-    +     '<div style="font-family:\'DM Mono\',monospace;font-size:11px;color:var(--text3);margin-top:4px;">Plan hora-por-hora · 8am-7pm · lun-vie</div>'
+    +     '<div style="font-family:\'DM Mono\',monospace;font-size:11px;color:var(--text3);margin-top:4px;">Plan hora-por-hora · 8am-7pm · lun-vie' + (isViewingSelf ? '' : ' · de ' + escapeHtml(viewDisplay.nombre)) + '</div>'
     +   '</div>'
     +   '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">'
     +     '<div style="display:flex;align-items:center;gap:6px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:4px 6px;">'
@@ -10589,13 +10875,28 @@ function _msRenderPageHeader() {
     +       '<button onclick="miSemanaNextWeek()" title="Próxima semana" style="background:transparent;border:none;color:var(--text2);cursor:pointer;font-size:14px;padding:2px 8px;line-height:1;border-radius:4px;">›</button>'
     +     '</div>'
     +     (!isThisWeek ? '<button onclick="miSemanaToday()" style="background:transparent;border:1px solid var(--border);color:var(--text3);font-size:10px;padding:4px 10px;border-radius:6px;cursor:pointer;font-family:\'DM Mono\',monospace;">↺ Hoy</button>' : '')
-    +     '<div title="Próximamente — Fase 3" style="display:flex;align-items:center;gap:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:4px 10px 4px 4px;cursor:not-allowed;opacity:0.7;">'
-    +       photo
-    +       '<span style="font-size:12px;color:var(--text2);font-weight:600;font-family:\'DM Sans\',sans-serif;">' + nombre + '</span>'
-    +       '<span style="font-size:9px;color:var(--text3);">▾</span>'
-    +     '</div>'
+    +     switcherHtml
     +   '</div>'
     + '</div>';
+}
+
+function _msToggleSwitcherMenu(e) {
+  if (e) e.stopPropagation();
+  const menu = document.getElementById('ms-switcher-menu');
+  if (!menu) return;
+  const willOpen = menu.style.display === 'none';
+  menu.style.display = willOpen ? 'block' : 'none';
+  if (willOpen) {
+    setTimeout(function() {
+      document.addEventListener('click', function _close(ev) {
+        const wrap = document.getElementById('ms-switcher-wrap');
+        if (wrap && wrap.contains(ev.target)) return;
+        const m = document.getElementById('ms-switcher-menu');
+        if (m) m.style.display = 'none';
+        document.removeEventListener('click', _close);
+      });
+    }, 0);
+  }
 }
 
 function _msRenderGrid(uid) {
@@ -10620,24 +10921,38 @@ function _msRenderGrid(uid) {
     return html;
   })();
 
+  // F3: separar one-off + recurrentes. Recurrentes se expanden por día.
+  const recurrentes = bloques.filter(function(b) { return b && b.recurrencia; });
+
   // 5 columnas (lun-vie)
   let diasCols = '';
   for (let di = 0; di < 5; di++) {
     const fecha = new Date(monday); fecha.setDate(monday.getDate() + di);
-    const fechaIso = fecha.getFullYear() + '-' + String(fecha.getMonth() + 1).padStart(2, '0') + '-' + String(fecha.getDate()).padStart(2, '0');
+    const fechaIso = _msIsoDate(fecha);
     const isToday = fecha.toDateString() === today.toDateString();
 
-    // Bloques del día (filtrar one-off + dentro del rango horario visible)
-    const bloquesDia = bloques.filter(function(b) {
+    // Bloques one-off del día
+    const oneOff = bloques.filter(function(b) {
       if (!b || b.recurrencia) return false;
       const ts = _msToDate(b.inicio_ts);
       if (!ts) return false;
-      const ymd = ts.getFullYear() + '-' + String(ts.getMonth() + 1).padStart(2, '0') + '-' + String(ts.getDate()).padStart(2, '0');
-      return ymd === fechaIso;
+      return _msIsoDate(ts) === fechaIso;
     });
 
+    // Instancias virtuales recurrentes que caen en este día (D17, DA2)
+    const virtuales = [];
+    recurrentes.forEach(function(b) {
+      _msExpandRecurrente(b, monday).forEach(function(inst) {
+        if (inst._instanceFecha === fechaIso) virtuales.push(inst);
+      });
+    });
+
+    const bloquesDia = oneOff.concat(virtuales);
+
     // Asignar columnas para overlap visual (D16) — algoritmo greedy primer-col-libre.
-    const overlapCols = _msComputeOverlapCols(bloquesDia);
+    // Asegurar que cada item tiene .id (las instancias virtuales usan _instanceId).
+    const bloquesDiaForOverlap = bloquesDia.map(function(b) { return Object.assign({}, b, { id: b._instanceId || b.id }); });
+    const overlapCols = _msComputeOverlapCols(bloquesDiaForOverlap);
 
     let col = '<div data-fecha-iso="' + fechaIso + '" style="flex:1;min-width:140px;border-right:1px solid var(--border);background:' + (isToday ? 'rgba(0,229,160,0.04)' : 'transparent') + ';">';
     // Header día (también drop target — drop al final del día = primer slot)
@@ -10659,7 +10974,8 @@ function _msRenderGrid(uid) {
     }
     // Bloques posicionados absoluto, con overlap cols
     bloquesDia.forEach(function(b) {
-      const oc = overlapCols[b.id] || { col: 0, cols: 1 };
+      const refId = b._instanceId || b.id;
+      const oc = overlapCols[refId] || { col: 0, cols: 1 };
       col += _msRenderBloque(b, oc.col, oc.cols);
     });
     col += '</div></div>';
@@ -10708,22 +11024,37 @@ function _msRenderBloque(b, col, cols) {
     ? 'left:3px;right:3px;'
     : 'left:calc(' + leftPct + '% + 2px);width:calc(' + widthPct + '% - 4px);';
 
-  const bid = escapeHtml(b.id || '');
+  // F3: instancias virtuales tienen _instanceId; one-off usan b.id directamente.
+  const isInstance = !!b._isInstance;
+  const refId = isInstance ? b._instanceId : (b.id || '');
+  const bid = escapeHtml(refId);
+  const draggable = isInstance ? 'false' : 'true'; // recurrentes virtuales NO se mueven con drag (solo via Editar serie)
+  const dragAttrs = isInstance ? '' : ('draggable="true" ondragstart="_msBloqueDragStart(event, \'' + bid + '\')" ondragend="_msBloqueDragEnd(event)" ');
+
+  // Icono ↻ recurrente (DA5) — top-right, 12x12
+  const recurrenteIcon = isInstance
+    ? '<div title="Recurrente · click para opciones" style="position:absolute;top:3px;right:5px;width:12px;height:12px;display:flex;align-items:center;justify-content:center;color:var(--text2);font-size:11px;line-height:1;pointer-events:none;">↻</div>'
+    : '';
+
+  // Resize: solo one-off (recurrentes editan duración via "Editar serie")
+  const resizeHandle = isInstance
+    ? ''
+    : '<div class="ms-resize-handle" onmousedown="_msResizeStart(event, \'' + bid + '\')" style="position:absolute;left:0;right:0;bottom:0;height:6px;cursor:ns-resize;background:transparent;"></div>';
+
   return ''
     + '<div data-bloque-id="' + bid + '" '
-    +   'draggable="true" '
-    +   'ondragstart="_msBloqueDragStart(event, \'' + bid + '\')" '
-    +   'ondragend="_msBloqueDragEnd(event)" '
+    +   (isInstance ? 'data-instance-id="' + bid + '" ' : '')
+    +   dragAttrs
     +   'onclick="_msOnBloqueClick(event, \'' + bid + '\')" '
-    +   'title="' + escapeHtml(titulo) + ' · click para editar" '
+    +   'title="' + escapeHtml(titulo) + (isInstance ? ' · instancia recurrente' : '') + ' · click para editar" '
     +   'style="position:absolute;top:' + top + 'px;' + positionStyle + 'height:' + height + 'px;'
     +   'background:' + color + '22;border:1px solid ' + borderColor + ';border-left:3px solid ' + color + ';'
-    +   'border-radius:0 6px 6px 0;padding:3px 7px;overflow:hidden;cursor:grab;'
+    +   'border-radius:0 6px 6px 0;padding:3px 7px;overflow:hidden;cursor:' + (isInstance ? 'pointer' : 'grab') + ';'
     +   'opacity:' + opacity + ';' + textDeco + 'transition:opacity 0.15s,border-color 0.15s;z-index:2;">'
-    +   '<div style="font-size:11px;font-weight:700;color:' + color + ';line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none;">' + escapeHtml(titulo) + '</div>'
+    +   recurrenteIcon
+    +   '<div style="font-size:11px;font-weight:700;color:' + color + ';line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none;padding-right:' + (isInstance ? '14px' : '0') + ';">' + escapeHtml(titulo) + '</div>'
     +   '<div style="font-size:9px;color:var(--text3);font-family:\'DM Mono\',monospace;line-height:1.3;pointer-events:none;">' + durLabel + (cols > 1 ? ' · col ' + (col + 1) + '/' + cols : '') + '</div>'
-    +   '<div class="ms-resize-handle" onmousedown="_msResizeStart(event, \'' + bid + '\')" '
-    +     'style="position:absolute;left:0;right:0;bottom:0;height:6px;cursor:ns-resize;background:transparent;"></div>'
+    +   resizeHandle
     + '</div>';
 }
 
@@ -10771,11 +11102,18 @@ function _msRenderPanelTareas(uid) {
   }
 
   // Set de tarea_ids ya con bloque del usuario (en cualquier semana, simplificación).
+  // F3 (DA7): además trackear tarea_ids vinculadas a bloque RECURRENTE para excluir dot rojo.
   const calCache = _calendarSemanaMemCache[uid] || {};
   const conBloque = new Set();
+  const conBloqueRecurrente = new Set();
   Object.values(calCache).forEach(function(b) {
-    if (b && b.tarea_id && !b.completado) conBloque.add(b.tarea_id);
+    if (!b || !b.tarea_id) return;
+    if (b.recurrencia) conBloqueRecurrente.add(b.tarea_id);
+    if (!b.completado) conBloque.add(b.tarea_id);
   });
+
+  // F3: dot rojo (DA6, DA7) — viernes de la SEMANA ACTUAL en MX TZ, constante.
+  const fridayMx = _msFridayOfThisWeekMx();
 
   const wsId = currentAgencia || 'optimizads';
   const catalog = (typeof getDefaultClients === 'function' ? getDefaultClients(wsId) : [])
@@ -10802,11 +11140,17 @@ function _msRenderPanelTareas(uid) {
         clienteId: c.id, objetivoId: it.objetivoId, tareaId: t.id,
         titulo: t.texto || 'Tarea', clienteNombre: c.nombre || c.id
       }));
+      // Dot rojo (DA6+DA7): fechaLimite <= viernes_actual_mx Y NO recurrente.
+      const showDot = !!(t.fechaLimite && t.fechaLimite <= fridayMx && !conBloqueRecurrente.has(t.id));
+      const dotHtml = showDot
+        ? '<span title="Vence ' + escapeHtml(t.fechaLimite) + '" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--red);flex-shrink:0;margin-top:5px;"></span>'
+        : '';
       return ''
         + '<div draggable="true" '
         +   'ondragstart="_msTareaDragStart(event, \'' + dataset + '\')" '
         +   'ondragend="_msBloqueDragEnd(event)" '
         +   'style="display:flex;align-items:flex-start;gap:6px;padding:6px 8px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;margin-bottom:4px;cursor:grab;font-size:11px;color:var(--text);">'
+        +   dotHtml
         +   '<span style="color:' + color + ';flex-shrink:0;line-height:1.3;">▸</span>'
         +   '<div style="flex:1;min-width:0;">'
         +     '<div style="line-height:1.3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escapeHtml(t.texto || '') + '</div>'
@@ -10931,31 +11275,42 @@ function _msOnSlotClick(fechaIso, slotMin) {
   _msShowCrearBloqueModal(fechaIso, Number(slotMin) || 0);
 }
 
-// ── F2: Click bloque → modal edit ──
-function _msOnBloqueClick(e, bloqueId) {
+// ── F2/F3: Click bloque → modal edit (instancias recurrentes abren modal distinto) ──
+function _msOnBloqueClick(e, bloqueIdOrInstance) {
   if (e && e.target && e.target.classList && e.target.classList.contains('ms-resize-handle')) return;
   e.stopPropagation();
-  _msShowEditBloqueModal(bloqueId);
+  // F3: instance-id format = "${docId}__${YYYY-MM-DD}" (DA2). Detectar y rutear.
+  if (bloqueIdOrInstance && bloqueIdOrInstance.indexOf('__') !== -1) {
+    const parts = bloqueIdOrInstance.split('__');
+    const docId = parts[0];
+    const fechaIso = parts[1];
+    _msShowEditInstanceRecurrenteModal(docId, fechaIso);
+    return;
+  }
+  _msShowEditBloqueModal(bloqueIdOrInstance);
 }
 
-// ── F2: Mutators (delegan a calendarSemanaSave para versionado optimista) ──
+// ── F2/F3: Mutators (delegan a calendarSemanaSave para versionado optimista) ──
+// F3: created_by = ownUid (quien actuó); assigned_to = _msViewUid (calendar visto).
 async function _msCreateBloque(data) {
-  const uid = (window.currentUser && window.currentUser.uid) || null;
-  if (!uid) return;
+  const ownUid = (window.currentUser && window.currentUser.uid) || null;
+  if (!ownUid) return;
+  const assignedTo = _msViewUid || ownUid;
   const id = 'bloque-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
   await calendarSemanaSave(id, function(b) {
     b.id = id;
-    b.assigned_to = uid;
-    b.created_by = uid;
+    b.assigned_to = assignedTo;
+    b.created_by = ownUid;
     b.cliente_id = data.cliente_id || 'agency';
     b.objetivo_id = data.objetivo_id || null;
     b.tarea_id = data.tarea_id || null;
     b.titulo = (data.titulo || '').trim() || 'Bloque sin título';
     b.inicio_ts = data.inicio_ts || null;
     b.duracion_minutos = Number(data.duracion_minutos) || 60;
-    b.recurrencia = null;
+    b.recurrencia = data.recurrencia || null;
     b.completado = false;
     b.completado_at = null;
+    if (data.recurrencia) b.completado_por_fecha = {};
     return b;
   });
   renderMiSemana();
@@ -10973,15 +11328,45 @@ async function _msDeleteBloque(bloqueId) {
   if (!ref) return;
   try {
     await ref.delete();
-    const uid = (window.currentUser && window.currentUser.uid) || null;
-    if (uid && _calendarSemanaMemCache[uid]) {
-      delete _calendarSemanaMemCache[uid][bloqueId];
-      calendarSemanaSaveCache(uid, _calendarSemanaMemCache[uid]);
-    }
+    // Limpieza cache: borrar de cache del viewUid Y del ownUid (defensivo).
+    const viewUid = _msViewUid || (window.currentUser && window.currentUser.uid);
+    const ownUid = (window.currentUser && window.currentUser.uid);
+    [viewUid, ownUid].filter(Boolean).forEach(function(uid) {
+      if (_calendarSemanaMemCache[uid] && _calendarSemanaMemCache[uid][bloqueId]) {
+        delete _calendarSemanaMemCache[uid][bloqueId];
+        calendarSemanaSaveCache(uid, _calendarSemanaMemCache[uid]);
+      }
+    });
     renderMiSemana();
   } catch (e) {
     console.warn('[calendarSemana] delete failed', bloqueId, e);
   }
+}
+
+// ── F3: Skip day en instancia recurrente (D18, DA2) ──
+async function _msSkipDayInstance(docId, fechaIso) {
+  await calendarSemanaSave(docId, function(b) {
+    if (!b.recurrencia) return b;
+    const ex = Array.isArray(b.recurrencia.excepciones) ? b.recurrencia.excepciones.slice() : [];
+    if (!ex.find(function(x) { return x.fecha === fechaIso && x.accion === 'cancel'; })) {
+      ex.push({ fecha: fechaIso, accion: 'cancel' });
+    }
+    b.recurrencia = Object.assign({}, b.recurrencia, { excepciones: ex });
+    return b;
+  });
+  renderMiSemana();
+}
+
+// ── F3: Toggle completado en instancia recurrente (completado_por_fecha map) ──
+async function _msToggleCompletadoInstance(docId, fechaIso) {
+  await calendarSemanaSave(docId, function(b) {
+    const cpf = Object.assign({}, b.completado_por_fecha || {});
+    if (cpf[fechaIso]) delete cpf[fechaIso];
+    else cpf[fechaIso] = Date.now();
+    b.completado_por_fecha = cpf;
+    return b;
+  });
+  renderMiSemana();
 }
 
 // ── F2: Resize por borde inferior (D13) ──
@@ -11059,8 +11444,11 @@ function _msShowCrearBloqueModal(fechaIso, slotMin) {
   el = document.createElement('div');
   el.id = id;
   el.style.cssText = 'position:fixed;inset:0;z-index:99998;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;font-family:\'DM Sans\',sans-serif;';
+  // F3: hora_inicio derivada del slot click — formato HH:MM en TZ MX (DA1).
+  const horaInicioRecurrente = String(hh).padStart(2, '0') + ':' + String(mm).padStart(2, '0');
+
   el.innerHTML = ''
-    + '<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;width:420px;max-width:92vw;box-shadow:0 12px 32px rgba(0,0,0,0.5);">'
+    + '<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;width:440px;max-width:92vw;box-shadow:0 12px 32px rgba(0,0,0,0.5);">'
     +   '<div style="font-family:\'Syne\',sans-serif;font-weight:700;font-size:16px;color:var(--text);margin-bottom:6px;">📅 Nuevo bloque</div>'
     +   '<div style="font-family:\'DM Mono\',monospace;font-size:11px;color:var(--text3);margin-bottom:18px;">' + fechaLabel + ' · ' + horaLabel + '</div>'
     +   '<label style="display:block;font-size:11px;color:var(--text2);margin-bottom:4px;font-weight:600;">Cliente</label>'
@@ -11068,8 +11456,24 @@ function _msShowCrearBloqueModal(fechaIso, slotMin) {
     +   '<label style="display:block;font-size:11px;color:var(--text2);margin-bottom:4px;font-weight:600;">Título</label>'
     +   '<input id="ms-crear-titulo" type="text" placeholder="Ej. Status diario, junta interna..." style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:8px 10px;border-radius:6px;font-size:12px;margin-bottom:12px;outline:none;">'
     +   '<label style="display:block;font-size:11px;color:var(--text2);margin-bottom:4px;font-weight:600;">Duración (min)</label>'
-    +   '<input id="ms-crear-dur" type="number" value="60" min="15" step="15" style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:8px 10px;border-radius:6px;font-size:12px;margin-bottom:18px;outline:none;">'
-    +   '<div style="display:flex;gap:8px;justify-content:flex-end;">'
+    +   '<input id="ms-crear-dur" type="number" value="60" min="15" step="15" style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:8px 10px;border-radius:6px;font-size:12px;margin-bottom:14px;outline:none;">'
+    +   '<label style="display:block;font-size:11px;color:var(--text2);margin-bottom:6px;font-weight:600;">Repetir</label>'
+    +   '<select id="ms-crear-repetir" onchange="_msCrearRepetirChange()" style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:8px 10px;border-radius:6px;font-size:12px;margin-bottom:10px;">'
+    +     '<option value="ninguna">Ninguna · solo este día</option>'
+    +     '<option value="diaria">Diaria · lun-vie</option>'
+    +     '<option value="semanal">Semanal · días específicos</option>'
+    +   '</select>'
+    +   '<div id="ms-crear-dias-row" style="display:none;margin-bottom:14px;">'
+    +     '<div style="font-family:\'DM Mono\',monospace;font-size:10px;color:var(--text3);margin-bottom:6px;">Días</div>'
+    +     '<div style="display:flex;gap:6px;">'
+    +       ['lun','mar','mie','jue','vie'].map(function(d) {
+            return '<label style="flex:1;display:flex;align-items:center;justify-content:center;gap:4px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:6px 0;cursor:pointer;font-size:11px;color:var(--text);font-family:\'DM Sans\',sans-serif;">'
+              + '<input type="checkbox" data-dia="' + d + '" class="ms-crear-dia-checkbox" style="margin:0;">'
+              + '<span style="text-transform:uppercase;">' + d.charAt(0) + '</span></label>';
+          }).join('')
+    +     '</div>'
+    +   '</div>'
+    +   '<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px;">'
     +     '<button id="ms-crear-cancel" style="background:transparent;border:1px solid var(--border);color:var(--text2);padding:8px 14px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">Cancelar</button>'
     +     '<button id="ms-crear-ok" style="background:var(--accent);border:none;color:#000;padding:8px 16px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;">Crear</button>'
     +   '</div>'
@@ -11083,12 +11487,37 @@ function _msShowCrearBloqueModal(fechaIso, slotMin) {
     const cliente_id = document.getElementById('ms-crear-cliente').value || 'agency';
     const titulo = document.getElementById('ms-crear-titulo').value.trim() || (cliente_id === 'agency' ? 'Bloque interno' : 'Bloque sin título');
     const dur = Math.max(15, Number(document.getElementById('ms-crear-dur').value) || 60);
+    const repetir = document.getElementById('ms-crear-repetir').value;
+    let recurrencia = null;
+    if (repetir === 'diaria') {
+      recurrencia = {
+        tipo: 'diaria',
+        dias: ['lun','mar','mie','jue','vie'],
+        hora_inicio: horaInicioRecurrente,
+        activo_desde: fechaIso,
+        activo_hasta: null,
+        excepciones: []
+      };
+    } else if (repetir === 'semanal') {
+      const checked = Array.from(document.querySelectorAll('.ms-crear-dia-checkbox:checked')).map(function(c) { return c.getAttribute('data-dia'); });
+      if (checked.length === 0) { showToast && showToast('Elige al menos un día', '⚠️'); return; }
+      recurrencia = {
+        tipo: 'semanal',
+        dias: checked,
+        hora_inicio: horaInicioRecurrente,
+        activo_desde: fechaIso,
+        activo_hasta: null,
+        excepciones: []
+      };
+    }
     close();
     await _msCreateBloque({
       cliente_id: cliente_id,
       titulo: titulo,
-      inicio_ts: _msBuildTs(fechaIso, slotMin),
-      duracion_minutos: dur
+      // Si hay recurrencia, inicio_ts queda null (recurrente puro). Sino, derivar del slot.
+      inicio_ts: recurrencia ? null : _msBuildTs(fechaIso, slotMin),
+      duracion_minutos: dur,
+      recurrencia: recurrencia
     });
   };
   el.onclick = function(ev) { if (ev.target === el) close(); };
@@ -11097,10 +11526,18 @@ function _msShowCrearBloqueModal(fechaIso, slotMin) {
   });
 }
 
-// ── F2: Modal editar bloque (D22 — toggle completado, eliminar) ──
+function _msCrearRepetirChange() {
+  const v = document.getElementById('ms-crear-repetir').value;
+  const row = document.getElementById('ms-crear-dias-row');
+  if (!row) return;
+  row.style.display = v === 'semanal' ? '' : 'none';
+}
+
+// ── F2/F3: Modal editar bloque one-off (D22 + DA10 created_by attribution) ──
 function _msShowEditBloqueModal(bloqueId) {
-  const uid = (window.currentUser && window.currentUser.uid) || null;
-  const cache = (uid && _calendarSemanaMemCache[uid]) || {};
+  // F3: lee del cache del viewUid (no del ownUid) para soportar owner viendo otro user.
+  const viewUid = _msViewUid || (window.currentUser && window.currentUser.uid);
+  const cache = (viewUid && _calendarSemanaMemCache[viewUid]) || {};
   const b = cache[bloqueId];
   if (!b) return;
 
@@ -11113,6 +11550,16 @@ function _msShowEditBloqueModal(bloqueId) {
   const ts = _msToDate(b.inicio_ts);
   const fechaLabel = ts ? (ts.getDate() + '/' + (ts.getMonth() + 1) + '/' + ts.getFullYear() + ' · ' + String(ts.getHours()).padStart(2, '0') + ':' + String(ts.getMinutes()).padStart(2, '0')) : '—';
 
+  // F3 DA10: subtítulo "Creado por X para Y" si created_by !== assigned_to.
+  let createdBySubtitle = '';
+  if (b.created_by && b.assigned_to && b.created_by !== b.assigned_to) {
+    const creator = _msUsersCache[b.created_by] || (b.created_by === (window.currentUser && window.currentUser.uid) ? window.currentUserProfile : null);
+    const assignee = _msUsersCache[b.assigned_to] || (b.assigned_to === (window.currentUser && window.currentUser.uid) ? window.currentUserProfile : null);
+    const cName = _msUserDisplay(creator).nombre;
+    const aName = _msUserDisplay(assignee).nombre;
+    createdBySubtitle = '<div style="font-family:\'DM Mono\',monospace;font-size:10px;color:var(--text3);margin-bottom:14px;font-style:italic;">Creado por ' + escapeHtml(cName) + ' para ' + escapeHtml(aName) + '</div>';
+  }
+
   el = document.createElement('div');
   el.id = id;
   el.style.cssText = 'position:fixed;inset:0;z-index:99998;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;font-family:\'DM Sans\',sans-serif;';
@@ -11122,7 +11569,8 @@ function _msShowEditBloqueModal(bloqueId) {
     +     '<div style="font-family:\'Syne\',sans-serif;font-weight:700;font-size:16px;color:var(--text);">Editar bloque</div>'
     +     '<button onclick="document.getElementById(\'' + id + '\').remove()" style="background:transparent;border:none;color:var(--text3);font-size:18px;cursor:pointer;padding:4px 8px;">×</button>'
     +   '</div>'
-    +   '<div style="font-family:\'DM Mono\',monospace;font-size:11px;color:var(--text3);margin-bottom:18px;">' + escapeHtml(clienteLabel) + ' · ' + fechaLabel + '</div>'
+    +   '<div style="font-family:\'DM Mono\',monospace;font-size:11px;color:var(--text3);margin-bottom:' + (createdBySubtitle ? '4' : '18') + 'px;">' + escapeHtml(clienteLabel) + ' · ' + fechaLabel + '</div>'
+    +   createdBySubtitle
     +   '<label style="display:block;font-size:11px;color:var(--text2);margin-bottom:4px;font-weight:600;">Título</label>'
     +   '<input id="ms-edit-titulo" type="text" value="' + escapeHtml(b.titulo || '') + '" style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:8px 10px;border-radius:6px;font-size:12px;margin-bottom:12px;outline:none;">'
     +   '<label style="display:block;font-size:11px;color:var(--text2);margin-bottom:4px;font-weight:600;">Duración (min)</label>'
@@ -11192,6 +11640,164 @@ function _msShowConfirmDeleteBloque(bloqueId, titulo) {
   el.onclick = function(ev) { if (ev.target === el) close(); };
 }
 
+// ── F3: Modal de instancia recurrente (D17, D18, DA2, DA5, DA8) ──
+// Click en una instancia virtual ↻ abre este modal con 3 opciones.
+function _msShowEditInstanceRecurrenteModal(docId, fechaIso) {
+  const viewUid = _msViewUid || (window.currentUser && window.currentUser.uid);
+  const cache = (viewUid && _calendarSemanaMemCache[viewUid]) || {};
+  const b = cache[docId];
+  if (!b || !b.recurrencia) return;
+
+  const wsId = currentAgencia || 'optimizads';
+  const catalog = (typeof getDefaultClients === 'function' ? getDefaultClients(wsId) : []);
+  const cliente = catalog.find(function(c) { return c.id === b.cliente_id; });
+  const clienteLabel = cliente ? (cliente.nombre || cliente.id) : (b.cliente_id || '—');
+  const tipoLabel = b.recurrencia.tipo === 'diaria' ? 'Diaria · lun-vie' : ('Semanal · ' + (b.recurrencia.dias || []).join(', '));
+  const horaLabel = b.recurrencia.hora_inicio || '—';
+  const completadoEnFecha = !!(b.completado_por_fecha && b.completado_por_fecha[fechaIso]);
+
+  // Subtítulo created_by attribution (DA10)
+  let createdBySubtitle = '';
+  if (b.created_by && b.assigned_to && b.created_by !== b.assigned_to) {
+    const creator = _msUsersCache[b.created_by] || (b.created_by === (window.currentUser && window.currentUser.uid) ? window.currentUserProfile : null);
+    const assignee = _msUsersCache[b.assigned_to] || (b.assigned_to === (window.currentUser && window.currentUser.uid) ? window.currentUserProfile : null);
+    createdBySubtitle = '<div style="font-family:\'DM Mono\',monospace;font-size:10px;color:var(--text3);margin-bottom:14px;font-style:italic;">Creado por ' + escapeHtml(_msUserDisplay(creator).nombre) + ' para ' + escapeHtml(_msUserDisplay(assignee).nombre) + '</div>';
+  }
+
+  const id = 'ms-instance-modal';
+  let el = document.getElementById(id); if (el) el.remove();
+  el = document.createElement('div');
+  el.id = id;
+  el.style.cssText = 'position:fixed;inset:0;z-index:99998;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;font-family:\'DM Sans\',sans-serif;';
+  el.innerHTML = ''
+    + '<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;width:460px;max-width:92vw;box-shadow:0 12px 32px rgba(0,0,0,0.5);">'
+    +   '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">'
+    +     '<div style="font-family:\'Syne\',sans-serif;font-weight:700;font-size:16px;color:var(--text);">↻ ' + escapeHtml(b.titulo || 'Bloque recurrente') + '</div>'
+    +     '<button onclick="document.getElementById(\'' + id + '\').remove()" style="background:transparent;border:none;color:var(--text3);font-size:18px;cursor:pointer;padding:4px 8px;">×</button>'
+    +   '</div>'
+    +   '<div style="font-family:\'DM Mono\',monospace;font-size:11px;color:var(--text3);margin-bottom:' + (createdBySubtitle ? '4' : '14') + 'px;">' + escapeHtml(clienteLabel) + ' · ' + tipoLabel + ' · ' + horaLabel + ' · ' + fechaIso + '</div>'
+    +   createdBySubtitle
+    +   '<div style="display:flex;flex-direction:column;gap:8px;">'
+    +     '<button id="ms-inst-toggle" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;text-align:left;">' + (completadoEnFecha ? '⃝ Desmarcar completada' : '✓ Marcar completada (solo este día)') + '</button>'
+    +     '<button id="ms-inst-skip" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;text-align:left;">⏭️ Saltar este día</button>'
+    +     '<button id="ms-inst-edit-serie" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;text-align:left;">✏️ Editar serie completa</button>'
+    +     '<button id="ms-inst-delete-serie" style="background:transparent;border:1px solid rgba(239,68,68,0.45);color:var(--red);padding:10px 14px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;text-align:left;">🗑️ Eliminar serie completa</button>'
+    +   '</div>'
+    + '</div>';
+  document.body.appendChild(el);
+
+  function close() { try { el.remove(); } catch (e) {} }
+  document.getElementById('ms-inst-toggle').onclick = async function() { close(); await _msToggleCompletadoInstance(docId, fechaIso); };
+  document.getElementById('ms-inst-skip').onclick = async function() { close(); await _msSkipDayInstance(docId, fechaIso); };
+  document.getElementById('ms-inst-edit-serie').onclick = function() { close(); _msShowEditSerieModal(docId); };
+  document.getElementById('ms-inst-delete-serie').onclick = function() { close(); _msShowConfirmDeleteSerie(docId, b.titulo || 'esta serie'); };
+  el.onclick = function(ev) { if (ev.target === el) close(); };
+  document.addEventListener('keydown', function esc(ev) {
+    if (ev.key === 'Escape') { document.removeEventListener('keydown', esc); close(); }
+  });
+}
+
+// ── F3: Modal editar serie completa (DA8 retroactivo) ──
+function _msShowEditSerieModal(docId) {
+  const viewUid = _msViewUid || (window.currentUser && window.currentUser.uid);
+  const cache = (viewUid && _calendarSemanaMemCache[viewUid]) || {};
+  const b = cache[docId];
+  if (!b || !b.recurrencia) return;
+  const r = b.recurrencia;
+
+  const id = 'ms-edit-serie-modal';
+  let el = document.getElementById(id); if (el) el.remove();
+  const dias = ['lun','mar','mie','jue','vie'];
+  const checkedDias = new Set(Array.isArray(r.dias) ? r.dias : []);
+
+  el = document.createElement('div');
+  el.id = id;
+  el.style.cssText = 'position:fixed;inset:0;z-index:99998;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;font-family:\'DM Sans\',sans-serif;';
+  el.innerHTML = ''
+    + '<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;width:460px;max-width:92vw;box-shadow:0 12px 32px rgba(0,0,0,0.5);">'
+    +   '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">'
+    +     '<div style="font-family:\'Syne\',sans-serif;font-weight:700;font-size:16px;color:var(--text);">✏️ Editar serie</div>'
+    +     '<button onclick="document.getElementById(\'' + id + '\').remove()" style="background:transparent;border:none;color:var(--text3);font-size:18px;cursor:pointer;padding:4px 8px;">×</button>'
+    +   '</div>'
+    +   '<div style="background:rgba(245,158,11,0.10);border:1px solid rgba(245,158,11,0.40);color:var(--yellow);padding:10px 12px;border-radius:8px;font-size:12px;line-height:1.5;margin-bottom:18px;">'
+    +     '<strong>⚠️ Atención:</strong> Esto afectará TODAS las instancias incluidas las pasadas. Si quieres preservar histórico, elimina la serie y crea una nueva.'
+    +   '</div>'
+    +   '<label style="display:block;font-size:11px;color:var(--text2);margin-bottom:4px;font-weight:600;">Título</label>'
+    +   '<input id="ms-serie-titulo" type="text" value="' + escapeHtml(b.titulo || '') + '" style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:8px 10px;border-radius:6px;font-size:12px;margin-bottom:12px;outline:none;">'
+    +   '<label style="display:block;font-size:11px;color:var(--text2);margin-bottom:4px;font-weight:600;">Hora inicio (HH:MM)</label>'
+    +   '<input id="ms-serie-hora" type="time" value="' + escapeHtml(r.hora_inicio || '09:00') + '" style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:8px 10px;border-radius:6px;font-size:12px;margin-bottom:12px;outline:none;">'
+    +   '<label style="display:block;font-size:11px;color:var(--text2);margin-bottom:4px;font-weight:600;">Duración (min)</label>'
+    +   '<input id="ms-serie-dur" type="number" value="' + (Number(b.duracion_minutos) || 60) + '" min="15" step="15" style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:8px 10px;border-radius:6px;font-size:12px;margin-bottom:14px;outline:none;">'
+    +   '<label style="display:block;font-size:11px;color:var(--text2);margin-bottom:6px;font-weight:600;">Días</label>'
+    +   '<div style="display:flex;gap:6px;margin-bottom:18px;">'
+    +     dias.map(function(d) {
+        const isChecked = r.tipo === 'diaria' || checkedDias.has(d);
+        return '<label style="flex:1;display:flex;align-items:center;justify-content:center;gap:4px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:6px 0;cursor:pointer;font-size:11px;color:var(--text);">'
+          + '<input type="checkbox" data-dia="' + d + '" class="ms-serie-dia" ' + (isChecked ? 'checked' : '') + '>'
+          + '<span style="text-transform:uppercase;">' + d.charAt(0) + '</span></label>';
+      }).join('')
+    +   '</div>'
+    +   '<div style="display:flex;gap:8px;justify-content:flex-end;">'
+    +     '<button id="ms-serie-cancel" style="background:transparent;border:1px solid var(--border);color:var(--text2);padding:8px 14px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">Cancelar</button>'
+    +     '<button id="ms-serie-save" style="background:var(--yellow);border:none;color:#000;padding:8px 16px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;">Guardar de todos modos</button>'
+    +   '</div>'
+    + '</div>';
+  document.body.appendChild(el);
+
+  function close() { try { el.remove(); } catch (e) {} }
+  document.getElementById('ms-serie-cancel').onclick = close;
+  document.getElementById('ms-serie-save').onclick = async function() {
+    const newTitulo = document.getElementById('ms-serie-titulo').value.trim() || 'Bloque recurrente';
+    const newHora = document.getElementById('ms-serie-hora').value || '09:00';
+    const newDur = Math.max(15, Number(document.getElementById('ms-serie-dur').value) || 60);
+    const checked = Array.from(document.querySelectorAll('.ms-serie-dia:checked')).map(function(c) { return c.getAttribute('data-dia'); });
+    if (checked.length === 0) { showToast && showToast('Elige al menos un día', '⚠️'); return; }
+    // Si los 5 días → tipo "diaria"; si menos → "semanal".
+    const isAllWeekdays = ['lun','mar','mie','jue','vie'].every(function(d) { return checked.indexOf(d) !== -1; });
+    close();
+    await _msUpdateBloque(docId, function(d) {
+      d.titulo = newTitulo;
+      d.duracion_minutos = newDur;
+      d.recurrencia = Object.assign({}, d.recurrencia || {}, {
+        tipo: isAllWeekdays ? 'diaria' : 'semanal',
+        dias: isAllWeekdays ? ['lun','mar','mie','jue','vie'] : checked,
+        hora_inicio: newHora
+      });
+      return d;
+    });
+  };
+  el.onclick = function(ev) { if (ev.target === el) close(); };
+  document.addEventListener('keydown', function esc(ev) {
+    if (ev.key === 'Escape') { document.removeEventListener('keydown', esc); close(); }
+  });
+}
+
+// ── F3: Confirmar eliminar serie completa ──
+function _msShowConfirmDeleteSerie(docId, titulo) {
+  const id = 'ms-confirm-delete-serie';
+  let el = document.getElementById(id); if (el) el.remove();
+  el = document.createElement('div');
+  el.id = id;
+  el.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;font-family:\'DM Sans\',sans-serif;';
+  el.innerHTML = ''
+    + '<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;min-width:360px;max-width:440px;box-shadow:0 12px 32px rgba(0,0,0,0.5);">'
+    +   '<div style="font-family:\'Syne\',sans-serif;font-weight:700;font-size:15px;color:var(--text);margin-bottom:8px;">¿Eliminar serie completa?</div>'
+    +   '<div style="font-size:13px;color:var(--text2);line-height:1.5;margin-bottom:18px;">Vas a eliminar <strong>' + escapeHtml(titulo) + '</strong> y todas sus instancias (pasadas y futuras). Esta acción no se puede deshacer.</div>'
+    +   '<div style="display:flex;gap:8px;justify-content:flex-end;">'
+    +     '<button id="ms-cds-cancel" style="background:transparent;border:1px solid var(--border);color:var(--text2);padding:8px 14px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">Cancelar</button>'
+    +     '<button id="ms-cds-ok" style="background:var(--red);border:none;color:#fff;padding:8px 14px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">Eliminar serie</button>'
+    +   '</div>'
+    + '</div>';
+  document.body.appendChild(el);
+  function close() { try { el.remove(); } catch (e) {} }
+  document.getElementById('ms-cds-cancel').onclick = close;
+  document.getElementById('ms-cds-ok').onclick = async function() {
+    close();
+    await _msDeleteBloque(docId);
+  };
+  el.onclick = function(ev) { if (ev.target === el) close(); };
+}
+
 // ── F2: Cascade delete (D33) — al eliminar tarea, borrar sus bloques ──
 async function _msCascadeDeleteByTareaId(tareaId) {
   if (!tareaId) return 0;
@@ -11223,13 +11829,33 @@ window.calendarSemana = {
   unsubAll: calendarSemanaUnsubAll,
   render: renderMiSemana,
   getRol: getUserCalendarRole,
-  // F2 mutators (test desde consola)
+  // F2 mutators
   createBloque: _msCreateBloque,
   updateBloque: _msUpdateBloque,
   deleteBloque: _msDeleteBloque,
   cascadeDeleteByTareaId: _msCascadeDeleteByTareaId,
   showCrear: _msShowCrearBloqueModal,
   showEdit: _msShowEditBloqueModal,
+  // F3
+  switchUser: _msSwitchUser,
+  initViewUid: _msInitViewUid,
+  expandRecurrente: _msExpandRecurrente,
+  todayMx: _msTodayMx,
+  fridayMx: _msFridayOfThisWeekMx,
+  skipDay: _msSkipDayInstance,
+  toggleCompletadoInstance: _msToggleCompletadoInstance,
+  showInstance: _msShowEditInstanceRecurrenteModal,
+  showEditSerie: _msShowEditSerieModal,
+  showOnboarding: _msMaybeShowOnboarding,
+  resetOnboarding: function() {
+    const uid = (window.currentUser && window.currentUser.uid) || null;
+    if (!uid) return;
+    try { localStorage.removeItem('optix_misemana_onboarded_' + uid); } catch (e) {}
+  },
+  usersCache: _msUsersCache,
+  getViewUid: function() { return _msViewUid; },
+  // Internals
+  unsubs: _calendarSemanaUnsubs,
   cache: _calendarSemanaMemCache,
   COLORS: CALENDAR_CLIENT_COLORS
 };
