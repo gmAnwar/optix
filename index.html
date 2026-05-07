@@ -10027,6 +10027,10 @@ async function tareasCliDeleteTarea(clientId, objId, tareaId) {
     return d;
   });
   renderTareasCli();
+  // Plan Semanal D33: cascade delete bloques del calendar que apuntaban a esta tarea.
+  if (typeof _msCascadeDeleteByTareaId === 'function') {
+    try { await _msCascadeDeleteByTareaId(tareaId); } catch (e) {}
+  }
 }
 
 async function tareasCliToggleTarea(clientId, objId, tareaId) {
@@ -10568,7 +10572,7 @@ function _msRenderGrid(uid) {
   // Cabezera de horas (label vertical)
   const horasCol = (function() {
     let html = '<div style="border-right:1px solid var(--border);">';
-    html += '<div style="height:48px;border-bottom:1px solid var(--border);background:var(--surface2);"></div>'; // header spacer
+    html += '<div style="height:48px;border-bottom:1px solid var(--border);background:var(--surface2);"></div>';
     for (let i = 0; i < MS_SLOTS; i++) {
       const hh = MS_HORA_INICIO + Math.floor(i / 2);
       const mm = (i % 2) * 30;
@@ -10586,49 +10590,62 @@ function _msRenderGrid(uid) {
     const fecha = new Date(monday); fecha.setDate(monday.getDate() + di);
     const fechaIso = fecha.getFullYear() + '-' + String(fecha.getMonth() + 1).padStart(2, '0') + '-' + String(fecha.getDate()).padStart(2, '0');
     const isToday = fecha.toDateString() === today.toDateString();
-    const isPast = fecha < today;
 
-    // Bloques del día (filtrar one-off por fechaIso)
+    // Bloques del día (filtrar one-off + dentro del rango horario visible)
     const bloquesDia = bloques.filter(function(b) {
-      if (!b || b.recurrencia) return false; // recurrentes diferidos a F3
+      if (!b || b.recurrencia) return false;
       const ts = _msToDate(b.inicio_ts);
       if (!ts) return false;
       const ymd = ts.getFullYear() + '-' + String(ts.getMonth() + 1).padStart(2, '0') + '-' + String(ts.getDate()).padStart(2, '0');
       return ymd === fechaIso;
     });
 
-    let col = '<div style="flex:1;min-width:140px;border-right:1px solid var(--border);background:' + (isToday ? 'rgba(0,229,160,0.04)' : 'transparent') + ';">';
-    // Header día
+    // Asignar columnas para overlap visual (D16) — algoritmo greedy primer-col-libre.
+    const overlapCols = _msComputeOverlapCols(bloquesDia);
+
+    let col = '<div data-fecha-iso="' + fechaIso + '" style="flex:1;min-width:140px;border-right:1px solid var(--border);background:' + (isToday ? 'rgba(0,229,160,0.04)' : 'transparent') + ';">';
+    // Header día (también drop target — drop al final del día = primer slot)
     col += '<div style="height:48px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border-bottom:1px solid var(--border);background:' + (isToday ? 'rgba(0,229,160,0.10)' : 'var(--surface2)') + ';">'
         + '<span style="font-family:\'DM Mono\',monospace;font-size:10px;color:' + (isToday ? 'var(--accent)' : 'var(--text3)') + ';font-weight:700;text-transform:uppercase;letter-spacing:0.06em;">' + dayLabels[di] + '</span>'
         + '<span style="font-family:\'DM Sans\',sans-serif;font-size:14px;font-weight:700;color:' + (isToday ? 'var(--accent)' : 'var(--text)') + ';">' + fecha.getDate() + '</span>'
         + '</div>';
-    // Slots verticales (con grid lines)
-    col += '<div style="position:relative;height:' + (MS_SLOTS * MS_SLOT_HEIGHT) + 'px;">';
+    // Container de slots con drag-over global (resuelve target via Y offset).
+    col += '<div class="ms-day-col" data-fecha-iso="' + fechaIso + '" '
+        +   'ondragover="_msColDragOver(event)" ondragleave="_msColDragLeave(event)" ondrop="_msColDrop(event)" '
+        +   'style="position:relative;height:' + (MS_SLOTS * MS_SLOT_HEIGHT) + 'px;">';
+    // Slots clickeables (onclick → modal crear)
     for (let s = 0; s < MS_SLOTS; s++) {
       const isFullHour = s % 2 === 0;
-      col += '<div style="position:absolute;top:' + (s * MS_SLOT_HEIGHT) + 'px;left:0;right:0;height:' + MS_SLOT_HEIGHT + 'px;border-top:1px ' + (isFullHour ? 'solid' : 'dashed') + ' var(--border);opacity:' + (isFullHour ? '0.6' : '0.25') + ';"></div>';
+      const slotMin = s * 30;
+      col += '<div class="ms-slot" data-fecha-iso="' + fechaIso + '" data-slot-min="' + slotMin + '" '
+          +   'onclick="_msOnSlotClick(\'' + fechaIso + '\', ' + slotMin + ')" '
+          +   'style="position:absolute;top:' + (s * MS_SLOT_HEIGHT) + 'px;left:0;right:0;height:' + MS_SLOT_HEIGHT + 'px;border-top:1px ' + (isFullHour ? 'solid' : 'dashed') + ' var(--border);opacity:' + (isFullHour ? '0.6' : '0.25') + ';cursor:pointer;"></div>';
     }
-    // Bloques posicionados absoluto
+    // Bloques posicionados absoluto, con overlap cols
     bloquesDia.forEach(function(b) {
-      col += _msRenderBloque(b);
+      const oc = overlapCols[b.id] || { col: 0, cols: 1 };
+      col += _msRenderBloque(b, oc.col, oc.cols);
     });
     col += '</div></div>';
     diasCols += col;
   }
 
+  // Layout 2 columnas: calendario (flex:1) + panel lateral 320px sticky
   return ''
-    + '<div style="display:flex;background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden;">'
-    +   '<div style="width:54px;flex-shrink:0;">' + horasCol + '</div>'
-    +   '<div style="display:flex;flex:1;min-width:0;overflow-x:auto;">' + diasCols + '</div>'
+    + '<div style="display:grid;grid-template-columns:1fr 320px;gap:16px;align-items:start;">'
+    +   '<div style="display:flex;background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden;">'
+    +     '<div style="width:54px;flex-shrink:0;">' + horasCol + '</div>'
+    +     '<div style="display:flex;flex:1;min-width:0;overflow-x:auto;">' + diasCols + '</div>'
+    +   '</div>'
+    +   '<div style="position:sticky;top:16px;">' + _msRenderPanelTareas(uid) + '</div>'
     + '</div>';
 }
 
-function _msRenderBloque(b) {
+function _msRenderBloque(b, col, cols) {
   const ts = _msToDate(b.inicio_ts);
   if (!ts) return '';
   const startMin = (ts.getHours() - MS_HORA_INICIO) * 60 + ts.getMinutes();
-  if (startMin < 0 || startMin >= MS_SLOTS * 30) return ''; // fuera del rango visible
+  if (startMin < 0 || startMin >= MS_SLOTS * 30) return '';
   const dur = Number(b.duracion_minutos) || 30;
   const top = (startMin / 30) * MS_SLOT_HEIGHT;
   const height = Math.max((dur / 30) * MS_SLOT_HEIGHT - 2, 18);
@@ -10636,8 +10653,7 @@ function _msRenderBloque(b) {
   const color = CALENDAR_CLIENT_COLORS[b.cliente_id] || CALENDAR_CLIENT_COLORS._fallback || '#64748b';
   const completado = !!b.completado;
   const now = new Date();
-  const isPast = ts < now;
-  const overdue = !completado && isPast;
+  const overdue = !completado && ts < now;
 
   const durLabel = dur >= 60
     ? (dur % 60 === 0 ? (dur / 60) + 'hr' : (Math.floor(dur / 60) + 'h ' + (dur % 60) + 'min'))
@@ -10647,15 +10663,517 @@ function _msRenderBloque(b) {
   const textDeco = completado ? 'text-decoration:line-through;' : '';
   const borderColor = overdue ? 'rgba(239,68,68,0.55)' : color;
 
+  // Overlap: si cols > 1, dividir el ancho disponible. Mantengo gutter de 3px en cada lado.
+  cols = Math.max(1, cols || 1);
+  col = Math.max(0, col || 0);
+  const widthPct = 100 / cols;
+  const leftPct = col * widthPct;
+  const positionStyle = cols === 1
+    ? 'left:3px;right:3px;'
+    : 'left:calc(' + leftPct + '% + 2px);width:calc(' + widthPct + '% - 4px);';
+
+  const bid = escapeHtml(b.id || '');
   return ''
-    + '<div data-bloque-id="' + escapeHtml(b.id || '') + '" '
-    +   'style="position:absolute;top:' + top + 'px;left:3px;right:3px;height:' + height + 'px;'
+    + '<div data-bloque-id="' + bid + '" '
+    +   'draggable="true" '
+    +   'ondragstart="_msBloqueDragStart(event, \'' + bid + '\')" '
+    +   'ondragend="_msBloqueDragEnd(event)" '
+    +   'onclick="_msOnBloqueClick(event, \'' + bid + '\')" '
+    +   'title="' + escapeHtml(titulo) + ' · click para editar" '
+    +   'style="position:absolute;top:' + top + 'px;' + positionStyle + 'height:' + height + 'px;'
     +   'background:' + color + '22;border:1px solid ' + borderColor + ';border-left:3px solid ' + color + ';'
-    +   'border-radius:0 6px 6px 0;padding:3px 7px;overflow:hidden;'
-    +   'opacity:' + opacity + ';' + textDeco + 'transition:all 0.15s;z-index:1;">'
-    +   '<div style="font-size:11px;font-weight:700;color:' + color + ';line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(titulo) + '</div>'
-    +   '<div style="font-size:9px;color:var(--text3);font-family:\'DM Mono\',monospace;line-height:1.3;">' + durLabel + '</div>'
+    +   'border-radius:0 6px 6px 0;padding:3px 7px;overflow:hidden;cursor:grab;'
+    +   'opacity:' + opacity + ';' + textDeco + 'transition:opacity 0.15s,border-color 0.15s;z-index:2;">'
+    +   '<div style="font-size:11px;font-weight:700;color:' + color + ';line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none;">' + escapeHtml(titulo) + '</div>'
+    +   '<div style="font-size:9px;color:var(--text3);font-family:\'DM Mono\',monospace;line-height:1.3;pointer-events:none;">' + durLabel + (cols > 1 ? ' · col ' + (col + 1) + '/' + cols : '') + '</div>'
+    +   '<div class="ms-resize-handle" onmousedown="_msResizeStart(event, \'' + bid + '\')" '
+    +     'style="position:absolute;left:0;right:0;bottom:0;height:6px;cursor:ns-resize;background:transparent;"></div>'
     + '</div>';
+}
+
+// ── F2: overlap cols (D16) — greedy primer-col-libre ──
+function _msComputeOverlapCols(bloques) {
+  const sorted = bloques.slice().sort(function(a, b) {
+    const ta = _msToDate(a.inicio_ts), tb = _msToDate(b.inicio_ts);
+    return (ta ? ta.getTime() : 0) - (tb ? tb.getTime() : 0);
+  });
+  const colEnds = []; // colEnds[i] = endTime del último bloque en col i
+  const result = {};
+  // Detectar grupos con overlap transitivo para asignar cols al mismo "ancho"
+  // Simplificación v1: asignar col por overlap directo con bloques previos.
+  sorted.forEach(function(b) {
+    const ts = _msToDate(b.inicio_ts);
+    if (!ts) { result[b.id] = { col: 0, cols: 1 }; return; }
+    const start = ts.getTime();
+    const end = start + (Number(b.duracion_minutos) || 30) * 60000;
+    let assigned = -1;
+    for (let i = 0; i < colEnds.length; i++) {
+      if (colEnds[i] <= start) { colEnds[i] = end; assigned = i; break; }
+    }
+    if (assigned === -1) { colEnds.push(end); assigned = colEnds.length - 1; }
+    result[b.id] = { col: assigned, cols: 0 }; // cols se llena al final
+  });
+  // Pasada 2: para cada bloque, "cols" = max(numCols entre bloques con los que se traslapa).
+  // Aproximación: usar colEnds.length total del día (todos los bloques visibles).
+  // Esto puede sobre-asignar ancho cuando NO hay overlap real, pero D16 acepta esa simplificación.
+  // Mejora futura: graph de overlap transitivo.
+  const totalCols = Math.max(1, colEnds.length);
+  Object.keys(result).forEach(function(id) { result[id].cols = totalCols; });
+  return result;
+}
+
+// ── F2: Panel lateral 320px (D11) ──
+// Lee tareas-clientes (window.tareasCli.cache) NO completadas que NO tienen
+// bloque asociado. Drag-source para crear bloques en el calendar.
+function _msRenderPanelTareas(uid) {
+  if (typeof _tareasCliMemCache === 'undefined' || !_tareasCliMemCache) {
+    return '<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px;color:var(--text3);font-size:12px;">Tareas no disponibles aún (cache vacío).</div>';
+  }
+  // Asegurar listeners de tareas-clientes activos (lee del cache S64).
+  if (typeof tareasCliEnsureAllInitialized === 'function') {
+    try { tareasCliEnsureAllInitialized(); } catch (e) {}
+  }
+
+  // Set de tarea_ids ya con bloque del usuario (en cualquier semana, simplificación).
+  const calCache = _calendarSemanaMemCache[uid] || {};
+  const conBloque = new Set();
+  Object.values(calCache).forEach(function(b) {
+    if (b && b.tarea_id && !b.completado) conBloque.add(b.tarea_id);
+  });
+
+  const wsId = currentAgencia || 'optimizads';
+  const catalog = (typeof getDefaultClients === 'function' ? getDefaultClients(wsId) : [])
+    .filter(function(c) { return c.workspaceId === wsId; });
+
+  let totalPendientes = 0;
+  const seccionesHtml = catalog.map(function(c) {
+    const cdoc = _tareasCliMemCache[c.id];
+    if (!cdoc || !Array.isArray(cdoc.objetivos) || !cdoc.objetivos.length) return '';
+    const items = [];
+    cdoc.objetivos.forEach(function(o) {
+      (o.tareas || []).forEach(function(t) {
+        if (t.completado) return;
+        if (conBloque.has(t.id)) return;
+        items.push({ tarea: t, objetivoNombre: o.nombre || '', objetivoId: o.id });
+      });
+    });
+    if (!items.length) return '';
+    totalPendientes += items.length;
+    const color = CALENDAR_CLIENT_COLORS[c.id] || CALENDAR_CLIENT_COLORS._fallback || '#64748b';
+    const itemsHtml = items.map(function(it) {
+      const t = it.tarea;
+      const dataset = encodeURIComponent(JSON.stringify({
+        clienteId: c.id, objetivoId: it.objetivoId, tareaId: t.id,
+        titulo: t.texto || 'Tarea', clienteNombre: c.nombre || c.id
+      }));
+      return ''
+        + '<div draggable="true" '
+        +   'ondragstart="_msTareaDragStart(event, \'' + dataset + '\')" '
+        +   'ondragend="_msBloqueDragEnd(event)" '
+        +   'style="display:flex;align-items:flex-start;gap:6px;padding:6px 8px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;margin-bottom:4px;cursor:grab;font-size:11px;color:var(--text);">'
+        +   '<span style="color:' + color + ';flex-shrink:0;line-height:1.3;">▸</span>'
+        +   '<div style="flex:1;min-width:0;">'
+        +     '<div style="line-height:1.3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escapeHtml(t.texto || '') + '</div>'
+        +     '<div style="font-family:\'DM Mono\',monospace;font-size:9px;color:var(--text3);margin-top:1px;">' + escapeHtml(it.objetivoNombre) + '</div>'
+        +   '</div>'
+        + '</div>';
+    }).join('');
+    return ''
+      + '<div style="margin-bottom:14px;">'
+      +   '<div style="display:flex;align-items:center;gap:6px;font-family:\'DM Mono\',monospace;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px;">'
+      +     '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + color + ';"></span>'
+      +     '<span>' + escapeHtml(c.nombre || c.id) + ' · ' + items.length + '</span>'
+      +   '</div>'
+      +   itemsHtml
+      + '</div>';
+  }).filter(Boolean).join('');
+
+  return ''
+    + '<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px;max-height:calc(100vh - 200px);overflow-y:auto;">'
+    +   '<div style="font-family:\'Syne\',sans-serif;font-weight:700;font-size:14px;color:var(--text);margin-bottom:4px;">📋 Pendientes sin bloque</div>'
+    +   '<div style="font-family:\'DM Mono\',monospace;font-size:10px;color:var(--text3);margin-bottom:12px;">' + totalPendientes + ' tareas · arrastra al calendario</div>'
+    +   (totalPendientes === 0
+        ? '<div style="font-family:\'DM Mono\',monospace;font-size:11px;color:var(--text3);text-align:center;padding:20px 0;">Sin pendientes — todo agendado.</div>'
+        : seccionesHtml)
+    + '</div>';
+}
+
+// ── F2: Drag-and-drop handlers ──
+let _msDragState = null; // { kind: 'tarea-from-panel' | 'bloque-existing', data, origBloqueId? }
+
+function _msTareaDragStart(e, payloadEnc) {
+  let data;
+  try { data = JSON.parse(decodeURIComponent(payloadEnc)); } catch (err) { e.preventDefault(); return; }
+  _msDragState = { kind: 'tarea-from-panel', data: data };
+  if (e.dataTransfer) {
+    e.dataTransfer.effectAllowed = 'copy';
+    try { e.dataTransfer.setData('text/plain', data.titulo || ''); } catch (err) {}
+  }
+  if (e.target && e.target.style) e.target.style.opacity = '0.5';
+}
+
+function _msBloqueDragStart(e, bloqueId) {
+  const cache = _calendarSemanaMemCache[(window.currentUser && window.currentUser.uid) || ''] || {};
+  const b = cache[bloqueId];
+  if (!b) { e.preventDefault(); return; }
+  _msDragState = { kind: 'bloque-existing', bloqueId: bloqueId, b: b };
+  if (e.dataTransfer) {
+    e.dataTransfer.effectAllowed = 'move';
+    try { e.dataTransfer.setData('text/plain', bloqueId); } catch (err) {}
+  }
+  setTimeout(function() { if (e.target && e.target.style) e.target.style.opacity = '0.4'; }, 0);
+}
+
+function _msBloqueDragEnd(e) {
+  if (e && e.target && e.target.style) e.target.style.opacity = '';
+  document.querySelectorAll('.ms-day-col').forEach(function(el) {
+    el.style.outline = ''; el.style.outlineOffset = '';
+  });
+  _msDragState = null;
+}
+
+function _msColDragOver(e) {
+  if (!_msDragState) return;
+  e.preventDefault();
+  if (e.dataTransfer) e.dataTransfer.dropEffect = (_msDragState.kind === 'tarea-from-panel') ? 'copy' : 'move';
+  const col = e.currentTarget;
+  if (col && col.style) {
+    col.style.outline = '2px dashed var(--accent)';
+    col.style.outlineOffset = '-2px';
+  }
+}
+
+function _msColDragLeave(e) {
+  const col = e.currentTarget;
+  if (col && col.style) { col.style.outline = ''; col.style.outlineOffset = ''; }
+}
+
+function _msColDrop(e) {
+  if (!_msDragState) return;
+  e.preventDefault(); e.stopPropagation();
+  const col = e.currentTarget;
+  if (!col || !col.dataset || !col.dataset.fechaIso) { _msBloqueDragEnd(e); return; }
+  const fechaIso = col.dataset.fechaIso;
+  const rect = col.getBoundingClientRect();
+  const offsetY = e.clientY - rect.top;
+  // Snap a 15min (= MS_SLOT_HEIGHT/2)
+  const snapPx = MS_SLOT_HEIGHT / 2;
+  const snappedY = Math.max(0, Math.round(offsetY / snapPx) * snapPx);
+  const minFromStart = (snappedY / MS_SLOT_HEIGHT) * 30;
+  const inicioTs = _msBuildTs(fechaIso, minFromStart);
+
+  if (_msDragState.kind === 'tarea-from-panel') {
+    const d = _msDragState.data;
+    _msCreateBloque({
+      cliente_id: d.clienteId,
+      objetivo_id: d.objetivoId,
+      tarea_id: d.tareaId,
+      titulo: d.titulo,
+      inicio_ts: inicioTs,
+      duracion_minutos: 60
+    });
+  } else if (_msDragState.kind === 'bloque-existing') {
+    // D15: NO tocar fechaLimite de la tarea — solo cambiar inicio_ts del bloque.
+    _msUpdateBloque(_msDragState.bloqueId, function(b) {
+      b.inicio_ts = inicioTs;
+      return b;
+    });
+  }
+  _msBloqueDragEnd(e);
+}
+
+function _msBuildTs(fechaIso, minFromStart) {
+  const [Y, M, D] = fechaIso.split('-').map(Number);
+  const d = new Date(Y, M - 1, D, MS_HORA_INICIO, 0, 0, 0);
+  d.setMinutes(d.getMinutes() + Number(minFromStart || 0));
+  return firebase.firestore.Timestamp.fromDate(d);
+}
+
+// ── F2: Click slot vacío → modal crear ──
+function _msOnSlotClick(fechaIso, slotMin) {
+  if (_msDragState) return; // no abrir durante drag
+  _msShowCrearBloqueModal(fechaIso, Number(slotMin) || 0);
+}
+
+// ── F2: Click bloque → modal edit ──
+function _msOnBloqueClick(e, bloqueId) {
+  if (e && e.target && e.target.classList && e.target.classList.contains('ms-resize-handle')) return;
+  e.stopPropagation();
+  _msShowEditBloqueModal(bloqueId);
+}
+
+// ── F2: Mutators (delegan a calendarSemanaSave para versionado optimista) ──
+async function _msCreateBloque(data) {
+  const uid = (window.currentUser && window.currentUser.uid) || null;
+  if (!uid) return;
+  const id = 'bloque-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
+  await calendarSemanaSave(id, function(b) {
+    b.id = id;
+    b.assigned_to = uid;
+    b.created_by = uid;
+    b.cliente_id = data.cliente_id || 'agency';
+    b.objetivo_id = data.objetivo_id || null;
+    b.tarea_id = data.tarea_id || null;
+    b.titulo = (data.titulo || '').trim() || 'Bloque sin título';
+    b.inicio_ts = data.inicio_ts || null;
+    b.duracion_minutos = Number(data.duracion_minutos) || 60;
+    b.recurrencia = null;
+    b.completado = false;
+    b.completado_at = null;
+    return b;
+  });
+  renderMiSemana();
+}
+
+async function _msUpdateBloque(bloqueId, mutator) {
+  await calendarSemanaSave(bloqueId, function(b) {
+    return mutator(b) || b;
+  });
+  renderMiSemana();
+}
+
+async function _msDeleteBloque(bloqueId) {
+  const ref = calendarSemanaFirestoreRef(bloqueId);
+  if (!ref) return;
+  try {
+    await ref.delete();
+    const uid = (window.currentUser && window.currentUser.uid) || null;
+    if (uid && _calendarSemanaMemCache[uid]) {
+      delete _calendarSemanaMemCache[uid][bloqueId];
+      calendarSemanaSaveCache(uid, _calendarSemanaMemCache[uid]);
+    }
+    renderMiSemana();
+  } catch (e) {
+    console.warn('[calendarSemana] delete failed', bloqueId, e);
+  }
+}
+
+// ── F2: Resize por borde inferior (D13) ──
+let _msResizeState = null;
+
+function _msResizeStart(e, bloqueId) {
+  e.stopPropagation(); e.preventDefault();
+  const cache = _calendarSemanaMemCache[(window.currentUser && window.currentUser.uid) || ''] || {};
+  const b = cache[bloqueId];
+  if (!b) return;
+  const el = document.querySelector('[data-bloque-id="' + bloqueId + '"]');
+  if (!el) return;
+  _msResizeState = {
+    bloqueId: bloqueId,
+    startY: e.clientY,
+    startHeight: el.offsetHeight,
+    el: el,
+    origDur: Number(b.duracion_minutos) || 30
+  };
+  document.addEventListener('mousemove', _msResizeMove);
+  document.addEventListener('mouseup', _msResizeEnd);
+  document.body.style.cursor = 'ns-resize';
+}
+
+function _msResizeMove(e) {
+  if (!_msResizeState) return;
+  const dy = e.clientY - _msResizeState.startY;
+  // Snap 15min = MS_SLOT_HEIGHT/2 px
+  const snapPx = MS_SLOT_HEIGHT / 2;
+  const snappedDy = Math.round(dy / snapPx) * snapPx;
+  const newHeight = Math.max(snapPx, _msResizeState.startHeight + snappedDy);
+  _msResizeState.el.style.height = (newHeight - 2) + 'px';
+}
+
+async function _msResizeEnd(e) {
+  document.removeEventListener('mousemove', _msResizeMove);
+  document.removeEventListener('mouseup', _msResizeEnd);
+  document.body.style.cursor = '';
+  if (!_msResizeState) return;
+  const finalHeight = _msResizeState.el.offsetHeight + 2; // compensar -2 del rendered
+  // Convertir a minutos: cada MS_SLOT_HEIGHT = 30min → newDur = (height/MS_SLOT_HEIGHT)*30
+  let newDur = Math.round((finalHeight / MS_SLOT_HEIGHT) * 30 / 15) * 15; // snap 15
+  newDur = Math.max(15, newDur);
+  const id = _msResizeState.bloqueId;
+  _msResizeState = null;
+  await _msUpdateBloque(id, function(b) {
+    b.duracion_minutos = newDur;
+    return b;
+  });
+}
+
+// ── F2: Modal crear bloque ──
+function _msShowCrearBloqueModal(fechaIso, slotMin) {
+  const id = 'ms-crear-modal';
+  let el = document.getElementById(id); if (el) el.remove();
+  const wsId = currentAgencia || 'optimizads';
+  const catalog = (typeof getDefaultClients === 'function' ? getDefaultClients(wsId) : [])
+    .filter(function(c) { return c.workspaceId === wsId; });
+  // "Interno" (agency) primera opción (D31).
+  const sorted = catalog.slice().sort(function(a, b) {
+    if (a.id === 'agency') return -1;
+    if (b.id === 'agency') return 1;
+    return (a.nombre || '').localeCompare(b.nombre || '');
+  });
+  const opciones = sorted.map(function(c) {
+    return '<option value="' + escapeHtml(c.id) + '">' + escapeHtml(c.nombre || c.id) + '</option>';
+  }).join('');
+
+  const hh = MS_HORA_INICIO + Math.floor(slotMin / 60);
+  const mm = slotMin % 60;
+  const horaLabel = String(hh).padStart(2, '0') + ':' + String(mm).padStart(2, '0');
+  const [Y, M, D] = fechaIso.split('-').map(Number);
+  const fechaLabel = D + '/' + M + '/' + Y;
+
+  el = document.createElement('div');
+  el.id = id;
+  el.style.cssText = 'position:fixed;inset:0;z-index:99998;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;font-family:\'DM Sans\',sans-serif;';
+  el.innerHTML = ''
+    + '<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;width:420px;max-width:92vw;box-shadow:0 12px 32px rgba(0,0,0,0.5);">'
+    +   '<div style="font-family:\'Syne\',sans-serif;font-weight:700;font-size:16px;color:var(--text);margin-bottom:6px;">📅 Nuevo bloque</div>'
+    +   '<div style="font-family:\'DM Mono\',monospace;font-size:11px;color:var(--text3);margin-bottom:18px;">' + fechaLabel + ' · ' + horaLabel + '</div>'
+    +   '<label style="display:block;font-size:11px;color:var(--text2);margin-bottom:4px;font-weight:600;">Cliente</label>'
+    +   '<select id="ms-crear-cliente" style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:8px 10px;border-radius:6px;font-size:12px;margin-bottom:12px;">' + opciones + '</select>'
+    +   '<label style="display:block;font-size:11px;color:var(--text2);margin-bottom:4px;font-weight:600;">Título</label>'
+    +   '<input id="ms-crear-titulo" type="text" placeholder="Ej. Status diario, junta interna..." style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:8px 10px;border-radius:6px;font-size:12px;margin-bottom:12px;outline:none;">'
+    +   '<label style="display:block;font-size:11px;color:var(--text2);margin-bottom:4px;font-weight:600;">Duración (min)</label>'
+    +   '<input id="ms-crear-dur" type="number" value="60" min="15" step="15" style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:8px 10px;border-radius:6px;font-size:12px;margin-bottom:18px;outline:none;">'
+    +   '<div style="display:flex;gap:8px;justify-content:flex-end;">'
+    +     '<button id="ms-crear-cancel" style="background:transparent;border:1px solid var(--border);color:var(--text2);padding:8px 14px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">Cancelar</button>'
+    +     '<button id="ms-crear-ok" style="background:var(--accent);border:none;color:#000;padding:8px 16px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;">Crear</button>'
+    +   '</div>'
+    + '</div>';
+  document.body.appendChild(el);
+  setTimeout(function() { const i = document.getElementById('ms-crear-titulo'); if (i) i.focus(); }, 50);
+
+  function close() { try { el.remove(); } catch (e) {} }
+  document.getElementById('ms-crear-cancel').onclick = close;
+  document.getElementById('ms-crear-ok').onclick = async function() {
+    const cliente_id = document.getElementById('ms-crear-cliente').value || 'agency';
+    const titulo = document.getElementById('ms-crear-titulo').value.trim() || (cliente_id === 'agency' ? 'Bloque interno' : 'Bloque sin título');
+    const dur = Math.max(15, Number(document.getElementById('ms-crear-dur').value) || 60);
+    close();
+    await _msCreateBloque({
+      cliente_id: cliente_id,
+      titulo: titulo,
+      inicio_ts: _msBuildTs(fechaIso, slotMin),
+      duracion_minutos: dur
+    });
+  };
+  el.onclick = function(ev) { if (ev.target === el) close(); };
+  document.addEventListener('keydown', function esc(ev) {
+    if (ev.key === 'Escape') { document.removeEventListener('keydown', esc); close(); }
+  });
+}
+
+// ── F2: Modal editar bloque (D22 — toggle completado, eliminar) ──
+function _msShowEditBloqueModal(bloqueId) {
+  const uid = (window.currentUser && window.currentUser.uid) || null;
+  const cache = (uid && _calendarSemanaMemCache[uid]) || {};
+  const b = cache[bloqueId];
+  if (!b) return;
+
+  const id = 'ms-edit-modal';
+  let el = document.getElementById(id); if (el) el.remove();
+  const wsId = currentAgencia || 'optimizads';
+  const catalog = (typeof getDefaultClients === 'function' ? getDefaultClients(wsId) : []);
+  const cliente = catalog.find(function(c) { return c.id === b.cliente_id; });
+  const clienteLabel = cliente ? (cliente.nombre || cliente.id) : (b.cliente_id || '—');
+  const ts = _msToDate(b.inicio_ts);
+  const fechaLabel = ts ? (ts.getDate() + '/' + (ts.getMonth() + 1) + '/' + ts.getFullYear() + ' · ' + String(ts.getHours()).padStart(2, '0') + ':' + String(ts.getMinutes()).padStart(2, '0')) : '—';
+
+  el = document.createElement('div');
+  el.id = id;
+  el.style.cssText = 'position:fixed;inset:0;z-index:99998;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;font-family:\'DM Sans\',sans-serif;';
+  el.innerHTML = ''
+    + '<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;width:440px;max-width:92vw;box-shadow:0 12px 32px rgba(0,0,0,0.5);">'
+    +   '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">'
+    +     '<div style="font-family:\'Syne\',sans-serif;font-weight:700;font-size:16px;color:var(--text);">Editar bloque</div>'
+    +     '<button onclick="document.getElementById(\'' + id + '\').remove()" style="background:transparent;border:none;color:var(--text3);font-size:18px;cursor:pointer;padding:4px 8px;">×</button>'
+    +   '</div>'
+    +   '<div style="font-family:\'DM Mono\',monospace;font-size:11px;color:var(--text3);margin-bottom:18px;">' + escapeHtml(clienteLabel) + ' · ' + fechaLabel + '</div>'
+    +   '<label style="display:block;font-size:11px;color:var(--text2);margin-bottom:4px;font-weight:600;">Título</label>'
+    +   '<input id="ms-edit-titulo" type="text" value="' + escapeHtml(b.titulo || '') + '" style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:8px 10px;border-radius:6px;font-size:12px;margin-bottom:12px;outline:none;">'
+    +   '<label style="display:block;font-size:11px;color:var(--text2);margin-bottom:4px;font-weight:600;">Duración (min)</label>'
+    +   '<input id="ms-edit-dur" type="number" value="' + (Number(b.duracion_minutos) || 60) + '" min="15" step="15" style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:8px 10px;border-radius:6px;font-size:12px;margin-bottom:18px;outline:none;">'
+    +   '<div style="display:flex;gap:8px;justify-content:space-between;align-items:center;">'
+    +     '<button id="ms-edit-delete" style="background:transparent;border:1px solid rgba(239,68,68,0.45);color:var(--red);padding:8px 14px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">🗑️ Eliminar</button>'
+    +     '<div style="display:flex;gap:8px;">'
+    +       '<button id="ms-edit-toggle" style="background:transparent;border:1px solid var(--border);color:var(--text2);padding:8px 14px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">' + (b.completado ? 'Desmarcar' : '✓ Completar') + '</button>'
+    +       '<button id="ms-edit-save" style="background:var(--accent);border:none;color:#000;padding:8px 16px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;">Guardar</button>'
+    +     '</div>'
+    +   '</div>'
+    + '</div>';
+  document.body.appendChild(el);
+  setTimeout(function() { const i = document.getElementById('ms-edit-titulo'); if (i) i.focus(); }, 50);
+
+  function close() { try { el.remove(); } catch (e) {} }
+  document.getElementById('ms-edit-save').onclick = async function() {
+    const newTitulo = document.getElementById('ms-edit-titulo').value.trim() || 'Bloque sin título';
+    const newDur = Math.max(15, Number(document.getElementById('ms-edit-dur').value) || 60);
+    close();
+    await _msUpdateBloque(bloqueId, function(d) {
+      d.titulo = newTitulo;
+      d.duracion_minutos = newDur;
+      return d;
+    });
+  };
+  document.getElementById('ms-edit-toggle').onclick = async function() {
+    close();
+    await _msUpdateBloque(bloqueId, function(d) {
+      d.completado = !d.completado;
+      d.completado_at = d.completado ? firebase.firestore.FieldValue.serverTimestamp() : null;
+      return d;
+    });
+  };
+  document.getElementById('ms-edit-delete').onclick = function() {
+    close();
+    _msShowConfirmDeleteBloque(bloqueId, b.titulo || 'este bloque');
+  };
+  el.onclick = function(ev) { if (ev.target === el) close(); };
+  document.addEventListener('keydown', function esc(ev) {
+    if (ev.key === 'Escape') { document.removeEventListener('keydown', esc); close(); }
+  });
+}
+
+function _msShowConfirmDeleteBloque(bloqueId, titulo) {
+  const id = 'ms-confirm-delete';
+  let el = document.getElementById(id); if (el) el.remove();
+  el = document.createElement('div');
+  el.id = id;
+  el.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;font-family:\'DM Sans\',sans-serif;';
+  el.innerHTML = ''
+    + '<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;min-width:340px;max-width:420px;box-shadow:0 12px 32px rgba(0,0,0,0.5);">'
+    +   '<div style="font-family:\'Syne\',sans-serif;font-weight:700;font-size:15px;color:var(--text);margin-bottom:8px;">¿Eliminar bloque?</div>'
+    +   '<div style="font-size:13px;color:var(--text2);line-height:1.5;margin-bottom:18px;">Vas a eliminar <strong>' + escapeHtml(titulo) + '</strong>. Esta acción no se puede deshacer.</div>'
+    +   '<div style="display:flex;gap:8px;justify-content:flex-end;">'
+    +     '<button id="ms-cd-cancel" style="background:transparent;border:1px solid var(--border);color:var(--text2);padding:8px 14px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">Cancelar</button>'
+    +     '<button id="ms-cd-ok" style="background:var(--red);border:none;color:#fff;padding:8px 14px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">Eliminar</button>'
+    +   '</div>'
+    + '</div>';
+  document.body.appendChild(el);
+  function close() { try { el.remove(); } catch (e) {} }
+  document.getElementById('ms-cd-cancel').onclick = close;
+  document.getElementById('ms-cd-ok').onclick = async function() {
+    close();
+    await _msDeleteBloque(bloqueId);
+  };
+  el.onclick = function(ev) { if (ev.target === el) close(); };
+}
+
+// ── F2: Cascade delete (D33) — al eliminar tarea, borrar sus bloques ──
+async function _msCascadeDeleteByTareaId(tareaId) {
+  if (!tareaId) return 0;
+  const col = calendarSemanaFirestoreCol();
+  if (!col) return 0;
+  let count = 0;
+  try {
+    const snap = await col.where('tarea_id', '==', tareaId).get();
+    const batch = window.firebaseDb.batch();
+    snap.forEach(function(d) { batch.delete(d.ref); count++; });
+    if (count > 0) await batch.commit();
+    if (count > 0 && typeof showToast === 'function') {
+      showToast(count + ' bloque' + (count === 1 ? '' : 's') + ' del calendar eliminado' + (count === 1 ? '' : 's'), '🗑️');
+    }
+  } catch (e) {
+    console.warn('[calendarSemana] cascade delete failed', tareaId, e);
+  }
+  return count;
 }
 
 // API expuesta para test desde consola
@@ -10663,11 +11181,19 @@ window.calendarSemana = {
   init: calendarSemanaInit,
   save: calendarSemanaSave,
   ref: calendarSemanaFirestoreRef,
+  col: calendarSemanaFirestoreCol,
   loadCache: calendarSemanaLoadCache,
   saveCache: calendarSemanaSaveCache,
   unsubAll: calendarSemanaUnsubAll,
   render: renderMiSemana,
   getRol: getUserCalendarRole,
+  // F2 mutators (test desde consola)
+  createBloque: _msCreateBloque,
+  updateBloque: _msUpdateBloque,
+  deleteBloque: _msDeleteBloque,
+  cascadeDeleteByTareaId: _msCascadeDeleteByTareaId,
+  showCrear: _msShowCrearBloqueModal,
+  showEdit: _msShowEditBloqueModal,
   cache: _calendarSemanaMemCache,
   COLORS: CALENDAR_CLIENT_COLORS
 };
