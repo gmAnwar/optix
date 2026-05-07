@@ -10346,6 +10346,31 @@ function calendarSemanaShowConflictToast(bloqueId) {
   setTimeout(function() { if (el) el.style.display = 'none'; }, 6000);
 }
 
+// F2 fix bug: el panel lateral lee de _tareasCliMemCache (módulo Tareas v4.0).
+// Cuando entras a /mi-semana en frío, ese cache aún no está hidratado y el
+// primer render del panel sale vacío. Suscribimos un onSnapshot de
+// collection-level a tareas-clientes para disparar re-render de Mi semana
+// cuando llega data — patrón consistente con el onSnapshot de calendar-bloques.
+let _msTareasCliWatchUnsub = null;
+let _msTareasCliWatchInitial = true;
+
+function _msEnsureTareasCliWatch() {
+  if (_msTareasCliWatchUnsub) return;
+  if (!window.firebaseDb) return;
+  const wsId = currentAgencia || 'optimizads';
+  const tcCol = window.firebaseDb.collection('workspaces').doc(wsId).collection('tareas-clientes');
+  _msTareasCliWatchInitial = true;
+  _msTareasCliWatchUnsub = tcCol.onSnapshot(function() {
+    // El primer disparo es la carga inicial — útil precisamente porque
+    // hidrata cuando enterAs llegó antes que los listeners individuales.
+    _msTareasCliWatchInitial = false;
+    const screen = document.getElementById('screen-mi-semana');
+    if (screen && screen.classList.contains('active') && typeof renderMiSemana === 'function') {
+      try { renderMiSemana(); } catch (e) { console.warn('[calendarSemana] re-render after tareasCli snapshot failed', e); }
+    }
+  }, function(err) { console.warn('[calendarSemana] tareasCli watch error', err); });
+}
+
 async function calendarSemanaInit(uid) {
   if (!uid) return null;
   const col = calendarSemanaFirestoreCol();
@@ -10355,6 +10380,13 @@ async function calendarSemanaInit(uid) {
     try { _calendarSemanaUnsubs[uid](); } catch (e) {}
     delete _calendarSemanaUnsubs[uid];
   }
+
+  // F2 fix: arrancar listeners de tareas-clientes para poblar _tareasCliMemCache
+  // (necesario para el panel lateral) + watcher dedicado para trigger de re-render.
+  if (typeof tareasCliEnsureAllInitialized === 'function') {
+    try { tareasCliEnsureAllInitialized(); } catch (e) {}
+  }
+  _msEnsureTareasCliWatch();
 
   try {
     const snap = await col.where('assigned_to', '==', uid).get();
@@ -10384,6 +10416,10 @@ function calendarSemanaUnsubAll() {
     try { _calendarSemanaUnsubs[k](); } catch (e) {}
     delete _calendarSemanaUnsubs[k];
   });
+  if (_msTareasCliWatchUnsub) {
+    try { _msTareasCliWatchUnsub(); } catch (e) {}
+    _msTareasCliWatchUnsub = null;
+  }
 }
 
 // Save con versionado optimista — 3 retries con backoff 200/400/600ms.
