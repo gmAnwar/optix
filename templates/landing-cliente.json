@@ -1,0 +1,655 @@
+{
+  "plantilla_id": "landing-cliente",
+  "version": "1.1",
+  "nombre": "Landing Cliente OptimizAds",
+  "descripcion": "Plantilla de proyecto para construir, deployar e iterar landing page de pauta Meta Ads para cliente con dominio propio + email corporativo.",
+  "skill_referencia": "landing-cliente-SKILL-v1.1.md",
+  "tiempo_total_estimado_horas": "8-12",
+  "tiempo_calendario_estimado_dias": "2-5",
+  "owner_default": "anwar",
+  "fases": [
+    {
+      "id": "fase-0",
+      "nombre": "Pre-flight check",
+      "tiempo_estimado_min": 30,
+      "descripcion": "Validar viabilidad antes de prometer al cliente",
+      "tareas": [
+        {
+          "id": "0.1",
+          "titulo": "Confirmar dominio cliente",
+          "tipo": "validacion",
+          "duenio_default": "anwar",
+          "tiempo_min": 5,
+          "depende_de": [],
+          "bloqueante": true,
+          "automatizable_ai": false,
+          "output_esperado": "Dominio confirmado en formato cliente.mx",
+          "notas": "Si no tiene dominio, simplificar Fase 5 con subdominio OptimizAds"
+        },
+        {
+          "id": "0.2",
+          "titulo": "Confirmar email corporativo cliente",
+          "tipo": "validacion",
+          "duenio_default": "anwar",
+          "tiempo_min": 5,
+          "depende_de": ["0.1"],
+          "bloqueante": false,
+          "automatizable_ai": false,
+          "output_esperado": "Sí/No documentado",
+          "notas": "Si sí, riesgo email en Fase 5"
+        },
+        {
+          "id": "0.3",
+          "titulo": "Identificar contacto técnico cliente",
+          "tipo": "validacion",
+          "duenio_default": "anwar",
+          "tiempo_min": 5,
+          "depende_de": [],
+          "bloqueante": true,
+          "automatizable_ai": false,
+          "output_esperado": "Nombre + email + relación con cliente",
+          "notas": "CRITICAL — sin esto te bloqueas días en Fase 5"
+        },
+        {
+          "id": "0.4",
+          "titulo": "Confirmar BM/Dataset/Pixel ID",
+          "tipo": "validacion",
+          "duenio_default": "anwar",
+          "tiempo_min": 10,
+          "depende_de": [],
+          "bloqueante": true,
+          "automatizable_ai": false,
+          "output_esperado": "IDs documentados",
+          "notas": "Si no existen, crear antes de Fase 6"
+        },
+        {
+          "id": "0.5",
+          "titulo": "Confirmar acceso Ads Manager cliente",
+          "tipo": "validacion",
+          "duenio_default": "anwar",
+          "tiempo_min": 5,
+          "depende_de": [],
+          "bloqueante": true,
+          "automatizable_ai": false,
+          "output_esperado": "Acceso confirmado",
+          "notas": "Sin esto no podemos pauta en Fase 7"
+        },
+        {
+          "id": "0.6",
+          "titulo": "Confirmar CRM/notificador downstream listo",
+          "tipo": "validacion",
+          "duenio_default": "anwar",
+          "tiempo_min": 5,
+          "depende_de": [],
+          "bloqueante": true,
+          "automatizable_ai": false,
+          "output_esperado": "Bixis/Vambe/otro identificado y operativo",
+          "notas": "Sin esto, leads no llegan a nadie"
+        }
+      ]
+    },
+    {
+      "id": "fase-0.5",
+      "nombre": "Blueprint Cliente",
+      "tiempo_estimado_min": 75,
+      "descripcion": "Identidad estratégica del cliente. GATE OBLIGATORIO. Sin firma no se avanza.",
+      "tareas": [
+        {
+          "id": "0.5.1",
+          "titulo": "Pedir 4 datos no-inferibles al humano",
+          "tipo": "input_humano",
+          "duenio_default": "anwar",
+          "tiempo_min": 10,
+          "depende_de": ["0.6"],
+          "bloqueante": true,
+          "automatizable_ai": true,
+          "output_esperado": "Cliente exacto + ticket promedio + persona principal + 3 diferenciadores",
+          "notas": "Sin estos 4 datos, blueprint queda en [PENDIENTE]"
+        },
+        {
+          "id": "0.5.2",
+          "titulo": "Generar blueprint draft con marcado [INFERIDO]/[CLIENTE]/[ANWAR]/[PENDIENTE]",
+          "tipo": "ai_autonomo",
+          "duenio_default": "ai",
+          "tiempo_min": 20,
+          "depende_de": ["0.5.1"],
+          "bloqueante": true,
+          "automatizable_ai": true,
+          "output_esperado": "Archivo blueprint-cliente-{nombre}.md draft con 13 secciones llenadas",
+          "notas": "Usa template blueprint-cliente-template.md"
+        },
+        {
+          "id": "0.5.3",
+          "titulo": "Anwar revisa y corrige inferencias",
+          "tipo": "validacion",
+          "duenio_default": "anwar",
+          "tiempo_min": 20,
+          "depende_de": ["0.5.2"],
+          "bloqueante": true,
+          "automatizable_ai": false,
+          "output_esperado": "Blueprint con [INFERIDO] reducidos a mínimo",
+          "notas": "Especial atención a: nivel consciencia, persona, palabras prohibidas"
+        },
+        {
+          "id": "0.5.4",
+          "titulo": "Cliente operativo valida persona/tono/palabras prohibidas",
+          "tipo": "validacion_cliente",
+          "duenio_default": "cliente",
+          "tiempo_min": 15,
+          "depende_de": ["0.5.3"],
+          "bloqueante": true,
+          "automatizable_ai": false,
+          "output_esperado": "Cliente confirma ajustes o aprueba tal cual",
+          "notas": "Si cliente discrepa fuerte, iterar con Anwar"
+        },
+        {
+          "id": "0.5.5",
+          "titulo": "Firmar blueprint (Anwar + cliente operativo)",
+          "tipo": "validacion",
+          "duenio_default": "anwar",
+          "tiempo_min": 10,
+          "depende_de": ["0.5.4"],
+          "bloqueante": true,
+          "automatizable_ai": false,
+          "output_esperado": "Blueprint sec 13 firmado con fecha",
+          "notas": "Sin firma NO se avanza a Fase 1"
+        }
+      ]
+    },
+    {
+      "id": "fase-1",
+      "nombre": "Decisiones de producto",
+      "tiempo_estimado_min": 30,
+      "descripcion": "Heredan del blueprint. 6 decisiones fijas antes de tocar código.",
+      "tareas": [
+        {
+          "id": "1.1",
+          "titulo": "Definir subdominio (default: pide.cliente.mx)",
+          "tipo": "decision",
+          "duenio_default": "anwar",
+          "tiempo_min": 5,
+          "depende_de": ["0.5.5"],
+          "bloqueante": true,
+          "automatizable_ai": true,
+          "output_esperado": "Subdominio elegido con racionalidad",
+          "notas": "Verbal CTA: pide/agenda/cotiza/descubre/solicita según vertical"
+        },
+        {
+          "id": "1.2",
+          "titulo": "Decidir cuenta hosting Cloudflare",
+          "tipo": "decision",
+          "duenio_default": "anwar",
+          "tiempo_min": 10,
+          "depende_de": ["1.1"],
+          "bloqueante": true,
+          "automatizable_ai": false,
+          "output_esperado": "Cuenta CF identificada (cliente o existente)",
+          "notas": "Si zona DNS ya está en CF, usar esa cuenta"
+        },
+        {
+          "id": "1.3",
+          "titulo": "Definir estrategia personalización UTM",
+          "tipo": "decision",
+          "duenio_default": "anwar",
+          "tiempo_min": 5,
+          "depende_de": [],
+          "bloqueante": false,
+          "automatizable_ai": true,
+          "output_esperado": "Variables UTM con valores iniciales",
+          "notas": "Una landing + diccionario VARIANTES JS, NUNCA N HTMLs"
+        },
+        {
+          "id": "1.4",
+          "titulo": "Definir SEO posture (default: noindex, follow)",
+          "tipo": "decision",
+          "duenio_default": "anwar",
+          "tiempo_min": 5,
+          "depende_de": [],
+          "bloqueante": false,
+          "automatizable_ai": true,
+          "output_esperado": "Posture documentada",
+          "notas": "index, follow solo si reemplaza sitio orgánico"
+        },
+        {
+          "id": "1.5",
+          "titulo": "Definir hosting target (default: Cloudflare Workers static)",
+          "tipo": "decision",
+          "duenio_default": "anwar",
+          "tiempo_min": 5,
+          "depende_de": [],
+          "bloqueante": false,
+          "automatizable_ai": true,
+          "output_esperado": "Target documentado",
+          "notas": "Stream solo si videos individuales >8MB tras compresión"
+        }
+      ]
+    },
+    {
+      "id": "fase-2",
+      "nombre": "Brief CRO",
+      "tiempo_estimado_min": 45,
+      "descripcion": "Genera brief-cro-{cliente}.md con 8 secciones. AI autónomo desde blueprint.",
+      "tareas": [
+        {
+          "id": "2.1",
+          "titulo": "Generar brief CRO con 8 secciones desde blueprint",
+          "tipo": "ai_autonomo",
+          "duenio_default": "ai",
+          "tiempo_min": 35,
+          "depende_de": ["1.5"],
+          "bloqueante": true,
+          "automatizable_ai": true,
+          "output_esperado": "brief-cro-{cliente}.md de 15-20KB",
+          "notas": "Hereda contexto, audiencia, hipótesis, CTA, UTM, métricas, roadmap del blueprint"
+        },
+        {
+          "id": "2.2",
+          "titulo": "Anwar revisa brief CRO",
+          "tipo": "validacion",
+          "duenio_default": "anwar",
+          "tiempo_min": 10,
+          "depende_de": ["2.1"],
+          "bloqueante": true,
+          "automatizable_ai": false,
+          "output_esperado": "Brief aprobado o ajustado",
+          "notas": "Si hay discrepancias con blueprint, gana blueprint"
+        }
+      ]
+    },
+    {
+      "id": "fase-3",
+      "nombre": "Construcción HTML",
+      "tiempo_estimado_min": 180,
+      "descripcion": "Single-file HTML/CSS/JS. AI autónomo validando contra blueprint.",
+      "tareas": [
+        {
+          "id": "3.1",
+          "titulo": "Validación pre-código contra blueprint (CRITICAL)",
+          "tipo": "validacion",
+          "duenio_default": "ai",
+          "tiempo_min": 15,
+          "depende_de": ["2.2"],
+          "bloqueante": true,
+          "automatizable_ai": true,
+          "output_esperado": "Checklist H1/voz/palabras/mecanismo/objeciones/anti-positioning verificado",
+          "notas": "Esto es lo que separa landing genérica de landing que convierte"
+        },
+        {
+          "id": "3.2",
+          "titulo": "Generar index.html con estructura completa",
+          "tipo": "ai_autonomo",
+          "duenio_default": "ai",
+          "tiempo_min": 90,
+          "depende_de": ["3.1"],
+          "bloqueante": true,
+          "automatizable_ai": true,
+          "output_esperado": "index.html de 60-80KB single-file",
+          "notas": "Hero + eyebrow + form/CTA + carousel + beneficios + logos + FAQ + CTA final"
+        },
+        {
+          "id": "3.3",
+          "titulo": "Implementar sistema UTM con VARIANTES",
+          "tipo": "ai_autonomo",
+          "duenio_default": "ai",
+          "tiempo_min": 30,
+          "depende_de": ["3.2"],
+          "bloqueante": true,
+          "automatizable_ai": true,
+          "output_esperado": "UTM lectura + VARIANTES dict + URL cleaner + tracking codes en mensaje WA",
+          "notas": "Hereda blueprint sec 12"
+        },
+        {
+          "id": "3.4",
+          "titulo": "Implementar SEO técnico completo",
+          "tipo": "ai_autonomo",
+          "duenio_default": "ai",
+          "tiempo_min": 20,
+          "depende_de": ["3.2"],
+          "bloqueante": true,
+          "automatizable_ai": true,
+          "output_esperado": "noindex/follow + canonical + OG + Twitter + Schema.org JSON-LD + robots.txt + sitemap.xml",
+          "notas": "Schema.org según vertical"
+        },
+        {
+          "id": "3.5",
+          "titulo": "Anwar valida preview local mobile + desktop",
+          "tipo": "validacion",
+          "duenio_default": "anwar",
+          "tiempo_min": 25,
+          "depende_de": ["3.3", "3.4"],
+          "bloqueante": true,
+          "automatizable_ai": false,
+          "output_esperado": "Preview aprobado o lista de ajustes",
+          "notas": "Probar en Safari mobile real, no solo emulador"
+        }
+      ]
+    },
+    {
+      "id": "fase-4",
+      "nombre": "Multimedia",
+      "tiempo_estimado_min": 90,
+      "descripcion": "Compresión videos + thumbnails + validación quotes",
+      "tareas": [
+        {
+          "id": "4.1",
+          "titulo": "Conseguir originales videos del cliente",
+          "tipo": "input_cliente",
+          "duenio_default": "anwar",
+          "tiempo_min": 15,
+          "depende_de": [],
+          "bloqueante": true,
+          "automatizable_ai": false,
+          "output_esperado": "Carpeta con originales en Drive",
+          "notas": "Originales en HEVC HDR de iPhone son comunes"
+        },
+        {
+          "id": "4.2",
+          "titulo": "Comprimir videos con receta ffmpeg correcta",
+          "tipo": "ai_autonomo",
+          "duenio_default": "ai",
+          "tiempo_min": 30,
+          "depende_de": ["4.1"],
+          "bloqueante": true,
+          "automatizable_ai": true,
+          "output_esperado": "Hero <3MB, carousel <2MB cada uno, total <20MB",
+          "notas": "Recetas en SKILL fase 4. HEVC HDR requiere zscale tonemap"
+        },
+        {
+          "id": "4.3",
+          "titulo": "Generar thumbnails .jpg de cada video",
+          "tipo": "ai_autonomo",
+          "duenio_default": "ai",
+          "tiempo_min": 10,
+          "depende_de": ["4.2"],
+          "bloqueante": false,
+          "automatizable_ai": true,
+          "output_esperado": "Thumbnail .jpg por cada .mp4",
+          "notas": "ffmpeg con -ss 00:00:01 -vframes 1"
+        },
+        {
+          "id": "4.4",
+          "titulo": "Validar quotes/nombres/negocios con cliente (BLOQUEANTE)",
+          "tipo": "validacion_cliente",
+          "duenio_default": "anwar",
+          "tiempo_min": 30,
+          "depende_de": ["4.2"],
+          "bloqueante": true,
+          "automatizable_ai": false,
+          "output_esperado": "Cliente confirma textualmente cada quote + nombre + negocio + ciudad",
+          "notas": "Subtítulos quemados pueden tener typos. CRITICAL antes de pauta"
+        },
+        {
+          "id": "4.5",
+          "titulo": "Insertar videos comprimidos en index.html",
+          "tipo": "ai_autonomo",
+          "duenio_default": "ai",
+          "tiempo_min": 5,
+          "depende_de": ["4.4"],
+          "bloqueante": true,
+          "automatizable_ai": true,
+          "output_esperado": "HTML con paths relativos a videos/",
+          "notas": "Lazy load real con data-src + preload=none"
+        }
+      ]
+    },
+    {
+      "id": "fase-4.5",
+      "nombre": "Validación performance/calidad (GATE)",
+      "tiempo_estimado_min": 60,
+      "descripcion": "GATE OBLIGATORIO. No se entrega al cliente sin pasar.",
+      "tareas": [
+        {
+          "id": "4.5.1",
+          "titulo": "Test PageSpeed mobile + desktop",
+          "tipo": "ai_semi",
+          "duenio_default": "ai",
+          "tiempo_min": 15,
+          "depende_de": ["4.5"],
+          "bloqueante": true,
+          "automatizable_ai": true,
+          "output_esperado": "Screenshots con scores Performance/Accessibility/Best Practices/SEO",
+          "notas": "Pass: Perf ≥70, A11y ≥85, BP ≥90, SEO ≥80"
+        },
+        {
+          "id": "4.5.2",
+          "titulo": "Test funcional manual mobile real",
+          "tipo": "validacion",
+          "duenio_default": "anwar",
+          "tiempo_min": 20,
+          "depende_de": ["4.5"],
+          "bloqueante": true,
+          "automatizable_ai": false,
+          "output_esperado": "Checklist 10 puntos verificados (autoplay, unmute, carousel, modal, CTAs, UTMs, touch targets)",
+          "notas": "Safari mobile + Chrome mobile + Firefox desktop. Probar con dedo, no mouse"
+        },
+        {
+          "id": "4.5.3",
+          "titulo": "Test copy contra blueprint",
+          "tipo": "ai_autonomo",
+          "duenio_default": "ai",
+          "tiempo_min": 15,
+          "depende_de": ["4.5"],
+          "bloqueante": true,
+          "automatizable_ai": true,
+          "output_esperado": "Checklist 7 puntos verificados (H1 nivel consciencia, voz, palabras, mecanismo, objeciones, anti-positioning)",
+          "notas": "Si falla, corregir HTML, blueprint es ground truth"
+        },
+        {
+          "id": "4.5.4",
+          "titulo": "Reporte gate a Anwar antes de Fase 5",
+          "tipo": "ai_autonomo",
+          "duenio_default": "ai",
+          "tiempo_min": 10,
+          "depende_de": ["4.5.1", "4.5.2", "4.5.3"],
+          "bloqueante": true,
+          "automatizable_ai": true,
+          "output_esperado": "Mensaje resumen con screenshots PageSpeed + checklists marcados",
+          "notas": "Si algo falla, iterar antes de avanzar"
+        }
+      ]
+    },
+    {
+      "id": "fase-5",
+      "nombre": "Hosting + DNS",
+      "tiempo_estimado_min": 45,
+      "descripcion": "Cuando hay acceso correcto a Cloudflare. Sin acceso = bloqueo.",
+      "tareas": [
+        {
+          "id": "5.1",
+          "titulo": "Pre-flight DNS check (CRITICAL)",
+          "tipo": "validacion_cliente",
+          "duenio_default": "cliente",
+          "tiempo_min": 10,
+          "depende_de": ["4.5.4"],
+          "bloqueante": true,
+          "automatizable_ai": false,
+          "output_esperado": "Cliente manda screenshot DNS panel del registrar",
+          "notas": "Identificar caso A/B/C según decision tree"
+        },
+        {
+          "id": "5.2",
+          "titulo": "Conseguir invite Administrator (NO Domain Administrator)",
+          "tipo": "validacion_cliente",
+          "duenio_default": "cliente",
+          "tiempo_min": 30,
+          "depende_de": ["5.1"],
+          "bloqueante": true,
+          "automatizable_ai": false,
+          "output_esperado": "Anwar con role Administrator confirmado en Manage Account → Members",
+          "notas": "AP-02: Domain Administrator NO sirve para Workers"
+        },
+        {
+          "id": "5.3",
+          "titulo": "Deploy Worker con upload assets",
+          "tipo": "ai_guiado",
+          "duenio_default": "anwar",
+          "tiempo_min": 10,
+          "depende_de": ["5.2"],
+          "bloqueante": true,
+          "automatizable_ai": false,
+          "output_esperado": "Worker {cliente}-landing live en *.workers.dev",
+          "notas": "Drag&drop carpeta landing-{cliente}-v{N}/. Sin MCP Cloudflare = humano hace clicks"
+        },
+        {
+          "id": "5.4",
+          "titulo": "Add Custom Domain pide.{cliente}.mx",
+          "tipo": "ai_guiado",
+          "duenio_default": "anwar",
+          "tiempo_min": 5,
+          "depende_de": ["5.3"],
+          "bloqueante": true,
+          "automatizable_ai": false,
+          "output_esperado": "https://pide.{cliente}.mx responde 200 con SSL válido",
+          "notas": "CF crea CNAME automático + emite SSL en 1-3 min"
+        },
+        {
+          "id": "5.5",
+          "titulo": "Validar landing carga en mobile + desktop con dominio final",
+          "tipo": "validacion",
+          "duenio_default": "anwar",
+          "tiempo_min": 5,
+          "depende_de": ["5.4"],
+          "bloqueante": true,
+          "automatizable_ai": false,
+          "output_esperado": "Carga correcta en 3 dispositivos",
+          "notas": "Probar también con UTMs en URL"
+        }
+      ]
+    },
+    {
+      "id": "fase-6",
+      "nombre": "Integración Meta",
+      "tiempo_estimado_min": 30,
+      "descripcion": "Pixel + Custom Conversion + dominio autorizado",
+      "tareas": [
+        {
+          "id": "6.1",
+          "titulo": "Verificación dominio en Business Manager",
+          "tipo": "ai_guiado",
+          "duenio_default": "anwar",
+          "tiempo_min": 10,
+          "depende_de": ["5.5"],
+          "bloqueante": true,
+          "automatizable_ai": false,
+          "output_esperado": "Dominio verificado en BM → Brand Safety → Domains",
+          "notas": "Meta tag en <head> es más fácil que DNS TXT"
+        },
+        {
+          "id": "6.2",
+          "titulo": "Test Events: PageView, Contact, Lead, ViewContent disparando",
+          "tipo": "validacion",
+          "duenio_default": "anwar",
+          "tiempo_min": 10,
+          "depende_de": ["6.1"],
+          "bloqueante": true,
+          "automatizable_ai": false,
+          "output_esperado": "Test Events Manager muestra 4 eventos disparando",
+          "notas": "Si no, debug Pixel ID o configuración"
+        },
+        {
+          "id": "6.3",
+          "titulo": "Crear Custom Conversion whatsapp_click",
+          "tipo": "ai_guiado",
+          "duenio_default": "anwar",
+          "tiempo_min": 5,
+          "depende_de": ["6.2"],
+          "bloqueante": false,
+          "automatizable_ai": false,
+          "output_esperado": "Custom Conversion creada en Events Manager",
+          "notas": "Trigger: PageView con URL contiene wa.me OR evento Contact"
+        },
+        {
+          "id": "6.4",
+          "titulo": "Autorizar dominio en Dataset",
+          "tipo": "ai_guiado",
+          "duenio_default": "anwar",
+          "tiempo_min": 5,
+          "depende_de": ["6.1"],
+          "bloqueante": true,
+          "automatizable_ai": false,
+          "output_esperado": "pide.{cliente}.mx en Dataset → Settings → Domains",
+          "notas": "Desbloquea atribución correcta"
+        }
+      ]
+    },
+    {
+      "id": "fase-7",
+      "nombre": "Handoff a pauta",
+      "tiempo_estimado_min": 30,
+      "descripcion": "Avisar equipo, configurar tracking, plan v0",
+      "tareas": [
+        {
+          "id": "7.1",
+          "titulo": "Mensaje a equipo cliente sobre formato leads",
+          "tipo": "ai_autonomo",
+          "duenio_default": "anwar",
+          "tiempo_min": 10,
+          "depende_de": ["6.4"],
+          "bloqueante": true,
+          "automatizable_ai": true,
+          "output_esperado": "Mensaje a contacto operativo cliente con explicación tracking codes",
+          "notas": "Ejemplo: 'Mauricio, leads vendrán con código EP-{CIUDAD}-{EQUIPO}-{SECCION}'"
+        },
+        {
+          "id": "7.2",
+          "titulo": "Configurar tag landing en CRM cliente",
+          "tipo": "input_cliente",
+          "duenio_default": "cliente",
+          "tiempo_min": 10,
+          "depende_de": ["7.1"],
+          "bloqueante": true,
+          "automatizable_ai": false,
+          "output_esperado": "CRM cliente con tag landing operativo",
+          "notas": "Permite medir CPL→cierre por canal vs mensaje"
+        },
+        {
+          "id": "7.3",
+          "titulo": "Configurar campañas Ads Manager con UTM correcto",
+          "tipo": "ai_guiado",
+          "duenio_default": "anwar",
+          "tiempo_min": 30,
+          "depende_de": ["6.4"],
+          "bloqueante": true,
+          "automatizable_ai": false,
+          "output_esperado": "Adsets con utm_campaign={prefijo}-{ciudad}-{producto}-q1-2026",
+          "notas": "Optimization event = Custom Conversion, NO PageView"
+        },
+        {
+          "id": "7.4",
+          "titulo": "Lanzar test 7 días $1,500/día con 1 adset core",
+          "tipo": "ai_guiado",
+          "duenio_default": "anwar",
+          "tiempo_min": 15,
+          "depende_de": ["7.3"],
+          "bloqueante": true,
+          "automatizable_ai": false,
+          "output_esperado": "Campaña live con budget controlado",
+          "notas": "NO romper campañas mensaje actuales (récord ventas)"
+        },
+        {
+          "id": "7.5",
+          "titulo": "Monitorear métricas día 1-7",
+          "tipo": "monitoreo",
+          "duenio_default": "anwar",
+          "tiempo_min": 60,
+          "depende_de": ["7.4"],
+          "bloqueante": false,
+          "automatizable_ai": true,
+          "output_esperado": "Métricas día 1-7 documentadas: CTR, conv, CPL, CAC, match Pixel",
+          "notas": "10 min/día durante 7 días. Decisión escalar/pausar día 7"
+        }
+      ]
+    }
+  ],
+  "metricas_exito": {
+    "tiempo_total_objetivo_dias": "1-2",
+    "tiempo_iteraciones_v2_v3_horas": "<4",
+    "ctr_ad_mobile_min": 1.5,
+    "conv_landing_cta_min_pct": 5,
+    "match_quality_pixel_min": 5
+  },
+  "anti_patterns_count": 16,
+  "ai_driven_pct": 65,
+  "humano_in_loop_pct": 25,
+  "solo_humano_pct": 10
+}
