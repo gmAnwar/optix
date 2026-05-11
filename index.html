@@ -6240,6 +6240,18 @@ function createQuickClient() {
     workspaceId: wsId,
     nombre: nombre,
     color: color,
+    // Colecciones vacías — paridad con wizard largo (line 6068-6069). Evita
+    // que sub-tabs de screen-app (ADN/Objetivos/Rendimiento/Segmentos/
+    // Validación/Creativos/Vault/Decisiones) truenen al abrir el cliente
+    // rápido desde el grid si asumen estos campos sin check defensivo.
+    vault: [],
+    decisiones: [],
+    // Semáforo
+    sem_stars: 0,
+    sem_comm_count: 0,
+    // Expediente — 3 capas
+    adn: {}, objetivos: {}, rendimiento: {}, segmentos: {}, validacion: {}, creativos: {},
+    // Metadata
     createdAt: new Date().toISOString(),
     createdBy: currentRol || 'unknown',
   };
