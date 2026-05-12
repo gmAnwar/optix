@@ -10962,6 +10962,13 @@ function _msRenderBloque(b, col, cols) {
     ? (dur % 60 === 0 ? (dur / 60) + 'hr' : (Math.floor(dur / 60) + 'h ' + (dur % 60) + 'min'))
     : dur + 'min';
   const titulo = b.titulo || 'Bloque sin título';
+  // S67 1.4: layout adaptativo según duración + presencia de objetivo (denormalizado en bloque).
+  const objetivoTitulo = b.objetivo_titulo || '';
+  const showObjetivoLine = !!objetivoTitulo && dur >= 60;
+  const objetivoInline = (!!objetivoTitulo && dur < 60) ? ' (' + escapeHtml(objetivoTitulo) + ')' : '';
+  const objetivoLineHtml = showObjetivoLine
+    ? '<div style="font-size:10px;color:var(--text2);line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none;">' + escapeHtml(objetivoTitulo) + '</div>'
+    : '';
   const opacity = completado ? '0.5' : '1';
   const textDeco = completado ? 'text-decoration:line-through;' : '';
   const borderColor = overdue ? 'rgba(239,68,68,0.55)' : color;
@@ -10988,7 +10995,8 @@ function _msRenderBloque(b, col, cols) {
     +   'border-radius:0 6px 6px 0;padding:3px 7px;overflow:hidden;cursor:grab;'
     +   'opacity:' + opacity + ';' + textDeco + 'transition:opacity 0.15s,border-color 0.15s;z-index:2;">'
     +   '<div style="font-size:11px;font-weight:700;color:' + color + ';line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none;">' + escapeHtml(titulo) + '</div>'
-    +   '<div style="font-size:9px;color:var(--text3);font-family:\'DM Mono\',monospace;line-height:1.3;pointer-events:none;">' + durLabel + (cols > 1 ? ' · col ' + (col + 1) + '/' + cols : '') + '</div>'
+    +   objetivoLineHtml
+    +   '<div style="font-size:9px;color:var(--text3);font-family:\'DM Mono\',monospace;line-height:1.3;pointer-events:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + durLabel + objetivoInline + (cols > 1 ? ' · col ' + (col + 1) + '/' + cols : '') + '</div>'
     +   '<div class="ms-resize-handle" onmousedown="_msResizeStart(event, \'' + bid + '\')" '
     +     'style="position:absolute;left:0;right:0;bottom:0;height:6px;cursor:ns-resize;background:transparent;"></div>'
     + '</div>';
