@@ -10381,13 +10381,31 @@ async function tareasCliDeleteTarea(clientId, objId, tareaId) {
   await tareasCliSave(clientId, function(d) {
     const o = (d.objetivos || []).find(function(x) { return x.id === objId; });
     if (!o) return d;
-    o.tareas = (o.tareas || []).filter(function(x) { return x.id !== tareaId; });
+    const tareas = Array.isArray(o.tareas) ? o.tareas : [];
+    const target = tareas.find(function(x) { return x.id === tareaId; });
+    // S67 1.4: schema flat — si la tarea borrada es top-level y tiene hijas, promover
+    // (parent_task_id → null) en lugar de borrarlas. Orden recalculado al final del objetivo (D8).
+    if (target && !target.parent_task_id) {
+      const children = tareas.filter(function(x) { return x.parent_task_id === tareaId; });
+      if (children.length > 0) {
+        const topLevelMaxOrden = tareas
+          .filter(function(x) { return !x.parent_task_id && x.id !== tareaId; })
+          .reduce(function(m, x) { return Math.max(m, Number(x.orden) || 0); }, -1);
+        children.forEach(function(child, i) {
+          child.parent_task_id = null;
+          child.orden = topLevelMaxOrden + 1 + i;
+        });
+      }
+    }
+    o.tareas = tareas.filter(function(x) { return x.id !== tareaId; });
     return d;
   });
   renderTareasCli();
-  // Plan Semanal D33: cascade delete bloques del calendar que apuntaban a esta tarea.
-  if (typeof _msCascadeDeleteByTareaId === 'function') {
-    try { await _msCascadeDeleteByTareaId(tareaId); } catch (e) {}
+  // S67 1.4 / D3: cascade NULLIFY (no delete) — preserva bloques Plan Semanal con
+  // cliente_id/objetivo_id/objetivo_titulo, solo tarea_id → null. Renombrado desde
+  // _msCascadeDeleteByTareaId; sin alias backward-compat (sin callers externos).
+  if (typeof _msCascadeNullifyByTareaId === 'function') {
+    try { await _msCascadeNullifyByTareaId(tareaId); } catch (e) {}
   }
 }
 
@@ -11703,22 +11721,26 @@ function _msShowConfirmDeleteBloque(bloqueId, titulo) {
   el.onclick = function(ev) { if (ev.target === el) close(); };
 }
 
-// ── F2: Cascade delete (D33) — al eliminar tarea, borrar sus bloques ──
-async function _msCascadeDeleteByTareaId(tareaId) {
+// ── F2: Cascade NULLIFY (S67 1.4 / D3) — al eliminar tarea, los bloques sobreviven
+// con cliente_id + objetivo_id + objetivo_titulo preservados; solo tarea_id → null.
+// Renombrado desde _msCascadeDeleteByTareaId (D33 original) para reflejar el nuevo
+// comportamiento. Razón: preservar planning visual + historial de qué se agendó.
+async function _msCascadeNullifyByTareaId(tareaId) {
   if (!tareaId) return 0;
   const col = calendarSemanaFirestoreCol();
   if (!col) return 0;
   let count = 0;
   try {
     const snap = await col.where('tarea_id', '==', tareaId).get();
+    if (snap.empty) return 0;
     const batch = window.firebaseDb.batch();
-    snap.forEach(function(d) { batch.delete(d.ref); count++; });
+    snap.forEach(function(d) { batch.update(d.ref, { tarea_id: null }); count++; });
     if (count > 0) await batch.commit();
     if (count > 0 && typeof showToast === 'function') {
-      showToast(count + ' bloque' + (count === 1 ? '' : 's') + ' del calendar eliminado' + (count === 1 ? '' : 's'), '🗑️');
+      showToast(count + ' bloque' + (count === 1 ? '' : 's') + ' desvinculado' + (count === 1 ? '' : 's') + ' de tarea', '🔗');
     }
   } catch (e) {
-    console.warn('[calendarSemana] cascade delete failed', tareaId, e);
+    console.warn('[calendarSemana] cascade nullify failed', tareaId, e);
   }
   return count;
 }
@@ -11738,7 +11760,7 @@ window.calendarSemana = {
   createBloque: _msCreateBloque,
   updateBloque: _msUpdateBloque,
   deleteBloque: _msDeleteBloque,
-  cascadeDeleteByTareaId: _msCascadeDeleteByTareaId,
+  cascadeNullifyByTareaId: _msCascadeNullifyByTareaId,
   showCrear: _msShowCrearBloqueModal,
   showEdit: _msShowEditBloqueModal,
   cache: _calendarSemanaMemCache,
