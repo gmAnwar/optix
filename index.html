@@ -10270,6 +10270,36 @@ async function tareasCliAddTarea(clientId, objId, texto) {
   renderTareasCli();
 }
 
+// S67 Bloque A-subtasks 1.1 — schema flat con parent_task_id (S62.5).
+// Peer del padre en o.tareas[], distinguido por parent_task_id !== null. Flat 1 nivel.
+async function tareasCliAddSubtask(clientId, objId, parentTaskId, texto) {
+  const t = String(texto || '').trim();
+  if (!t || !parentTaskId) return null;
+  const newId = 'tarea-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
+  const nowIso = new Date().toISOString();
+  await tareasCliSave(clientId, function(d) {
+    const o = (d.objetivos || []).find(function(x) { return x.id === objId; });
+    if (!o) return d;
+    if (!Array.isArray(o.tareas)) o.tareas = [];
+    o.tareas.push({
+      id: newId,
+      texto: t,
+      completado: false,
+      fechaIdeal: null,
+      fechaLimite: null,
+      notas: '',
+      responsibleUsers: [],
+      orden: o.tareas.length,
+      parent_task_id: parentTaskId,
+      createdAt: nowIso,
+      updatedAt: nowIso
+    });
+    return d;
+  });
+  renderTareasCli();
+  return newId;
+}
+
 async function tareasCliEditTareaTexto(clientId, objId, tareaId, texto) {
   const t = String(texto || '').trim();
   if (!t) return;
