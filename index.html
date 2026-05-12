@@ -9530,28 +9530,50 @@ function tareasCliRenderObjetivosList(client, objetivos) {
     return '<div style="padding:14px 0;color:var(--text3);font-size:12px;text-align:center;font-family:\'DM Mono\',monospace;">Sin objetivos creados</div>';
   }
   const cid = escapeHtml(client.id);
+  const clientIdRaw = client.id;
   return objetivos.map(function(o) {
     const oid = escapeHtml(o.id);
-    const tareas = Array.isArray(o.tareas) ? o.tareas : [];
-    const done = tareas.filter(function(t) { return t.completado; }).length;
+    const allTareas = Array.isArray(o.tareas) ? o.tareas : [];
+    const done = allTareas.filter(function(t) { return t.completado; }).length;
     const objNombreSafe = escapeHtml(o.nombre || '');
-    const tareasHtml = tareas.map(function(t) {
+    // S67 1.2: schema flat — separar top-level de subtasks (parent_task_id no null).
+    const topLevel = allTareas.filter(function(t) { return !t.parent_task_id; });
+    const subtasksByParent = {};
+    allTareas.forEach(function(t) {
+      if (t.parent_task_id) {
+        if (!subtasksByParent[t.parent_task_id]) subtasksByParent[t.parent_task_id] = [];
+        subtasksByParent[t.parent_task_id].push(t);
+      }
+    });
+
+    function _renderTareaRow(t, isSubtask, childCount, collapsed) {
       const tid = escapeHtml(t.id);
       const completed = !!t.completado;
       const textoSafe = escapeHtml(t.texto || '');
       const fechaChip = t.fechaLimite
         ? '<span title="Fecha límite ' + escapeHtml(t.fechaLimite) + '" style="font-family:\'DM Mono\',monospace;font-size:9px;color:var(--text3);background:var(--surface);border:1px solid var(--border);padding:1px 5px;border-radius:3px;flex-shrink:0;line-height:1.4;">' + (typeof tareasFormatFecha === 'function' ? tareasFormatFecha(t.fechaLimite) : escapeHtml(t.fechaLimite)) + '</span>'
         : '';
+      // Chevron solo para top-level con 1+ hijas. Spacer para alinear las que no tienen.
+      const chevron = (!isSubtask && childCount > 0)
+        ? '<span onclick="tareasCliToggleSubtaskCollapse(\'' + cid + '\', \'' + tid + '\')" '
+            + 'title="' + (collapsed ? 'Expandir' : 'Colapsar') + ' subtasks (' + childCount + ')" '
+            + 'style="cursor:pointer;font-size:10px;color:var(--text3);flex-shrink:0;user-select:none;width:12px;text-align:center;line-height:1;">'
+            + (collapsed ? '▸' : '▾')
+            + '</span>'
+        : '<span style="width:12px;flex-shrink:0;"></span>';
+      const indentStyle = isSubtask ? 'margin-left:18px;' : '';
       return ''
-        + '<div class="tareas-cli-tarea-row" '
+        + '<div class="tareas-cli-tarea-row' + (isSubtask ? ' tareas-cli-subtask-row' : '') + '" '
         +   'draggable="true" '
         +   'ondragstart="tareasCliDragStart(event, \'' + cid + '\', \'' + oid + '\', \'' + tid + '\')" '
         +   'ondragend="tareasCliDragEnd(event)" '
         +   'data-droppable-type="tarea" '
         +   'data-client-id="' + cid + '" data-obj-id="' + oid + '" data-tarea-id="' + tid + '" '
+        +   (isSubtask ? 'data-parent-task-id="' + escapeHtml(t.parent_task_id || '') + '" ' : '')
         +   'ondragover="tareasCliDragOver(event)" ondrop="tareasCliDrop(event)" '
-        +   'style="display:flex;align-items:center;gap:6px;margin-top:6px;font-size:12px;color:'
+        +   'style="display:flex;align-items:center;gap:6px;margin-top:6px;font-size:12px;' + indentStyle + 'color:'
         +   (completed ? 'var(--text3)' : 'var(--text)') + ';cursor:grab;">'
+        +   chevron
         +   '<span onclick="tareasCliToggleTarea(\'' + cid + '\', \'' + oid + '\', \'' + tid + '\')" '
         +     'title="Marcar completada" style="cursor:pointer;flex-shrink:0;user-select:none;font-size:14px;line-height:1;">'
         +     (completed ? '☑' : '☐')
@@ -9569,6 +9591,16 @@ function tareasCliRenderObjetivosList(client, objetivos) {
         +     '✕'
         +   '</button>'
         + '</div>';
+    }
+
+    const tareasHtml = topLevel.map(function(t) {
+      const subs = subtasksByParent[t.id] || [];
+      const childCount = subs.length;
+      const collapsed = childCount > 0 && tareasCliGetSubtaskCollapsed(clientIdRaw, t.id);
+      const parentRow = _renderTareaRow(t, false, childCount, collapsed);
+      if (childCount === 0 || collapsed) return parentRow;
+      const subsHtml = subs.map(function(s) { return _renderTareaRow(s, true, 0, false); }).join('');
+      return parentRow + subsHtml;
     }).join('');
     return ''
       + '<div data-obj-id="' + oid + '" '
@@ -9582,7 +9614,7 @@ function tareasCliRenderObjetivosList(client, objetivos) {
       +       'onclick="tareasCliEditObjNameInline(event, \'' + cid + '\', \'' + oid + '\')">'
       +       objNombreSafe
       +     '</span>'
-      +     '<span style="font-family:\'DM Mono\',monospace;font-size:10px;color:var(--text3);flex-shrink:0;">' + done + '/' + tareas.length + '</span>'
+      +     '<span style="font-family:\'DM Mono\',monospace;font-size:10px;color:var(--text3);flex-shrink:0;">' + done + '/' + allTareas.length + '</span>'
       +     '<button onclick="tareasCliConfirmDeleteObjetivo(\'' + cid + '\', \'' + oid + '\')" '
       +       'title="Eliminar objetivo" '
       +       'style="background:transparent;border:none;color:var(--text3);cursor:pointer;padding:0 4px;font-size:11px;flex-shrink:0;line-height:1;" '
@@ -9590,7 +9622,7 @@ function tareasCliRenderObjetivosList(client, objetivos) {
       +       '✕'
       +     '</button>'
       +   '</div>'
-      +   (tareas.length === 0
+      +   (allTareas.length === 0
           ? '<div style="font-family:\'DM Mono\',monospace;font-size:10px;color:var(--text3);margin-top:6px;">Sin tareas</div>'
           : tareasHtml)
       +   '<button onclick="tareasCliShowAddTareaInput(\'' + cid + '\', \'' + oid + '\')" '
@@ -9601,6 +9633,24 @@ function tareasCliRenderObjetivosList(client, objetivos) {
       +   '<div id="tareas-cli-add-tarea-container-' + cid + '-' + oid + '"></div>'
       + '</div>';
   }).join('');
+}
+
+// S67 1.2: estado colapsado de subtasks por (clientId, parentTaskId) en localStorage.
+function tareasCliSubtaskCollapsedKey(clientId, taskId) {
+  return 'oa-subtask-collapsed-' + clientId + '-' + taskId;
+}
+function tareasCliGetSubtaskCollapsed(clientId, taskId) {
+  try { return localStorage.getItem(tareasCliSubtaskCollapsedKey(clientId, taskId)) === '1'; }
+  catch (e) { return false; }
+}
+function tareasCliToggleSubtaskCollapse(clientId, taskId) {
+  try {
+    const key = tareasCliSubtaskCollapsedKey(clientId, taskId);
+    const cur = localStorage.getItem(key) === '1';
+    if (cur) localStorage.removeItem(key);
+    else localStorage.setItem(key, '1');
+  } catch (e) {}
+  renderTareasCli();
 }
 
 // ── Mini-calendario sidebar (Fase 5) ──────────────────────
