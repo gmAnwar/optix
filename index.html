@@ -2768,7 +2768,7 @@
         <div style="font-size:12px; color:var(--text3); line-height:1.5;">Análisis de conversaciones · scorecard · diagnóstico con IA</div>
       </div>
 
-      <!-- TAREAS — solo OptimizAds -->
+      <!-- TAREAS — disponible en todos los workspaces (S67 limpieza: comentario "solo OptimizAds" era stale, el código nunca tuvo gate de workspace) -->
       <div id="card-tareas" onclick="enterAs('tareas')" style="background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:28px 20px; cursor:pointer; transition:all 0.25s; text-align:center;" onmouseover="this.style.borderColor='var(--accent)';this.style.background='var(--surface2)';this.style.transform='translateY(-4px)'" onmouseout="this.style.borderColor='var(--border)';this.style.background='var(--surface)';this.style.transform='translateY(0)'">
         <div style="font-size:36px; margin-bottom:16px;">✅</div>
         <div style="font-family:'DM Sans',sans-serif; font-weight:700; font-size:17px; margin-bottom:8px; color:var(--accent); letter-spacing:0;">Tareas</div>
@@ -2913,6 +2913,36 @@
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('modal-new-client')">Cancelar</button>
       <button class="btn btn-primary" onclick="createClient()">Crear expediente →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════ -->
+<!-- MODAL: Cliente rápido (S67 Bloque C) — solo nombre + color -->
+<!-- ══════════════════════════════════════════ -->
+<div id="modal-quick-client" class="modal-overlay">
+  <div class="modal" style="max-width:440px;">
+    <div class="modal-title">＋ Cliente rápido</div>
+    <div class="modal-sub">Solo nombre + color. El expediente completo se llena después.</div>
+
+    <div class="form-group">
+      <label class="form-label">Nombre</label>
+      <input id="qc-nombre" class="form-input" type="text" maxlength="50"
+             placeholder="ej. Campaña Brand · Q3" autocomplete="off"
+             onkeydown="if(event.key==='Enter'){event.preventDefault();createQuickClient();}">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Color</label>
+      <div id="qc-swatches" style="display:grid;grid-template-columns:repeat(8,32px);gap:8px;align-items:center;margin-top:4px;"></div>
+      <div id="qc-color-hint" style="font-family:'DM Mono',monospace;font-size:10px;color:var(--text3);margin-top:6px;min-height:14px;"></div>
+    </div>
+
+    <div id="qc-error" style="display:none;background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.4);color:var(--red);padding:8px 12px;border-radius:6px;font-size:12px;margin-bottom:12px;"></div>
+
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-quick-client')">Cancelar</button>
+      <button class="btn btn-primary" onclick="createQuickClient()">Crear</button>
     </div>
   </div>
 </div>
@@ -4306,6 +4336,7 @@
         </div>
         <button id="btn-tareas-cli-help" onclick="tareasCliShowRitualModal()" title="Ritual del primer lunes" style="display:none;background:var(--surface2);border:1px solid var(--border);color:var(--text2);width:32px;height:32px;border-radius:8px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;flex-shrink:0;">?</button>
         <button id="btn-tareas-add-area" onclick="tareasAddArea()" class="btn btn-ghost" style="font-size:12px; flex-shrink:0;">＋ Nueva área</button>
+        <button id="btn-quick-client" onclick="openQuickClientModal()" class="btn btn-ghost" style="display:none;font-size:12px;flex-shrink:0;">＋ Cliente rápido</button>
       </div>
     </div>
 
@@ -5999,9 +6030,26 @@ function closeModal(id) {
   document.getElementById(id).classList.remove('open');
 }
 
+function _clienteNombreExistsInActiveWorkspace(nombre) {
+  // S67 Bloque C: case-insensitive trim contra clients[] (ya está filtrado por
+  // workspace activo via mergeClients en init / selectAgencia / onSnapshot).
+  const target = (nombre || '').trim().toLowerCase();
+  if (!target) return false;
+  const wsId = currentAgencia === 'taco' ? 'taco' : 'optimizads';
+  return clients.some(function(c) {
+    return c.workspaceId === wsId &&
+           (c.nombre || '').trim().toLowerCase() === target;
+  });
+}
+
 function createClient() {
   const nombre = document.getElementById('nc-nombre').value.trim();
   if (!nombre) { showToast('Escribe el nombre del cliente', '⚠️'); return; }
+  // S67 consistencia: misma validación que cliente rápido — case-insensitive.
+  if (_clienteNombreExistsInActiveWorkspace(nombre)) {
+    showToast('Ya existe un cliente con ese nombre en este workspace', '⚠️');
+    return;
+  }
 
   const client = {
     // Identificación
@@ -6041,6 +6089,202 @@ function createClient() {
   renderClientGrid();
   openClient(client.id);
   showToast('Cliente creado', '✅');
+}
+
+// ══════════════════════════════════════════
+// CLIENTE RÁPIDO — S67 Bloque C
+// Modal mínimo (nombre + color) para crear clientes desde Tareas v4.0
+// vista Clientes sin pasar por el wizard largo. Use case original: Taco
+// Agency necesita N "clientes" tipo campañas/canales sin expediente.
+// Aplica a ambos workspaces (optimizads + taco) — el wsId viene de
+// currentAgencia. Persistencia: mismo flow que wizard largo (clients[]
+// + saveClients → _fbSaveClients → workspaces/{wsId}/data/clients).
+// ══════════════════════════════════════════
+
+let _qcSelectedColor = null;
+
+function _qcPaletteColors() {
+  // Todos los colores de TAREAS_CLIENTE_COLORS excepto _fallback.
+  return Object.entries(TAREAS_CLIENTE_COLORS)
+    .filter(function(kv) { return kv[0] !== '_fallback'; })
+    .map(function(kv) { return { key: kv[0], hex: kv[1] }; });
+}
+
+function _qcGetUsedColorsInWorkspace() {
+  // Set de colores hex (lowercase) en uso por algún cliente del workspace activo.
+  // Lee de clients[] que ya está filtrado por workspace via mergeClients.
+  const wsId = currentAgencia === 'taco' ? 'taco' : 'optimizads';
+  const used = new Set();
+  clients.forEach(function(c) {
+    if (c.workspaceId !== wsId) return;
+    const col = c.color || TAREAS_CLIENTE_COLORS[c.id];
+    if (col) used.add(String(col).toLowerCase());
+  });
+  return used;
+}
+
+function _qcNextFreeColor() {
+  const used = _qcGetUsedColorsInWorkspace();
+  const palette = _qcPaletteColors();
+  for (let i = 0; i < palette.length; i++) {
+    if (!used.has(palette[i].hex.toLowerCase())) return palette[i].hex;
+  }
+  // Paleta agotada: default al primero (Anwar verá warning si decide usarlo).
+  return palette.length ? palette[0].hex : '#64748b';
+}
+
+function _qcClienteUsingColor(hex) {
+  const wsId = currentAgencia === 'taco' ? 'taco' : 'optimizads';
+  const targetLower = String(hex || '').toLowerCase();
+  return clients.find(function(c) {
+    if (c.workspaceId !== wsId) return false;
+    const col = c.color || TAREAS_CLIENTE_COLORS[c.id];
+    return col && String(col).toLowerCase() === targetLower;
+  }) || null;
+}
+
+function _qcRenderSwatches() {
+  const cont = document.getElementById('qc-swatches');
+  if (!cont) return;
+  const used = _qcGetUsedColorsInWorkspace();
+  const palette = _qcPaletteColors();
+  cont.innerHTML = palette.map(function(p) {
+    const isSelected = (_qcSelectedColor || '').toLowerCase() === p.hex.toLowerCase();
+    const isUsed = used.has(p.hex.toLowerCase());
+    return ''
+      + '<div onclick="_qcSelectColor(\'' + p.hex + '\')" data-color="' + p.hex + '" '
+      +   'title="' + p.key + (isUsed ? ' · en uso' : ' · libre') + '" '
+      +   'style="width:32px;height:32px;border-radius:8px;background:' + p.hex + ';'
+      +   'cursor:pointer;position:relative;transition:transform 0.1s;'
+      +   'border:2px solid ' + (isSelected ? 'var(--text)' : 'transparent') + ';'
+      +   'box-shadow:0 0 0 2px ' + (isSelected ? 'var(--accent)' : 'transparent') + ';" '
+      +   'onmouseover="this.style.transform=\'scale(1.08)\'" '
+      +   'onmouseout="this.style.transform=\'scale(1)\'">'
+      +   (isSelected ? '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;font-size:18px;font-weight:700;pointer-events:none;text-shadow:0 1px 2px rgba(0,0,0,0.4);">✓</div>' : '')
+      +   (isUsed && !isSelected ? '<div style="position:absolute;bottom:-2px;right:-2px;width:10px;height:10px;border-radius:50%;background:var(--text3);border:2px solid var(--surface);pointer-events:none;" title="ya en uso"></div>' : '')
+      + '</div>';
+  }).join('');
+  _qcUpdateColorHint();
+}
+
+function _qcUpdateColorHint() {
+  const hint = document.getElementById('qc-color-hint');
+  if (!hint) return;
+  if (!_qcSelectedColor) { hint.textContent = ''; return; }
+  const existing = _qcClienteUsingColor(_qcSelectedColor);
+  if (existing) {
+    hint.textContent = '⚠ Este color ya lo usa ' + (existing.nombre || existing.id);
+    hint.style.color = 'var(--yellow)';
+  } else {
+    hint.textContent = '✓ Color libre';
+    hint.style.color = 'var(--text3)';
+  }
+}
+
+function _qcSelectColor(hex) {
+  _qcSelectedColor = hex;
+  _qcRenderSwatches();
+}
+
+function _qcShowError(msg) {
+  const el = document.getElementById('qc-error');
+  if (!el) return;
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+function _qcClearError() {
+  const el = document.getElementById('qc-error');
+  if (el) el.style.display = 'none';
+}
+
+function openQuickClientModal() {
+  // Reset state cada vez que se abre.
+  _qcSelectedColor = _qcNextFreeColor();
+  _qcClearError();
+  const nombreInput = document.getElementById('qc-nombre');
+  if (nombreInput) nombreInput.value = '';
+  _qcRenderSwatches();
+  document.getElementById('modal-quick-client').classList.add('open');
+  setTimeout(function() {
+    const i = document.getElementById('qc-nombre');
+    if (i) i.focus();
+  }, 50);
+}
+
+function createQuickClient() {
+  _qcClearError();
+  const nombreInput = document.getElementById('qc-nombre');
+  const nombre = (nombreInput ? nombreInput.value : '').trim();
+  if (!nombre) {
+    _qcShowError('Nombre requerido');
+    if (nombreInput) nombreInput.focus();
+    return;
+  }
+  if (_clienteNombreExistsInActiveWorkspace(nombre)) {
+    _qcShowError('Ya existe un cliente con ese nombre en este workspace');
+    if (nombreInput) nombreInput.focus();
+    return;
+  }
+  const color = _qcSelectedColor || _qcNextFreeColor();
+  if (!color) {
+    _qcShowError('Selecciona un color');
+    return;
+  }
+
+  const wsId = currentAgencia === 'taco' ? 'taco' : 'optimizads';
+  const colorDuplicado = _qcClienteUsingColor(color);
+
+  const client = {
+    id: 'client-' + Date.now(),
+    workspaceId: wsId,
+    nombre: nombre,
+    color: color,
+    // Colecciones vacías — paridad con wizard largo (line 6068-6069). Evita
+    // que sub-tabs de screen-app (ADN/Objetivos/Rendimiento/Segmentos/
+    // Validación/Creativos/Vault/Decisiones) truenen al abrir el cliente
+    // rápido desde el grid si asumen estos campos sin check defensivo.
+    vault: [],
+    decisiones: [],
+    // Semáforo
+    sem_stars: 0,
+    sem_comm_count: 0,
+    // Expediente — 3 capas
+    adn: {}, objetivos: {}, rendimiento: {}, segmentos: {}, validacion: {}, creativos: {},
+    // Metadata
+    createdAt: new Date().toISOString(),
+    createdBy: currentRol || 'unknown',
+  };
+
+  clients.push(client);
+  saveClients();
+
+  // Audit + integraciones (mismo flow que wizard largo).
+  if (window.OptixAudit) {
+    try { window.OptixAudit.Audit.clientCreated(client.id, { nombre: client.nombre, workspaceId: client.workspaceId }); } catch (e) {}
+  }
+  if (window.OptixIntegraciones) {
+    try { window.OptixIntegraciones.emit(window.OptixIntegraciones.OptixEvents.CLIENT_CREATED, { clientId: client.id, nombre: client.nombre }); } catch (e) {}
+  }
+
+  closeModal('modal-quick-client');
+  _qcSelectedColor = null;
+
+  showToast("Cliente '" + nombre + "' creado", '✅');
+
+  // Re-render Tareas v4.0 vista Clientes si está activa.
+  // El onSnapshot de _fbOnClientsChange también dispara pero suele tener
+  // latencia; render directo asegura update inmediato.
+  if (typeof renderTareasCli === 'function') {
+    try { renderTareasCli(); } catch (e) {}
+  }
+
+  // Warning post-creación si el color elegido ya estaba en uso por otro cliente.
+  if (colorDuplicado) {
+    setTimeout(function() {
+      showToast("Color compartido con '" + (colorDuplicado.nombre || colorDuplicado.id) + "'", '⚠️');
+    }, 1200);
+  }
 }
 
 // ══════════════════════════════════════════
@@ -9121,6 +9365,7 @@ function tareasApplyVista() {
   }
   const banner = document.getElementById('tareas-cli-atrasadas-banner');
   const btnHelp = document.getElementById('btn-tareas-cli-help');
+  const btnQuickClient = document.getElementById('btn-quick-client');
   if (vista === 'areas') {
     if (areasBody) areasBody.style.display = '';
     if (cliBody) cliBody.style.display = 'none';
@@ -9128,6 +9373,7 @@ function tareasApplyVista() {
     if (banner) banner.style.display = 'none';
     if (btnAddArea) btnAddArea.style.display = '';
     if (btnHelp) btnHelp.style.display = 'none';
+    if (btnQuickClient) btnQuickClient.style.display = 'none';
     if (typeof renderTareas === 'function') renderTareas();
     return;
   }
@@ -9135,6 +9381,7 @@ function tareasApplyVista() {
   if (areasBody) areasBody.style.display = 'none';
   if (btnAddArea) btnAddArea.style.display = 'none';
   if (btnHelp) btnHelp.style.display = '';
+  if (btnQuickClient) btnQuickClient.style.display = '';
   if (window.innerWidth < 1280) {
     if (cliBody) cliBody.style.display = 'none';
     if (banner) banner.style.display = 'none';
@@ -9197,7 +9444,8 @@ function renderTareasCli() {
   });
 
   const cards = catalog.map(function(c) {
-    const color = TAREAS_CLIENTE_COLORS[c.id] || TAREAS_CLIENTE_COLORS._fallback;
+    // S67 Bloque C: cliente rápido puede traer campo `color` propio; fallback a paleta keyed by id.
+    const color = c.color || TAREAS_CLIENTE_COLORS[c.id] || TAREAS_CLIENTE_COLORS._fallback;
     const cached = _tareasCliMemCache[c.id] || tareasCliLoadCache(c.id);
     const objetivos = (cached && Array.isArray(cached.objetivos)) ? cached.objetivos : [];
     return tareasCliRenderCard(c, color, objetivos);
@@ -9896,7 +10144,9 @@ function tareasCliShowAtrasadasModal() {
 
   const renderItem = function(m) {
     const t = m.tarea;
-    const color = TAREAS_CLIENTE_COLORS[m.clientId] || TAREAS_CLIENTE_COLORS._fallback;
+    // S67 Bloque C: lookup en `clients` para honrar c.color del cliente rápido.
+    const _cli = (typeof clients !== 'undefined') ? clients.find(function(x) { return x.id === m.clientId; }) : null;
+    const color = (_cli && _cli.color) || TAREAS_CLIENTE_COLORS[m.clientId] || TAREAS_CLIENTE_COLORS._fallback;
     return ''
       + '<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;margin-bottom:6px;border-left:3px solid ' + color + ';">'
       +   '<span onclick="tareasCliToggleTarea(\'' + escapeHtml(m.clientId) + '\', \'' + escapeHtml(m.objId) + '\', \'' + escapeHtml(t.id) + '\'); tareasCliShowAtrasadasModal();" '
@@ -10686,7 +10936,9 @@ function _msRenderBloque(b, col, cols) {
   const top = (startMin / 30) * MS_SLOT_HEIGHT;
   const height = Math.max((dur / 30) * MS_SLOT_HEIGHT - 2, 18);
 
-  const color = CALENDAR_CLIENT_COLORS[b.cliente_id] || CALENDAR_CLIENT_COLORS._fallback || '#64748b';
+  // S67 Bloque C: lookup en `clients` para honrar c.color del cliente rápido (bloques calendar).
+  const _cli = (typeof clients !== 'undefined') ? clients.find(function(x) { return x.id === b.cliente_id; }) : null;
+  const color = (_cli && _cli.color) || CALENDAR_CLIENT_COLORS[b.cliente_id] || CALENDAR_CLIENT_COLORS._fallback || '#64748b';
   const completado = !!b.completado;
   const now = new Date();
   const overdue = !completado && ts < now;
@@ -10795,7 +11047,8 @@ function _msRenderPanelTareas(uid) {
     });
     if (!items.length) return '';
     totalPendientes += items.length;
-    const color = CALENDAR_CLIENT_COLORS[c.id] || CALENDAR_CLIENT_COLORS._fallback || '#64748b';
+    // S67 Bloque C: cliente rápido puede traer campo `color` propio.
+    const color = c.color || CALENDAR_CLIENT_COLORS[c.id] || CALENDAR_CLIENT_COLORS._fallback || '#64748b';
     const itemsHtml = items.map(function(it) {
       const t = it.tarea;
       const dataset = encodeURIComponent(JSON.stringify({
