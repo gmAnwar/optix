@@ -10209,11 +10209,12 @@ function tareasCliShowAtrasadasModal() {
 // ── Actions CRUD (Fase 4) ──────────────────────────────────
 async function tareasCliAddObjetivo(clientId, nombre) {
   const t = String(nombre || '').trim();
-  if (!t) return;
+  if (!t) return null;
+  const newId = 'obj-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
   await tareasCliSave(clientId, function(d) {
     if (!Array.isArray(d.objetivos)) d.objetivos = [];
     d.objetivos.push({
-      id: 'obj-' + Date.now() + '-' + Math.floor(Math.random() * 1000),
+      id: newId,
       nombre: t,
       collapsed: false,
       orden: d.objetivos.length,
@@ -10222,6 +10223,7 @@ async function tareasCliAddObjetivo(clientId, nombre) {
     return d;
   });
   renderTareasCli();
+  return newId;
 }
 
 async function tareasCliEditObjetivoNombre(clientId, objId, nombre) {
@@ -10960,6 +10962,13 @@ function _msRenderBloque(b, col, cols) {
     ? (dur % 60 === 0 ? (dur / 60) + 'hr' : (Math.floor(dur / 60) + 'h ' + (dur % 60) + 'min'))
     : dur + 'min';
   const titulo = b.titulo || 'Bloque sin título';
+  // S67 1.4: layout adaptativo según duración + presencia de objetivo (denormalizado en bloque).
+  const objetivoTitulo = b.objetivo_titulo || '';
+  const showObjetivoLine = !!objetivoTitulo && dur >= 60;
+  const objetivoInline = (!!objetivoTitulo && dur < 60) ? ' (' + escapeHtml(objetivoTitulo) + ')' : '';
+  const objetivoLineHtml = showObjetivoLine
+    ? '<div style="font-size:10px;color:var(--text2);line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none;">' + escapeHtml(objetivoTitulo) + '</div>'
+    : '';
   const opacity = completado ? '0.5' : '1';
   const textDeco = completado ? 'text-decoration:line-through;' : '';
   const borderColor = overdue ? 'rgba(239,68,68,0.55)' : color;
@@ -10986,7 +10995,8 @@ function _msRenderBloque(b, col, cols) {
     +   'border-radius:0 6px 6px 0;padding:3px 7px;overflow:hidden;cursor:grab;'
     +   'opacity:' + opacity + ';' + textDeco + 'transition:opacity 0.15s,border-color 0.15s;z-index:2;">'
     +   '<div style="font-size:11px;font-weight:700;color:' + color + ';line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none;">' + escapeHtml(titulo) + '</div>'
-    +   '<div style="font-size:9px;color:var(--text3);font-family:\'DM Mono\',monospace;line-height:1.3;pointer-events:none;">' + durLabel + (cols > 1 ? ' · col ' + (col + 1) + '/' + cols : '') + '</div>'
+    +   objetivoLineHtml
+    +   '<div style="font-size:9px;color:var(--text3);font-family:\'DM Mono\',monospace;line-height:1.3;pointer-events:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + durLabel + objetivoInline + (cols > 1 ? ' · col ' + (col + 1) + '/' + cols : '') + '</div>'
     +   '<div class="ms-resize-handle" onmousedown="_msResizeStart(event, \'' + bid + '\')" '
     +     'style="position:absolute;left:0;right:0;bottom:0;height:6px;cursor:ns-resize;background:transparent;"></div>'
     + '</div>';
@@ -11043,8 +11053,16 @@ function _msRenderPanelTareas(uid) {
   });
 
   const wsId = currentAgencia || 'optimizads';
-  const catalog = (typeof getDefaultClients === 'function' ? getDefaultClients(wsId) : [])
+  // S67 1.1: incluir clientes dinámicos (cliente rápido + wizard largo) además de defaults.
+  const _defaults = (typeof getDefaultClients === 'function' ? getDefaultClients(wsId) : [])
     .filter(function(c) { return c.workspaceId === wsId; });
+  const _defaultIds = new Set(_defaults.map(function(c) { return c.id; }));
+  const _dynamic = (typeof clients !== 'undefined' && Array.isArray(clients))
+    ? clients.filter(function(c) {
+        return c.workspaceId === wsId && !_defaultIds.has(c.id);
+      })
+    : [];
+  const catalog = _defaults.concat(_dynamic);
 
   let totalPendientes = 0;
   const seccionesHtml = catalog.map(function(c) {
@@ -11215,6 +11233,7 @@ async function _msCreateBloque(data) {
     b.created_by = uid;
     b.cliente_id = data.cliente_id || 'agency';
     b.objetivo_id = data.objetivo_id || null;
+    b.objetivo_titulo = data.objetivo_titulo || null;
     b.tarea_id = data.tarea_id || null;
     b.titulo = (data.titulo || '').trim() || 'Bloque sin título';
     b.inicio_ts = data.inicio_ts || null;
@@ -11304,8 +11323,20 @@ function _msShowCrearBloqueModal(fechaIso, slotMin) {
   const id = 'ms-crear-modal';
   let el = document.getElementById(id); if (el) el.remove();
   const wsId = currentAgencia || 'optimizads';
-  const catalog = (typeof getDefaultClients === 'function' ? getDefaultClients(wsId) : [])
+  // S67 1.2: incluir clientes dinámicos (cliente rápido + wizard largo) además de defaults.
+  const _defaults = (typeof getDefaultClients === 'function' ? getDefaultClients(wsId) : [])
     .filter(function(c) { return c.workspaceId === wsId; });
+  const _defaultIds = new Set(_defaults.map(function(c) { return c.id; }));
+  const _dynamic = (typeof clients !== 'undefined' && Array.isArray(clients))
+    ? clients.filter(function(c) {
+        return c.workspaceId === wsId && !_defaultIds.has(c.id);
+      })
+    : [];
+  const catalog = _defaults.concat(_dynamic);
+  // S67 1.3: hidratar cache de tareas-clientes para que el dropdown Objetivo tenga datos.
+  if (typeof tareasCliEnsureAllInitialized === 'function') {
+    try { tareasCliEnsureAllInitialized(); } catch (e) {}
+  }
   // "Interno" (agency) primera opción (D31).
   const sorted = catalog.slice().sort(function(a, b) {
     if (a.id === 'agency') return -1;
@@ -11316,11 +11347,25 @@ function _msShowCrearBloqueModal(fechaIso, slotMin) {
     return '<option value="' + escapeHtml(c.id) + '">' + escapeHtml(c.nombre || c.id) + '</option>';
   }).join('');
 
+  // S67 1.3: opciones de objetivo filtradas por cliente.
+  function _buildObjetivoOptions(clienteId, selectedObjId) {
+    const cdoc = (typeof _tareasCliMemCache !== 'undefined') ? (_tareasCliMemCache[clienteId] || null) : null;
+    const objs = (cdoc && Array.isArray(cdoc.objetivos)) ? cdoc.objetivos : [];
+    let html = '<option value="">(ninguno)</option>';
+    objs.forEach(function(o) {
+      const sel = (o.id === selectedObjId) ? ' selected' : '';
+      html += '<option value="' + escapeHtml(o.id) + '"' + sel + '>' + escapeHtml(o.nombre || '') + '</option>';
+    });
+    html += '<option value="__new__">+ Nuevo objetivo…</option>';
+    return html;
+  }
+
   const hh = MS_HORA_INICIO + Math.floor(slotMin / 60);
   const mm = slotMin % 60;
   const horaLabel = String(hh).padStart(2, '0') + ':' + String(mm).padStart(2, '0');
   const [Y, M, D] = fechaIso.split('-').map(Number);
   const fechaLabel = D + '/' + M + '/' + Y;
+  const initialClienteId = (sorted[0] && sorted[0].id) || 'agency';
 
   el = document.createElement('div');
   el.id = id;
@@ -11331,6 +11376,16 @@ function _msShowCrearBloqueModal(fechaIso, slotMin) {
     +   '<div style="font-family:\'DM Mono\',monospace;font-size:11px;color:var(--text3);margin-bottom:18px;">' + fechaLabel + ' · ' + horaLabel + '</div>'
     +   '<label style="display:block;font-size:11px;color:var(--text2);margin-bottom:4px;font-weight:600;">Cliente</label>'
     +   '<select id="ms-crear-cliente" style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:8px 10px;border-radius:6px;font-size:12px;margin-bottom:12px;">' + opciones + '</select>'
+    +   '<label style="display:block;font-size:11px;color:var(--text2);margin-bottom:4px;font-weight:600;">Objetivo (opcional)</label>'
+    +   '<select id="ms-crear-objetivo" style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:8px 10px;border-radius:6px;font-size:12px;margin-bottom:8px;">' + _buildObjetivoOptions(initialClienteId, null) + '</select>'
+    +   '<div id="ms-crear-objetivo-nuevo" style="display:none;margin-bottom:12px;gap:6px;">'
+    +     '<input id="ms-crear-objetivo-nuevo-input" type="text" placeholder="Nombre del nuevo objetivo…" style="width:100%;background:var(--surface2);border:1px solid var(--accent);color:var(--text);padding:8px 10px;border-radius:6px;font-size:12px;margin-bottom:6px;outline:none;">'
+    +     '<div style="display:flex;gap:6px;justify-content:flex-end;">'
+    +       '<button id="ms-crear-objetivo-nuevo-cancel" style="background:transparent;border:1px solid var(--border);color:var(--text2);padding:5px 10px;border-radius:6px;font-size:11px;cursor:pointer;">Cancelar</button>'
+    +       '<button id="ms-crear-objetivo-nuevo-ok" style="background:var(--accent);border:none;color:#000;padding:5px 12px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;">Crear objetivo</button>'
+    +     '</div>'
+    +   '</div>'
+    +   '<div id="ms-crear-objetivo-spacer" style="margin-bottom:4px;"></div>'
     +   '<label style="display:block;font-size:11px;color:var(--text2);margin-bottom:4px;font-weight:600;">Título</label>'
     +   '<input id="ms-crear-titulo" type="text" placeholder="Ej. Status diario, junta interna..." style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:8px 10px;border-radius:6px;font-size:12px;margin-bottom:12px;outline:none;">'
     +   '<label style="display:block;font-size:11px;color:var(--text2);margin-bottom:4px;font-weight:600;">Duración (min)</label>'
@@ -11344,14 +11399,70 @@ function _msShowCrearBloqueModal(fechaIso, slotMin) {
   setTimeout(function() { const i = document.getElementById('ms-crear-titulo'); if (i) i.focus(); }, 50);
 
   function close() { try { el.remove(); } catch (e) {} }
+
+  // S67 1.3: al cambiar cliente, recargar dropdown de objetivos.
+  document.getElementById('ms-crear-cliente').onchange = function() {
+    const cid = this.value || 'agency';
+    document.getElementById('ms-crear-objetivo').innerHTML = _buildObjetivoOptions(cid, null);
+    document.getElementById('ms-crear-objetivo-nuevo').style.display = 'none';
+  };
+
+  // S67 1.3: "+ Nuevo objetivo" — toggle inline input.
+  const _objSel = document.getElementById('ms-crear-objetivo');
+  const _nuevoBox = document.getElementById('ms-crear-objetivo-nuevo');
+  const _nuevoInput = document.getElementById('ms-crear-objetivo-nuevo-input');
+  _objSel.onchange = function() {
+    if (this.value === '__new__') {
+      _nuevoBox.style.display = 'block';
+      this.value = '';
+      setTimeout(function() { _nuevoInput.focus(); }, 30);
+    } else {
+      _nuevoBox.style.display = 'none';
+    }
+  };
+  document.getElementById('ms-crear-objetivo-nuevo-cancel').onclick = function() {
+    _nuevoBox.style.display = 'none';
+    _nuevoInput.value = '';
+  };
+  document.getElementById('ms-crear-objetivo-nuevo-ok').onclick = async function() {
+    const nombre = _nuevoInput.value.trim();
+    if (!nombre) { _nuevoInput.focus(); return; }
+    const cid = document.getElementById('ms-crear-cliente').value || 'agency';
+    this.disabled = true;
+    try {
+      const newId = await tareasCliAddObjetivo(cid, nombre);
+      _objSel.innerHTML = _buildObjetivoOptions(cid, newId);
+      _nuevoBox.style.display = 'none';
+      _nuevoInput.value = '';
+    } catch (e) {
+      console.warn('[ms-crear] addObjetivo failed', e);
+    } finally {
+      this.disabled = false;
+    }
+  };
+  _nuevoInput.onkeydown = function(ev) {
+    if (ev.key === 'Enter') { ev.preventDefault(); document.getElementById('ms-crear-objetivo-nuevo-ok').click(); }
+    else if (ev.key === 'Escape') { ev.preventDefault(); document.getElementById('ms-crear-objetivo-nuevo-cancel').click(); }
+  };
+
   document.getElementById('ms-crear-cancel').onclick = close;
   document.getElementById('ms-crear-ok').onclick = async function() {
     const cliente_id = document.getElementById('ms-crear-cliente').value || 'agency';
+    const objetivo_id = document.getElementById('ms-crear-objetivo').value || null;
+    // Denormalizar nombre del objetivo (evita N+1 fetch al renderizar bloques).
+    let objetivo_titulo = null;
+    if (objetivo_id) {
+      const cdoc = (typeof _tareasCliMemCache !== 'undefined') ? (_tareasCliMemCache[cliente_id] || null) : null;
+      const o = (cdoc && Array.isArray(cdoc.objetivos)) ? cdoc.objetivos.find(function(x) { return x.id === objetivo_id; }) : null;
+      objetivo_titulo = (o && o.nombre) ? o.nombre : null;
+    }
     const titulo = document.getElementById('ms-crear-titulo').value.trim() || (cliente_id === 'agency' ? 'Bloque interno' : 'Bloque sin título');
     const dur = Math.max(15, Number(document.getElementById('ms-crear-dur').value) || 60);
     close();
     await _msCreateBloque({
       cliente_id: cliente_id,
+      objetivo_id: objetivo_id,
+      objetivo_titulo: objetivo_titulo,
       titulo: titulo,
       inicio_ts: _msBuildTs(fechaIso, slotMin),
       duracion_minutos: dur
