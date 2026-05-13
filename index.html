@@ -11470,6 +11470,21 @@ async function _msResizeEnd(e) {
   });
 }
 
+// S67 B-modal 1.2: helper compartido — opciones del dropdown Objetivo filtradas por
+// cliente (lee _tareasCliMemCache). Extraído del closure original del modal Crear
+// para reuso en modal Edit y futuro drag-back (B-vistas).
+function _msBuildObjetivoOptions(clienteId, selectedObjId) {
+  const cdoc = (typeof _tareasCliMemCache !== 'undefined') ? (_tareasCliMemCache[clienteId] || null) : null;
+  const objs = (cdoc && Array.isArray(cdoc.objetivos)) ? cdoc.objetivos : [];
+  let html = '<option value="">(ninguno)</option>';
+  objs.forEach(function(o) {
+    const sel = (o.id === selectedObjId) ? ' selected' : '';
+    html += '<option value="' + escapeHtml(o.id) + '"' + sel + '>' + escapeHtml(o.nombre || '') + '</option>';
+  });
+  html += '<option value="__new__">+ Nuevo objetivo…</option>';
+  return html;
+}
+
 // ── F2: Modal crear bloque ──
 function _msShowCrearBloqueModal(fechaIso, slotMin) {
   const id = 'ms-crear-modal';
@@ -11499,19 +11514,6 @@ function _msShowCrearBloqueModal(fechaIso, slotMin) {
     return '<option value="' + escapeHtml(c.id) + '">' + escapeHtml(c.nombre || c.id) + '</option>';
   }).join('');
 
-  // S67 1.3: opciones de objetivo filtradas por cliente.
-  function _buildObjetivoOptions(clienteId, selectedObjId) {
-    const cdoc = (typeof _tareasCliMemCache !== 'undefined') ? (_tareasCliMemCache[clienteId] || null) : null;
-    const objs = (cdoc && Array.isArray(cdoc.objetivos)) ? cdoc.objetivos : [];
-    let html = '<option value="">(ninguno)</option>';
-    objs.forEach(function(o) {
-      const sel = (o.id === selectedObjId) ? ' selected' : '';
-      html += '<option value="' + escapeHtml(o.id) + '"' + sel + '>' + escapeHtml(o.nombre || '') + '</option>';
-    });
-    html += '<option value="__new__">+ Nuevo objetivo…</option>';
-    return html;
-  }
-
   const hh = MS_HORA_INICIO + Math.floor(slotMin / 60);
   const mm = slotMin % 60;
   const horaLabel = String(hh).padStart(2, '0') + ':' + String(mm).padStart(2, '0');
@@ -11529,7 +11531,7 @@ function _msShowCrearBloqueModal(fechaIso, slotMin) {
     +   '<label style="display:block;font-size:11px;color:var(--text2);margin-bottom:4px;font-weight:600;">Cliente</label>'
     +   '<select id="ms-crear-cliente" style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:8px 10px;border-radius:6px;font-size:12px;margin-bottom:12px;">' + opciones + '</select>'
     +   '<label style="display:block;font-size:11px;color:var(--text2);margin-bottom:4px;font-weight:600;">Objetivo (opcional)</label>'
-    +   '<select id="ms-crear-objetivo" style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:8px 10px;border-radius:6px;font-size:12px;margin-bottom:8px;">' + _buildObjetivoOptions(initialClienteId, null) + '</select>'
+    +   '<select id="ms-crear-objetivo" style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:8px 10px;border-radius:6px;font-size:12px;margin-bottom:8px;">' + _msBuildObjetivoOptions(initialClienteId, null) + '</select>'
     +   '<div id="ms-crear-objetivo-nuevo" style="display:none;margin-bottom:12px;gap:6px;">'
     +     '<input id="ms-crear-objetivo-nuevo-input" type="text" placeholder="Nombre del nuevo objetivo…" style="width:100%;background:var(--surface2);border:1px solid var(--accent);color:var(--text);padding:8px 10px;border-radius:6px;font-size:12px;margin-bottom:6px;outline:none;">'
     +     '<div style="display:flex;gap:6px;justify-content:flex-end;">'
@@ -11555,7 +11557,7 @@ function _msShowCrearBloqueModal(fechaIso, slotMin) {
   // S67 1.3: al cambiar cliente, recargar dropdown de objetivos.
   document.getElementById('ms-crear-cliente').onchange = function() {
     const cid = this.value || 'agency';
-    document.getElementById('ms-crear-objetivo').innerHTML = _buildObjetivoOptions(cid, null);
+    document.getElementById('ms-crear-objetivo').innerHTML = _msBuildObjetivoOptions(cid, null);
     document.getElementById('ms-crear-objetivo-nuevo').style.display = 'none';
   };
 
@@ -11583,7 +11585,7 @@ function _msShowCrearBloqueModal(fechaIso, slotMin) {
     this.disabled = true;
     try {
       const newId = await tareasCliAddObjetivo(cid, nombre);
-      _objSel.innerHTML = _buildObjetivoOptions(cid, newId);
+      _objSel.innerHTML = _msBuildObjetivoOptions(cid, newId);
       _nuevoBox.style.display = 'none';
       _nuevoInput.value = '';
     } catch (e) {
@@ -11647,6 +11649,10 @@ function _msShowEditBloqueModal(bloqueId) {
       })
     : [];
   const catalog = _defaults.concat(_dynamic);
+  // S67 B-modal 1.2: hidratar cache de tareas-clientes para que el dropdown Objetivo tenga datos.
+  if (typeof tareasCliEnsureAllInitialized === 'function') {
+    try { tareasCliEnsureAllInitialized(); } catch (e) {}
+  }
   const cliente = catalog.find(function(c) { return c.id === b.cliente_id; });
   const clienteLabel = cliente ? (cliente.nombre || cliente.id) : (b.cliente_id || '—');
   const ts = _msToDate(b.inicio_ts);
@@ -11664,6 +11670,16 @@ function _msShowEditBloqueModal(bloqueId) {
     +   '<div style="font-family:\'DM Mono\',monospace;font-size:11px;color:var(--text3);margin-bottom:18px;">' + escapeHtml(clienteLabel) + ' · ' + fechaLabel + '</div>'
     +   '<label style="display:block;font-size:11px;color:var(--text2);margin-bottom:4px;font-weight:600;">Título</label>'
     +   '<input id="ms-edit-titulo" type="text" value="' + escapeHtml(b.titulo || '') + '" style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:8px 10px;border-radius:6px;font-size:12px;margin-bottom:12px;outline:none;">'
+    +   '<label style="display:block;font-size:11px;color:var(--text2);margin-bottom:4px;font-weight:600;">Objetivo (opcional)</label>'
+    +   '<select id="ms-edit-objetivo" style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:8px 10px;border-radius:6px;font-size:12px;margin-bottom:8px;">' + _msBuildObjetivoOptions(b.cliente_id, b.objetivo_id || null) + '</select>'
+    +   '<div id="ms-edit-objetivo-nuevo" style="display:none;margin-bottom:12px;">'
+    +     '<input id="ms-edit-objetivo-nuevo-input" type="text" placeholder="Nombre del nuevo objetivo…" style="width:100%;background:var(--surface2);border:1px solid var(--accent);color:var(--text);padding:8px 10px;border-radius:6px;font-size:12px;margin-bottom:6px;outline:none;">'
+    +     '<div style="display:flex;gap:6px;justify-content:flex-end;">'
+    +       '<button id="ms-edit-objetivo-nuevo-cancel" style="background:transparent;border:1px solid var(--border);color:var(--text2);padding:5px 10px;border-radius:6px;font-size:11px;cursor:pointer;">Cancelar</button>'
+    +       '<button id="ms-edit-objetivo-nuevo-ok" style="background:var(--accent);border:none;color:#000;padding:5px 12px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;">Crear objetivo</button>'
+    +     '</div>'
+    +   '</div>'
+    +   '<div id="ms-edit-objetivo-spacer" style="margin-bottom:4px;"></div>'
     +   '<label style="display:block;font-size:11px;color:var(--text2);margin-bottom:4px;font-weight:600;">Duración (min)</label>'
     +   '<input id="ms-edit-dur" type="number" value="' + (Number(b.duracion_minutos) || 60) + '" min="15" step="15" style="width:100%;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:8px 10px;border-radius:6px;font-size:12px;margin-bottom:18px;outline:none;">'
     +   '<div style="display:flex;gap:8px;justify-content:space-between;align-items:center;">'
@@ -11678,13 +11694,63 @@ function _msShowEditBloqueModal(bloqueId) {
   setTimeout(function() { const i = document.getElementById('ms-edit-titulo'); if (i) i.focus(); }, 50);
 
   function close() { try { el.remove(); } catch (e) {} }
+
+  // S67 B-modal 1.2: handler "+ Nuevo objetivo" inline en modal Edit (mismo patrón que Crear).
+  const _objSelEdit = document.getElementById('ms-edit-objetivo');
+  const _nuevoBoxEdit = document.getElementById('ms-edit-objetivo-nuevo');
+  const _nuevoInputEdit = document.getElementById('ms-edit-objetivo-nuevo-input');
+  _objSelEdit.onchange = function() {
+    if (this.value === '__new__') {
+      _nuevoBoxEdit.style.display = 'block';
+      this.value = b.objetivo_id || '';
+      setTimeout(function() { _nuevoInputEdit.focus(); }, 30);
+    } else {
+      _nuevoBoxEdit.style.display = 'none';
+    }
+  };
+  document.getElementById('ms-edit-objetivo-nuevo-cancel').onclick = function() {
+    _nuevoBoxEdit.style.display = 'none';
+    _nuevoInputEdit.value = '';
+  };
+  document.getElementById('ms-edit-objetivo-nuevo-ok').onclick = async function() {
+    const nombre = _nuevoInputEdit.value.trim();
+    if (!nombre) { _nuevoInputEdit.focus(); return; }
+    const cid = b.cliente_id || 'agency';
+    this.disabled = true;
+    try {
+      const newId = await tareasCliAddObjetivo(cid, nombre);
+      _objSelEdit.innerHTML = _msBuildObjetivoOptions(cid, newId);
+      _nuevoBoxEdit.style.display = 'none';
+      _nuevoInputEdit.value = '';
+    } catch (e) {
+      console.warn('[ms-edit] addObjetivo failed', e);
+    } finally {
+      this.disabled = false;
+    }
+  };
+  _nuevoInputEdit.onkeydown = function(ev) {
+    if (ev.key === 'Enter') { ev.preventDefault(); document.getElementById('ms-edit-objetivo-nuevo-ok').click(); }
+    else if (ev.key === 'Escape') { ev.preventDefault(); document.getElementById('ms-edit-objetivo-nuevo-cancel').click(); }
+  };
+
   document.getElementById('ms-edit-save').onclick = async function() {
     const newTitulo = document.getElementById('ms-edit-titulo').value.trim() || 'Bloque sin título';
     const newDur = Math.max(15, Number(document.getElementById('ms-edit-dur').value) || 60);
+    const newObjetivoId = document.getElementById('ms-edit-objetivo').value || null;
+    // S67 B-modal 1.2 (D6 + R4): re-derive objetivo_titulo incondicionalmente desde cache live,
+    // cubre rename del objetivo en otra tab incluso si el dropdown no se tocó.
+    let newObjetivoTitulo = null;
+    if (newObjetivoId) {
+      const cdoc = (typeof _tareasCliMemCache !== 'undefined') ? (_tareasCliMemCache[b.cliente_id] || null) : null;
+      const o = (cdoc && Array.isArray(cdoc.objetivos)) ? cdoc.objetivos.find(function(x) { return x.id === newObjetivoId; }) : null;
+      newObjetivoTitulo = (o && o.nombre) ? o.nombre : null;
+    }
     close();
     await _msUpdateBloque(bloqueId, function(d) {
       d.titulo = newTitulo;
       d.duracion_minutos = newDur;
+      d.objetivo_id = newObjetivoId;
+      d.objetivo_titulo = newObjetivoTitulo;
       return d;
     });
   };
