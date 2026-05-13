@@ -4337,6 +4337,7 @@
         <button id="btn-tareas-cli-help" onclick="tareasCliShowRitualModal()" title="Ritual del primer lunes" style="display:none;background:var(--surface2);border:1px solid var(--border);color:var(--text2);width:32px;height:32px;border-radius:8px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;flex-shrink:0;">?</button>
         <button id="btn-tareas-add-area" onclick="tareasAddArea()" class="btn btn-ghost" style="font-size:12px; flex-shrink:0;">＋ Nueva área</button>
         <button id="btn-quick-client" onclick="openQuickClientModal()" class="btn btn-ghost" style="display:none;font-size:12px;flex-shrink:0;">＋ Cliente rápido</button>
+        <button onclick="enterAs('mi-semana')" class="btn btn-ghost" style="font-size:12px;flex-shrink:0;" title="Ir a Plan Semanal (Mi semana)">→ Mi semana</button>
       </div>
     </div>
 
@@ -11015,6 +11016,8 @@ function _msRenderPageHeader() {
     +     '<div style="font-family:\'DM Mono\',monospace;font-size:11px;color:var(--text3);margin-top:4px;">Plan hora-por-hora · 8am-7pm · lun-vie</div>'
     +   '</div>'
     +   '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">'
+    // S67 B-vistas-quick 1.2: nav cross-vista — separado visualmente del switcher contextual.
+    +     '<button onclick="enterAs(\'tareas\')" class="btn btn-ghost" style="font-size:12px;flex-shrink:0;" title="Ir a Tareas v4.0">→ Tareas</button>'
     +     '<div style="display:flex;align-items:center;gap:6px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:4px 6px;">'
     +       '<button onclick="miSemanaPrevWeek()" title="Semana anterior" style="background:transparent;border:none;color:var(--text2);cursor:pointer;font-size:14px;padding:2px 8px;line-height:1;border-radius:4px;">‹</button>'
     +       '<span style="font-family:\'DM Mono\',monospace;font-size:11px;color:' + (isThisWeek ? 'var(--accent)' : 'var(--text)') + ';min-width:96px;text-align:center;">' + (isThisWeek ? '● ' : '') + range + '</span>'
