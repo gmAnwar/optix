@@ -11030,6 +11030,24 @@ function _msRenderPageHeader() {
     + '</div>';
 }
 
+// S67 B-vistas-quick 1.1: estado colapsado del panel "Pendientes sin bloque" por user.
+function _msPanelCollapsedKey(uid) {
+  return 'oa-ms-panel-collapsed-' + (uid || '_anon');
+}
+function _msGetPanelCollapsed(uid) {
+  try { return localStorage.getItem(_msPanelCollapsedKey(uid)) === '1'; }
+  catch (e) { return false; }
+}
+function _msTogglePanelCollapsed(uid) {
+  try {
+    const key = _msPanelCollapsedKey(uid);
+    const cur = localStorage.getItem(key) === '1';
+    if (cur) localStorage.removeItem(key);
+    else localStorage.setItem(key, '1');
+  } catch (e) {}
+  if (typeof renderMiSemana === 'function') renderMiSemana();
+}
+
 function _msRenderGrid(uid) {
   const monday = _msGetMondayOfWeek(_calendarSemanaWeekOffset);
   const today = new Date(); today.setHours(0, 0, 0, 0);
@@ -11098,14 +11116,26 @@ function _msRenderGrid(uid) {
     diasCols += col;
   }
 
-  // Layout 2 columnas: calendario (flex:1) + panel lateral 320px sticky
+  // S67 B-vistas-quick 1.1: layout 2 columnas con panel colapsable.
+  // Expandido: calendar + panel 320px. Colapsado: calendar + strip 30px (flecha ← recovery).
+  const collapsed = _msGetPanelCollapsed(uid);
+  const sideColPx = collapsed ? 30 : 320;
+  const sideColContent = collapsed
+    ? '<div onclick="_msTogglePanelCollapsed(\'' + escapeHtml(uid) + '\')" '
+        + 'title="Mostrar panel de tareas pendientes" '
+        + 'style="position:sticky;top:16px;height:calc(100vh - 200px);background:var(--surface);border:1px solid var(--border);border-left:2px solid var(--border2);border-radius:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text3);transition:color 0.15s,border-color 0.15s;" '
+        + 'onmouseover="this.style.color=\'var(--accent)\';this.style.borderLeftColor=\'var(--accent)\';" '
+        + 'onmouseout="this.style.color=\'var(--text3)\';this.style.borderLeftColor=\'var(--border2)\';">'
+        + '<span style="font-size:16px;line-height:1;">←</span>'
+        + '</div>'
+    : '<div style="position:sticky;top:16px;">' + _msRenderPanelTareas(uid) + '</div>';
   return ''
-    + '<div style="display:grid;grid-template-columns:1fr 320px;gap:16px;align-items:start;">'
+    + '<div style="display:grid;grid-template-columns:1fr ' + sideColPx + 'px;gap:16px;align-items:start;">'
     +   '<div style="display:flex;background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow:hidden;">'
     +     '<div style="width:54px;flex-shrink:0;">' + horasCol + '</div>'
     +     '<div style="display:flex;flex:1;min-width:0;overflow-x:auto;">' + diasCols + '</div>'
     +   '</div>'
-    +   '<div style="position:sticky;top:16px;">' + _msRenderPanelTareas(uid) + '</div>'
+    +   sideColContent
     + '</div>';
 }
 
@@ -11277,7 +11307,16 @@ function _msRenderPanelTareas(uid) {
 
   return ''
     + '<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px;max-height:calc(100vh - 200px);overflow-y:auto;">'
-    +   '<div style="font-family:\'Syne\',sans-serif;font-weight:700;font-size:14px;color:var(--text);margin-bottom:4px;">📋 Pendientes sin bloque</div>'
+    +   '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:4px;">'
+    +     '<div style="font-family:\'Syne\',sans-serif;font-weight:700;font-size:14px;color:var(--text);">📋 Pendientes sin bloque</div>'
+    // S67 B-vistas-quick 1.1: botón → colapsar panel (recovery vía strip).
+    +     '<button onclick="_msTogglePanelCollapsed(\'' + escapeHtml(uid) + '\')" '
+    +       'title="Esconder panel" '
+    +       'style="background:transparent;border:none;color:var(--text3);cursor:pointer;font-size:14px;padding:0 4px;line-height:1;flex-shrink:0;" '
+    +       'onmouseover="this.style.color=\'var(--accent)\'" onmouseout="this.style.color=\'var(--text3)\'">'
+    +       '→'
+    +     '</button>'
+    +   '</div>'
     +   '<div style="font-family:\'DM Mono\',monospace;font-size:10px;color:var(--text3);margin-bottom:12px;">' + totalPendientes + ' tareas · arrastra al calendario</div>'
     +   (totalPendientes === 0
         ? '<div style="font-family:\'DM Mono\',monospace;font-size:11px;color:var(--text3);text-align:center;padding:20px 0;">Sin pendientes — todo agendado.</div>'
