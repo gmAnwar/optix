@@ -9415,7 +9415,10 @@ function _ensureTareasCliCSS() {
     + '.tareas-vista-toggle button:hover:not(.active) { color:var(--text2); }'
     + '.tareas-vista-toggle button.active { background:var(--accent); color:#000; }'
     + '.tareas-cli-card { transition:border-color 0.15s; }'
-    + '.tareas-cli-card:hover { border-color:var(--border2); }';
+    + '.tareas-cli-card:hover { border-color:var(--border2); }'
+    // S67 1.3: botón "+ Subtask" oculto por default; aparece on-hover en tareas top-level.
+    + '.tareas-cli-add-subtask-btn { opacity:0; transition:opacity 0.15s; }'
+    + '.tareas-cli-tarea-row:hover .tareas-cli-add-subtask-btn { opacity:1; }';
   document.head.appendChild(s);
 }
 _ensureTareasCliCSS();
@@ -9530,28 +9533,50 @@ function tareasCliRenderObjetivosList(client, objetivos) {
     return '<div style="padding:14px 0;color:var(--text3);font-size:12px;text-align:center;font-family:\'DM Mono\',monospace;">Sin objetivos creados</div>';
   }
   const cid = escapeHtml(client.id);
+  const clientIdRaw = client.id;
   return objetivos.map(function(o) {
     const oid = escapeHtml(o.id);
-    const tareas = Array.isArray(o.tareas) ? o.tareas : [];
-    const done = tareas.filter(function(t) { return t.completado; }).length;
+    const allTareas = Array.isArray(o.tareas) ? o.tareas : [];
+    const done = allTareas.filter(function(t) { return t.completado; }).length;
     const objNombreSafe = escapeHtml(o.nombre || '');
-    const tareasHtml = tareas.map(function(t) {
+    // S67 1.2: schema flat — separar top-level de subtasks (parent_task_id no null).
+    const topLevel = allTareas.filter(function(t) { return !t.parent_task_id; });
+    const subtasksByParent = {};
+    allTareas.forEach(function(t) {
+      if (t.parent_task_id) {
+        if (!subtasksByParent[t.parent_task_id]) subtasksByParent[t.parent_task_id] = [];
+        subtasksByParent[t.parent_task_id].push(t);
+      }
+    });
+
+    function _renderTareaRow(t, isSubtask, childCount, collapsed) {
       const tid = escapeHtml(t.id);
       const completed = !!t.completado;
       const textoSafe = escapeHtml(t.texto || '');
       const fechaChip = t.fechaLimite
         ? '<span title="Fecha límite ' + escapeHtml(t.fechaLimite) + '" style="font-family:\'DM Mono\',monospace;font-size:9px;color:var(--text3);background:var(--surface);border:1px solid var(--border);padding:1px 5px;border-radius:3px;flex-shrink:0;line-height:1.4;">' + (typeof tareasFormatFecha === 'function' ? tareasFormatFecha(t.fechaLimite) : escapeHtml(t.fechaLimite)) + '</span>'
         : '';
+      // Chevron solo para top-level con 1+ hijas. Spacer para alinear las que no tienen.
+      const chevron = (!isSubtask && childCount > 0)
+        ? '<span onclick="tareasCliToggleSubtaskCollapse(\'' + cid + '\', \'' + tid + '\')" '
+            + 'title="' + (collapsed ? 'Expandir' : 'Colapsar') + ' subtasks (' + childCount + ')" '
+            + 'style="cursor:pointer;font-size:10px;color:var(--text3);flex-shrink:0;user-select:none;width:12px;text-align:center;line-height:1;">'
+            + (collapsed ? '▸' : '▾')
+            + '</span>'
+        : '<span style="width:12px;flex-shrink:0;"></span>';
+      const indentStyle = isSubtask ? 'margin-left:18px;' : '';
       return ''
-        + '<div class="tareas-cli-tarea-row" '
+        + '<div class="tareas-cli-tarea-row' + (isSubtask ? ' tareas-cli-subtask-row' : '') + '" '
         +   'draggable="true" '
         +   'ondragstart="tareasCliDragStart(event, \'' + cid + '\', \'' + oid + '\', \'' + tid + '\')" '
         +   'ondragend="tareasCliDragEnd(event)" '
         +   'data-droppable-type="tarea" '
         +   'data-client-id="' + cid + '" data-obj-id="' + oid + '" data-tarea-id="' + tid + '" '
+        +   (isSubtask ? 'data-parent-task-id="' + escapeHtml(t.parent_task_id || '') + '" ' : '')
         +   'ondragover="tareasCliDragOver(event)" ondrop="tareasCliDrop(event)" '
-        +   'style="display:flex;align-items:center;gap:6px;margin-top:6px;font-size:12px;color:'
+        +   'style="display:flex;align-items:center;gap:6px;margin-top:6px;font-size:12px;' + indentStyle + 'color:'
         +   (completed ? 'var(--text3)' : 'var(--text)') + ';cursor:grab;">'
+        +   chevron
         +   '<span onclick="tareasCliToggleTarea(\'' + cid + '\', \'' + oid + '\', \'' + tid + '\')" '
         +     'title="Marcar completada" style="cursor:pointer;flex-shrink:0;user-select:none;font-size:14px;line-height:1;">'
         +     (completed ? '☑' : '☐')
@@ -9562,6 +9587,15 @@ function tareasCliRenderObjetivosList(client, objetivos) {
         +     textoSafe
         +   '</span>'
         +   fechaChip
+        +   (isSubtask
+              ? ''
+              : '<button onclick="tareasCliShowAddSubtaskInput(\'' + cid + '\', \'' + oid + '\', \'' + tid + '\')" '
+                  + 'class="tareas-cli-add-subtask-btn" '
+                  + 'title="Agregar subtask" '
+                  + 'style="background:transparent;border:none;color:var(--text3);cursor:pointer;padding:0 4px;font-size:10px;flex-shrink:0;line-height:1;font-family:\'DM Sans\',sans-serif;" '
+                  + 'onmouseover="this.style.color=\'var(--accent)\'" onmouseout="this.style.color=\'var(--text3)\'">'
+                  + '＋ Sub'
+                  + '</button>')
         +   '<button onclick="tareasCliConfirmDeleteTarea(\'' + cid + '\', \'' + oid + '\', \'' + tid + '\')" '
         +     'title="Eliminar tarea" '
         +     'style="background:transparent;border:none;color:var(--text3);cursor:pointer;padding:0 4px;font-size:11px;flex-shrink:0;line-height:1;" '
@@ -9569,6 +9603,17 @@ function tareasCliRenderObjetivosList(client, objetivos) {
         +     '✕'
         +   '</button>'
         + '</div>';
+    }
+
+    const tareasHtml = topLevel.map(function(t) {
+      const subs = subtasksByParent[t.id] || [];
+      const childCount = subs.length;
+      const collapsed = childCount > 0 && tareasCliGetSubtaskCollapsed(clientIdRaw, t.id);
+      const parentRow = _renderTareaRow(t, false, childCount, collapsed);
+      const subtaskInputContainer = '<div id="tareas-cli-add-subtask-container-' + cid + '-' + escapeHtml(t.id) + '"></div>';
+      if (childCount === 0 || collapsed) return parentRow + subtaskInputContainer;
+      const subsHtml = subs.map(function(s) { return _renderTareaRow(s, true, 0, false); }).join('');
+      return parentRow + subsHtml + subtaskInputContainer;
     }).join('');
     return ''
       + '<div data-obj-id="' + oid + '" '
@@ -9582,7 +9627,7 @@ function tareasCliRenderObjetivosList(client, objetivos) {
       +       'onclick="tareasCliEditObjNameInline(event, \'' + cid + '\', \'' + oid + '\')">'
       +       objNombreSafe
       +     '</span>'
-      +     '<span style="font-family:\'DM Mono\',monospace;font-size:10px;color:var(--text3);flex-shrink:0;">' + done + '/' + tareas.length + '</span>'
+      +     '<span style="font-family:\'DM Mono\',monospace;font-size:10px;color:var(--text3);flex-shrink:0;">' + done + '/' + allTareas.length + '</span>'
       +     '<button onclick="tareasCliConfirmDeleteObjetivo(\'' + cid + '\', \'' + oid + '\')" '
       +       'title="Eliminar objetivo" '
       +       'style="background:transparent;border:none;color:var(--text3);cursor:pointer;padding:0 4px;font-size:11px;flex-shrink:0;line-height:1;" '
@@ -9590,7 +9635,7 @@ function tareasCliRenderObjetivosList(client, objetivos) {
       +       '✕'
       +     '</button>'
       +   '</div>'
-      +   (tareas.length === 0
+      +   (allTareas.length === 0
           ? '<div style="font-family:\'DM Mono\',monospace;font-size:10px;color:var(--text3);margin-top:6px;">Sin tareas</div>'
           : tareasHtml)
       +   '<button onclick="tareasCliShowAddTareaInput(\'' + cid + '\', \'' + oid + '\')" '
@@ -9601,6 +9646,24 @@ function tareasCliRenderObjetivosList(client, objetivos) {
       +   '<div id="tareas-cli-add-tarea-container-' + cid + '-' + oid + '"></div>'
       + '</div>';
   }).join('');
+}
+
+// S67 1.2: estado colapsado de subtasks por (clientId, parentTaskId) en localStorage.
+function tareasCliSubtaskCollapsedKey(clientId, taskId) {
+  return 'oa-subtask-collapsed-' + clientId + '-' + taskId;
+}
+function tareasCliGetSubtaskCollapsed(clientId, taskId) {
+  try { return localStorage.getItem(tareasCliSubtaskCollapsedKey(clientId, taskId)) === '1'; }
+  catch (e) { return false; }
+}
+function tareasCliToggleSubtaskCollapse(clientId, taskId) {
+  try {
+    const key = tareasCliSubtaskCollapsedKey(clientId, taskId);
+    const cur = localStorage.getItem(key) === '1';
+    if (cur) localStorage.removeItem(key);
+    else localStorage.setItem(key, '1');
+  } catch (e) {}
+  renderTareasCli();
 }
 
 // ── Mini-calendario sidebar (Fase 5) ──────────────────────
@@ -10270,6 +10333,36 @@ async function tareasCliAddTarea(clientId, objId, texto) {
   renderTareasCli();
 }
 
+// S67 Bloque A-subtasks 1.1 — schema flat con parent_task_id (S62.5).
+// Peer del padre en o.tareas[], distinguido por parent_task_id !== null. Flat 1 nivel.
+async function tareasCliAddSubtask(clientId, objId, parentTaskId, texto) {
+  const t = String(texto || '').trim();
+  if (!t || !parentTaskId) return null;
+  const newId = 'tarea-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
+  const nowIso = new Date().toISOString();
+  await tareasCliSave(clientId, function(d) {
+    const o = (d.objetivos || []).find(function(x) { return x.id === objId; });
+    if (!o) return d;
+    if (!Array.isArray(o.tareas)) o.tareas = [];
+    o.tareas.push({
+      id: newId,
+      texto: t,
+      completado: false,
+      fechaIdeal: null,
+      fechaLimite: null,
+      notas: '',
+      responsibleUsers: [],
+      orden: o.tareas.length,
+      parent_task_id: parentTaskId,
+      createdAt: nowIso,
+      updatedAt: nowIso
+    });
+    return d;
+  });
+  renderTareasCli();
+  return newId;
+}
+
 async function tareasCliEditTareaTexto(clientId, objId, tareaId, texto) {
   const t = String(texto || '').trim();
   if (!t) return;
@@ -10288,13 +10381,31 @@ async function tareasCliDeleteTarea(clientId, objId, tareaId) {
   await tareasCliSave(clientId, function(d) {
     const o = (d.objetivos || []).find(function(x) { return x.id === objId; });
     if (!o) return d;
-    o.tareas = (o.tareas || []).filter(function(x) { return x.id !== tareaId; });
+    const tareas = Array.isArray(o.tareas) ? o.tareas : [];
+    const target = tareas.find(function(x) { return x.id === tareaId; });
+    // S67 1.4: schema flat — si la tarea borrada es top-level y tiene hijas, promover
+    // (parent_task_id → null) en lugar de borrarlas. Orden recalculado al final del objetivo (D8).
+    if (target && !target.parent_task_id) {
+      const children = tareas.filter(function(x) { return x.parent_task_id === tareaId; });
+      if (children.length > 0) {
+        const topLevelMaxOrden = tareas
+          .filter(function(x) { return !x.parent_task_id && x.id !== tareaId; })
+          .reduce(function(m, x) { return Math.max(m, Number(x.orden) || 0); }, -1);
+        children.forEach(function(child, i) {
+          child.parent_task_id = null;
+          child.orden = topLevelMaxOrden + 1 + i;
+        });
+      }
+    }
+    o.tareas = tareas.filter(function(x) { return x.id !== tareaId; });
     return d;
   });
   renderTareasCli();
-  // Plan Semanal D33: cascade delete bloques del calendar que apuntaban a esta tarea.
-  if (typeof _msCascadeDeleteByTareaId === 'function') {
-    try { await _msCascadeDeleteByTareaId(tareaId); } catch (e) {}
+  // S67 1.4 / D3: cascade NULLIFY (no delete) — preserva bloques Plan Semanal con
+  // cliente_id/objetivo_id/objetivo_titulo, solo tarea_id → null. Renombrado desde
+  // _msCascadeDeleteByTareaId; sin alias backward-compat (sin callers externos).
+  if (typeof _msCascadeNullifyByTareaId === 'function') {
+    try { await _msCascadeNullifyByTareaId(tareaId); } catch (e) {}
   }
 }
 
@@ -10391,6 +10502,47 @@ function tareasCliHandleTareaInputKey(e, clientId, objId) {
 function tareasCliBlurTareaInput(clientId, objId) {
   setTimeout(function() {
     const cont = document.getElementById('tareas-cli-add-tarea-container-' + clientId + '-' + objId);
+    if (cont) { cont.innerHTML = ''; cont.dataset.open = '0'; }
+  }, 100);
+}
+
+// S67 1.3: input inline para crear subtask bajo un padre top-level. Patrón espejo de AddTarea.
+function tareasCliShowAddSubtaskInput(clientId, objId, parentTaskId) {
+  const cont = document.getElementById('tareas-cli-add-subtask-container-' + clientId + '-' + parentTaskId);
+  if (!cont) return;
+  if (cont.dataset.open === '1') { cont.innerHTML = ''; cont.dataset.open = '0'; return; }
+  cont.dataset.open = '1';
+  cont.innerHTML = ''
+    + '<div style="display:flex;gap:6px;margin-top:6px;margin-left:18px;">'
+    +   '<input id="tareas-cli-new-subtask-' + clientId + '-' + parentTaskId + '" type="text" placeholder="Nueva subtask y Enter…" '
+    +     'style="flex:1;background:var(--surface);border:1px solid var(--accent);color:var(--text);font-family:\'DM Sans\',sans-serif;font-size:12px;padding:6px 8px;border-radius:6px;outline:none;" '
+    +     'onkeydown="tareasCliHandleSubtaskInputKey(event, \'' + clientId + '\', \'' + objId + '\', \'' + parentTaskId + '\')" '
+    +     'onblur="tareasCliBlurSubtaskInput(\'' + clientId + '\', \'' + parentTaskId + '\')">'
+    + '</div>';
+  setTimeout(function() {
+    const inp = document.getElementById('tareas-cli-new-subtask-' + clientId + '-' + parentTaskId);
+    if (inp) inp.focus();
+  }, 50);
+}
+
+function tareasCliHandleSubtaskInputKey(e, clientId, objId, parentTaskId) {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    const inp = document.getElementById('tareas-cli-new-subtask-' + clientId + '-' + parentTaskId);
+    const t = inp ? inp.value.trim() : '';
+    if (inp) inp.onblur = null;
+    if (t) tareasCliAddSubtask(clientId, objId, parentTaskId, t);
+    const cont = document.getElementById('tareas-cli-add-subtask-container-' + clientId + '-' + parentTaskId);
+    if (cont) { cont.innerHTML = ''; cont.dataset.open = '0'; }
+  } else if (e.key === 'Escape') {
+    const cont = document.getElementById('tareas-cli-add-subtask-container-' + clientId + '-' + parentTaskId);
+    if (cont) { cont.innerHTML = ''; cont.dataset.open = '0'; }
+  }
+}
+
+function tareasCliBlurSubtaskInput(clientId, parentTaskId) {
+  setTimeout(function() {
+    const cont = document.getElementById('tareas-cli-add-subtask-container-' + clientId + '-' + parentTaskId);
     if (cont) { cont.innerHTML = ''; cont.dataset.open = '0'; }
   }, 100);
 }
@@ -11569,22 +11721,26 @@ function _msShowConfirmDeleteBloque(bloqueId, titulo) {
   el.onclick = function(ev) { if (ev.target === el) close(); };
 }
 
-// ── F2: Cascade delete (D33) — al eliminar tarea, borrar sus bloques ──
-async function _msCascadeDeleteByTareaId(tareaId) {
+// ── F2: Cascade NULLIFY (S67 1.4 / D3) — al eliminar tarea, los bloques sobreviven
+// con cliente_id + objetivo_id + objetivo_titulo preservados; solo tarea_id → null.
+// Renombrado desde _msCascadeDeleteByTareaId (D33 original) para reflejar el nuevo
+// comportamiento. Razón: preservar planning visual + historial de qué se agendó.
+async function _msCascadeNullifyByTareaId(tareaId) {
   if (!tareaId) return 0;
   const col = calendarSemanaFirestoreCol();
   if (!col) return 0;
   let count = 0;
   try {
     const snap = await col.where('tarea_id', '==', tareaId).get();
+    if (snap.empty) return 0;
     const batch = window.firebaseDb.batch();
-    snap.forEach(function(d) { batch.delete(d.ref); count++; });
+    snap.forEach(function(d) { batch.update(d.ref, { tarea_id: null }); count++; });
     if (count > 0) await batch.commit();
     if (count > 0 && typeof showToast === 'function') {
-      showToast(count + ' bloque' + (count === 1 ? '' : 's') + ' del calendar eliminado' + (count === 1 ? '' : 's'), '🗑️');
+      showToast(count + ' bloque' + (count === 1 ? '' : 's') + ' desvinculado' + (count === 1 ? '' : 's') + ' de tarea', '🔗');
     }
   } catch (e) {
-    console.warn('[calendarSemana] cascade delete failed', tareaId, e);
+    console.warn('[calendarSemana] cascade nullify failed', tareaId, e);
   }
   return count;
 }
@@ -11604,7 +11760,7 @@ window.calendarSemana = {
   createBloque: _msCreateBloque,
   updateBloque: _msUpdateBloque,
   deleteBloque: _msDeleteBloque,
-  cascadeDeleteByTareaId: _msCascadeDeleteByTareaId,
+  cascadeNullifyByTareaId: _msCascadeNullifyByTareaId,
   showCrear: _msShowCrearBloqueModal,
   showEdit: _msShowEditBloqueModal,
   cache: _calendarSemanaMemCache,
