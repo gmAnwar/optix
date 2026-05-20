@@ -4614,10 +4614,10 @@ function getDefaultClients(wsId) {
   return DEFAULT_CLIENTS_OPTIMIZADS;
 }
 
-let clients = JSON.parse(localStorage.getItem('oa-clients') || 'null') || DEFAULT_CLIENTS_OPTIMIZADS;
+var clients = JSON.parse(localStorage.getItem('oa-clients') || 'null') || DEFAULT_CLIENTS_OPTIMIZADS;
 let currentClientId = null;
 let currentView = 'dashboard';
-let currentRol = null;
+var currentRol = null;
 const sectionIds = ['adn', 'objetivos', 'rendimiento', 'segmentos', 'validacion', 'creativos'];
 const AIConversations = {};
 
@@ -4685,7 +4685,7 @@ window.init = async function init(workspaceId) {
 // ══════════════════════════════════════════
 // AGENCIA SELECTOR
 // ══════════════════════════════════════════
-let currentAgencia = null;
+var currentAgencia = null;
 
 const AGENCIA_CONFIG = {
   optimizads: {
