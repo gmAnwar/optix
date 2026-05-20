@@ -11,6 +11,10 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+
+<!-- Refactor F0.5b/F1: módulos extraídos del bundle. tareas.js depende de utils.js. -->
+<script type="module" src="./modules/utils.js"></script>
+
 <script>
   const firebaseConfig = {
     apiKey: "AIzaSyDFz4p5Me5lZwzCT7aM992JSiWeVbWJb6w",
@@ -9165,9 +9169,7 @@ function tareasDeleteTarea(areaId, proyId, tareaId) {
   renderTareas();
 }
 
-function escapeHtml(str) {
-  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
+// escapeHtml extraído a modules/utils.js (F0.5b). window.escapeHtml expuesto desde el módulo.
 
 // ══════════════════════════════════════════════════════════════
 // MÓDULO TAREAS — v4.0 · Vista Clientes
