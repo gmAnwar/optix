@@ -4623,7 +4623,8 @@ const DEFAULT_CLIENTS_OPTIMIZADS = [
   { id: 'divisas', workspaceId: 'optimizads', nombre: 'Divisas La Rioja', semaforo: { general: 'red' }, nicho: 'Finanzas', presupuesto: 15000, plataformas: ['Meta'] },
   { id: 'inmobili', workspaceId: 'optimizads', nombre: 'Inmobili', semaforo: { general: 'gray' }, nicho: 'Inmobiliaria', presupuesto: 10000, plataformas: ['Meta'] },
   // Cliente virtual para bloques internos (Status diario, juntas internas) — Plan Semanal F1 D19/D31
-  { id: 'agency', workspaceId: 'optimizads', nombre: 'Interno', semaforo: { general: 'gray' }, nicho: 'INTERNO', presupuesto: 0, plataformas: [] },
+  // BUG #15 PARTE D: tipo='division' para que Senior CMD omita métricas/warnings.
+  { id: 'agency', workspaceId: 'optimizads', nombre: 'Interno', tipo: 'division', semaforo: { general: 'gray' }, nicho: 'INTERNO', presupuesto: 0, plataformas: [] },
 ];
 
 const DEFAULT_CLIENTS_TACO = [
