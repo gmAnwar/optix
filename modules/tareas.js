@@ -200,6 +200,24 @@ function createQuickClient() {
     try { window.OptixIntegraciones.emit(window.OptixIntegraciones.OptixEvents.CLIENT_CREATED, { clientId: client.id, nombre: client.nombre }); } catch (e) {}
   }
 
+  // BUG #15 fix (PARTE A): crear doc workspaces/{ws}/tareas-clientes/{id} eagerly
+  // para evitar el estado inconsistente entre clients[] (existe) y tareas-clientes
+  // (no existe) hasta primera interacción del usuario. Sin esto, renderTareasCli
+  // genera el empty doc en cache local pero NO lo persiste; cualquier listener
+  // de Mi Semana / panel lateral lee cache vacío hasta que tareasCliSave dispare.
+  // Fire-and-forget: si Firestore falla, el modal cierra igual y el flow lazy
+  // original (escritura on first tareasCliAddObjetivo) sigue funcionando.
+  const _tcRef = tareasCliFirestoreRef(client.id);
+  if (_tcRef) {
+    _tcRef.set(tareasCliEmptyDoc(client.id)).then(function() {
+      // Hidratar cache local con el doc recién creado para que el re-render
+      // siguiente lo vea sin esperar al onSnapshot.
+      tareasCliSaveCache(client.id, tareasCliEmptyDoc(client.id));
+    }).catch(function(e) {
+      console.warn('[createQuickClient] tareas-clientes doc seed failed', client.id, e);
+    });
+  }
+
   closeModal('modal-quick-client');
   _qcSelectedColor = null;
 
