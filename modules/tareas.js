@@ -131,12 +131,38 @@ function _qcClearError() {
   if (el) el.style.display = 'none';
 }
 
+// BUG #15 PARTE B helpers — toggle tipo + disabled state del btn Crear.
+function _qcGetSelectedTipo() {
+  const radio = document.querySelector('#qc-tipo-group input[name="qc-tipo"]:checked');
+  return radio ? radio.value : null;
+}
+
+function _qcUpdateCreateBtn() {
+  const btn = document.getElementById('qc-btn-crear');
+  if (!btn) return;
+  const tipo = _qcGetSelectedTipo();
+  const nombreInput = document.getElementById('qc-nombre');
+  const nombre = (nombreInput ? nombreInput.value : '').trim();
+  const enabled = !!tipo && nombre.length > 0;
+  btn.disabled = !enabled;
+  btn.style.opacity = enabled ? '1' : '0.4';
+  btn.style.cursor = enabled ? 'pointer' : 'not-allowed';
+}
+
+function _qcOnTipoChange() {
+  _qcClearError();
+  _qcUpdateCreateBtn();
+}
+
 function openQuickClientModal() {
   // Reset state cada vez que se abre.
   _qcSelectedColor = _qcNextFreeColor();
   _qcClearError();
   const nombreInput = document.getElementById('qc-nombre');
   if (nombreInput) nombreInput.value = '';
+  // PARTE B: limpiar selección de tipo (sin default) y deshabilitar btn Crear.
+  document.querySelectorAll('#qc-tipo-group input[name="qc-tipo"]').forEach(function(r) { r.checked = false; });
+  _qcUpdateCreateBtn();
   _qcRenderSwatches();
   document.getElementById('modal-quick-client').classList.add('open');
   setTimeout(function() {
@@ -147,6 +173,12 @@ function openQuickClientModal() {
 
 function createQuickClient() {
   _qcClearError();
+  // PARTE B: tipo requerido.
+  const tipo = _qcGetSelectedTipo();
+  if (tipo !== 'cliente' && tipo !== 'division') {
+    _qcShowError('Selecciona si es cliente externo o división interna');
+    return;
+  }
   const nombreInput = document.getElementById('qc-nombre');
   const nombre = (nombreInput ? nombreInput.value : '').trim();
   if (!nombre) {
@@ -168,26 +200,31 @@ function createQuickClient() {
   const wsId = currentAgencia === 'taco' ? 'taco' : 'optimizads';
   const colorDuplicado = _qcClienteUsingColor(color);
 
-  const client = {
+  // PARTE B: estructura por tipo.
+  //  - cliente: shape completo con campos vacíos del expediente. Respeta los
+  //    types que el resto del código asume: vault como array (.push/.slice),
+  //    decisiones array, adn/objetivos/rendimiento/segmentos/validacion/creativos
+  //    objetos (sub-secciones del wizard). sem_stars/sem_comm_count number.
+  //  - division: shape mínimo. Sin expediente, sin semáforo. Solo metadata
+  //    suficiente para Tareas Clientes + Mi Semana.
+  const baseClient = {
     id: 'client-' + Date.now(),
     workspaceId: wsId,
     nombre: nombre,
     color: color,
-    // Colecciones vacías — paridad con wizard largo (line 6068-6069). Evita
-    // que sub-tabs de screen-app (ADN/Objetivos/Rendimiento/Segmentos/
-    // Validación/Creativos/Vault/Decisiones) truenen al abrir el cliente
-    // rápido desde el grid si asumen estos campos sin check defensivo.
-    vault: [],
-    decisiones: [],
-    // Semáforo
-    sem_stars: 0,
-    sem_comm_count: 0,
-    // Expediente — 3 capas
-    adn: {}, objetivos: {}, rendimiento: {}, segmentos: {}, validacion: {}, creativos: {},
-    // Metadata
+    tipo: tipo,
     createdAt: new Date().toISOString(),
     createdBy: currentRol || 'unknown',
   };
+  const client = (tipo === 'cliente')
+    ? Object.assign({}, baseClient, {
+        vault: [],
+        decisiones: [],
+        sem_stars: 0,
+        sem_comm_count: 0,
+        adn: {}, objetivos: {}, rendimiento: {}, segmentos: {}, validacion: {}, creativos: {},
+      })
+    : baseClient;
 
   clients.push(client);
   saveClients();
@@ -2716,6 +2753,9 @@ function initTareas() {
   window.openQuickClientModal = openQuickClientModal;
   window.createQuickClient = createQuickClient;
   window._qcSelectColor = _qcSelectColor;
+  // BUG #15 PARTE B helpers (HTML inline en modal-quick-client).
+  window._qcOnTipoChange = _qcOnTipoChange;
+  window._qcUpdateCreateBtn = _qcUpdateCreateBtn;
 
   // ── Diagnostic hooks (smoke test) ──
   window.__tareasInitialized = true;

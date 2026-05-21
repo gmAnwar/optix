@@ -2941,18 +2941,36 @@
 </div>
 
 <!-- ══════════════════════════════════════════ -->
-<!-- MODAL: Cliente rápido (S67 Bloque C) — solo nombre + color -->
+<!-- MODAL: Rápido (S67 Bloque C + BUG #15 PARTE B) — cliente externo o división interna -->
 <!-- ══════════════════════════════════════════ -->
 <div id="modal-quick-client" class="modal-overlay">
   <div class="modal" style="max-width:440px;">
-    <div class="modal-title">＋ Cliente rápido</div>
-    <div class="modal-sub">Solo nombre + color. El expediente completo se llena después.</div>
+    <div class="modal-title">＋ Rápido</div>
+    <div class="modal-sub">Crea un cliente externo o una división interna sin pasar por el wizard largo.</div>
+
+    <div class="form-group">
+      <label class="form-label">¿Qué quieres crear?</label>
+      <div id="qc-tipo-group" style="display:flex;flex-direction:column;gap:8px;margin-top:6px;">
+        <label style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px;color:var(--text);transition:border-color 0.15s,background 0.15s;" onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='var(--border)'">
+          <input type="radio" name="qc-tipo" value="cliente" onchange="_qcOnTipoChange()" style="margin:0;cursor:pointer;">
+          <span style="font-size:16px;">👤</span>
+          <span><strong>Cliente externo</strong></span>
+        </label>
+        <label style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px;color:var(--text);transition:border-color 0.15s,background 0.15s;" onmouseover="this.style.borderColor='var(--border2)'" onmouseout="this.style.borderColor='var(--border)'">
+          <input type="radio" name="qc-tipo" value="division" onchange="_qcOnTipoChange()" style="margin:0;cursor:pointer;">
+          <span style="font-size:16px;">📁</span>
+          <span><strong>División interna</strong></span>
+        </label>
+      </div>
+      <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--text3);margin-top:8px;line-height:1.5;">Cliente externo = entidad comercial con expediente. División interna = agrupador de objetivos de la agencia.</div>
+    </div>
 
     <div class="form-group">
       <label class="form-label">Nombre</label>
       <input id="qc-nombre" class="form-input" type="text" maxlength="50"
              placeholder="ej. Campaña Brand · Q3" autocomplete="off"
-             onkeydown="if(event.key==='Enter'){event.preventDefault();createQuickClient();}">
+             oninput="_qcUpdateCreateBtn()"
+             onkeydown="if(event.key==='Enter' && !document.getElementById('qc-btn-crear').disabled){event.preventDefault();createQuickClient();}">
     </div>
 
     <div class="form-group">
@@ -2965,7 +2983,7 @@
 
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('modal-quick-client')">Cancelar</button>
-      <button class="btn btn-primary" onclick="createQuickClient()">Crear</button>
+      <button id="qc-btn-crear" class="btn btn-primary" onclick="createQuickClient()" disabled style="opacity:0.4;cursor:not-allowed;">Crear</button>
     </div>
   </div>
 </div>
@@ -4359,7 +4377,7 @@
         </div>
         <button id="btn-tareas-cli-help" onclick="tareasCliShowRitualModal()" title="Ritual del primer lunes" style="display:none;background:var(--surface2);border:1px solid var(--border);color:var(--text2);width:32px;height:32px;border-radius:8px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;flex-shrink:0;">?</button>
         <button id="btn-tareas-add-area" onclick="tareasAddArea()" class="btn btn-ghost" style="font-size:12px; flex-shrink:0;">＋ Nueva área</button>
-        <button id="btn-quick-client" onclick="openQuickClientModal()" class="btn btn-ghost" style="display:none;font-size:12px;flex-shrink:0;">＋ Cliente rápido</button>
+        <button id="btn-quick-client" onclick="openQuickClientModal()" class="btn btn-ghost" style="display:none;font-size:12px;flex-shrink:0;" title="Crea cliente externo o división interna">＋ Rápido</button>
         <button onclick="enterAs('mi-semana')" class="btn btn-ghost" style="font-size:12px;flex-shrink:0;" title="Ir a Plan Semanal (Mi semana)">→ Mi semana</button>
       </div>
     </div>
