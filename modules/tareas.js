@@ -250,8 +250,8 @@ function createQuickClient() {
       // Hidratar cache local con el doc recién creado para que el re-render
       // siguiente lo vea sin esperar al onSnapshot.
       tareasCliSaveCache(client.id, tareasCliEmptyDoc(client.id));
-    }).catch(function(e) {
-      console.warn('[createQuickClient] tareas-clientes doc seed failed', client.id, e);
+    }).catch(function(err) {
+      console.error('[bug15-fix] Seed tareas-clientes/' + client.id + ' falló:', err);
     });
   }
 
