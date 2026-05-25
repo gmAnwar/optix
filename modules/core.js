@@ -7,6 +7,7 @@
  */
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import {
   getFirestore,
   doc, getDoc, setDoc, onSnapshot,
@@ -27,6 +28,13 @@ const firebaseConfig = {
 
 export const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);
+// P0 fix: inicializar modular Auth para que getFirestore comparta el token de
+// auth con la sesión compat (firebase-auth-compat v9 cargado en index.html).
+// Sin esto, todos los writes desde este módulo llegan SIN token y las rules
+// "if request.auth != null" devuelven permission-denied silenciosamente.
+// Como compat y modular comparten IndexedDB persistence, getAuth(app) toma
+// el user actual sin requerir cambios en el login flow.
+export const auth = getAuth(app);
 
 // ─────────────────────────────────────────
 // WORKSPACE — Multi-tenant desde el inicio
@@ -81,19 +89,16 @@ export function setState(key, value, opts = {}) {
 // Todas las operaciones incluyen workspaceId
 // ─────────────────────────────────────────
 
-/** Guardar lista de clientes en Firestore */
+/** Guardar lista de clientes en Firestore. Throw on error — el caller debe
+ *  manejar (ej. createQuickClient en modules/tareas.js tiene try/catch +
+ *  rollback). El catch silencioso anterior ocultaba permission-denied al
+ *  await caller, haciendo que el rollback de BUG #11 nunca se disparara. */
 export async function fbSaveClients(clientsData) {
-  try {
-    await setDoc(doc(db, "workspaces", WORKSPACE.id, "data", "clients"), {
-      workspaceId: WORKSPACE.id,
-      data: clientsData,
-      updatedAt: serverTimestamp(),
-    });
-    return true;
-  } catch(e) {
-    console.error("[Core] Firebase save clients error:", e);
-    return false;
-  }
+  await setDoc(doc(db, "workspaces", WORKSPACE.id, "data", "clients"), {
+    workspaceId: WORKSPACE.id,
+    data: clientsData,
+    updatedAt: serverTimestamp(),
+  });
 }
 
 /** Cargar lista de clientes desde Firestore */
