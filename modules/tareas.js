@@ -255,6 +255,10 @@ async function createQuickClient() {
     // Rollback del push local para que el cliente no quede zombie en la UI.
     const idx = clients.findIndex(function(c) { return c.id === client.id; });
     if (idx >= 0) clients.splice(idx, 1);
+    // Rollback localStorage para consistencia con clients[] en memoria
+    // (sin esto, el cliente falla en Firestore pero queda en 'oa-clients'
+    // y mergeClients lo puede resucitar como zombie al recargar offline).
+    try { localStorage.setItem("oa-clients", JSON.stringify(clients)); } catch(e){}
     _qcShowError(err && err.message === 'Timeout Firestore'
       ? 'Tardó demasiado en guardar. Verifica conexión y reintenta.'
       : 'Error al crear cliente. Intenta de nuevo.');
