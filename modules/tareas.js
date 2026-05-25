@@ -1399,7 +1399,11 @@ function _ensureTareasCliCSS() {
     + '.tareas-cli-card:hover { border-color:var(--border2); }'
     // S67 1.3: botón "+ Subtask" oculto por default; aparece on-hover en tareas top-level.
     + '.tareas-cli-add-subtask-btn { opacity:0; transition:opacity 0.15s; }'
-    + '.tareas-cli-tarea-row:hover .tareas-cli-add-subtask-btn { opacity:1; }';
+    + '.tareas-cli-tarea-row:hover .tareas-cli-add-subtask-btn { opacity:1; }'
+    // delete-client-v1 polish: × minimalista, invisible default, aparece on-hover de la card.
+    + '.tareas-cli-delete-btn { background:transparent; border:none; cursor:pointer; padding:0 4px; line-height:1; font-size:18px; color:#9ca3af; opacity:0; transition:opacity 150ms ease, color 150ms ease; flex-shrink:0; }'
+    + '.tareas-cli-card:hover .tareas-cli-delete-btn { opacity:0.6; }'
+    + '.tareas-cli-delete-btn:hover { opacity:1; color:#f87171; }';
   document.head.appendChild(s);
 }
 _ensureTareasCliCSS();
@@ -1483,13 +1487,8 @@ function tareasCliRenderCard(client, color, objetivos) {
   // (rol direccion/owner) y el cliente NO es fundacional (startsWith 'client-').
   const canDelete = _canDeleteClient(client.id);
   const deleteBtn = canDelete
-    ? '<button onclick="tareasCliShowDeleteClientModal(\'' + cid + '\')" '
-        + 'title="Borrar cliente" aria-label="Borrar cliente" '
-        + 'style="background:transparent;border:none;cursor:pointer;padding:4px 6px;border-radius:6px;color:var(--text3);opacity:0.6;transition:opacity 0.15s,color 0.15s;font-size:14px;line-height:1;flex-shrink:0;" '
-        + 'onmouseover="this.style.opacity=\'1\';this.style.color=\'var(--red)\';" '
-        + 'onmouseout="this.style.opacity=\'0.6\';this.style.color=\'var(--text3)\';">'
-        + '🗑'
-        + '</button>'
+    ? '<button class="tareas-cli-delete-btn" onclick="tareasCliShowDeleteClientModal(\'' + cid + '\')" '
+        + 'title="Borrar cliente" aria-label="Borrar cliente">&times;</button>'
     : '';
   return ''
     + '<div class="tareas-cli-card" data-client-id="' + cid + '" '
