@@ -1479,6 +1479,18 @@ function tareasCliRenderCard(client, color, objetivos) {
   const nicho = client.nicho ? escapeHtml(String(client.nicho)) : '';
   const cid = escapeHtml(client.id);
 
+  // feat/delete-client-v1: botón trash visible solo si user puede borrar
+  // (rol direccion/owner) y el cliente NO es fundacional (startsWith 'client-').
+  const canDelete = _canDeleteClient(client.id);
+  const deleteBtn = canDelete
+    ? '<button onclick="tareasCliShowDeleteClientModal(\'' + cid + '\')" '
+        + 'title="Borrar cliente" aria-label="Borrar cliente" '
+        + 'style="background:transparent;border:none;cursor:pointer;padding:4px 6px;border-radius:6px;color:var(--text3);opacity:0.6;transition:opacity 0.15s,color 0.15s;font-size:14px;line-height:1;flex-shrink:0;" '
+        + 'onmouseover="this.style.opacity=\'1\';this.style.color=\'var(--red)\';" '
+        + 'onmouseout="this.style.opacity=\'0.6\';this.style.color=\'var(--text3)\';">'
+        + '🗑'
+        + '</button>'
+    : '';
   return ''
     + '<div class="tareas-cli-card" data-client-id="' + cid + '" '
     +   'data-droppable-type="cliente" '
@@ -1490,7 +1502,10 @@ function tareasCliRenderCard(client, color, objetivos) {
     +         '<div style="width:10px;height:10px;border-radius:50%;background:' + color + ';flex-shrink:0;"></div>'
     +         '<div style="font-family:\'Syne\',sans-serif;font-weight:700;font-size:14px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escapeHtml(client.nombre || client.id) + '</div>'
     +       '</div>'
-    +       (nicho ? '<div style="font-family:\'DM Mono\',monospace;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em;flex-shrink:0;text-align:right;">' + nicho + '</div>' : '')
+    +       '<div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">'
+    +         (nicho ? '<div style="font-family:\'DM Mono\',monospace;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em;text-align:right;">' + nicho + '</div>' : '')
+    +         deleteBtn
+    +       '</div>'
     +     '</div>'
     +     '<div style="font-family:\'DM Mono\',monospace;font-size:10px;color:' + (overLimit ? 'var(--yellow)' : 'var(--text3)') + ';margin-top:6px;">' + subtitle + '</div>'
     +   '</div>'
@@ -2648,6 +2663,145 @@ function tareasCliConfirmDeleteTarea(clientId, objId, tareaId) {
   tareasCliShowConfirmModal('Vas a eliminar la tarea "' + ta.texto + '". Esta acción no se puede deshacer.', function() { tareasCliDeleteTarea(clientId, objId, tareaId); });
 }
 
+// ════════════════════════════════════════════════════════════════
+// DELETE CLIENT v1 (feat/delete-client-v1) — modal con text-gate + flow.
+// Core logic vive en modules/core.js (window._fbDeleteClient). Aquí solo
+// orquestación de UI: unsub listener → mutación optimista → await delete →
+// rollback con re-sub si falla.
+// ════════════════════════════════════════════════════════════════
+
+// Unsub el listener tareas-clientes de un solo cliente. Retorna info para
+// re-subscribir en caso de rollback (la re-sub la hace tareasCliInitFromFirestore).
+function tareasCliUnsubOne(clientId) {
+  const fn = _tareasCliUnsubs[clientId];
+  if (typeof fn === 'function') {
+    try { fn(); } catch(e) {}
+    delete _tareasCliUnsubs[clientId];
+    return true;
+  }
+  return false;
+}
+
+// Check de rol — direccion o owner pueden borrar.
+function _canDeleteClient(clientId) {
+  if (!clientId || !clientId.startsWith('client-')) return false;
+  const profile = (typeof window !== 'undefined') ? window.currentUserProfile : null;
+  const rol = profile && profile.rol;
+  return rol === 'direccion' || rol === 'owner';
+}
+
+// Modal custom con text-input que debe matchear el nombre exacto.
+function tareasCliShowDeleteClientModal(clientId) {
+  const target = (typeof clients !== 'undefined' ? clients : []).find(function(c) { return c.id === clientId; });
+  if (!target) { showToast('Cliente no encontrado', '⚠️'); return; }
+  if (!_canDeleteClient(clientId)) { showToast('No tienes permiso para borrar clientes', '⚠️'); return; }
+
+  // Contar objetivos + tareas desde el cache
+  const cached = _tareasCliMemCache[clientId] || tareasCliLoadCache(clientId) || tareasCliEmptyDoc(clientId);
+  const objetivos = Array.isArray(cached.objetivos) ? cached.objetivos : [];
+  const objCount = objetivos.length;
+  let tareaCount = 0;
+  objetivos.forEach(function(o) { tareaCount += (Array.isArray(o.tareas) ? o.tareas.length : 0); });
+
+  const modalId = 'tareasCli-delete-client-modal';
+  let el = document.getElementById(modalId);
+  if (el) el.remove();
+  el = document.createElement('div');
+  el.id = modalId;
+  el.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;font-family:\'DM Sans\',sans-serif;';
+  const nombreSafe = escapeHtml(target.nombre || target.id);
+  el.innerHTML = ''
+    + '<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;min-width:380px;max-width:460px;box-shadow:0 12px 32px rgba(0,0,0,0.5);">'
+    +   '<div style="font-family:\'Syne\',sans-serif;font-weight:700;font-size:16px;color:var(--text);margin-bottom:10px;">Borrar cliente</div>'
+    +   '<div style="font-size:13px;color:var(--text2);line-height:1.55;margin-bottom:8px;">Vas a borrar <strong style="color:var(--text);">' + nombreSafe + '</strong> permanentemente.</div>'
+    +   '<div style="font-family:\'DM Mono\',monospace;font-size:11px;color:var(--text3);line-height:1.55;margin-bottom:16px;">Esto borrará ' + objCount + ' objetivo' + (objCount === 1 ? '' : 's') + ', ' + tareaCount + ' tarea' + (tareaCount === 1 ? '' : 's') + ', y limpiará referencias en Mi Semana. No se puede deshacer.</div>'
+    +   '<div style="font-size:12px;color:var(--text2);margin-bottom:6px;">Escribe <strong style="color:var(--text);">' + nombreSafe + '</strong> para confirmar:</div>'
+    +   '<input id="tareasCli-del-input" type="text" autocomplete="off" style="width:100%;box-sizing:border-box;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:8px 10px;font-size:13px;font-family:\'DM Mono\',monospace;margin-bottom:14px;">'
+    +   '<div id="tareasCli-del-error" style="display:none;background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.4);color:var(--red);padding:8px 12px;border-radius:6px;font-size:12px;margin-bottom:12px;"></div>'
+    +   '<div style="display:flex;gap:8px;justify-content:flex-end;">'
+    +     '<button id="tareasCli-del-cancel" style="background:transparent;border:1px solid var(--border);color:var(--text2);padding:8px 14px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">Cancelar</button>'
+    +     '<button id="tareasCli-del-confirm" disabled style="background:var(--red);border:none;color:#fff;padding:8px 14px;border-radius:8px;font-size:12px;font-weight:600;cursor:not-allowed;opacity:0.4;">Borrar definitivamente</button>'
+    +   '</div>'
+    + '</div>';
+  document.body.appendChild(el);
+
+  const input = document.getElementById('tareasCli-del-input');
+  const confirmBtn = document.getElementById('tareasCli-del-confirm');
+  const cancelBtn = document.getElementById('tareasCli-del-cancel');
+  const errEl = document.getElementById('tareasCli-del-error');
+
+  function close() { try { el.remove(); } catch(e) {} }
+  function showErr(msg) { errEl.textContent = msg; errEl.style.display = 'block'; }
+  function clearErr() { errEl.style.display = 'none'; }
+
+  input.addEventListener('input', function() {
+    const match = input.value === (target.nombre || target.id);
+    confirmBtn.disabled = !match;
+    confirmBtn.style.opacity = match ? '1' : '0.4';
+    confirmBtn.style.cursor = match ? 'pointer' : 'not-allowed';
+  });
+
+  cancelBtn.onclick = close;
+  el.onclick = function(ev) { if (ev.target === el) close(); };
+  document.addEventListener('keydown', function escHandler(ev) {
+    if (ev.key === 'Escape') {
+      document.removeEventListener('keydown', escHandler);
+      close();
+    }
+  });
+
+  confirmBtn.onclick = async function() {
+    if (confirmBtn.disabled) return;
+    clearErr();
+    const origText = confirmBtn.textContent;
+    confirmBtn.disabled = true;
+    confirmBtn.style.opacity = '0.6';
+    confirmBtn.style.cursor = 'wait';
+    confirmBtn.textContent = 'Borrando...';
+    cancelBtn.disabled = true;
+
+    // Snapshot para rollback array + listener
+    const backupClients = clients.slice();
+    const hadListener = tareasCliUnsubOne(clientId);
+
+    // Mutación optimista del array global
+    const filtered = clients.filter(function(c) { return c.id !== clientId; });
+    clients.length = 0;
+    filtered.forEach(function(c) { clients.push(c); });
+
+    try {
+      if (!window._fbDeleteClient) throw new Error('Módulo core no listo — recarga la página');
+      await window._fbDeleteClient(clientId, filtered);
+
+      // Success: cleanup local + UI
+      try { localStorage.setItem('oa-clients', JSON.stringify(filtered)); } catch(e){}
+      delete _tareasCliMemCache[clientId];
+      close();
+      showToast("'" + (target.nombre || target.id) + "' borrado", '✅');
+      if (typeof renderTareasCli === 'function') {
+        try { renderTareasCli(); } catch(e) {}
+      }
+    } catch (err) {
+      console.error('[delete-client-v1] fbDeleteClient falló:', err);
+      // Rollback array + localStorage + re-suscribir listener
+      clients.length = 0;
+      backupClients.forEach(function(c) { clients.push(c); });
+      try { localStorage.setItem('oa-clients', JSON.stringify(backupClients)); } catch(e){}
+      if (hadListener) {
+        try { tareasCliInitFromFirestore(clientId); } catch(e) {}
+      }
+      showErr((err && err.message) || 'Error al borrar cliente. Intenta de nuevo.');
+      confirmBtn.disabled = false;
+      confirmBtn.style.opacity = '1';
+      confirmBtn.style.cursor = 'pointer';
+      confirmBtn.textContent = origText;
+      cancelBtn.disabled = false;
+    }
+  };
+
+  setTimeout(function() { input.focus(); }, 50);
+}
+
 // API expuesta para test manual desde consola del browser
 window.tareasCli = {
   ref: tareasCliFirestoreRef,
@@ -2656,6 +2810,7 @@ window.tareasCli = {
   init: tareasCliInitFromFirestore,
   save: tareasCliSave,
   unsubAll: tareasCliUnsubAll,
+  unsubOne: tareasCliUnsubOne,
   emptyDoc: tareasCliEmptyDoc,
   applyVista: tareasApplyVista,
   setVista: tareasSetVista,
@@ -2663,6 +2818,8 @@ window.tareasCli = {
   render: renderTareasCli,
   reorderOrMove: tareasCliReorderOrMoveTarea,
   setFechaLimite: tareasCliSetFechaLimite,
+  showDeleteModal: tareasCliShowDeleteClientModal,
+  canDelete: _canDeleteClient,
   _test: _tareasCliRunReorderTests,
   cache: _tareasCliMemCache,
   COLORS: TAREAS_CLIENTE_COLORS
@@ -2749,6 +2906,7 @@ function initTareas() {
   window.tareasCliEditTareaTextoInline = tareasCliEditTareaTextoInline;
   window.tareasCliConfirmDeleteObjetivo = tareasCliConfirmDeleteObjetivo;
   window.tareasCliConfirmDeleteTarea = tareasCliConfirmDeleteTarea;
+  window.tareasCliShowDeleteClientModal = tareasCliShowDeleteClientModal;
   window.tareasCliToggleSubtaskCollapse = tareasCliToggleSubtaskCollapse;
   window.tareasCliCalPrevWeek = tareasCliCalPrevWeek;
   window.tareasCliCalNextWeek = tareasCliCalNextWeek;
