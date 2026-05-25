@@ -2686,8 +2686,13 @@ function tareasCliUnsubOne(clientId) {
 function _canDeleteClient(clientId) {
   if (!clientId || !clientId.startsWith('client-')) return false;
   const profile = (typeof window !== 'undefined') ? window.currentUserProfile : null;
-  const rol = profile && profile.rol;
-  return rol === 'direccion' || rol === 'owner';
+  if (!profile) return false;
+  // 'all' es el rol super-admin real en producción (Anwar). 'direccion'
+  // es estratégico. 'owner' incluido por consistencia aunque en este
+  // workspace puede existir solo como calendar_role.
+  const allowedRoles = ['all', 'direccion', 'owner'];
+  const isCalendarOwner = profile.calendar_role === 'owner';
+  return allowedRoles.indexOf(profile.rol) !== -1 || isCalendarOwner;
 }
 
 // Modal custom con text-input que debe matchear el nombre exacto.
