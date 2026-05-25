@@ -171,7 +171,7 @@ function openQuickClientModal() {
   }, 50);
 }
 
-function createQuickClient() {
+async function createQuickClient() {
   _qcClearError();
   // PARTE B: tipo requerido.
   const tipo = _qcGetSelectedTipo();
@@ -226,8 +226,41 @@ function createQuickClient() {
       })
     : baseClient;
 
+  // BUG #11 fix: loading state + await Firestore writes en paralelo con timeout.
+  // Antes había dos fire-and-forget (saveClients L230 + seed tareas-clientes L247)
+  // que dejaban window de race entre creación local y reload del usuario.
+  const btn = document.getElementById('qc-btn-crear');
+  const originalText = btn ? btn.textContent : 'Crear';
+  if (btn) { btn.disabled = true; btn.textContent = 'Creando...'; }
+
   clients.push(client);
-  saveClients();
+
+  try {
+    const withTimeout = function(p, ms) {
+      return Promise.race([
+        Promise.resolve(p),
+        new Promise(function(_, rej) { setTimeout(function() { rej(new Error('Timeout Firestore')); }, ms); })
+      ]);
+    };
+    const _tcRef = tareasCliFirestoreRef(client.id);
+    const seedP = _tcRef ? _tcRef.set(tareasCliEmptyDoc(client.id)) : Promise.resolve();
+    await Promise.all([
+      withTimeout(saveClients(), 10000),
+      withTimeout(seedP, 10000),
+    ]);
+    // Hidratar cache local tareas-clientes (lo que antes hacía el .then del fire-and-forget).
+    try { tareasCliSaveCache(client.id, tareasCliEmptyDoc(client.id)); } catch (e) {}
+  } catch (err) {
+    console.error('[BUG#11] createQuickClient falló:', err);
+    // Rollback del push local para que el cliente no quede zombie en la UI.
+    const idx = clients.findIndex(function(c) { return c.id === client.id; });
+    if (idx >= 0) clients.splice(idx, 1);
+    _qcShowError(err && err.message === 'Timeout Firestore'
+      ? 'Tardó demasiado en guardar. Verifica conexión y reintenta.'
+      : 'Error al crear cliente. Intenta de nuevo.');
+    if (btn) { btn.disabled = false; btn.textContent = originalText; }
+    return;
+  }
 
   // Audit + integraciones (mismo flow que wizard largo).
   if (window.OptixAudit) {
@@ -237,24 +270,7 @@ function createQuickClient() {
     try { window.OptixIntegraciones.emit(window.OptixIntegraciones.OptixEvents.CLIENT_CREATED, { clientId: client.id, nombre: client.nombre }); } catch (e) {}
   }
 
-  // BUG #15 fix (PARTE A): crear doc workspaces/{ws}/tareas-clientes/{id} eagerly
-  // para evitar el estado inconsistente entre clients[] (existe) y tareas-clientes
-  // (no existe) hasta primera interacción del usuario. Sin esto, renderTareasCli
-  // genera el empty doc en cache local pero NO lo persiste; cualquier listener
-  // de Mi Semana / panel lateral lee cache vacío hasta que tareasCliSave dispare.
-  // Fire-and-forget: si Firestore falla, el modal cierra igual y el flow lazy
-  // original (escritura on first tareasCliAddObjetivo) sigue funcionando.
-  const _tcRef = tareasCliFirestoreRef(client.id);
-  if (_tcRef) {
-    _tcRef.set(tareasCliEmptyDoc(client.id)).then(function() {
-      // Hidratar cache local con el doc recién creado para que el re-render
-      // siguiente lo vea sin esperar al onSnapshot.
-      tareasCliSaveCache(client.id, tareasCliEmptyDoc(client.id));
-    }).catch(function(err) {
-      console.error('[bug15-fix] Seed tareas-clientes/' + client.id + ' falló:', err);
-    });
-  }
-
+  if (btn) { btn.textContent = originalText; btn.disabled = false; }
   closeModal('modal-quick-client');
   _qcSelectedColor = null;
 

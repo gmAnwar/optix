@@ -6078,8 +6078,12 @@ function getClient() {
 }
 
 function saveClients() {
-  if (window._fbSaveClients) window._fbSaveClients(clients);
+  // BUG #11 fix: retornar la Promise de Firestore para que callers críticos
+  // (createQuickClient) puedan await + manejar errores. localStorage queda
+  // como side-effect sync. Callers no-críticos pueden seguir llamando sin
+  // await — la Promise queda colgante pero no rompe nada.
   try { localStorage.setItem("oa-clients", JSON.stringify(clients)); } catch(e){}
+  return window._fbSaveClients ? window._fbSaveClients(clients) : Promise.resolve();
 }
 
 function saveCurrentClient() {
