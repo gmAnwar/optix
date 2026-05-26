@@ -2932,6 +2932,8 @@ function initTareas() {
   window.tareasCliEditObjetivoNombre = tareasCliEditObjetivoNombre;
   window.tareasCliDeleteObjetivo = tareasCliDeleteObjetivo;
   window.tareasCliAddTarea = tareasCliAddTarea;
+  // Inbox v1 (S75): consumers legacy esperan symmetría con AddObjetivo/AddTarea.
+  window.tareasCliSave = tareasCliSave;
   window.tareasCliAddSubtask = tareasCliAddSubtask;
   window.tareasCliEditTareaTexto = tareasCliEditTareaTexto;
   window.tareasCliEditTareaNotas = tareasCliEditTareaNotas;
