@@ -11,15 +11,16 @@
 // Bare identifiers que se leen del global scope:
 //  - clients, currentAgencia, currentRol (var en index.html).
 //  - getDefaultClients, showToast, closeModal, firebase (function decl / namespace).
-//  - tareasCliEnsureAllInitialized, tareasCliAddObjetivo, _tareasCliMemCache,
-//    window.TAREAS_CLIENTE_COLORS (expuestos por modules/tareas.js).
+//  - tareasCliEnsureAllInitialized, tareasCliAddObjetivo, _tareasCliMemCache
+//    (expuestos por modules/tareas.js initTareas).
 //
-// Watch Firestore duplicado #32 (_msEnsureTareasCliWatch) y shim
-// TAREAS_CLIENTE_COLORS (en index.html <head>) intencionalmente
-// preservados — se eliminan en F2b.
+// F2b (S74): TAREAS_CLIENTE_COLORS importada vía named import desde tareas.js
+// (shim previo en index.html <head> eliminado). Watch Firestore duplicado #32
+// (_msEnsureTareasCliWatch) sigue pendiente, fuera del scope F2b.
 // ════════════════════════════════════════════════════════════════
 
 import { escapeHtml } from './utils.js';
+import { TAREAS_CLIENTE_COLORS } from './tareas.js';
 
 // ══════════════════════════════════════════════════════════════
 // MÓDULO PLAN SEMANAL — F1 (esqueleto + render bloques estáticos)
@@ -46,12 +47,11 @@ import { escapeHtml } from './utils.js';
 // Permisos: client-side (consistente con resto de Optix). Hardening = deuda técnica.
 // ══════════════════════════════════════════════════════════════
 
-// Paleta cliente: reusa TAREAS_CLIENTE_COLORS de S64 (incluye 'agency' implícito vía _fallback,
-// pero hacemos explícito para evitar gris idéntico al fallback).
-// F1: TAREAS_CLIENTE_COLORS ahora vive en window (definido en <head> inline classic
-// script + asignado de nuevo por modules/tareas.js initTareas). Este script clásico
-// corre ANTES que el módulo deferred, por lo que leemos window.* directamente.
-const CALENDAR_CLIENT_COLORS = Object.assign({}, window.TAREAS_CLIENTE_COLORS, {
+// Paleta cliente: reusa TAREAS_CLIENTE_COLORS de S64 (incluye 'agency' explícito
+// para evitar gris idéntico al _fallback).
+// F2b (S74): import directo desde tareas.js. ESM garantiza que el binding ya
+// esté resuelto al evaluarse este top-level (shim del head ya no existe).
+const CALENDAR_CLIENT_COLORS = Object.assign({}, TAREAS_CLIENTE_COLORS, {
   'agency': '#64748b'
 });
 
@@ -1288,4 +1288,6 @@ export function init() {
   window._msTogglePanelCollapsed = _msTogglePanelCollapsed;
   window._msOnSlotClick = _msOnSlotClick;
   window._msOnBloqueClick = _msOnBloqueClick;
+
+  console.log('[mi-semana.js] init complete');
 }

@@ -5,9 +5,9 @@
  *
  * Depende de:
  * - escapeHtml: import desde ./utils.js
- * - window.TAREAS_CLIENTE_COLORS: declarado en index.html <head> (inline classic
- *   script) para que Mi Semana (script clásico inline, ex L10720) lo encuentre
- *   al script-eval. El módulo aquí lo re-lee y mantiene fallback inline por safety.
+ * - F2b: TAREAS_CLIENTE_COLORS ahora es export const local del módulo (single
+ *   source of truth). Consumido por mi-semana.js vía named import. Shim previo
+ *   en index.html <head> eliminado.
  *
  * Window-compat (initTareas()):
  * - HTML inline onclick/onkeydown handlers en index.html ejecutan en window
@@ -1154,10 +1154,10 @@ function tareasDeleteTarea(areaId, proyId, tareaId) {
 // Doc: workspaces/{wsId}/tareas-clientes/{clientId}
 // ══════════════════════════════════════════════════════════════
 
-// Paleta cliente (corrección S62.6.3.A — no choca con --green/--yellow)
-// TAREAS_CLIENTE_COLORS — declarado en index.html <head> inline classic script
-// (necesario porque Mi Semana lo lee al script-eval; ver L10720 original).
-const TAREAS_CLIENTE_COLORS = (typeof window !== "undefined" && window.TAREAS_CLIENTE_COLORS) || {
+// Paleta cliente (corrección S62.6.3.A — no choca con --green/--yellow).
+// F2b (S74): single source of truth. Importada por modules/mi-semana.js como
+// named import. Shim previo en index.html <head> eliminado en el mismo refactor.
+export const TAREAS_CLIENTE_COLORS = {
   'enpagos':     '#059669',
   'inmobili':    '#a855f7',
   'bodygreen':   '#65a30d',
@@ -2927,9 +2927,6 @@ function initTareas() {
   // 11551, 11683, 11826 en index.html). Asignación por referencia: el cache
   // del módulo y window.* apuntan al mismo objeto.
   window._tareasCliMemCache = _tareasCliMemCache;
-  // Sincroniza también el COLORS (Mi Semana L10720 usa window.TAREAS_CLIENTE_COLORS
-  // pero defensivo en caso de race condition con el head script):
-  window.TAREAS_CLIENTE_COLORS = TAREAS_CLIENTE_COLORS;
 
   // ── Quick Client: HTML inline ──
   window.openQuickClientModal = openQuickClientModal;
