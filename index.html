@@ -12,26 +12,10 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 
-<!-- Refactor F0.5b/F1: módulos extraídos del bundle. tareas.js depende de utils.js. -->
+<!-- Refactor F0.5b/F1/F2a/F2b: módulos ES extraídos del bundle.
+     Dependencias: tareas.js usa utils.js; mi-semana.js usa utils.js + tareas.js
+     (TAREAS_CLIENTE_COLORS importada). -->
 <script type="module" src="./modules/utils.js"></script>
-
-<!-- F1: TAREAS_CLIENTE_COLORS adelantado a window (classic sync script) para que
-     Mi Semana (script clásico inline) lo encuentre al script-eval ANTES de que
-     el módulo deferred modules/tareas.js cargue. modules/tareas.js re-asigna el
-     mismo objeto a window al initTareas() para mantener single source. Mantener
-     sincronizado con la const TAREAS_CLIENTE_COLORS en modules/tareas.js. -->
-<script>
-  window.TAREAS_CLIENTE_COLORS = {
-    'enpagos':     '#059669',
-    'inmobili':    '#a855f7',
-    'bodygreen':   '#65a30d',
-    'luzyla':      '#ca8a04',
-    'divisas':     '#dc2626',
-    'tuyo-health': '#06b6d4',
-    'favio':       '#ec4899',
-    '_fallback':   '#64748b'
-  };
-</script>
 <script type="module" src="./modules/tareas.js"></script>
 <!-- F2a (S73): Mi Semana extraída a módulo. init() expone window.* funcs
      (calendarSemana, _msCascadeNullifyByTareaId, miSemana{Prev,Next,Today},
@@ -8227,8 +8211,9 @@ function toggleAIPanel(btn) {
 // ════════════════════════════════════════════════════════════════
 // MÓDULO PLAN SEMANAL — extraído a modules/mi-semana.js en refactor F2a.
 // HTML inline + tareas.js coupling (_msCascadeNullifyByTareaId) expuestos
-// vía window.* en initMiSemana(). Watch duplicado #32 y shim
-// TAREAS_CLIENTE_COLORS preservados intencionalmente — F2b los elimina.
+// vía window.* en initMiSemana(). Shim TAREAS_CLIENTE_COLORS eliminado en
+// F2b (S74) — ahora named import desde tareas.js. Watch duplicado #32 sigue
+// pendiente fuera del scope F2b.
 // ════════════════════════════════════════════════════════════════
 
 
