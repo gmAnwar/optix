@@ -1278,7 +1278,7 @@ function tareasCliUnsubAll() {
 // Save con versionado optimista — 3 retries con backoff 200/400/600ms.
 // mutator: (baseDoc) => newDoc. Recibe un clon mutable; retorna el draft a persistir.
 // Conflict tras 3 retries: toast + re-fetch + descartar cambio local (Opción A simplificada, S62.6.2 #2).
-async function tareasCliSave(clientId, mutator) {
+export async function tareasCliSave(clientId, mutator) {
   const ref = tareasCliFirestoreRef(clientId);
   if (!ref) {
     console.warn('[tareasCli] save: no ref (offline o unauth)', clientId);
@@ -1452,18 +1452,28 @@ function renderTareasCli() {
     return tareasCliRenderCard(c, color, objetivos);
   }).join('');
 
-  // Layout 2 columnas: calendario sidebar + cards-zone (drop zone para quitar fechaLimite).
+  // Inbox v1 (S75): layout 3-zone — calendar horizontal arriba, inbox a la
+  // izquierda, cards a la derecha. Inbox container vacío aquí; inbox.js lo
+  // llena via renderInbox() después de innerHTML reset.
   container.innerHTML = ''
-    + '<div style="display:grid;grid-template-columns:280px 1fr;gap:20px;align-items:start;">'
-    +   '<div>' + renderTareasCliCalendar() + '</div>'
-    +   '<div class="tareas-cli-cards-zone" data-droppable-type="cards-zone" '
-    +     'ondragover="tareasCliDragOver(event)" ondrop="tareasCliDrop(event)" '
-    +     'style="min-height:200px;">'
-    +     '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:16px;align-items:start;">'
-    +       cards
+    + '<div style="display:flex;flex-direction:column;gap:14px;">'
+    +   '<div>' + renderTareasCliCalendar({ orientation: 'horizontal' }) + '</div>'
+    +   '<div style="display:grid;grid-template-columns:280px 1fr;gap:20px;align-items:start;">'
+    +     '<div id="inbox-container" style="min-height:200px;"></div>'
+    +     '<div class="tareas-cli-cards-zone" data-droppable-type="cards-zone" '
+    +       'ondragover="tareasCliDragOver(event)" ondrop="tareasCliDrop(event)" '
+    +       'style="min-height:200px;">'
+    +       '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:16px;align-items:start;">'
+    +         cards
+    +       '</div>'
     +     '</div>'
     +   '</div>'
     + '</div>';
+
+  // Re-poblar inbox tras DOM reset (no-op si inbox.js no cargó o usuario sin auth).
+  if (typeof window.renderInbox === 'function') {
+    try { window.renderInbox(); } catch (e) {}
+  }
 
   // Banner atrasadas (Fase 6) — refresca cada render.
   if (typeof tareasCliRenderAtrasadasBanner === 'function') tareasCliRenderAtrasadasBanner();
@@ -1699,7 +1709,9 @@ function tareasCliCountTareasByFecha(fechaStr) {
   return count;
 }
 
-function renderTareasCliCalendar() {
+function renderTareasCliCalendar(opts) {
+  const orientation = (opts && opts.orientation) || 'vertical';
+  const isHoriz = orientation === 'horizontal';
   const days = tareasCliGetSemana(_tareasCliCalSemanaOffset);
   const today = tareasCliFmtFecha(new Date());
   const monthNames = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
@@ -1717,6 +1729,17 @@ function renderTareasCliCalendar() {
     const badge = count > 0
       ? '<span style="font-family:\'DM Mono\',monospace;font-size:10px;color:var(--accent);background:rgba(0,229,160,0.12);padding:2px 6px;border-radius:4px;">' + count + '</span>'
       : '';
+    if (isHoriz) {
+      // Horizontal variant: cada día apilado vertical compacto, ancho flex:1.
+      return ''
+        + '<div data-droppable-type="dia" data-fecha="' + fechaStr + '" '
+        +   'ondragover="tareasCliDragOver(event)" ondrop="tareasCliDrop(event)" '
+        +   'style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;padding:6px 4px;border-radius:6px;border:1px solid ' + borderColor + ';background:' + bg + ';min-width:0;">'
+        +   '<span style="font-family:\'DM Mono\',monospace;font-weight:700;color:var(--text3);font-size:9px;letter-spacing:0.05em;">' + dayLabels[i] + '</span>'
+        +   '<span style="font-family:\'DM Sans\',sans-serif;font-weight:700;color:' + dateColor + ';font-size:13px;line-height:1;">' + d.getDate() + '</span>'
+        +   (count > 0 ? '<span style="font-family:\'DM Mono\',monospace;font-size:9px;color:var(--accent);background:rgba(0,229,160,0.12);padding:1px 5px;border-radius:3px;line-height:1.2;">' + count + '</span>' : '<span style="font-size:9px;line-height:1.2;opacity:0;">·</span>')
+        + '</div>';
+    }
     return ''
       + '<div data-droppable-type="dia" data-fecha="' + fechaStr + '" '
       +   'ondragover="tareasCliDragOver(event)" ondrop="tareasCliDrop(event)" '
@@ -1728,6 +1751,24 @@ function renderTareasCliCalendar() {
       +   badge
       + '</div>';
   }).join('');
+
+  if (isHoriz) {
+    // Layout horizontal compacto: nav + days en una sola fila, ~80px alto total.
+    return ''
+      + '<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:8px 12px;display:flex;align-items:center;gap:10px;">'
+      +   '<div style="display:flex;flex-direction:column;align-items:flex-start;gap:2px;flex-shrink:0;min-width:130px;">'
+      +     '<div style="display:flex;align-items:center;gap:4px;">'
+      +       '<button onclick="tareasCliCalPrevWeek()" title="Semana anterior" style="background:transparent;border:none;color:var(--text2);cursor:pointer;font-size:14px;padding:0 4px;line-height:1;">‹</button>'
+      +       '<div style="font-family:\'DM Mono\',monospace;font-size:10px;color:var(--text);">' + weekTitle + '</div>'
+      +       '<button onclick="tareasCliCalNextWeek()" title="Próxima semana" style="background:transparent;border:none;color:var(--text2);cursor:pointer;font-size:14px;padding:0 4px;line-height:1;">›</button>'
+      +     '</div>'
+      +     (_tareasCliCalSemanaOffset !== 0
+          ? '<button onclick="tareasCliCalToday()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text2);font-size:9px;padding:2px 8px;border-radius:4px;cursor:pointer;font-family:\'DM Mono\',monospace;">↺ hoy</button>'
+          : '<div style="font-family:\'DM Mono\',monospace;font-size:8px;color:var(--text3);line-height:1.2;">arrastra → día</div>')
+      +   '</div>'
+      +   '<div style="flex:1;display:flex;gap:6px;min-width:0;">' + daysHtml + '</div>'
+      + '</div>';
+  }
 
   return ''
     + '<div style="position:sticky;top:16px;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 16px;">'
@@ -2265,7 +2306,7 @@ function tareasCliShowAtrasadasModal() {
 }
 
 // ── Actions CRUD (Fase 4) ──────────────────────────────────
-async function tareasCliAddObjetivo(clientId, nombre) {
+export async function tareasCliAddObjetivo(clientId, nombre) {
   const t = String(nombre || '').trim();
   if (!t) return null;
   const newId = 'obj-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
@@ -2303,7 +2344,7 @@ async function tareasCliDeleteObjetivo(clientId, objId) {
   renderTareasCli();
 }
 
-async function tareasCliAddTarea(clientId, objId, texto) {
+export async function tareasCliAddTarea(clientId, objId, texto) {
   const t = String(texto || '').trim();
   if (!t) return;
   const nowIso = new Date().toISOString();

@@ -24,6 +24,14 @@
   import { init as initMiSemana } from './modules/mi-semana.js';
   window.__initMiSemana = initMiSemana;
 </script>
+<!-- Inbox v1 (S75): bandeja de captura rápida en vista Tareas. init()
+     idempotente con auth state guard (postpone hasta onAuthStateChanged).
+     Expone window.renderInbox (tareas.js lo llama tras innerHTML reset) +
+     handlers de modal/edit/delete. -->
+<script type="module">
+  import { init as initInbox } from './modules/inbox.js';
+  window.__initInbox = initInbox;
+</script>
 
 <script>
   const firebaseConfig = {
@@ -4692,6 +4700,15 @@ window.init = async function init(workspaceId) {
     window.__initMiSemana();
   } else {
     console.error('[bootstrap] window.__initMiSemana no disponible — modules/mi-semana.js falló al cargar.');
+  }
+
+  // Inbox v1 (S75): init() es idempotente y se auto-postpone si auth aún no
+  // resolvió (onAuthStateChanged). Expone window.renderInbox (tareas.js lo
+  // llama tras innerHTML reset en renderTareasCli) + handlers.
+  if (typeof window.__initInbox === 'function') {
+    window.__initInbox();
+  } else {
+    console.error('[bootstrap] window.__initInbox no disponible — modules/inbox.js falló al cargar.');
   }
 
   // Si init fue llamado desde selectAgencia, mostrar screen-rol

@@ -1,0 +1,613 @@
+// ════════════════════════════════════════════════════════════════
+// OPTIX — Inbox Mario v1 (S75)
+//
+// Bandeja de captura rápida en vista Tareas v4.0. Reemplaza el sheet
+// paralelo de Mario. SPEC F0B6E7BH17W (D1-D14).
+//
+// Patrón ESM: imports explícitos (no window reads desde el módulo).
+// initInbox() idempotente con auth state guard (D-Auth).
+// Reverse coupling: tareas.js renderTareasCli() llama window.renderInbox()
+// tras innerHTML reset — exposición vía init().
+//
+// Atomicidad rutear (D-H.1): id generation FUERA del mutator + early-return
+// idempotente dentro del mutator (tareasCliSave hace 3 retries con backoff).
+// D-H.2: error state honesto si segundo write (status='routed') falla.
+//
+// Persistencia:
+//   - Firestore: workspaces/{wsId}/inbox/{itemId} con compound index
+//     (owner_uid ASC, status ASC, created_at DESC).
+//   - localStorage sticky: inbox_route_last_{uid} con {client_id,type,objetivo_id}.
+// ════════════════════════════════════════════════════════════════
+
+import {
+  doc, setDoc, updateDoc, deleteDoc, collection,
+  onSnapshot, query, where, orderBy, serverTimestamp
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+import { auth, db, WORKSPACE } from './core.js';
+import { tareasCliAddObjetivo, tareasCliAddTarea, tareasCliSave } from './tareas.js';
+import { escapeHtml } from './utils.js';
+
+// ─────────────────────────────────────────
+// MODULE STATE (privado)
+// ─────────────────────────────────────────
+
+let __inboxInitialized = false;
+let _inboxUnsub = null;        // onSnapshot unsub fn
+let _inboxItems = [];          // ordenado por created_at desc (cache local del snapshot)
+let _modalOpen = null;         // itemId del modal abierto, null si cerrado
+const _LS_KEY_PREFIX = 'inbox_route_last_';
+const _MAX_TEXT = 500;
+
+// ─────────────────────────────────────────
+// HELPERS
+// ─────────────────────────────────────────
+
+function _genShortId() {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID().slice(0, 8);
+  }
+  return Math.floor(Math.random() * 1e9).toString(36);
+}
+
+function _genInboxId() { return 'inbox-' + Date.now() + '-' + _genShortId(); }
+function _genObjId()   { return 'obj-' + Date.now() + '-' + _genShortId(); }
+function _genTareaId() { return 'tarea-' + Date.now() + '-' + _genShortId(); }
+
+function _inboxColRef() {
+  return collection(db, 'workspaces', WORKSPACE.id, 'inbox');
+}
+function _inboxDocRef(itemId) {
+  return doc(db, 'workspaces', WORKSPACE.id, 'inbox', itemId);
+}
+
+function _clampText(t) {
+  return String(t || '').slice(0, _MAX_TEXT);
+}
+
+// ─────────────────────────────────────────
+// STICKY DEFAULTS (I-1)
+// ─────────────────────────────────────────
+
+function _stickyKey() {
+  const uid = auth && auth.currentUser && auth.currentUser.uid;
+  return uid ? (_LS_KEY_PREFIX + uid) : null;
+}
+
+function _stickyLoad() {
+  try {
+    const k = _stickyKey();
+    if (!k) return null;
+    const raw = localStorage.getItem(k);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    // Validar que client_id sigue existiendo (I-1)
+    if (parsed && parsed.client_id) {
+      const exists = (typeof window !== 'undefined' && Array.isArray(window.clients))
+        ? window.clients.some(function(c) { return c.id === parsed.client_id; })
+        : false;
+      if (!exists) return null; // reset si cliente borrado
+    }
+    return parsed;
+  } catch (e) { return null; }
+}
+
+function _stickySave(payload) {
+  try {
+    const k = _stickyKey();
+    if (!k) return;
+    localStorage.setItem(k, JSON.stringify(payload));
+  } catch (e) {}
+}
+
+// ─────────────────────────────────────────
+// CRUD operaciones (Firestore)
+// ─────────────────────────────────────────
+
+async function inboxAdd(text) {
+  const t = _clampText(text).trim();
+  if (!t) return null; // D14: vacíos no se guardan
+  const user = auth && auth.currentUser;
+  if (!user || !user.uid) throw new Error('No auth');
+  const id = _genInboxId();
+  await setDoc(_inboxDocRef(id), {
+    id: id,
+    text: t,
+    owner_uid: user.uid,
+    status: 'pending',
+    created_at: serverTimestamp(),
+    updated_at: serverTimestamp(),
+    routed_at: null,
+    routed_to: null
+  });
+  return id;
+}
+
+async function inboxEditText(itemId, newText) {
+  const t = _clampText(newText).trim();
+  if (!t) return;
+  await updateDoc(_inboxDocRef(itemId), {
+    text: t,
+    updated_at: serverTimestamp()
+  });
+}
+
+async function inboxDelete(itemId) {
+  await deleteDoc(_inboxDocRef(itemId));
+}
+
+// Soft delete: marca status='routed', NO borra el doc (D1: análisis retroactivo).
+async function _inboxMarkRouted(itemId, routedTo) {
+  await updateDoc(_inboxDocRef(itemId), {
+    status: 'routed',
+    routed_at: serverTimestamp(),
+    routed_to: routedTo
+  });
+}
+
+// ─────────────────────────────────────────
+// ROUTING — secuencial con id generation idempotente (D-H.1)
+// ─────────────────────────────────────────
+
+async function inboxRoute(itemId, params) {
+  // params: { client_id, type: 'objetivo'|'tarea', objetivo_id|null, objetivo_name_new|null }
+  const item = _inboxItems.find(function(x) { return x.id === itemId; });
+  if (!item) throw new Error('Item inbox no encontrado');
+
+  const clientId = params.client_id;
+  const type = params.type;
+  if (!clientId) throw new Error('Cliente requerido');
+  if (type !== 'objetivo' && type !== 'tarea') throw new Error('Tipo inválido');
+
+  let finalObjetivoId = null;
+  let finalObjetivoNameNew = null;
+
+  if (type === 'objetivo') {
+    // El texto del inbox ES el nombre del objetivo nuevo.
+    // tareasCliAddObjetivo retorna newId; ya tiene id-generation interno
+    // (no podemos hacerlo idempotente desde afuera). En la práctica solo
+    // crearíamos duplicado si la red falla entre create y status flip,
+    // riesgo aceptable (objetivo en card es eliminable por user).
+    finalObjetivoId = await tareasCliAddObjetivo(clientId, item.text);
+    finalObjetivoNameNew = item.text;
+  } else {
+    // type === 'tarea'
+    if (params.objetivo_id) {
+      // Objetivo existente → solo agregar tarea raíz nivel 2.
+      await tareasCliAddTarea(clientId, params.objetivo_id, item.text);
+      finalObjetivoId = params.objetivo_id;
+    } else if (params.objetivo_name_new) {
+      // D4 + D-H.1: crear objetivo + tarea atómico via mutator combinado.
+      // IDs generados FUERA del mutator (closure capture). Early-return
+      // si retry re-ejecuta encuentra objetivo ya pushed.
+      const objId = _genObjId();
+      const tareaId = _genTareaId();
+      const nowIso = new Date().toISOString();
+      const nuevoNombre = params.objetivo_name_new;
+      const tareaTexto = item.text;
+      await tareasCliSave(clientId, function(d) {
+        if (!Array.isArray(d.objetivos)) d.objetivos = [];
+        if (d.objetivos.find(function(o) { return o.id === objId; })) return d; // idempotente
+        d.objetivos.push({
+          id: objId,
+          nombre: nuevoNombre,
+          collapsed: false,
+          orden: d.objetivos.length,
+          tareas: [{
+            id: tareaId,
+            texto: tareaTexto,
+            completado: false,
+            fechaIdeal: null,
+            fechaLimite: null,
+            notas: '',
+            responsibleUsers: [],
+            orden: 0,
+            createdAt: nowIso,
+            updatedAt: nowIso
+          }]
+        });
+        return d;
+      });
+      finalObjetivoId = objId;
+      finalObjetivoNameNew = nuevoNombre;
+    } else {
+      throw new Error('Tarea sin objetivo (ni existente ni nuevo)');
+    }
+  }
+
+  // Segundo write — D-H.2: si falla, el caller verá warning explícito.
+  // El objetivo/tarea YA quedó creado en card del cliente; inbox row queda pending.
+  try {
+    await _inboxMarkRouted(itemId, {
+      client_id: clientId,
+      type: type,
+      objetivo_id: finalObjetivoId || null,
+      objetivo_name_new: finalObjetivoNameNew || null
+    });
+  } catch (err) {
+    const partial = new Error('inbox-partial-routed');
+    partial.partial = true;
+    partial.originalError = err;
+    throw partial;
+  }
+
+  // Sticky default (D7)
+  _stickySave({
+    client_id: clientId,
+    type: type,
+    objetivo_id: (type === 'tarea' && params.objetivo_id) ? params.objetivo_id : null
+  });
+}
+
+// ─────────────────────────────────────────
+// LISTENER FIRESTORE — guard al nivel del unsub (lección S74 J47)
+// ─────────────────────────────────────────
+
+function _subscribe() {
+  if (_inboxUnsub) return; // multi-init blindaje
+  const user = auth && auth.currentUser;
+  if (!user || !user.uid) return;
+  const q = query(
+    _inboxColRef(),
+    where('owner_uid', '==', user.uid),
+    where('status', '==', 'pending'),
+    orderBy('created_at', 'desc')
+  );
+  _inboxUnsub = onSnapshot(q, function(snap) {
+    _inboxItems = snap.docs.map(function(d) { return d.data(); });
+    renderInbox();
+  }, function(err) {
+    console.error('[inbox.js] onSnapshot error:', err);
+  });
+}
+
+// ─────────────────────────────────────────
+// RENDER
+// ─────────────────────────────────────────
+
+function renderInbox() {
+  const container = document.getElementById('inbox-container');
+  if (!container) return; // No DOM target (user fuera de vista Tareas)
+  const user = auth && auth.currentUser;
+  if (!user || !user.uid) {
+    container.innerHTML = '<div style="padding:14px;color:var(--text3);font-size:12px;">Sesión no iniciada.</div>';
+    return;
+  }
+
+  const itemsHtml = _inboxItems.length === 0
+    ? '<div style="padding:18px 14px;text-align:center;color:var(--text3);font-size:11px;font-family:\'DM Mono\',monospace;line-height:1.4;">Sin pendientes.<br>Captura algo arriba ↑</div>'
+    : _inboxItems.map(function(item) {
+        const idSafe = escapeHtml(item.id);
+        const textSafe = escapeHtml(item.text || '');
+        return ''
+          + '<div data-inbox-id="' + idSafe + '" '
+          +   'style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:8px;display:flex;flex-direction:column;gap:8px;">'
+          +   '<div style="font-size:13px;color:var(--text);line-height:1.4;word-wrap:break-word;white-space:pre-wrap;">' + textSafe + '</div>'
+          +   '<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">'
+          +     '<button onclick="window.__inboxOpenRouteModal(\'' + idSafe + '\')" '
+          +       'style="background:var(--accent);border:none;color:#000;padding:5px 12px;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;font-family:\'DM Sans\',sans-serif;">Asignar</button>'
+          +     '<button onclick="window.__inboxEditPrompt(\'' + idSafe + '\')" '
+          +       'title="Editar texto" '
+          +       'style="background:transparent;border:1px solid var(--border);color:var(--text2);padding:5px 10px;border-radius:6px;font-size:11px;cursor:pointer;">✎</button>'
+          +     '<button onclick="window.__inboxConfirmDelete(\'' + idSafe + '\')" '
+          +       'title="Borrar fila" '
+          +       'style="background:transparent;border:1px solid var(--border);color:var(--text2);padding:5px 10px;border-radius:6px;font-size:11px;cursor:pointer;">×</button>'
+          +   '</div>'
+          + '</div>';
+      }).join('');
+
+  container.innerHTML = ''
+    + '<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px;">'
+    +   '<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">'
+    +     '<div style="font-family:\'Syne\',sans-serif;font-weight:700;font-size:14px;color:var(--text);">📥 Inbox</div>'
+    +     '<div style="font-family:\'DM Mono\',monospace;font-size:10px;color:var(--text3);">' + _inboxItems.length + ' pendiente' + (_inboxItems.length === 1 ? '' : 's') + '</div>'
+    +   '</div>'
+    +   '<div style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px;">'
+    +     '<textarea id="inbox-new-input" placeholder="Captura algo… (Enter para guardar)" maxlength="' + _MAX_TEXT + '" rows="2" '
+    +       'style="width:100%;box-sizing:border-box;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:8px 10px;font-size:12px;font-family:\'DM Sans\',sans-serif;resize:vertical;" '
+    +       'onkeydown="window.__inboxInputKey(event)" '
+    +       'onblur="window.__inboxInputBlur()"></textarea>'
+    +   '</div>'
+    +   '<div id="inbox-list">' + itemsHtml + '</div>'
+    + '</div>';
+}
+
+// ─────────────────────────────────────────
+// HANDLERS (window-exposed)
+// ─────────────────────────────────────────
+
+async function _handleAddFromInput() {
+  const el = document.getElementById('inbox-new-input');
+  if (!el) return;
+  const text = el.value;
+  el.value = '';
+  try {
+    await inboxAdd(text);
+  } catch (e) {
+    console.error('[inbox.js] add error:', e);
+    if (typeof showToast === 'function') showToast('Error al guardar fila', '⚠️');
+  }
+}
+
+function _handleInputKey(ev) {
+  if (ev.key === 'Enter' && !ev.shiftKey) {
+    ev.preventDefault();
+    _handleAddFromInput();
+  }
+}
+
+function _handleEditPrompt(itemId) {
+  const item = _inboxItems.find(function(x) { return x.id === itemId; });
+  if (!item) return;
+  const next = window.prompt('Editar texto (' + _MAX_TEXT + ' max):', item.text || '');
+  if (next === null) return; // cancel
+  inboxEditText(itemId, next).catch(function(e) {
+    console.error('[inbox.js] edit error:', e);
+    if (typeof showToast === 'function') showToast('Error al editar', '⚠️');
+  });
+}
+
+function _handleConfirmDelete(itemId) {
+  const item = _inboxItems.find(function(x) { return x.id === itemId; });
+  if (!item) return;
+  if (!window.confirm('¿Borrar fila "' + (item.text || '').slice(0, 40) + '"?')) return;
+  inboxDelete(itemId).catch(function(e) {
+    console.error('[inbox.js] delete error:', e);
+    if (typeof showToast === 'function') showToast('Error al borrar', '⚠️');
+  });
+}
+
+// ─────────────────────────────────────────
+// MODAL DE RUTEAR (3 pasos)
+// ─────────────────────────────────────────
+
+function _showRouteModal(itemId) {
+  const item = _inboxItems.find(function(x) { return x.id === itemId; });
+  if (!item) return;
+  _modalOpen = itemId;
+
+  const wsId = (typeof currentAgencia !== 'undefined' && currentAgencia) ? currentAgencia : WORKSPACE.id;
+  // Clientes del workspace activo (merge defaults + dynamic, mismo patrón que renderTareasCli)
+  const _defaults = (typeof getDefaultClients === 'function' ? getDefaultClients(wsId) : [])
+    .filter(function(c) { return c.workspaceId === wsId; });
+  const _defaultIds = new Set(_defaults.map(function(c) { return c.id; }));
+  const _dynamic = (typeof clients !== 'undefined' && Array.isArray(clients))
+    ? clients.filter(function(c) { return c.workspaceId === wsId && !_defaultIds.has(c.id); })
+    : [];
+  const catalog = _defaults.concat(_dynamic);
+
+  const sticky = _stickyLoad();
+  const initialClientId = (sticky && sticky.client_id) || (catalog[0] && catalog[0].id) || '';
+  const initialType = (sticky && sticky.type) || 'tarea';
+
+  const modalId = 'inbox-route-modal';
+  let el = document.getElementById(modalId);
+  if (el) el.remove();
+  el = document.createElement('div');
+  el.id = modalId;
+  el.style.cssText = 'position:fixed;inset:0;z-index:99999;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;font-family:\'DM Sans\',sans-serif;';
+
+  const clientOptions = catalog.map(function(c) {
+    return '<option value="' + escapeHtml(c.id) + '"' + (c.id === initialClientId ? ' selected' : '') + '>' + escapeHtml(c.nombre || c.id) + '</option>';
+  }).join('');
+
+  el.innerHTML = ''
+    + '<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:22px;min-width:380px;max-width:480px;box-shadow:0 12px 32px rgba(0,0,0,0.5);">'
+    +   '<div style="font-family:\'Syne\',sans-serif;font-weight:700;font-size:15px;color:var(--text);margin-bottom:6px;">Asignar al cliente</div>'
+    +   '<div style="font-size:12px;color:var(--text2);background:var(--surface2);border-radius:6px;padding:8px 10px;margin-bottom:14px;line-height:1.4;font-style:italic;">' + escapeHtml(item.text || '') + '</div>'
+
+    +   '<div style="margin-bottom:12px;">'
+    +     '<label style="display:block;font-size:11px;color:var(--text2);margin-bottom:4px;font-weight:600;">1. Cliente</label>'
+    +     '<select id="inbox-route-client" style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:7px 8px;border-radius:6px;font-size:12px;">' + clientOptions + '</select>'
+    +     '<div style="font-family:\'DM Mono\',monospace;font-size:9px;color:var(--text3);margin-top:4px;">¿No encuentras el cliente? Créalo primero en vista Clientes con + Rápido.</div>'
+    +   '</div>'
+
+    +   '<div style="margin-bottom:12px;">'
+    +     '<label style="display:block;font-size:11px;color:var(--text2);margin-bottom:4px;font-weight:600;">2. Tipo</label>'
+    +     '<div style="display:flex;gap:8px;">'
+    +       '<label style="flex:1;display:flex;align-items:center;gap:6px;padding:7px 10px;border:1px solid var(--border);border-radius:6px;cursor:pointer;font-size:12px;color:var(--text);">'
+    +         '<input type="radio" name="inbox-route-type" value="objetivo"' + (initialType === 'objetivo' ? ' checked' : '') + ' onchange="window.__inboxRouteTypeChange()" style="margin:0;cursor:pointer;">'
+    +         'Objetivo'
+    +       '</label>'
+    +       '<label style="flex:1;display:flex;align-items:center;gap:6px;padding:7px 10px;border:1px solid var(--border);border-radius:6px;cursor:pointer;font-size:12px;color:var(--text);">'
+    +         '<input type="radio" name="inbox-route-type" value="tarea"' + (initialType !== 'objetivo' ? ' checked' : '') + ' onchange="window.__inboxRouteTypeChange()" style="margin:0;cursor:pointer;">'
+    +         'Tarea'
+    +       '</label>'
+    +     '</div>'
+    +   '</div>'
+
+    +   '<div id="inbox-route-step3" style="margin-bottom:14px;">'
+    + /* dinámico, populated by _refreshStep3 */ ''
+    +   '</div>'
+
+    +   '<div id="inbox-route-error" style="display:none;background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.4);color:var(--red);padding:8px 12px;border-radius:6px;font-size:11px;margin-bottom:12px;"></div>'
+
+    +   '<div style="display:flex;gap:8px;justify-content:flex-end;">'
+    +     '<button id="inbox-route-cancel" style="background:transparent;border:1px solid var(--border);color:var(--text2);padding:8px 14px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">Cancelar</button>'
+    +     '<button id="inbox-route-confirm" style="background:var(--accent);border:none;color:#000;padding:8px 14px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;">Confirmar</button>'
+    +   '</div>'
+    + '</div>';
+
+  document.body.appendChild(el);
+
+  function close() {
+    _modalOpen = null;
+    try { el.remove(); } catch (e) {}
+  }
+  el.onclick = function(ev) { if (ev.target === el) close(); };
+  document.addEventListener('keydown', function escHandler(ev) {
+    if (ev.key === 'Escape') {
+      document.removeEventListener('keydown', escHandler);
+      close();
+    }
+  });
+  document.getElementById('inbox-route-cancel').onclick = close;
+
+  // Cambio de cliente → refresca dropdown objetivos del step 3
+  document.getElementById('inbox-route-client').onchange = _refreshStep3;
+  // Initial render step 3
+  _refreshStep3(undefined, initialClientId, initialType, sticky && sticky.objetivo_id);
+
+  document.getElementById('inbox-route-confirm').onclick = function() {
+    _submitRoute(itemId, close);
+  };
+}
+
+function _refreshStep3(ev, initialClientId, initialType, stickyObjId) {
+  const step3 = document.getElementById('inbox-route-step3');
+  if (!step3) return;
+  const clientSelect = document.getElementById('inbox-route-client');
+  const clientId = clientSelect ? clientSelect.value : initialClientId;
+  const typeEl = document.querySelector('input[name="inbox-route-type"]:checked');
+  const type = typeEl ? typeEl.value : (initialType || 'tarea');
+
+  if (type === 'objetivo') {
+    step3.innerHTML = ''
+      + '<div style="background:var(--surface2);padding:10px 12px;border-radius:6px;font-size:11px;color:var(--text2);line-height:1.4;">'
+      +   '<strong style="color:var(--text);">Crear objetivo:</strong> el texto de la fila será el nombre del nuevo objetivo.'
+      + '</div>';
+    return;
+  }
+
+  // type === 'tarea' → dropdown de objetivos del cliente
+  const memCache = (typeof window !== 'undefined' && window._tareasCliMemCache) || {};
+  const cached = memCache[clientId] || null;
+  const objetivos = (cached && Array.isArray(cached.objetivos)) ? cached.objetivos : [];
+
+  const objOptions = objetivos.map(function(o) {
+    const sel = (stickyObjId && o.id === stickyObjId) ? ' selected' : '';
+    return '<option value="' + escapeHtml(o.id) + '"' + sel + '>' + escapeHtml(o.nombre || o.id) + '</option>';
+  }).join('');
+  const newSelected = (!stickyObjId || !objetivos.find(function(o) { return o.id === stickyObjId; })) ? ' selected' : '';
+
+  step3.innerHTML = ''
+    + '<label style="display:block;font-size:11px;color:var(--text2);margin-bottom:4px;font-weight:600;">3. Objetivo (para la tarea)</label>'
+    + '<select id="inbox-route-objetivo" style="width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:7px 8px;border-radius:6px;font-size:12px;margin-bottom:8px;" onchange="window.__inboxObjChange()">'
+    +   objOptions
+    +   '<option value="__new__"' + newSelected + '>+ Nuevo objetivo…</option>'
+    + '</select>'
+    + '<input id="inbox-route-objetivo-new" type="text" placeholder="Nombre del nuevo objetivo…" maxlength="120" '
+    +   'style="width:100%;box-sizing:border-box;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:7px 8px;border-radius:6px;font-size:12px;display:' + (newSelected ? 'block' : 'none') + ';">';
+}
+
+function _handleObjChange() {
+  const sel = document.getElementById('inbox-route-objetivo');
+  const inp = document.getElementById('inbox-route-objetivo-new');
+  if (!sel || !inp) return;
+  inp.style.display = (sel.value === '__new__') ? 'block' : 'none';
+  if (sel.value === '__new__') inp.focus();
+}
+
+function _handleTypeChange() {
+  // Re-render step 3 según nuevo tipo
+  _refreshStep3();
+}
+
+async function _submitRoute(itemId, closeFn) {
+  const btn = document.getElementById('inbox-route-confirm');
+  const errEl = document.getElementById('inbox-route-error');
+  if (!btn) return;
+
+  function showErr(msg) {
+    if (errEl) { errEl.textContent = msg; errEl.style.display = 'block'; }
+  }
+  function clearErr() {
+    if (errEl) errEl.style.display = 'none';
+  }
+  clearErr();
+
+  const clientSelect = document.getElementById('inbox-route-client');
+  const clientId = clientSelect && clientSelect.value;
+  const typeEl = document.querySelector('input[name="inbox-route-type"]:checked');
+  const type = typeEl && typeEl.value;
+
+  if (!clientId) { showErr('Selecciona un cliente'); return; }
+  if (!type) { showErr('Selecciona tipo'); return; }
+
+  let objetivoId = null;
+  let objetivoNameNew = null;
+
+  if (type === 'tarea') {
+    const objSel = document.getElementById('inbox-route-objetivo');
+    const objNew = document.getElementById('inbox-route-objetivo-new');
+    if (objSel && objSel.value === '__new__') {
+      const nuevoNombre = (objNew && objNew.value || '').trim().slice(0, 120);
+      if (!nuevoNombre) { showErr('Escribe el nombre del nuevo objetivo'); return; }
+      objetivoNameNew = nuevoNombre;
+    } else if (objSel && objSel.value) {
+      objetivoId = objSel.value;
+    } else {
+      showErr('Selecciona o crea un objetivo'); return;
+    }
+  }
+
+  const origText = btn.textContent;
+  btn.disabled = true;
+  btn.style.opacity = '0.6';
+  btn.textContent = 'Asignando…';
+
+  try {
+    await inboxRoute(itemId, {
+      client_id: clientId,
+      type: type,
+      objetivo_id: objetivoId,
+      objetivo_name_new: objetivoNameNew
+    });
+    if (typeof showToast === 'function') showToast('Asignado ✓', '✅');
+    if (typeof closeFn === 'function') closeFn();
+    // Re-render vista Tareas para que aparezca en card cliente
+    if (typeof window.renderTareasCli === 'function') {
+      try { window.renderTareasCli(); } catch (e) {}
+    }
+  } catch (err) {
+    if (err && err.partial) {
+      // D-H.2: objetivo/tarea creado pero status='routed' falló.
+      showErr('Tarea creada pero no se marcó como ruteada en el inbox. Refresca para reconciliar.');
+      btn.textContent = origText;
+      btn.disabled = false;
+      btn.style.opacity = '1';
+    } else {
+      console.error('[inbox.js] route error:', err);
+      showErr((err && err.message) || 'Error al asignar. Intenta de nuevo.');
+      btn.textContent = origText;
+      btn.disabled = false;
+      btn.style.opacity = '1';
+    }
+  }
+}
+
+// ─────────────────────────────────────────
+// INIT — idempotente + auth state guard (D-Auth)
+// ─────────────────────────────────────────
+
+export function init() {
+  if (__inboxInitialized) return;
+  const user = auth && auth.currentUser;
+  if (!user || !user.uid) {
+    // Postponer hasta que auth resuelva (lección S74 #4 multi-init).
+    onAuthStateChanged(auth, function(u) {
+      if (u && u.uid && !__inboxInitialized) init();
+    });
+    return;
+  }
+  __inboxInitialized = true;
+
+  // Exposición window para HTML inline (handlers en filas + modal) + reverse coupling
+  // con tareas.js renderTareasCli (que llama window.renderInbox tras innerHTML reset).
+  window.renderInbox = renderInbox;
+  window.__inboxAdd = inboxAdd;
+  window.__inboxOpenRouteModal = _showRouteModal;
+  window.__inboxEditPrompt = _handleEditPrompt;
+  window.__inboxConfirmDelete = _handleConfirmDelete;
+  window.__inboxInputKey = _handleInputKey;
+  window.__inboxInputBlur = _handleAddFromInput;
+  window.__inboxRouteTypeChange = _handleTypeChange;
+  window.__inboxObjChange = _handleObjChange;
+
+  // Suscribir listener Firestore + primer render.
+  _subscribe();
+  renderInbox();
+
+  console.log('[inbox.js] init complete');
+}
