@@ -1289,5 +1289,21 @@ export function init() {
   window._msOnSlotClick = _msOnSlotClick;
   window._msOnBloqueClick = _msOnBloqueClick;
 
+  // S77 fix Mi Semana drag-drop: el audit F2a (ef81dba) clasificó estos 6
+  // handlers como "internos" porque sus call sites están en HTML inline DENTRO
+  // de templates del mismo módulo. Pero HTML inline se evalúa en scope global
+  // del browser cuando dispara el evento, no en module scope → necesitan
+  // window.* o el drag&drop muere silenciosamente. Lección: HTML inline en
+  // templates = call site externo, sin importar dónde viva el template.
+  // Deuda B (BACKLOG): migrar inline → addEventListener fuera de scope F2a.
+  Object.assign(window, {
+    _msTareaDragStart: _msTareaDragStart,
+    _msBloqueDragStart: _msBloqueDragStart,
+    _msBloqueDragEnd: _msBloqueDragEnd,
+    _msColDragOver: _msColDragOver,
+    _msColDragLeave: _msColDragLeave,
+    _msColDrop: _msColDrop
+  });
+
   console.log('[mi-semana.js] init complete');
 }
