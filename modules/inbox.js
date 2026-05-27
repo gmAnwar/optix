@@ -463,14 +463,15 @@ function _refreshStep3(ev, initialClientId, initialType, stickyObjId) {
   const type = typeEl ? typeEl.value : (initialType || 'tarea');
 
   if (type === 'objetivo') {
-    step3.innerHTML = ''
-      + '<div style="background:var(--surface2);padding:10px 12px;border-radius:6px;font-size:11px;color:var(--text2);line-height:1.4;">'
-      +   '<strong style="color:var(--text);">Crear objetivo:</strong> el texto de la fila será el nombre del nuevo objetivo.'
-      + '</div>';
+    // BACKLOG #48: ocultar contenedor completo cuando type='objetivo'.
+    // El confirm logic ya ignora step3 en ese path; mostrarlo confundía.
+    step3.style.display = 'none';
+    step3.innerHTML = '';
     return;
   }
 
-  // type === 'tarea' → dropdown de objetivos del cliente
+  // type === 'tarea' → restaurar visibilidad + dropdown de objetivos del cliente
+  step3.style.display = '';
   const memCache = (typeof window !== 'undefined' && window._tareasCliMemCache) || {};
   const cached = memCache[clientId] || null;
   const objetivos = (cached && Array.isArray(cached.objetivos)) ? cached.objetivos : [];
