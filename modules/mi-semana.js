@@ -59,6 +59,44 @@ const _calendarSemanaMemCache = {};   // { uid: { bloqueId: doc, ... } }
 const _calendarSemanaUnsubs = {};     // { uid: unsubFn }
 let _calendarSemanaWeekOffset = 0;
 let _calendarSemanaResizeBound = false;
+// PR1 Cambio 1: vista semana|diario per user (localStorage oa-ms-view-<uid>).
+let _calendarSemanaView = 'semana';
+let _calendarSemanaDayOffset = 0;   // días desde hoy en modo diario; reset a 0 al toggle
+
+function _msViewPrefKey(uid) { return 'oa-ms-view-' + (uid || '_anon'); }
+function _msLoadViewPref(uid) {
+  try {
+    const v = localStorage.getItem(_msViewPrefKey(uid));
+    if (v === 'semana' || v === 'diario') _calendarSemanaView = v;
+  } catch (e) {}
+}
+function _msSaveViewPref(uid) {
+  try { localStorage.setItem(_msViewPrefKey(uid), _calendarSemanaView); } catch (e) {}
+}
+function miSemanaToggleView(newView) {
+  if (newView !== 'semana' && newView !== 'diario') return;
+  if (_calendarSemanaView === newView) return;
+  _calendarSemanaView = newView;
+  _calendarSemanaDayOffset = 0;  // reset al toggle (siempre arranca en hoy)
+  const uid = (window.currentUser && window.currentUser.uid) || '';
+  _msSaveViewPref(uid);
+  renderMiSemana();
+}
+function _msPrevStep() {
+  if (_calendarSemanaView === 'diario') _calendarSemanaDayOffset--;
+  else _calendarSemanaWeekOffset--;
+  renderMiSemana();
+}
+function _msNextStep() {
+  if (_calendarSemanaView === 'diario') _calendarSemanaDayOffset++;
+  else _calendarSemanaWeekOffset++;
+  renderMiSemana();
+}
+function _msTodayStep() {
+  if (_calendarSemanaView === 'diario') _calendarSemanaDayOffset = 0;
+  else _calendarSemanaWeekOffset = 0;
+  renderMiSemana();
+}
 
 function calendarSemanaCacheKey(uid) {
   const wsId = currentAgencia || 'optimizads';
@@ -265,6 +303,15 @@ function _msFmtDateShort(date) {
   return date.getDate() + ' ' + meses[date.getMonth()];
 }
 
+// PR1 Cambio 3b: inicio del día CST (UTC-6) — usado para filtrar bloques
+// completados HOY (sin contar madrugadas previas ni días pasados).
+function _msStartOfTodayCST() {
+  const now = new Date();
+  const cstNow = new Date(now.getTime() - 6 * 60 * 60 * 1000);
+  cstNow.setUTCHours(0, 0, 0, 0);
+  return new Date(cstNow.getTime() + 6 * 60 * 60 * 1000);
+}
+
 // Convierte Firestore Timestamp | Date | number | ISO string a Date local.
 function _msToDate(ts) {
   if (!ts) return null;
@@ -333,10 +380,21 @@ function renderMiSemana() {
 }
 
 function _msRenderPageHeader() {
-  const monday = _msGetMondayOfWeek(_calendarSemanaWeekOffset);
-  const friday = new Date(monday); friday.setDate(monday.getDate() + 4);
-  const isThisWeek = _calendarSemanaWeekOffset === 0;
-  const range = _msFmtDateShort(monday) + ' – ' + _msFmtDateShort(friday);
+  // PR1 Cambio 1: label nav según vista activa.
+  const isWeek = _calendarSemanaView === 'semana';
+  let rangeLabel, isAtToday;
+  if (isWeek) {
+    const monday = _msGetMondayOfWeek(_calendarSemanaWeekOffset);
+    const friday = new Date(monday); friday.setDate(monday.getDate() + 4);
+    rangeLabel = _msFmtDateShort(monday) + ' – ' + _msFmtDateShort(friday);
+    isAtToday = _calendarSemanaWeekOffset === 0;
+  } else {
+    const day = new Date(); day.setHours(0,0,0,0); day.setDate(day.getDate() + _calendarSemanaDayOffset);
+    const dayLabels = ['DOM','LUN','MAR','MIÉ','JUE','VIE','SÁB'];
+    const monthNames = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+    rangeLabel = dayLabels[day.getDay()] + ' ' + day.getDate() + ' ' + monthNames[day.getMonth()];
+    isAtToday = _calendarSemanaDayOffset === 0;
+  }
 
   // Switcher placeholder (deshabilitado — Fase 3)
   const profile = window.currentUserProfile || {};
@@ -345,21 +403,33 @@ function _msRenderPageHeader() {
     : '<div style="width:24px;height:24px;border-radius:50%;background:var(--accent);color:#000;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;">' + escapeHtml(((profile.nombre || profile.email || '?')[0] || '?').toUpperCase()) + '</div>';
   const nombre = escapeHtml(profile.nombre || (profile.email || '').split('@')[0] || '—');
 
+  // Pill toggle SEMANA | DIARIO (PR1 Cambio 1)
+  const pillBtn = function(view, label) {
+    const active = _calendarSemanaView === view;
+    const bg = active ? 'var(--accent)' : 'transparent';
+    const color = active ? 'var(--bg)' : 'var(--text2)';
+    const border = active ? '1px solid var(--accent)' : '1px solid var(--border)';
+    return '<button onclick="miSemanaToggleView(\'' + view + '\')" '
+      + 'style="background:' + bg + ';color:' + color + ';border:' + border + ';font-family:\'DM Mono\',monospace;font-size:10px;font-weight:700;letter-spacing:0.05em;padding:4px 10px;border-radius:6px;cursor:pointer;">' + label + '</button>';
+  };
+
   return ''
     + '<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">'
     +   '<div>'
     +     '<div style="font-family:\'Syne\',sans-serif;font-weight:800;font-size:22px;color:var(--text);letter-spacing:-0.3px;">📅 Mi semana</div>'
-    +     '<div style="font-family:\'DM Mono\',monospace;font-size:11px;color:var(--text3);margin-top:4px;">Plan hora-por-hora · 8am-7pm · lun-vie</div>'
+    +     '<div style="font-family:\'DM Mono\',monospace;font-size:11px;color:var(--text3);margin-top:4px;">Plan hora-por-hora · 8am-7pm · ' + (isWeek ? 'lun-vie' : 'día único') + '</div>'
     +   '</div>'
     +   '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">'
     // S67 B-vistas-quick 1.2: nav cross-vista — separado visualmente del switcher contextual.
     +     '<button onclick="enterAs(\'tareas\')" class="btn btn-ghost" style="font-size:12px;flex-shrink:0;" title="Ir a Tareas v4.0">→ Tareas</button>'
+    // PR1 Cambio 1: pill toggle SEMANA|DIARIO.
+    +     '<div style="display:flex;gap:4px;">' + pillBtn('semana', 'SEMANA') + pillBtn('diario', 'DIARIO') + '</div>'
     +     '<div style="display:flex;align-items:center;gap:6px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:4px 6px;">'
-    +       '<button onclick="miSemanaPrevWeek()" title="Semana anterior" style="background:transparent;border:none;color:var(--text2);cursor:pointer;font-size:14px;padding:2px 8px;line-height:1;border-radius:4px;">‹</button>'
-    +       '<span style="font-family:\'DM Mono\',monospace;font-size:11px;color:' + (isThisWeek ? 'var(--accent)' : 'var(--text)') + ';min-width:96px;text-align:center;">' + (isThisWeek ? '● ' : '') + range + '</span>'
-    +       '<button onclick="miSemanaNextWeek()" title="Próxima semana" style="background:transparent;border:none;color:var(--text2);cursor:pointer;font-size:14px;padding:2px 8px;line-height:1;border-radius:4px;">›</button>'
+    +       '<button onclick="_msPrevStep()" title="' + (isWeek ? 'Semana' : 'Día') + ' anterior" style="background:transparent;border:none;color:var(--text2);cursor:pointer;font-size:14px;padding:2px 8px;line-height:1;border-radius:4px;">‹</button>'
+    +       '<span style="font-family:\'DM Mono\',monospace;font-size:11px;color:' + (isAtToday ? 'var(--accent)' : 'var(--text)') + ';min-width:96px;text-align:center;">' + (isAtToday ? '● ' : '') + rangeLabel + '</span>'
+    +       '<button onclick="_msNextStep()" title="Próximo ' + (isWeek ? 'semana' : 'día') + '" style="background:transparent;border:none;color:var(--text2);cursor:pointer;font-size:14px;padding:2px 8px;line-height:1;border-radius:4px;">›</button>'
     +     '</div>'
-    +     (!isThisWeek ? '<button onclick="miSemanaToday()" style="background:transparent;border:1px solid var(--border);color:var(--text3);font-size:10px;padding:4px 10px;border-radius:6px;cursor:pointer;font-family:\'DM Mono\',monospace;">↺ Hoy</button>' : '')
+    +     (!isAtToday ? '<button onclick="_msTodayStep()" style="background:transparent;border:1px solid var(--border);color:var(--text3);font-size:10px;padding:4px 10px;border-radius:6px;cursor:pointer;font-family:\'DM Mono\',monospace;">↺ Hoy</button>' : '')
     +     '<div title="Próximamente — Fase 3" style="display:flex;align-items:center;gap:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:4px 10px 4px 4px;cursor:not-allowed;opacity:0.7;">'
     +       photo
     +       '<span style="font-size:12px;color:var(--text2);font-weight:600;font-family:\'DM Sans\',sans-serif;">' + nombre + '</span>'
@@ -388,9 +458,15 @@ function _msTogglePanelCollapsed(uid) {
 }
 
 function _msRenderGrid(uid) {
-  const monday = _msGetMondayOfWeek(_calendarSemanaWeekOffset);
+  // PR1 Cambio 1: en modo diario, el grid es 1 col del día activo (hoy + dayOffset).
+  const isWeek = _calendarSemanaView === 'semana';
   const today = new Date(); today.setHours(0, 0, 0, 0);
-  const dayLabels = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie'];
+  const numCols = isWeek ? 5 : 1;
+  const weekDayLabels = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie'];
+  const fullDayLabels = ['DOM', 'LUN', 'MAR', 'MIÉ', 'JUE', 'VIE', 'SÁB'];
+  // Origen del loop: lunes (modo semana) o hoy+offset (modo diario).
+  const origen = isWeek ? _msGetMondayOfWeek(_calendarSemanaWeekOffset)
+                        : (function() { const d = new Date(); d.setHours(0,0,0,0); d.setDate(d.getDate() + _calendarSemanaDayOffset); return d; })();
   const cache = _calendarSemanaMemCache[uid] || calendarSemanaLoadCache(uid);
   const bloques = Object.values(cache || {});
 
@@ -409,16 +485,19 @@ function _msRenderGrid(uid) {
     return html;
   })();
 
-  // 5 columnas (lun-vie)
+  // PR1 Cambio 1: numCols = 5 (semana) o 1 (diario). En diario, único día = origen (hoy+offset).
   let diasCols = '';
-  for (let di = 0; di < 5; di++) {
-    const fecha = new Date(monday); fecha.setDate(monday.getDate() + di);
+  for (let di = 0; di < numCols; di++) {
+    const fecha = new Date(origen); fecha.setDate(origen.getDate() + di);
     const fechaIso = fecha.getFullYear() + '-' + String(fecha.getMonth() + 1).padStart(2, '0') + '-' + String(fecha.getDate()).padStart(2, '0');
     const isToday = fecha.toDateString() === today.toDateString();
+    const dayLabel = isWeek ? weekDayLabels[di] : fullDayLabels[fecha.getDay()];
 
     // Bloques del día (filtrar one-off + dentro del rango horario visible)
+    // PR1 Cambio 3a: skip bloques completados — no se renderizan en grid.
     const bloquesDia = bloques.filter(function(b) {
       if (!b || b.recurrencia) return false;
+      if (b.completado === true) return false;
       const ts = _msToDate(b.inicio_ts);
       if (!ts) return false;
       const ymd = ts.getFullYear() + '-' + String(ts.getMonth() + 1).padStart(2, '0') + '-' + String(ts.getDate()).padStart(2, '0');
@@ -428,10 +507,14 @@ function _msRenderGrid(uid) {
     // Asignar columnas para overlap visual (D16) — algoritmo greedy primer-col-libre.
     const overlapCols = _msComputeOverlapCols(bloquesDia);
 
-    let col = '<div data-fecha-iso="' + fechaIso + '" style="flex:1;min-width:140px;border-right:1px solid var(--border);background:' + (isToday ? 'rgba(0,229,160,0.04)' : 'transparent') + ';">';
+    // PR1 Cambio 1: en diario col toma ancho completo; en semana flex:1 normal.
+    const colStyle = isWeek
+      ? 'flex:1;min-width:140px;border-right:1px solid var(--border);background:' + (isToday ? 'rgba(0,229,160,0.04)' : 'transparent') + ';'
+      : 'flex:1;border-right:1px solid var(--border);background:' + (isToday ? 'rgba(0,229,160,0.04)' : 'transparent') + ';';
+    let col = '<div data-fecha-iso="' + fechaIso + '" style="' + colStyle + '">';
     // Header día (también drop target — drop al final del día = primer slot)
     col += '<div style="height:48px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;border-bottom:1px solid var(--border);background:' + (isToday ? 'rgba(0,229,160,0.10)' : 'var(--surface2)') + ';">'
-        + '<span style="font-family:\'DM Mono\',monospace;font-size:10px;color:' + (isToday ? 'var(--accent)' : 'var(--text3)') + ';font-weight:700;text-transform:uppercase;letter-spacing:0.06em;">' + dayLabels[di] + '</span>'
+        + '<span style="font-family:\'DM Mono\',monospace;font-size:10px;color:' + (isToday ? 'var(--accent)' : 'var(--text3)') + ';font-weight:700;text-transform:uppercase;letter-spacing:0.06em;">' + dayLabel + '</span>'
         + '<span style="font-family:\'DM Sans\',sans-serif;font-size:14px;font-weight:700;color:' + (isToday ? 'var(--accent)' : 'var(--text)') + ';">' + fecha.getDate() + '</span>'
         + '</div>';
     // Container de slots con drag-over global (resuelve target via Y offset).
@@ -645,7 +728,9 @@ function _msRenderPanelTareas(uid) {
   }).filter(Boolean).join('');
 
   return ''
-    + '<div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px;max-height:calc(100vh - 200px);overflow-y:auto;">'
+    + '<div data-droppable-type="panel-pendientes" '
+    +   'ondragover="_msPanelDragOver(event)" ondrop="_msPanelDrop(event)" '
+    +   'style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px;max-height:calc(100vh - 200px);overflow-y:auto;transition:border-color 0.12s;">'
     +   '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:4px;">'
     +     '<div style="font-family:\'Syne\',sans-serif;font-weight:700;font-size:14px;color:var(--text);">📋 Pendientes sin bloque</div>'
     // S67 B-vistas-quick 1.1: botón → colapsar panel (recovery vía strip).
@@ -660,6 +745,55 @@ function _msRenderPanelTareas(uid) {
     +   (totalPendientes === 0
         ? '<div style="font-family:\'DM Mono\',monospace;font-size:11px;color:var(--text3);text-align:center;padding:20px 0;">Sin pendientes — todo agendado.</div>'
         : seccionesHtml)
+    +   _msRenderCompletadasHoy(uid)
+    + '</div>';
+}
+
+// PR1 Cambio 3b: sección "✓ Completadas hoy" al final del panel.
+// Lista bloques con completado===true y completado_at >= inicio del día CST.
+// Read-only excepto onclick → modal _msOnBloqueClick (para Desmarcar).
+function _msRenderCompletadasHoy(uid) {
+  const cache = _calendarSemanaMemCache[uid] || calendarSemanaLoadCache(uid) || {};
+  const startToday = _msStartOfTodayCST();
+  const completados = [];
+  Object.values(cache).forEach(function(b) {
+    if (!b || b.completado !== true) return;
+    // Defensive: completado_at puede ser null (legacy) o sentinel serverTimestamp
+    // sin .toDate() (race window pre-roundtrip). Solo aceptar si toDate() existe.
+    const at = (b.completado_at && typeof b.completado_at.toDate === 'function')
+      ? b.completado_at.toDate() : null;
+    if (!at) return;
+    if (at >= startToday) completados.push({ b: b, at: at });
+  });
+  if (!completados.length) return '';
+  // Orden: más reciente arriba.
+  completados.sort(function(x, y) { return y.at.getTime() - x.at.getTime(); });
+
+  const itemsHtml = completados.map(function(o) {
+    const b = o.b;
+    const bid = escapeHtml(b.id);
+    const _cli = (typeof clients !== 'undefined') ? clients.find(function(x) { return x.id === b.cliente_id; }) : null;
+    const color = (_cli && _cli.color) || CALENDAR_CLIENT_COLORS[b.cliente_id] || CALENDAR_CLIENT_COLORS._fallback || '#64748b';
+    const titulo = b.titulo || 'Bloque sin título';
+    const hh = String(o.at.getHours()).padStart(2, '0');
+    const mm = String(o.at.getMinutes()).padStart(2, '0');
+    return ''
+      + '<div onclick="_msOnBloqueClick(event, \'' + bid + '\')" '
+      +   'title="' + escapeHtml(titulo) + ' · click para desmarcar" '
+      +   'style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:6px;background:var(--surface2);border:1px solid var(--border);margin-top:6px;cursor:pointer;opacity:0.7;transition:opacity 0.12s;" '
+      +   'onmouseover="this.style.opacity=\'1\'" onmouseout="this.style.opacity=\'0.7\'">'
+      +   '<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:' + color + ';flex-shrink:0;"></span>'
+      +   '<span style="flex:1;font-size:11px;color:var(--text2);text-decoration:line-through;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + escapeHtml(titulo) + '</span>'
+      +   '<span style="font-family:\'DM Mono\',monospace;font-size:9px;color:var(--text3);flex-shrink:0;">' + hh + ':' + mm + '</span>'
+      + '</div>';
+  }).join('');
+
+  return ''
+    + '<div style="margin-top:18px;padding-top:14px;border-top:1px dashed var(--border);">'
+    +   '<div style="display:flex;align-items:center;gap:6px;font-family:\'Syne\',sans-serif;font-weight:700;font-size:12px;color:var(--text2);margin-bottom:4px;">'
+    +     '<span style="color:var(--accent);">✓</span> Completadas hoy <span style="font-family:\'DM Mono\',monospace;font-size:10px;color:var(--text3);font-weight:400;">(' + completados.length + ')</span>'
+    +   '</div>'
+    +   itemsHtml
     + '</div>';
 }
 
@@ -743,6 +877,37 @@ function _msColDrop(e) {
       b.inicio_ts = inicioTs;
       return b;
     });
+  }
+  _msBloqueDragEnd(e);
+}
+
+// PR1 Cambio 2: panel "Pendientes sin bloque" como drop target.
+// Drop bloque-existing → delete del calendario (la tarea ligada reaparece
+// automáticamente porque conBloque.has(t.id) deja de ser true). Drop
+// tarea-from-panel = no-op (no tiene sentido drop tarea al panel donde ya vive).
+function _msPanelDragOver(e) {
+  if (!_msDragState) return;
+  if (_msDragState.kind !== 'bloque-existing') return; // solo aceptar bloques
+  e.preventDefault();
+  if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+  // Highlight visual: border accent en el wrapper.
+  const wrap = e.currentTarget;
+  if (wrap && wrap.dataset && wrap.dataset.droppableType === 'panel-pendientes') {
+    wrap.style.borderColor = 'var(--accent)';
+  }
+}
+
+function _msPanelDrop(e) {
+  if (!_msDragState) return;
+  if (_msDragState.kind !== 'bloque-existing') { _msBloqueDragEnd(e); return; }
+  e.preventDefault(); e.stopPropagation();
+  const bloqueId = _msDragState.bloqueId;
+  // Reset highlight.
+  const wrap = e.currentTarget;
+  if (wrap && wrap.style) wrap.style.borderColor = '';
+  // Reuso _msDeleteBloque (L801) — async, hace cleanup _calendarSemanaMemCache + warn on err.
+  if (bloqueId) {
+    _msDeleteBloque(bloqueId);
   }
   _msBloqueDragEnd(e);
 }
@@ -1255,6 +1420,10 @@ export function init() {
   if (__miSemanaInitialized) return;
   __miSemanaInitialized = true;
 
+  // PR1 Cambio 1: cargar preferencia vista (semana|diario) per user.
+  const _uidInit = (window.currentUser && window.currentUser.uid) || '';
+  _msLoadViewPref(_uidInit);
+
   // API consola (originalmente top-level en index.html L9434-L9453).
   window.calendarSemana = {
     init: calendarSemanaInit,
@@ -1302,7 +1471,15 @@ export function init() {
     _msBloqueDragEnd: _msBloqueDragEnd,
     _msColDragOver: _msColDragOver,
     _msColDragLeave: _msColDragLeave,
-    _msColDrop: _msColDrop
+    _msColDrop: _msColDrop,
+    // PR1 Cambio 1: nav steps + toggle vista (despachan a Week|Day según view actual).
+    miSemanaToggleView: miSemanaToggleView,
+    _msPrevStep: _msPrevStep,
+    _msNextStep: _msNextStep,
+    _msTodayStep: _msTodayStep,
+    // PR1 Cambio 2: panel pendientes como drop target (drop bloque → delete).
+    _msPanelDragOver: _msPanelDragOver,
+    _msPanelDrop: _msPanelDrop
   });
 
   console.log('[mi-semana.js] init complete');
