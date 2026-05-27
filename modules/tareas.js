@@ -1493,6 +1493,17 @@ function tareasCliRenderCard(client, color, objetivos) {
   const nicho = client.nicho ? escapeHtml(String(client.nicho)) : '';
   const cid = escapeHtml(client.id);
 
+  // PR2 #4: estado colapsado per-uid (localStorage). Si colapsado, skip body+footer.
+  const _uid = (typeof currentUser !== 'undefined' && currentUser && currentUser.uid) || '_anon';
+  const isCollapsed = !!_tareasCliGetCollapsed(_uid)[client.id];
+  const arrowSymbol = isCollapsed ? '▶' : '▼';
+  const arrowLabel = isCollapsed ? 'Expandir cliente' : 'Colapsar cliente';
+  const collapseBtn = '<button onclick="tareasCliToggleCollapsed(\'' + cid + '\')" '
+    + 'title="' + arrowLabel + '" aria-label="' + arrowLabel + '" '
+    + 'style="background:transparent;border:none;cursor:pointer;padding:0;width:18px;height:18px;color:var(--text2);font-size:10px;line-height:1;flex-shrink:0;display:flex;align-items:center;justify-content:center;">'
+    + arrowSymbol
+    + '</button>';
+
   // feat/delete-client-v1: botón trash visible solo si user puede borrar
   // (rol direccion/owner) y el cliente NO es fundacional (startsWith 'client-').
   const canDelete = _canDeleteClient(client.id);
@@ -1500,14 +1511,33 @@ function tareasCliRenderCard(client, color, objetivos) {
     ? '<button class="tareas-cli-delete-btn" onclick="tareasCliShowDeleteClientModal(\'' + cid + '\')" '
         + 'title="Borrar cliente" aria-label="Borrar cliente">&times;</button>'
     : '';
+
+  // PR2 #4: body+footer solo cuando expandido. Computed antes del return para evitar
+  // template chain ternary con concat ambiguo.
+  const bodyAndFooter = isCollapsed ? '' : (''
+    + '<div style="padding:12px 16px;">'
+    +   tareasCliRenderObjetivosList(client, objetivos)
+    + '</div>'
+    + '<div style="padding:0 16px 14px;">'
+    +   '<button onclick="tareasCliShowAddObjetivoInput(\'' + cid + '\')" '
+    +     'style="width:100%;background:transparent;border:1px dashed var(--border2);color:var(--text2);padding:8px 12px;border-radius:8px;font-family:\'DM Sans\',sans-serif;font-size:12px;cursor:pointer;transition:all 0.15s;" '
+    +     'onmouseover="this.style.borderColor=\'var(--accent)\';this.style.color=\'var(--accent)\';" '
+    +     'onmouseout="this.style.borderColor=\'var(--border2)\';this.style.color=\'var(--text2)\';">'
+    +     '＋ Objetivo'
+    +   '</button>'
+    +   '<div id="tareas-cli-add-obj-container-' + cid + '"></div>'
+    + '</div>'
+  );
+
   return ''
     + '<div class="tareas-cli-card" data-client-id="' + cid + '" '
     +   'data-droppable-type="cliente" '
     +   'ondragover="tareasCliDragOver(event)" ondrop="tareasCliDrop(event)" '
     +   'style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;border-top:3px solid ' + color + ';">'
-    +   '<div style="padding:14px 16px;border-bottom:1px solid var(--border);">'
+    +   '<div style="padding:14px 16px;' + (isCollapsed ? '' : 'border-bottom:1px solid var(--border);') + '">'
     +     '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">'
     +       '<div style="display:flex;align-items:center;gap:10px;min-width:0;">'
+    +         collapseBtn
     +         '<div style="width:10px;height:10px;border-radius:50%;background:' + color + ';flex-shrink:0;"></div>'
     +         '<div style="font-family:\'Syne\',sans-serif;font-weight:700;font-size:14px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + escapeHtml(client.nombre || client.id) + '</div>'
     +       '</div>'
@@ -1518,18 +1548,7 @@ function tareasCliRenderCard(client, color, objetivos) {
     +     '</div>'
     +     '<div style="font-family:\'DM Mono\',monospace;font-size:10px;color:' + (overLimit ? 'var(--yellow)' : 'var(--text3)') + ';margin-top:6px;">' + subtitle + '</div>'
     +   '</div>'
-    +   '<div style="padding:12px 16px;">'
-    +     tareasCliRenderObjetivosList(client, objetivos)
-    +   '</div>'
-    +   '<div style="padding:0 16px 14px;">'
-    +     '<button onclick="tareasCliShowAddObjetivoInput(\'' + cid + '\')" '
-    +       'style="width:100%;background:transparent;border:1px dashed var(--border2);color:var(--text2);padding:8px 12px;border-radius:8px;font-family:\'DM Sans\',sans-serif;font-size:12px;cursor:pointer;transition:all 0.15s;" '
-    +       'onmouseover="this.style.borderColor=\'var(--accent)\';this.style.color=\'var(--accent)\';" '
-    +       'onmouseout="this.style.borderColor=\'var(--border2)\';this.style.color=\'var(--text2)\';">'
-    +       '＋ Objetivo'
-    +     '</button>'
-    +     '<div id="tareas-cli-add-obj-container-' + cid + '"></div>'
-    +   '</div>'
+    +   bodyAndFooter
     + '</div>';
 }
 
@@ -1668,6 +1687,28 @@ function tareasCliToggleSubtaskCollapse(clientId, taskId) {
     if (cur) localStorage.removeItem(key);
     else localStorage.setItem(key, '1');
   } catch (e) {}
+  renderTareasCli();
+}
+
+// PR2 #4: colapsar/expandir card cliente entera (objetivos+tareas+botón).
+// Key per-uid: oa-tareas-cli-collapsed-<uid>. JSON {<clientId>: true} (presencia=colapsado).
+function _tareasCliCollapsedKey(uid) {
+  return 'oa-tareas-cli-collapsed-' + (uid || '_anon');
+}
+function _tareasCliGetCollapsed(uid) {
+  try { return JSON.parse(localStorage.getItem(_tareasCliCollapsedKey(uid)) || '{}'); }
+  catch (e) { return {}; }
+}
+function _tareasCliSetCollapsed(uid, clientId, value) {
+  const state = _tareasCliGetCollapsed(uid);
+  if (value) state[clientId] = true; else delete state[clientId];
+  try { localStorage.setItem(_tareasCliCollapsedKey(uid), JSON.stringify(state)); }
+  catch (e) { console.warn('[tareasCli] saveCollapsed failed', e); }
+}
+function tareasCliToggleCollapsed(clientId) {
+  const uid = (typeof currentUser !== 'undefined' && currentUser && currentUser.uid) || '_anon';
+  const state = _tareasCliGetCollapsed(uid);
+  _tareasCliSetCollapsed(uid, clientId, !state[clientId]);
   renderTareasCli();
 }
 
@@ -2955,6 +2996,8 @@ function initTareas() {
   window.tareasCliConfirmDeleteTarea = tareasCliConfirmDeleteTarea;
   window.tareasCliShowDeleteClientModal = tareasCliShowDeleteClientModal;
   window.tareasCliToggleSubtaskCollapse = tareasCliToggleSubtaskCollapse;
+  // PR2 #4: flecha colapsar/expandir card cliente entera.
+  window.tareasCliToggleCollapsed = tareasCliToggleCollapsed;
   window.tareasCliCalPrevWeek = tareasCliCalPrevWeek;
   window.tareasCliCalNextWeek = tareasCliCalNextWeek;
   window.tareasCliCalToday = tareasCliCalToday;
