@@ -184,10 +184,12 @@ body {
 }
 
 /* Status tints — applied via border-left only so the chip body stays neutral
- * and color-blind users still distinguish via the % number / value. */
-.goal-chip--status-verde   { border-left-color: #2e7d32; }
-.goal-chip--status-amarillo { border-left-color: #f9a825; }
-.goal-chip--status-rojo    { border-left-color: #c62828; }
+ * and color-blind users still distinguish via the % number / value.
+ * Class names mirror the backend's English status strings (green/yellow/red);
+ * no translation layer between JSON and DOM. */
+.goal-chip--status-green  { border-left-color: #2e7d32; }
+.goal-chip--status-yellow { border-left-color: #f9a825; }
+.goal-chip--status-red    { border-left-color: #c62828; }
 
 /* Graceful: muted when value is "—" (pipeline down). Border stays
  * status-colored if cac_status is present alongside the "—". */

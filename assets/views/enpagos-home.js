@@ -176,9 +176,13 @@
   }
 
   function _statusClass(status) {
-    if (status === 'verde') return 'goal-chip--status-verde';
-    if (status === 'amarillo') return 'goal-chip--status-amarillo';
-    if (status === 'rojo') return 'goal-chip--status-rojo';
+    // Backend contract: cac_status / costo_preaut_positivo_status come as
+    // English strings 'green' | 'yellow' | 'red'. CSS class names mirror
+    // the backend so there's no translation layer — if the contract ever
+    // changes the test breaks loud rather than silently dropping the tint.
+    if (status === 'green')  return 'goal-chip--status-green';
+    if (status === 'yellow') return 'goal-chip--status-yellow';
+    if (status === 'red')    return 'goal-chip--status-red';
     return '';
   }
 
