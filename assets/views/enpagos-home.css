@@ -124,6 +124,78 @@ body {
   color: #fff;
 }
 
+/* ── F3.2 Goals card — 3 chips (Cierres, Inversión, CAC) ───────────────── */
+
+.goals-chips {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.goal-chip {
+  flex: 1 1 200px;
+  min-width: 180px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+  background: #fff;
+  border: 1px solid #e5e5e5;
+  border-left: 3px solid #d0d0d0;
+  border-radius: 8px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.goal-chip__label {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #6b6b6b;
+}
+
+.goal-chip__values {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  font-size: 20px;
+  font-weight: 700;
+  color: #1a1a1a;
+}
+
+.goal-chip__value {
+  /* Actual — same weight as goal, distinguished by position only. */
+}
+
+.goal-chip__sep {
+  color: #b0b0b0;
+  font-weight: 400;
+}
+
+.goal-chip__goal {
+  font-weight: 400;
+  color: #6b6b6b;
+  font-size: 16px;
+}
+
+.goal-chip__pct {
+  font-size: 13px;
+  color: #6b6b6b;
+}
+
+/* Status tints — applied via border-left only so the chip body stays neutral
+ * and color-blind users still distinguish via the % number / value. */
+.goal-chip--status-verde   { border-left-color: #2e7d32; }
+.goal-chip--status-amarillo { border-left-color: #f9a825; }
+.goal-chip--status-rojo    { border-left-color: #c62828; }
+
+/* Graceful: muted when value is "—" (pipeline down). Border stays
+ * status-colored if cac_status is present alongside the "—". */
+.goal-chip--graceful .goal-chip__value,
+.goal-chip--graceful .goal-chip__pct {
+  color: #b0b0b0;
+}
+
 /* Mobile placeholder — full breakpoint is F3.7. Only ensures the period
  * selector doesn't overflow on narrow screens. */
 @media (max-width: 767px) {
@@ -131,5 +203,9 @@ body {
     overflow-x: auto;
     flex-wrap: nowrap;
     -webkit-overflow-scrolling: touch;
+  }
+  .goal-chip {
+    flex: 1 1 100%;
+    min-width: 0;
   }
 }
