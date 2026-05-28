@@ -1168,6 +1168,53 @@ export const TAREAS_CLIENTE_COLORS = {
   '_fallback':   '#64748b'
 };
 
+// PR3 v4.1 (SPEC F0B6LPZCWEN): scopes de objetivos por rol.
+// Lazy migration en read: objetivos sin field `scope` se tratan como 'compartido'.
+// Defensive fallback en _getCurrentRol: si profile no resolvió aún, asume 'junior' (más restrictivo).
+export const TAREAS_CLI_SCOPES = ['operativo', 'estrategico', 'compartido'];
+const TAREAS_CLI_SENIOR_ROLES = ['all', 'direccion', 'owner'];
+
+function _tareasCliGetCurrentRol() {
+  return (typeof window !== 'undefined' && window.currentUserProfile && window.currentUserProfile.rol) || 'junior';
+}
+function tareasCliIsSeniorRol(rol) {
+  return TAREAS_CLI_SENIOR_ROLES.indexOf(rol) !== -1;
+}
+function tareasCliDefaultScopeForRol(rol) {
+  return tareasCliIsSeniorRol(rol) ? 'estrategico' : 'operativo';
+}
+
+// Helper único: ¿este objetivo es visible para este rol con su toggle "Solo míos"?
+//  - Junior: nunca ve estrategicos. No tiene toggle.
+//  - Senior: ve todo por default. Toggle onlyMine activo → oculta operativos.
+export function tareasCliScopeMatch(objetivo, opts) {
+  opts = opts || {};
+  const scope = (objetivo && objetivo.scope) || 'compartido';
+  const userRol = opts.userRol || _tareasCliGetCurrentRol();
+  const onlyMine = !!opts.onlyMine;
+  const isSenior = tareasCliIsSeniorRol(userRol);
+  if (!isSenior) return scope !== 'estrategico';
+  if (onlyMine) return scope !== 'operativo';
+  return true;
+}
+
+// Toggle "TODO | SOLO MÍOS" per-uid (consumido por vista Tareas + Mi Semana).
+function _tareasCliOnlyMineKey(uid) { return 'oa-tareas-cli-only-mine-' + (uid || '_anon'); }
+export function tareasCliGetOnlyMine(uid) {
+  if (uid == null) uid = (typeof currentUser !== 'undefined' && currentUser && currentUser.uid) || '_anon';
+  try { return localStorage.getItem(_tareasCliOnlyMineKey(uid)) === '1'; }
+  catch (e) { return false; }
+}
+export function tareasCliToggleOnlyMine() {
+  const uid = (typeof currentUser !== 'undefined' && currentUser && currentUser.uid) || '_anon';
+  const next = !tareasCliGetOnlyMine(uid);
+  try { localStorage.setItem(_tareasCliOnlyMineKey(uid), next ? '1' : '0'); } catch (e) {}
+  if (typeof renderTareasCli === 'function') { try { renderTareasCli(); } catch (e) {} }
+  if (typeof window !== 'undefined' && typeof window.renderMiSemana === 'function') {
+    try { window.renderMiSemana(); } catch (e) {}
+  }
+}
+
 const _tareasCliMemCache = {};
 const _tareasCliUnsubs = {};       // { clientId: unsubFn }
 
@@ -1452,12 +1499,33 @@ function renderTareasCli() {
     return tareasCliRenderCard(c, color, objetivos);
   }).join('');
 
+  // PR3 v4.1: toggle "TODO | SOLO MÍOS" solo para senior. Mismo patrón visual
+  // que pill SEMANA|DIARIO de Mi Semana PR1. Cross-view sync via localStorage.
+  const _curRolH = _tareasCliGetCurrentRol();
+  const _isSeniorH = tareasCliIsSeniorRol(_curRolH);
+  const _onlyMineH = tareasCliGetOnlyMine();
+  const onlyMineToggle = _isSeniorH ? (function() {
+    const labelTodo = !_onlyMineH;
+    const stylePill = function(active) {
+      const bg = active ? 'var(--accent)' : 'transparent';
+      const color = active ? 'var(--bg)' : 'var(--text2)';
+      const border = active ? '1px solid var(--accent)' : '1px solid var(--border)';
+      return 'background:' + bg + ';color:' + color + ';border:' + border + ';font-family:\'DM Mono\',monospace;font-size:10px;font-weight:700;letter-spacing:0.05em;padding:4px 10px;border-radius:6px;cursor:pointer;';
+    };
+    return ''
+      + '<div style="display:flex;justify-content:flex-end;gap:4px;">'
+      +   '<button onclick="tareasCliToggleOnlyMine()" style="' + stylePill(labelTodo) + '">TODO</button>'
+      +   '<button onclick="tareasCliToggleOnlyMine()" style="' + stylePill(!labelTodo) + '">SOLO MÍOS</button>'
+      + '</div>';
+  })() : '';
+
   // Inbox v1 (S75): layout 3-zone — calendar horizontal arriba, inbox a la
   // izquierda, cards a la derecha. Inbox container vacío aquí; inbox.js lo
   // llena via renderInbox() después de innerHTML reset.
   container.innerHTML = ''
     + '<div style="display:flex;flex-direction:column;gap:14px;">'
     +   '<div>' + renderTareasCliCalendar({ orientation: 'horizontal' }) + '</div>'
+    +   onlyMineToggle
     +   '<div style="display:grid;grid-template-columns:280px 1fr;gap:20px;align-items:start;">'
     +     '<div id="inbox-container" style="min-height:200px;"></div>'
     +     '<div class="tareas-cli-cards-zone" data-droppable-type="cards-zone" '
@@ -1553,12 +1621,19 @@ function tareasCliRenderCard(client, color, objetivos) {
 }
 
 function tareasCliRenderObjetivosList(client, objetivos) {
-  if (!objetivos || objetivos.length === 0) {
+  // PR3 v4.1: filtro por scope según rol del user + toggle "Solo míos".
+  const _curRol = _tareasCliGetCurrentRol();
+  const _onlyMine = tareasCliGetOnlyMine();
+  const _isSenior = tareasCliIsSeniorRol(_curRol);
+  const _filtered = (objetivos || []).filter(function(o) {
+    return tareasCliScopeMatch(o, { userRol: _curRol, onlyMine: _onlyMine });
+  });
+  if (!_filtered.length) {
     return '<div style="padding:14px 0;color:var(--text3);font-size:12px;text-align:center;font-family:\'DM Mono\',monospace;">Sin objetivos creados</div>';
   }
   const cid = escapeHtml(client.id);
   const clientIdRaw = client.id;
-  return objetivos.map(function(o) {
+  return _filtered.map(function(o) {
     const oid = escapeHtml(o.id);
     const allTareas = Array.isArray(o.tareas) ? o.tareas : [];
     const done = allTareas.filter(function(t) { return t.completado; }).length;
@@ -1651,6 +1726,17 @@ function tareasCliRenderObjetivosList(client, objetivos) {
       +       'onclick="tareasCliEditObjNameInline(event, \'' + cid + '\', \'' + oid + '\')">'
       +       objNombreSafe
       +     '</span>'
+      +     (_isSenior ? (function() {
+            // PR3 v4.1: badge solo para senior. HEX directo inline (sin CSS vars nuevas).
+            const _sc = (o.scope) || 'compartido';
+            const _badgeStyles = {
+              'operativo':   { bg: 'rgba(59,130,246,0.18)',  fg: '#3b82f6',          label: 'OPERATIVO' },
+              'estrategico': { bg: 'rgba(168,85,247,0.18)',  fg: '#a855f7',          label: 'ESTRATÉGICO' },
+              'compartido':  { bg: 'rgba(148,163,184,0.18)', fg: 'var(--text3)',    label: 'COMPARTIDO' }
+            };
+            const _b = _badgeStyles[_sc] || _badgeStyles['compartido'];
+            return '<span style="font-family:\'DM Mono\',monospace;font-size:9px;padding:2px 6px;border-radius:4px;text-transform:uppercase;letter-spacing:0.05em;margin-left:6px;background:' + _b.bg + ';color:' + _b.fg + ';flex-shrink:0;">' + _b.label + '</span>';
+          })() : '')
       +     '<span style="font-family:\'DM Mono\',monospace;font-size:10px;color:var(--text3);flex-shrink:0;">' + done + '/' + allTareas.length + '</span>'
       +     '<button onclick="tareasCliConfirmDeleteObjetivo(\'' + cid + '\', \'' + oid + '\')" '
       +       'title="Eliminar objetivo" '
@@ -2347,9 +2433,14 @@ function tareasCliShowAtrasadasModal() {
 }
 
 // ── Actions CRUD (Fase 4) ──────────────────────────────────
-export async function tareasCliAddObjetivo(clientId, nombre) {
+export async function tareasCliAddObjetivo(clientId, nombre, scope) {
   const t = String(nombre || '').trim();
   if (!t) return null;
+  // PR3: scope opcional. null/undefined → default por rol (estratégico senior / operativo junior).
+  // Inbox v1 llama con 2 args → cae aquí y hereda del usuario actual sin tocar inbox.js.
+  let finalScope = scope;
+  if (finalScope == null) finalScope = tareasCliDefaultScopeForRol(_tareasCliGetCurrentRol());
+  if (TAREAS_CLI_SCOPES.indexOf(finalScope) === -1) finalScope = 'compartido'; // defensive
   const newId = 'obj-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
   await tareasCliSave(clientId, function(d) {
     if (!Array.isArray(d.objetivos)) d.objetivos = [];
@@ -2358,6 +2449,7 @@ export async function tareasCliAddObjetivo(clientId, nombre) {
       nombre: t,
       collapsed: false,
       orden: d.objetivos.length,
+      scope: finalScope,
       tareas: []
     });
     return d;
@@ -2523,12 +2615,25 @@ function tareasCliShowAddObjetivoInput(clientId) {
   if (!cont) return;
   if (cont.dataset.open === '1') { cont.innerHTML = ''; cont.dataset.open = '0'; return; }
   cont.dataset.open = '1';
+  // PR3 v4.1: dropdown scope debajo del input (Enter confirma, lee valor del select).
+  const defaultScope = tareasCliDefaultScopeForRol(_tareasCliGetCurrentRol());
+  const scopeOptionsHtml = TAREAS_CLI_SCOPES.map(function(s) {
+    const label = s.charAt(0).toUpperCase() + s.slice(1).replace('estrategico', 'Estratégico');
+    const finalLabel = s === 'estrategico' ? 'Estratégico' : (s === 'operativo' ? 'Operativo' : 'Compartido');
+    const sel = s === defaultScope ? ' selected' : '';
+    return '<option value="' + s + '"' + sel + '>' + finalLabel + '</option>';
+  }).join('');
   cont.innerHTML = ''
-    + '<div style="display:flex;gap:6px;margin-top:8px;">'
+    + '<div style="display:flex;flex-direction:column;gap:6px;margin-top:8px;">'
     +   '<input id="tareas-cli-new-obj-' + clientId + '" type="text" placeholder="Nombre del objetivo y Enter..." '
     +     'style="flex:1;background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:\'DM Sans\',sans-serif;font-size:12px;padding:8px 10px;border-radius:6px;outline:none;" '
     +     'onkeydown="tareasCliHandleObjInputKey(event, \'' + clientId + '\')" '
     +     'onblur="tareasCliBlurObjInput(\'' + clientId + '\')">'
+    +   '<select id="tareas-cli-new-obj-scope-' + clientId + '" '
+    +     'onblur="tareasCliBlurObjInput(\'' + clientId + '\')" '
+    +     'style="background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:\'DM Sans\',sans-serif;font-size:12px;padding:8px 10px;border-radius:6px;outline:none;cursor:pointer;">'
+    +     scopeOptionsHtml
+    +   '</select>'
     + '</div>';
   setTimeout(function() {
     const inp = document.getElementById('tareas-cli-new-obj-' + clientId);
@@ -2542,7 +2647,11 @@ function tareasCliHandleObjInputKey(e, clientId) {
     const inp = document.getElementById('tareas-cli-new-obj-' + clientId);
     const t = inp ? inp.value.trim() : '';
     if (inp) inp.onblur = null;
-    if (t) tareasCliAddObjetivo(clientId, t);
+    // PR3 v4.1: leer scope del select. Si no existe (regresión DOM), null → default por rol.
+    const scopeSel = document.getElementById('tareas-cli-new-obj-scope-' + clientId);
+    const scopeVal = (scopeSel && scopeSel.value) || null;
+    if (scopeSel) scopeSel.onblur = null;
+    if (t) tareasCliAddObjetivo(clientId, t, scopeVal);
     const cont = document.getElementById('tareas-cli-add-obj-container-' + clientId);
     if (cont) { cont.innerHTML = ''; cont.dataset.open = '0'; }
   } else if (e.key === 'Escape') {
@@ -2552,9 +2661,13 @@ function tareasCliHandleObjInputKey(e, clientId) {
 }
 
 function tareasCliBlurObjInput(clientId) {
+  // PR3 v4.1: si focus pasó al select del mismo container, NO cerrar.
+  // Sin esto, click en el dropdown cerraría el container (perdería selección).
   setTimeout(function() {
     const cont = document.getElementById('tareas-cli-add-obj-container-' + clientId);
-    if (cont) { cont.innerHTML = ''; cont.dataset.open = '0'; }
+    if (!cont) return;
+    if (cont.contains(document.activeElement)) return;
+    cont.innerHTML = ''; cont.dataset.open = '0';
   }, 100);
 }
 
@@ -2998,6 +3111,8 @@ function initTareas() {
   window.tareasCliToggleSubtaskCollapse = tareasCliToggleSubtaskCollapse;
   // PR2 #4: flecha colapsar/expandir card cliente entera.
   window.tareasCliToggleCollapsed = tareasCliToggleCollapsed;
+  // PR3 v4.1: toggle "TODO | SOLO MÍOS" (solo senior renderiza el botón).
+  window.tareasCliToggleOnlyMine = tareasCliToggleOnlyMine;
   window.tareasCliCalPrevWeek = tareasCliCalPrevWeek;
   window.tareasCliCalNextWeek = tareasCliCalNextWeek;
   window.tareasCliCalToday = tareasCliCalToday;

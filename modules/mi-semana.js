@@ -20,7 +20,7 @@
 // ════════════════════════════════════════════════════════════════
 
 import { escapeHtml } from './utils.js';
-import { TAREAS_CLIENTE_COLORS } from './tareas.js';
+import { TAREAS_CLIENTE_COLORS, tareasCliScopeMatch, tareasCliGetOnlyMine } from './tareas.js';
 
 // ══════════════════════════════════════════════════════════════
 // MÓDULO PLAN SEMANAL — F1 (esqueleto + render bloques estáticos)
@@ -683,12 +683,18 @@ function _msRenderPanelTareas(uid) {
     : [];
   const catalog = _defaults.concat(_dynamic);
 
+  // PR3 v4.1: filtro scope por rol + toggle "Solo míos" (compartido cross-view con Tareas).
+  const _curRol = (window.currentUserProfile && window.currentUserProfile.rol) || 'junior';
+  const _onlyMine = tareasCliGetOnlyMine();
+
   let totalPendientes = 0;
   const seccionesHtml = catalog.map(function(c) {
     const cdoc = _tareasCliMemCache[c.id];
     if (!cdoc || !Array.isArray(cdoc.objetivos) || !cdoc.objetivos.length) return '';
     const items = [];
     cdoc.objetivos.forEach(function(o) {
+      // PR3 v4.1: skip objetivos no visibles para este rol con su toggle.
+      if (!tareasCliScopeMatch(o, { userRol: _curRol, onlyMine: _onlyMine })) return;
       (o.tareas || []).forEach(function(t) {
         if (t.completado) return;
         if (conBloque.has(t.id)) return;
@@ -727,6 +733,25 @@ function _msRenderPanelTareas(uid) {
       + '</div>';
   }).filter(Boolean).join('');
 
+  // PR3 v4.1: toggle "TODO | SOLO MÍOS" en header del panel. Solo senior.
+  // Mismo patrón visual que pill SEMANA|DIARIO. window.tareasCliToggleOnlyMine
+  // expuesta por initTareas — cross-view sync con vista Tareas via localStorage.
+  const _isSenior = _curRol === 'all' || _curRol === 'direccion' || _curRol === 'owner';
+  const onlyMineToggleMs = _isSenior ? (function() {
+    const labelTodo = !_onlyMine;
+    const stylePill = function(active) {
+      const bg = active ? 'var(--accent)' : 'transparent';
+      const color = active ? 'var(--bg)' : 'var(--text2)';
+      const border = active ? '1px solid var(--accent)' : '1px solid var(--border)';
+      return 'background:' + bg + ';color:' + color + ';border:' + border + ';font-family:\'DM Mono\',monospace;font-size:9px;font-weight:700;letter-spacing:0.05em;padding:3px 8px;border-radius:5px;cursor:pointer;';
+    };
+    return ''
+      + '<div style="display:flex;gap:4px;margin-bottom:6px;">'
+      +   '<button onclick="window.tareasCliToggleOnlyMine && window.tareasCliToggleOnlyMine()" style="' + stylePill(labelTodo) + '">TODO</button>'
+      +   '<button onclick="window.tareasCliToggleOnlyMine && window.tareasCliToggleOnlyMine()" style="' + stylePill(!labelTodo) + '">SOLO MÍOS</button>'
+      + '</div>';
+  })() : '';
+
   return ''
     + '<div data-droppable-type="panel-pendientes" '
     +   'ondragover="_msPanelDragOver(event)" ondrop="_msPanelDrop(event)" '
@@ -741,6 +766,7 @@ function _msRenderPanelTareas(uid) {
     +       '→'
     +     '</button>'
     +   '</div>'
+    +   onlyMineToggleMs
     +   '<div style="font-family:\'DM Mono\',monospace;font-size:10px;color:var(--text3);margin-bottom:12px;">' + totalPendientes + ' tareas · arrastra al calendario</div>'
     +   (totalPendientes === 0
         ? '<div style="font-family:\'DM Mono\',monospace;font-size:11px;color:var(--text3);text-align:center;padding:20px 0;">Sin pendientes — todo agendado.</div>'
