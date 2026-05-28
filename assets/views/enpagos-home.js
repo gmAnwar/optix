@@ -493,33 +493,38 @@
   // falls back to that with a >999% guardrail (matches the rounding
   // discipline elsewhere in this file).
 
-  function _shortMonth(monthNum) {
-    // 1-indexed (1 = ene). Falls back to numeric string if out of range.
-    var names = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
-    return (monthNum >= 1 && monthNum <= 12) ? names[monthNum - 1] : String(monthNum);
-  }
+  // Aligned to enpagos-daily.js:293-311 ("vs ABRIL (1-28)" pattern) per
+  // cross-view consistency requirement. Returns the suffix only — caller
+  // prepends "vs ". Hardcoded "(1-N)" + uppercase full month name mirrors
+  // Daily's behavior exactly, including its assumption that prev period
+  // starts on day 1 of its month (true for mtd; approximate for 7d/30d
+  // windows that cross month boundaries — same approximation Daily ships).
+  //
+  // DEUDA (filed by Anwar, not in scope today): Opción 2 — extract this
+  // helper to a shared module (e.g. assets/views/_period-label.js) imported
+  // by both Home and Daily so future drift is impossible. Pending Home
+  // stabilization (post-F3.8).
+  var _MONTH_NAMES_UPPER = [
+    'ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO',
+    'JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE'
+  ];
 
   function _formatPreviousRange(previousPeriod) {
     // previousPeriod: { from: 'YYYY-MM-DD', to: 'YYYY-MM-DD', days: N }.
-    // Renders "abr 1-28" when from/to share a month, otherwise "abr 1-may 2".
-    // Returns "periodo anterior" as a generic fallback when shape unexpected.
+    // Returns "ABRIL (1-28)" suffix. Fallback "periodo anterior" preserved
+    // for the missing-shape branch (per Anwar: don't change the fallback
+    // when meta.previous_period is absent).
     if (!previousPeriod || !previousPeriod.from || !previousPeriod.to) {
       return 'periodo anterior';
     }
-    var f = String(previousPeriod.from).split('-');
-    var t = String(previousPeriod.to).split('-');
-    if (f.length !== 3 || t.length !== 3) return 'periodo anterior';
-    var fMonth = parseInt(f[1], 10);
-    var fDay   = parseInt(f[2], 10);
-    var tMonth = parseInt(t[1], 10);
-    var tDay   = parseInt(t[2], 10);
-    if (isNaN(fMonth) || isNaN(fDay) || isNaN(tMonth) || isNaN(tDay)) {
-      return 'periodo anterior';
-    }
-    if (fMonth === tMonth) {
-      return _shortMonth(fMonth) + ' ' + fDay + '-' + tDay;
-    }
-    return _shortMonth(fMonth) + ' ' + fDay + '-' + _shortMonth(tMonth) + ' ' + tDay;
+    var fromParts = String(previousPeriod.from).split('-');
+    var toParts   = String(previousPeriod.to).split('-');
+    if (fromParts.length !== 3 || toParts.length !== 3) return 'periodo anterior';
+    var monthNum = parseInt(fromParts[1], 10);
+    var toDay    = parseInt(toParts[2], 10);
+    var monthName = _MONTH_NAMES_UPPER[monthNum - 1];
+    if (!monthName || isNaN(toDay)) return 'periodo anterior';
+    return monthName + ' (1-' + toDay + ')';
   }
 
   function _deltaLineHTML(absDelta, pctDelta, periodLabel) {
