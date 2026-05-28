@@ -127,6 +127,7 @@
         console.log('[enpagos-home] data loaded for period=' + period + ', top-level keys: ' + topKeys);
         renderGoals(data);
         renderHero(data, period);
+        renderKpiStrip(data);
         clearBanner();
         setSelectorLoading(false);
       })
@@ -471,6 +472,138 @@
   }
 
   window.__renderHero = renderHero;
+
+  // ── F3.4 KPI strip — 5 KPIs in a row ──────────────────────────────────
+  //
+  // 5 cards: MENSAJES | PREAUT BRUTOS | PREAUT+ | FIRMAS PROG. | CANCELADOS
+  //
+  // Backend audit (period=mtd, verified 2026-05-28):
+  //   totals.delta has mensajes_abs (0) and preaut_positivos_abs (58).
+  //   It does NOT have preaut_brutos_*, firmas_programadas_*, cancelados_*.
+  //   For those 3 KPIs we render "—" in the comparison line (period label
+  //   still rendered for context, so the row stays visually balanced).
+  //
+  // The "vs {previous_period}" comparison line is new in F3.4 — Hero (F3.3)
+  // doesn't render any vs-previous line, so there was no pattern to mirror.
+  // Color scheme below: green for positive delta, red for negative, grey
+  // for zero or missing. Period label is derived from meta.previous_period
+  // (not hardcoded) so it stays correct across periods.
+  //
+  // Defensive: if backend ever ships *_pct for these KPIs, _deltaLineHTML
+  // falls back to that with a >999% guardrail (matches the rounding
+  // discipline elsewhere in this file).
+
+  function _shortMonth(monthNum) {
+    // 1-indexed (1 = ene). Falls back to numeric string if out of range.
+    var names = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+    return (monthNum >= 1 && monthNum <= 12) ? names[monthNum - 1] : String(monthNum);
+  }
+
+  function _formatPreviousRange(previousPeriod) {
+    // previousPeriod: { from: 'YYYY-MM-DD', to: 'YYYY-MM-DD', days: N }.
+    // Renders "abr 1-28" when from/to share a month, otherwise "abr 1-may 2".
+    // Returns "periodo anterior" as a generic fallback when shape unexpected.
+    if (!previousPeriod || !previousPeriod.from || !previousPeriod.to) {
+      return 'periodo anterior';
+    }
+    var f = String(previousPeriod.from).split('-');
+    var t = String(previousPeriod.to).split('-');
+    if (f.length !== 3 || t.length !== 3) return 'periodo anterior';
+    var fMonth = parseInt(f[1], 10);
+    var fDay   = parseInt(f[2], 10);
+    var tMonth = parseInt(t[1], 10);
+    var tDay   = parseInt(t[2], 10);
+    if (isNaN(fMonth) || isNaN(fDay) || isNaN(tMonth) || isNaN(tDay)) {
+      return 'periodo anterior';
+    }
+    if (fMonth === tMonth) {
+      return _shortMonth(fMonth) + ' ' + fDay + '-' + tDay;
+    }
+    return _shortMonth(fMonth) + ' ' + fDay + '-' + _shortMonth(tMonth) + ' ' + tDay;
+  }
+
+  function _deltaLineHTML(absDelta, pctDelta, periodLabel) {
+    // Priority: _abs first (more useful for these counting metrics).
+    // Falls through to _pct if no _abs but pct is present and sane.
+    // Returns gray "—" placeholder when neither is meaningful.
+    var label = ' vs ' + escapeHtml(periodLabel);
+    if (absDelta != null && !isNaN(absDelta)) {
+      var n = Number(absDelta);
+      if (n > 0) {
+        return '<div class="kpi-delta kpi-delta--up">▲ +' + _fmtInt(n) + label + '</div>';
+      }
+      if (n < 0) {
+        return '<div class="kpi-delta kpi-delta--down">▼ ' + _fmtInt(n) + label + '</div>';
+      }
+      // delta = 0: neutral, still informative ("we didn't move")
+      return '<div class="kpi-delta kpi-delta--zero">— 0' + label + '</div>';
+    }
+    if (pctDelta != null && !isNaN(pctDelta)) {
+      var p = Number(pctDelta);
+      // >999% guardrail — happens when previous=0 and backend computes
+      // division-by-zero as infinity. Suppress to "—".
+      if (Math.abs(p) > 999) {
+        return '<div class="kpi-delta kpi-delta--missing">—' + label + '</div>';
+      }
+      var pctStr = (p >= 0 ? '+' : '') + _fmtPct(p);
+      var cls = p > 0 ? 'kpi-delta--up' : (p < 0 ? 'kpi-delta--down' : 'kpi-delta--zero');
+      var arrow = p > 0 ? '▲ ' : (p < 0 ? '▼ ' : '— ');
+      return '<div class="kpi-delta ' + cls + '">' + arrow + pctStr + label + '</div>';
+    }
+    // Neither _abs nor _pct → missing. Show "—" same color as zero, no number.
+    return '<div class="kpi-delta kpi-delta--missing">—' + label + '</div>';
+  }
+
+  function _kpiCardHTML(opts) {
+    // opts: { label, valueHTML, deltaHTML }
+    return (
+      '<div class="kpi-card">' +
+        '<div class="kpi-card__label">' + escapeHtml(opts.label) + '</div>' +
+        '<div class="kpi-card__big">' + opts.valueHTML + '</div>' +
+        (opts.deltaHTML || '') +
+      '</div>'
+    );
+  }
+
+  function renderKpiStrip(data) {
+    var sec = document.getElementById('kpi-strip-section');
+    if (!sec) return;
+    if (!data || typeof data !== 'object') {
+      sec.innerHTML = '';
+      return;
+    }
+    var current = (data.totals && data.totals.current) || {};
+    var delta   = (data.totals && data.totals.delta)   || {};
+    var meta    = data.meta                            || {};
+    var periodLabel = _formatPreviousRange(meta.previous_period);
+
+    // Each entry: { label, currentKey, absKey?, pctKey? }
+    // KPIs without an _abs or _pct backend key produce the "—" comparison.
+    var KPIS = [
+      { label: 'Mensajes',       currentKey: 'mensajes',           absKey: 'mensajes_abs' },
+      { label: 'Preaut brutos',  currentKey: 'preaut_brutos'       /* no delta key */ },
+      { label: 'Preaut+',        currentKey: 'preaut_positivos',   absKey: 'preaut_positivos_abs' },
+      { label: 'Firmas prog.',   currentKey: 'firmas_programadas'  /* no delta key */ },
+      { label: 'Cancelados',     currentKey: 'cancelados'          /* no delta key */ }
+    ];
+
+    var cardsHTML = '';
+    for (var i = 0; i < KPIS.length; i++) {
+      var k = KPIS[i];
+      var val = current[k.currentKey];
+      var abs = k.absKey ? delta[k.absKey] : null;
+      var pct = k.pctKey ? delta[k.pctKey] : null;
+      cardsHTML += _kpiCardHTML({
+        label: k.label,
+        valueHTML: _fmtInt(val),
+        deltaHTML: _deltaLineHTML(abs, pct, periodLabel)
+      });
+    }
+
+    sec.innerHTML = '<div class="kpi-strip">' + cardsHTML + '</div>';
+  }
+
+  window.__renderKpiStrip = renderKpiStrip;
 
   function showSkeletons() {
     for (var i = 0; i < SECTION_IDS.length; i++) {

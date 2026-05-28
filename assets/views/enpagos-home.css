@@ -337,6 +337,61 @@ body {
   border-top: 1px dashed #ececec;
 }
 
+/* ── F3.4 KPI strip — 5 cards in a row ─────────────────────────────────
+ *
+ * Cards mirror .hero-card visually (same bg/border/radius/shadow) with a
+ * smaller big-number (24px vs 32px) because 5-up is denser than the
+ * Hero's 2-up. Comparison line ("▲ +N vs abr 1-28") is new in F3.4 —
+ * Hero doesn't render any vs-previous line, so this is the first time
+ * the pattern lands in the view.
+ */
+
+.kpi-strip {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 12px;
+}
+
+.kpi-card {
+  background: #fff;
+  border: 1px solid #e5e5e5;
+  border-radius: 10px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  min-width: 0;
+}
+
+.kpi-card__label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: #6b6b6b;
+}
+
+.kpi-card__big {
+  font-size: 24px;
+  font-weight: 700;
+  color: #1a1a1a;
+  line-height: 1.1;
+}
+
+.kpi-delta {
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.kpi-delta--up      { color: #2e7d32; }
+.kpi-delta--down    { color: #c62828; }
+.kpi-delta--zero,
+.kpi-delta--missing { color: #8a8a8a; }
+
 /* Mobile placeholder — full breakpoint is F3.7. Only ensures the period
  * selector doesn't overflow on narrow screens. */
 @media (max-width: 767px) {
@@ -354,5 +409,12 @@ body {
   }
   .hero-card__big {
     font-size: 28px;
+  }
+  .kpi-strip {
+    grid-template-columns: repeat(2, 1fr);
+    /* 5th card wraps onto its own row, full width remains 2-col grid */
+  }
+  .kpi-card__big {
+    font-size: 22px;
   }
 }
