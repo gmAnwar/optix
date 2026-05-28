@@ -1,6 +1,6 @@
 /* ============================================
    INMOBILI HOME — Dashboard Optix
-   Paleta: dark + dorado premium (identidad Inmobili)
+   v2 — Tier B LITE support (disabled states + placeholders)
    ============================================ */
 
 :root {
@@ -97,6 +97,12 @@ html, body {
 }
 
 .brand-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.brand-text-main {
   font-size: 11px;
   letter-spacing: 1.5px;
   color: var(--inm-gold);
@@ -104,12 +110,43 @@ html, body {
   font-weight: 600;
 }
 
-.brand-text small {
-  display: block;
+.brand-text-sub {
   color: var(--text-muted);
   font-weight: 400;
   letter-spacing: 0.5px;
-  margin-top: 2px;
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+/* Tier badge — "Vista preliminar" */
+.tier-badge {
+  display: none;
+  align-items: center;
+  gap: 6px;
+  background: var(--inm-gold-soft);
+  border: 1px solid var(--inm-gold-border);
+  color: var(--inm-gold);
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  cursor: help;
+}
+
+.tier-badge::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--inm-gold);
+  animation: pulse-gold 2s ease-in-out infinite;
+}
+
+@keyframes pulse-gold {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.8); }
 }
 
 .filters {
@@ -162,12 +199,17 @@ html, body {
   font-weight: 500;
 }
 
-.plaza-select:hover {
+.plaza-select:hover:not(:disabled) {
   border-color: var(--inm-gold-border);
 }
 
+.plaza-select:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 /* ============================================
-   BANNER MONTHLY GOALS
+   GOALS BANNER
    ============================================ */
 .goals-banner {
   background: linear-gradient(135deg, var(--inm-gold-soft) 0%, transparent 60%);
@@ -226,9 +268,7 @@ html, body {
   scrollbar-width: none;
 }
 
-.period-selector::-webkit-scrollbar {
-  display: none;
-}
+.period-selector::-webkit-scrollbar { display: none; }
 
 .period-chip {
   background: var(--bg-card);
@@ -244,7 +284,7 @@ html, body {
   white-space: nowrap;
 }
 
-.period-chip:hover {
+.period-chip:hover:not(.disabled):not(:disabled) {
   color: var(--text-primary);
   border-color: var(--border-strong);
 }
@@ -254,6 +294,15 @@ html, body {
   border-color: var(--inm-gold);
   color: var(--bg-base);
   font-weight: 600;
+}
+
+.period-chip.disabled,
+.period-chip:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  background: transparent;
+  border-color: var(--border-subtle);
+  color: var(--text-muted);
 }
 
 /* ============================================
@@ -378,20 +427,9 @@ html, body {
   border-radius: 999px;
 }
 
-.hero-card-delta.negative {
-  background: var(--red-soft);
-  color: var(--red);
-}
-
-.hero-card-delta.positive {
-  background: var(--green-soft);
-  color: var(--green);
-}
-
-.hero-card-delta.neutral {
-  background: var(--bg-elevated);
-  color: var(--text-secondary);
-}
+.hero-card-delta.negative { background: var(--red-soft); color: var(--red); }
+.hero-card-delta.positive { background: var(--green-soft); color: var(--green); }
+.hero-card-delta.neutral  { background: var(--bg-elevated); color: var(--text-secondary); }
 
 /* ============================================
    MEDIUM KPI ROW
@@ -494,7 +532,7 @@ html, body {
 }
 
 /* ============================================
-   TODAY STRIP
+   TODAY STRIP (incl. placeholder state)
    ============================================ */
 .today-strip {
   background: var(--bg-card);
@@ -506,6 +544,11 @@ html, body {
   align-items: center;
   gap: var(--s-6);
   flex-wrap: wrap;
+}
+
+.today-strip.placeholder {
+  border-style: dashed;
+  opacity: 0.85;
 }
 
 .today-strip-title {
@@ -541,8 +584,14 @@ html, body {
   letter-spacing: 0.3px;
 }
 
+.today-strip-placeholder {
+  font-size: 13px;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
 /* ============================================
-   PLAZA CARDS
+   PLAZA — Cards y Placeholder
    ============================================ */
 .plaza-grid {
   display: grid;
@@ -640,21 +689,48 @@ html, body {
   font-size: 16px;
 }
 
+/* Plaza placeholder — Tier LITE */
+.plaza-placeholder {
+  grid-column: 1 / -1;
+  background: var(--bg-card);
+  border: 1px dashed var(--inm-gold-border);
+  border-radius: var(--r-lg);
+  padding: var(--s-8) var(--s-5);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.plaza-placeholder-tag {
+  background: var(--inm-gold-soft);
+  color: var(--inm-gold);
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  margin-bottom: var(--s-2);
+}
+
+.plaza-placeholder-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: 0.3px;
+}
+
+.plaza-placeholder-sub {
+  font-size: 13px;
+  color: var(--text-secondary);
+  max-width: 380px;
+}
+
 /* ============================================
    STATES
    ============================================ */
-.skeleton {
-  background: linear-gradient(90deg, var(--bg-card) 0%, var(--bg-elevated) 50%, var(--bg-card) 100%);
-  background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
-  border-radius: var(--r-md);
-}
-
-@keyframes shimmer {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
-}
-
 .error-banner {
   background: var(--red-soft);
   border: 1px solid var(--red);
@@ -666,6 +742,7 @@ html, body {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: var(--s-3);
 }
 
 .error-banner button {
@@ -678,39 +755,11 @@ html, body {
   font-weight: 600;
   cursor: pointer;
   font-family: inherit;
-}
-
-.tooltip-info {
-  display: inline-block;
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  background: var(--bg-elevated);
-  color: var(--text-muted);
-  font-size: 10px;
-  text-align: center;
-  line-height: 14px;
-  cursor: help;
-  margin-left: 6px;
-}
-
-.tooltip-info[data-tooltip]:hover::after {
-  content: attr(data-tooltip);
-  position: absolute;
-  background: var(--bg-elevated);
-  color: var(--text-primary);
-  padding: 6px 10px;
-  border-radius: var(--r-sm);
-  font-size: 11px;
   white-space: nowrap;
-  z-index: 100;
-  border: 1px solid var(--border-default);
-  margin-top: 18px;
-  margin-left: -100px;
 }
 
 /* ============================================
-   FOOTER (data source + timestamp)
+   FOOTER META
    ============================================ */
 .footer-meta {
   display: flex;
@@ -721,6 +770,8 @@ html, body {
   color: var(--text-muted);
   border-top: 1px solid var(--border-subtle);
   margin-top: var(--s-4);
+  gap: var(--s-3);
+  flex-wrap: wrap;
 }
 
 .footer-meta-source {
