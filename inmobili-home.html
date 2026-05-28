@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#0a0a0a">
+  <title>Inmobili · Dashboard</title>
+  <link rel="preconnect" href="https://optix-proxy.anwarhsg.workers.dev">
+  <link rel="stylesheet" href="/assets/views/inmobili-home.css?v=1">
+  <link rel="icon" type="image/png" href="/assets/img-inmobili-logo.png">
+</head>
+<body>
+
+<div class="container">
+
+  <!-- ============================================
+       TOP BAR — Brand + Filtros (sin header)
+       ============================================ -->
+  <div class="top-bar">
+    <div class="brand">
+      <img src="/assets/img-inmobili-logo.png" alt="Inmobili Internacional" class="brand-logo">
+      <div class="brand-text">
+        Inmobili Internacional
+        <small>Dashboard Operativo</small>
+      </div>
+    </div>
+
+    <div class="filters">
+      <div class="toggle-group mode-toggle" role="tablist" aria-label="Modo de vista">
+        <button type="button" data-mode="captaciones" class="active">Captaciones</button>
+        <button type="button" data-mode="venta">Venta</button>
+      </div>
+      <select id="plaza-select" class="plaza-select" aria-label="Filtro de plaza">
+        <option value="all">Todas las Plazas</option>
+        <option value="torreon">Torreón</option>
+        <option value="gomez">Gómez Palacios</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- ============================================
+       ERROR BANNER (oculto por default)
+       ============================================ -->
+  <div id="error-banner" class="error-banner" style="display: none;">
+    <span class="error-text">Error de carga</span>
+    <button type="button" onclick="window.__inmobiliRetry()">Reintentar</button>
+  </div>
+
+  <!-- ============================================
+       GOALS BANNER
+       ============================================ -->
+  <div class="goals-banner">
+    <div>
+      <div class="goals-banner-label">Monthly Goals</div>
+      <div id="goals-banner-period" class="goals-banner-period">—</div>
+    </div>
+    <div class="goals-banner-stats">
+      <div id="goals-banner-meta-1" class="goals-banner-stat">—</div>
+      <div id="goals-banner-meta-2" class="goals-banner-stat">—</div>
+      <div id="goals-banner-meta-3" class="goals-banner-stat">—</div>
+    </div>
+  </div>
+
+  <!-- ============================================
+       PERIOD SELECTOR
+       ============================================ -->
+  <div class="period-selector" role="tablist" aria-label="Período">
+    <button type="button" class="period-chip" data-period="today">Hoy</button>
+    <button type="button" class="period-chip" data-period="yesterday">Ayer</button>
+    <button type="button" class="period-chip" data-period="7d">7 días</button>
+    <button type="button" class="period-chip" data-period="30d">30 días</button>
+    <button type="button" class="period-chip active" data-period="mtd">MTD</button>
+    <button type="button" class="period-chip" data-period="last_month">Mes Pasado</button>
+  </div>
+
+  <!-- ============================================
+       HERO ROW
+       ============================================ -->
+  <div class="hero-row">
+    <div id="hero-left" class="hero-card">
+      <div class="hero-card-label">Cargando…</div>
+    </div>
+    <div id="hero-right" class="hero-card">
+      <div class="hero-card-label">Cargando…</div>
+    </div>
+  </div>
+
+  <!-- ============================================
+       KPI ROW (Citas)
+       ============================================ -->
+  <div class="kpi-row">
+    <div id="kpi-citas-today" class="kpi-card">
+      <div class="kpi-card-label">—</div>
+    </div>
+    <div id="kpi-citas-avg" class="kpi-card">
+      <div class="kpi-card-label">—</div>
+    </div>
+    <div id="kpi-citas-eom" class="kpi-card">
+      <div class="kpi-card-label">—</div>
+    </div>
+    <div id="kpi-cierres" class="kpi-card">
+      <div class="kpi-card-label">—</div>
+    </div>
+  </div>
+
+  <!-- ============================================
+       CAC ROW
+       ============================================ -->
+  <div class="cac-row">
+    <div id="cac-captacion" class="cac-card">
+      <div class="cac-card-info">
+        <div class="cac-card-label">CAC Captación</div>
+      </div>
+      <div class="cac-card-value null-state">—</div>
+    </div>
+    <div id="cac-cita" class="cac-card">
+      <div class="cac-card-info">
+        <div class="cac-card-label">CAC Cita Agendada</div>
+      </div>
+      <div class="cac-card-value null-state">—</div>
+    </div>
+  </div>
+
+  <!-- ============================================
+       TODAY STRIP
+       ============================================ -->
+  <div class="today-strip">
+    <div class="today-strip-title">Hoy</div>
+    <div id="today-stats" class="today-strip-stats"></div>
+  </div>
+
+  <!-- ============================================
+       PLAZA CARDS (oculta si plaza filter != all)
+       ============================================ -->
+  <div id="plaza-grid" class="plaza-grid"></div>
+
+  <!-- ============================================
+       FOOTER META
+       ============================================ -->
+  <div class="footer-meta">
+    <div>
+      <span id="footer-period">—</span>
+    </div>
+    <div>
+      <span class="footer-meta-source">Fuente: <span id="footer-source">—</span></span>
+      &nbsp;·&nbsp;
+      Actualizado <span id="footer-updated">—</span>
+    </div>
+  </div>
+
+</div>
+
+<script src="/assets/views/inmobili-home.js?v=1"></script>
+</body>
+</html>
