@@ -1,6 +1,8 @@
 {
   "meta": {
     "client": "inmobili",
+    "tier": "B_lite",
+    "tier_b_lite_disclaimer": "Vista preliminar. Plaza split y métricas diarias llegan en próxima iteración.",
     "period": {
       "kind": "mtd",
       "from": "2026-05-01",
@@ -8,6 +10,13 @@
       "days": 28,
       "previous_from": "2026-04-01",
       "previous_to": "2026-04-30"
+    },
+    "available_periods": ["mtd", "last_month"],
+    "unavailable_periods": {
+      "today": "Próxima iteración",
+      "yesterday": "Próxima iteración",
+      "7d": "Próxima iteración",
+      "30d": "Próxima iteración"
     }
   },
   "goals": {
@@ -26,89 +35,34 @@
   "goals_source": "firestore",
   "totals": {
     "current": {
-      "captaciones": 25,
-      "citas_agendadas": 18,
-      "citas": 18,
-      "cierres": 5,
-      "venta": 250000,
+      "captaciones": 38,
+      "citas_agendadas": 24,
+      "cierres": 7,
+      "venta": 470000,
+      "ticket_promedio": 67142,
       "inversion_meta_ads": null,
-      "cac": null,
-      "ticket_promedio": 50000
+      "cac": null
     },
     "previous": {
-      "captaciones": 22,
-      "citas_agendadas": 16,
-      "citas": 16,
-      "cierres": 4,
-      "venta": 200000,
+      "captaciones": 32,
+      "citas_agendadas": 20,
+      "cierres": 5,
+      "venta": 380000,
+      "ticket_promedio": 76000,
       "inversion_meta_ads": null,
-      "cac": null,
-      "ticket_promedio": 50000
+      "cac": null
     },
     "delta": {
-      "captaciones_pct": 13.6,
-      "citas_agendadas_pct": 12.5,
-      "citas_pct": 12.5,
-      "cierres_pct": 25.0,
-      "venta_pct": 25.0
+      "captaciones_pct": 18.8,
+      "citas_agendadas_pct": 20.0,
+      "cierres_pct": 40.0,
+      "venta_pct": 23.7
     },
     "vs_goal": {
-      "venta_pct": 17.4,
-      "cierres_pct": 10.4,
-      "captaciones_pct": 49.4,
+      "venta_pct": 29.6,
+      "cierres_pct": 13.2,
+      "captaciones_pct": 67.9,
       "cac_status": null
-    },
-    "today": {
-      "captaciones": 2,
-      "citas_agendadas": 3,
-      "citas": 1,
-      "cierres": 0
-    }
-  },
-  "by_plaza": {
-    "torreon": {
-      "current": {
-        "captaciones": 12,
-        "citas_agendadas": 8,
-        "citas": 8,
-        "cierres": 2,
-        "venta": 100000,
-        "inversion_meta_ads": null,
-        "cac": null
-      },
-      "goals": {
-        "venta_meta": 600000,
-        "cierres_meta": 20,
-        "captaciones_meta": 23,
-        "cac_meta": 4500
-      },
-      "vs_goal": {
-        "venta_pct": 16.7,
-        "cierres_pct": 10.0,
-        "captaciones_pct": 52.2
-      }
-    },
-    "gomez": {
-      "current": {
-        "captaciones": 13,
-        "citas_agendadas": 10,
-        "citas": 10,
-        "cierres": 3,
-        "venta": 150000,
-        "inversion_meta_ads": null,
-        "cac": null
-      },
-      "goals": {
-        "venta_meta": 990000,
-        "cierres_meta": 33,
-        "captaciones_meta": 33,
-        "cac_meta": 4500
-      },
-      "vs_goal": {
-        "venta_pct": 15.2,
-        "cierres_pct": 9.1,
-        "captaciones_pct": 39.4
-      }
     }
   }
 }
