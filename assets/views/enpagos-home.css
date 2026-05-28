@@ -198,6 +198,145 @@ body {
   color: #b0b0b0;
 }
 
+/* ── F3.3 Hero section — two cards + ProjectionCard ─────────────────────
+ *
+ * Inline progress bar (not assets/components/ProgressBar.js) — see
+ * enpagos-home.js renderHero docblock for rationale. F3 view stays
+ * self-contained; design-system migration is a separate sprint.
+ */
+
+.hero-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.hero-card {
+  background: #fff;
+  border: 1px solid #e5e5e5;
+  border-radius: 10px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.hero-card__label {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #6b6b6b;
+}
+
+.hero-card__row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.hero-card__big {
+  font-size: 32px;
+  font-weight: 700;
+  color: #1a1a1a;
+  line-height: 1.1;
+}
+
+.hero-card__sub-right {
+  font-size: 13px;
+  color: #6b6b6b;
+}
+
+.hero-card__foot {
+  font-size: 12px;
+  color: #8a8a8a;
+}
+
+.hero-card--graceful .hero-card__big {
+  color: #b0b0b0;
+}
+
+/* Progress bar (inline; no design-token deps) */
+
+.hero-bar {
+  height: 8px;
+  background: #ececec;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.hero-bar__fill {
+  height: 100%;
+  background: #6b6b6b;
+  border-radius: 999px;
+  transition: width 0.2s ease;
+}
+
+.hero-bar__fill--green  { background: #2e7d32; }
+.hero-bar__fill--yellow { background: #f9a825; }
+.hero-bar__fill--red    { background: #c62828; }
+
+.hero-bar--graceful .hero-bar__fill {
+  background: #d0d0d0;
+}
+
+/* ProjectionCard — appears below the two hero cards when period === 'mtd' */
+
+.proj-card {
+  margin-top: 12px;
+  background: #fff;
+  border: 1px solid #e5e5e5;
+  border-radius: 10px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.proj-card__title {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #6b6b6b;
+}
+
+.proj-card__big {
+  font-size: 22px;
+  font-weight: 700;
+  color: #1a1a1a;
+}
+
+.proj-card__gap {
+  font-size: 14px;
+}
+
+.proj-card__status {
+  display: inline-block;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+.proj-card__status--green  { color: #1b5e20; background: #e8f5e9; }
+.proj-card__status--yellow { color: #856404; background: #fff8e1; }
+.proj-card__status--red    { color: #b71c1c; background: #ffebee; }
+
+.proj-card__basis {
+  font-size: 12px;
+  color: #8a8a8a;
+}
+
+.proj-card__inv {
+  font-size: 13px;
+  color: #6b6b6b;
+  padding-top: 6px;
+  border-top: 1px dashed #ececec;
+}
+
 /* Mobile placeholder — full breakpoint is F3.7. Only ensures the period
  * selector doesn't overflow on narrow screens. */
 @media (max-width: 767px) {
@@ -209,5 +348,11 @@ body {
   .goal-chip {
     flex: 1 1 100%;
     min-width: 0;
+  }
+  .hero-cards {
+    grid-template-columns: 1fr;
+  }
+  .hero-card__big {
+    font-size: 28px;
   }
 }

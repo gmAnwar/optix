@@ -126,6 +126,7 @@
         var topKeys = data && typeof data === 'object' ? Object.keys(data).join(',') : '<non-object>';
         console.log('[enpagos-home] data loaded for period=' + period + ', top-level keys: ' + topKeys);
         renderGoals(data);
+        renderHero(data, period);
         clearBanner();
         setSelectorLoading(false);
       })
@@ -268,6 +269,208 @@
   // Exposed so F3.x tests / inspection can call without a network fetch:
   //   window.__homeData = {...}; window.__renderGoals(window.__homeData);
   window.__renderGoals = renderGoals;
+
+  // ── F3.3 Hero section + ProjectionCard ─────────────────────────────────
+  //
+  // Two big cards (Cierres MTD | Inversión MTD) side-by-side on desktop,
+  // stacked on mobile. ProjectionCard appears below them only when
+  // period === 'mtd' (EOM projection is meaningless against other windows).
+  //
+  // Why an inline progress bar instead of assets/components/ProgressBar.js:
+  // that component's CSS is scoped to .app-redesign and depends on the
+  // design-token stylesheet (--color-success, --space-2, etc.) which this
+  // standalone F3 view does not load. Reusing it would require dragging two
+  // additional stylesheets + adding a wrapper class — disproportionate for
+  // 2 bars. F3.3 ships its own minimal bar; design-system migration is a
+  // separate sprint.
+  //
+  // Status thresholds per S77 SPEC (NOT ProgressBar's deriveTier rule):
+  //   cierres: pct < 0.50 → red, 0.50 ≤ pct < 0.80 → yellow, pct ≥ 0.80 → green
+  //   inversion: no status until backend ships inversion_status (omit color)
+  //
+  // The Cierres status is computed CLIENT-SIDE because vs_goal doesn't ship
+  // cierres_status today — only cac_status + costo_preaut_positivo_status.
+  // When backend adds cierres_status, swap to backend value + delete this
+  // helper to keep single-source-of-truth.
+
+  function _cierresStatusFromPct(pct) {
+    if (pct == null || isNaN(pct)) return '';
+    var p = Number(pct);
+    if (p < 0.50) return 'red';
+    if (p < 0.80) return 'yellow';
+    return 'green';
+  }
+
+  function _progressBarHTML(opts) {
+    // opts: { pct (0..1), status ('green'|'yellow'|'red'|''), graceful (bool) }
+    var pct = opts.pct == null || isNaN(opts.pct) ? 0 : Number(opts.pct);
+    var fillPct = Math.max(0, Math.min(100, pct * 100));
+    var cls = 'hero-bar';
+    if (opts.graceful) cls += ' hero-bar--graceful';
+    var fillCls = 'hero-bar__fill';
+    if (opts.status) fillCls += ' hero-bar__fill--' + opts.status;
+    return (
+      '<div class="' + cls + '" role="progressbar"' +
+        ' aria-valuenow="' + fillPct.toFixed(1) + '"' +
+        ' aria-valuemin="0" aria-valuemax="100">' +
+        '<div class="' + fillCls + '" style="width:' + fillPct.toFixed(1) + '%"></div>' +
+      '</div>'
+    );
+  }
+
+  function _heroCardHTML(opts) {
+    // opts: { label, bigHTML, subRightHTML, barHTML, footHTML, gracefulCls, tooltip }
+    var cls = 'hero-card';
+    if (opts.gracefulCls) cls += ' ' + opts.gracefulCls;
+    var tooltipAttr = opts.tooltip ? ' title="' + escapeHtml(opts.tooltip) + '"' : '';
+    return (
+      '<div class="' + cls + '"' + tooltipAttr + '>' +
+        '<div class="hero-card__label">' + escapeHtml(opts.label) + '</div>' +
+        '<div class="hero-card__row">' +
+          '<span class="hero-card__big">' + opts.bigHTML + '</span>' +
+          (opts.subRightHTML ? '<span class="hero-card__sub-right">' + opts.subRightHTML + '</span>' : '') +
+        '</div>' +
+        (opts.barHTML || '') +
+        (opts.footHTML ? '<div class="hero-card__foot">' + opts.footHTML + '</div>' : '') +
+      '</div>'
+    );
+  }
+
+  function _projectionStatusFromGap(projected, goal) {
+    if (projected == null || goal == null || goal <= 0) return '';
+    if (projected >= goal) return 'green';
+    if (projected >= goal * 0.80) return 'yellow';
+    return 'red';
+  }
+
+  function renderProjection(data) {
+    // Only called when period === 'mtd' AND data.totals.projection exists.
+    var projection = data.totals && data.totals.projection;
+    if (!projection) return '';
+    var goal = data.goals && data.goals.cierres_meta && data.goals.cierres_meta.valor;
+    var projectedC = projection.projected_cierres_eom;
+    var gap = (projectedC != null && goal != null) ? Math.round(goal - projectedC) : null;
+    var status = _projectionStatusFromGap(projectedC, goal);
+
+    var gapLine;
+    if (gap == null) {
+      gapLine = '';
+    } else if (gap <= 0) {
+      gapLine = '<span class="proj-card__status proj-card__status--green">Vas a cumplir</span>';
+    } else {
+      gapLine = '<span class="proj-card__status proj-card__status--' + status + '">' +
+                'Faltan ' + gap + ' cierre' + (gap === 1 ? '' : 's') + ' para meta</span>';
+    }
+
+    var daily = projection.daily_avg_business_days;
+    var bdt = projection.business_days_total;
+    var bdp = projection.business_days_passed;
+    var basisLine = (daily != null && bdt != null && bdp != null)
+      ? 'Basado en ' + Number(daily).toFixed(2) + ' cierres/día × ' + bdt +
+        ' días hábiles (' + bdp + ' pasados)'
+      : '';
+
+    // Inversión proyectada — omit block when 0 (per spec: no "—" placeholder).
+    var invProjected = projection.projected_inversion_eom;
+    var invGoal = data.goals && data.goals.inversion_meta && data.goals.inversion_meta.valor;
+    var invBlock = '';
+    if (invProjected != null && invProjected > 0) {
+      invBlock = '<div class="proj-card__inv">' +
+                   _fmtCurrency(invProjected) + ' proyectado vs ' + _fmtCurrency(invGoal) + ' plan' +
+                 '</div>';
+    }
+
+    return (
+      '<div class="proj-card">' +
+        '<div class="proj-card__title">Proyección al cierre del mes</div>' +
+        '<div class="proj-card__big">' + _fmtInt(projectedC) + ' cierres proyectados</div>' +
+        (gapLine ? '<div class="proj-card__gap">' + gapLine + '</div>' : '') +
+        (basisLine ? '<div class="proj-card__basis">' + escapeHtml(basisLine) + '</div>' : '') +
+        invBlock +
+      '</div>'
+    );
+  }
+
+  function renderHero(data, period) {
+    var sec = document.getElementById('hero-section');
+    if (!sec) return;
+    if (!data || typeof data !== 'object') {
+      sec.innerHTML = '';
+      return;
+    }
+    var current   = (data.totals && data.totals.current)   || {};
+    var prorrated = data.goals_prorrated                   || {};
+    var vsGoal    = (data.totals && data.totals.vs_goal)   || {};
+    var goals     = data.goals                             || {};
+
+    var isMtd = (period === 'mtd');
+
+    // ── Cierres card ──
+    var cierresVal  = current.cierres;
+    var cierresPct  = vsGoal.cierres_pct;
+    var cierresStatus = _cierresStatusFromPct(cierresPct);
+    var cierresCard;
+    if (isMtd) {
+      var cierresGoalProrr = prorrated.cierres_goal_periodo;
+      var cierresFullGoal = goals.cierres_meta && goals.cierres_meta.valor;
+      cierresCard = _heroCardHTML({
+        label: 'Cierres MTD',
+        bigHTML: _fmtInt(cierresVal),
+        subRightHTML: '/ ' + _fmtInt(cierresGoalProrr) + ' meta del periodo',
+        barHTML: _progressBarHTML({ pct: cierresPct, status: cierresStatus }),
+        footHTML: cierresFullGoal != null
+          ? _fmtInt(cierresFullGoal) + ' al cierre del mes'
+          : ''
+      });
+    } else {
+      cierresCard = _heroCardHTML({
+        label: 'Cierres',
+        bigHTML: _fmtInt(cierresVal),
+        footHTML: 'Periodo: ' + escapeHtml(period || '—')
+      });
+    }
+
+    // ── Inversión card ──
+    var invVal  = current.inversion_total_meta_ads;
+    var invPct  = vsGoal.inversion_pct;
+    var invDown = (invVal == null || invVal === 0);
+    var invCard;
+    if (isMtd) {
+      var invGoalProrr = prorrated.inversion_planeada_periodo;
+      var invFullGoal = goals.inversion_meta && goals.inversion_meta.valor;
+      invCard = _heroCardHTML({
+        label: 'Inversión MTD',
+        bigHTML: invDown ? '—' : _fmtCurrency(invVal),
+        subRightHTML: '/ ' + _fmtCurrency(invGoalProrr) + ' plan del periodo',
+        // No status color — backend hasn't shipped inversion_status; neutral bar.
+        // Graceful when down: bar shows 0% in grey (graceful class drops it
+        // visually) so users see "pipeline pending" not "completely missed plan".
+        barHTML: _progressBarHTML({ pct: invDown ? 0 : invPct, status: '', graceful: invDown }),
+        footHTML: invFullGoal != null
+          ? _fmtCurrency(invFullGoal) + ' al cierre del mes'
+          : '',
+        gracefulCls: invDown ? 'hero-card--graceful' : '',
+        tooltip: invDown ? 'Pipeline de inversión actualizando' : ''
+      });
+    } else {
+      invCard = _heroCardHTML({
+        label: 'Inversión',
+        bigHTML: invDown ? '—' : _fmtCurrency(invVal),
+        footHTML: 'Periodo: ' + escapeHtml(period || '—'),
+        gracefulCls: invDown ? 'hero-card--graceful' : '',
+        tooltip: invDown ? 'Pipeline de inversión actualizando' : ''
+      });
+    }
+
+    // ── ProjectionCard — only for mtd ──
+    var projectionHTML = isMtd ? renderProjection(data) : '';
+
+    sec.innerHTML =
+      '<div class="hero-cards">' + cierresCard + invCard + '</div>' +
+      projectionHTML;
+  }
+
+  window.__renderHero = renderHero;
 
   function showSkeletons() {
     for (var i = 0; i < SECTION_IDS.length; i++) {
