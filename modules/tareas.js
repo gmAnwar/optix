@@ -1184,31 +1184,48 @@ function tareasCliDefaultScopeForRol(rol) {
   return tareasCliIsSeniorRol(rol) ? 'estrategico' : 'operativo';
 }
 
-// Helper único: ¿este objetivo es visible para este rol con su toggle "Solo míos"?
-//  - Junior: nunca ve estrategicos. No tiene toggle.
-//  - Senior: ve todo por default. Toggle onlyMine activo → oculta operativos.
+// PR4: helper único actualizado — 3-chips filter + flag can_see_estrategicos.
+//  - Junior puro (sin flag): nunca ve estrategicos.
+//  - Senior por rol O junior con can_see_estrategicos=true: ve todo por default.
+//  - filter='estrategicos' o 'operativos' aplica solo cuando canSeeAll.
 export function tareasCliScopeMatch(objetivo, opts) {
   opts = opts || {};
   const scope = (objetivo && objetivo.scope) || 'compartido';
-  const userRol = opts.userRol || _tareasCliGetCurrentRol();
-  const onlyMine = !!opts.onlyMine;
-  const isSenior = tareasCliIsSeniorRol(userRol);
-  if (!isSenior) return scope !== 'estrategico';
-  if (onlyMine) return scope !== 'operativo';
+  const userRol = opts.userRol || null;
+  const canSeeEstrategicos = !!opts.canSeeEstrategicos;
+  const filter = opts.filter || 'todos';
+
+  const isSeniorByRol = TAREAS_CLI_SENIOR_ROLES.indexOf(userRol) !== -1;
+  const canSeeAll = isSeniorByRol || canSeeEstrategicos;
+
+  if (!canSeeAll) {
+    return scope !== 'estrategico';
+  }
+  if (filter === 'estrategicos') {
+    return scope === 'estrategico' || scope === 'compartido';
+  }
+  if (filter === 'operativos') {
+    return scope === 'operativo' || scope === 'compartido';
+  }
   return true;
 }
 
-// Toggle "TODO | SOLO MÍOS" per-uid (consumido por vista Tareas + Mi Semana).
-function _tareasCliOnlyMineKey(uid) { return 'oa-tareas-cli-only-mine-' + (uid || '_anon'); }
-export function tareasCliGetOnlyMine(uid) {
-  if (uid == null) uid = (typeof currentUser !== 'undefined' && currentUser && currentUser.uid) || '_anon';
-  try { return localStorage.getItem(_tareasCliOnlyMineKey(uid)) === '1'; }
-  catch (e) { return false; }
+// PR4: filter 'todos' | 'estrategicos' | 'operativos' per-uid (cross-view sync Tareas + Mi Semana).
+function _tareasCliFilterKey(uid) {
+  return 'oa-tareas-cli-filter-' + (uid || '_anon');
 }
-export function tareasCliToggleOnlyMine() {
+export function tareasCliGetFilter(uid) {
+  if (uid == null) uid = (typeof currentUser !== 'undefined' && currentUser && currentUser.uid) || '_anon';
+  try {
+    const v = localStorage.getItem(_tareasCliFilterKey(uid));
+    if (v === 'estrategicos' || v === 'operativos' || v === 'todos') return v;
+    return 'todos';
+  } catch (e) { return 'todos'; }
+}
+export function tareasCliSetFilter(filter) {
+  if (filter !== 'todos' && filter !== 'estrategicos' && filter !== 'operativos') return;
   const uid = (typeof currentUser !== 'undefined' && currentUser && currentUser.uid) || '_anon';
-  const next = !tareasCliGetOnlyMine(uid);
-  try { localStorage.setItem(_tareasCliOnlyMineKey(uid), next ? '1' : '0'); } catch (e) {}
+  try { localStorage.setItem(_tareasCliFilterKey(uid), filter); } catch (e) {}
   if (typeof renderTareasCli === 'function') { try { renderTareasCli(); } catch (e) {} }
   if (typeof window !== 'undefined' && typeof window.renderMiSemana === 'function') {
     try { window.renderMiSemana(); } catch (e) {}
@@ -1499,23 +1516,26 @@ function renderTareasCli() {
     return tareasCliRenderCard(c, color, objetivos);
   }).join('');
 
-  // PR3 v4.1: toggle "TODO | SOLO MÍOS" solo para senior. Mismo patrón visual
-  // que pill SEMANA|DIARIO de Mi Semana PR1. Cross-view sync via localStorage.
+  // PR4: pill 3-chips (TODOS · OPERATIVOS · ESTRATÉGICOS). Visible si senior O
+  // canSeeEstrategicos=true. Junior puro NO renderiza container. Cross-view sync.
   const _curRolH = _tareasCliGetCurrentRol();
   const _isSeniorH = tareasCliIsSeniorRol(_curRolH);
-  const _onlyMineH = tareasCliGetOnlyMine();
-  const onlyMineToggle = _isSeniorH ? (function() {
-    const labelTodo = !_onlyMineH;
+  const _canSeeEstrategicosH = !!(typeof window !== 'undefined' && window.currentUserProfile && window.currentUserProfile.can_see_estrategicos);
+  const _showFilterH = _isSeniorH || _canSeeEstrategicosH;
+  const _curUidH = (typeof currentUser !== 'undefined' && currentUser && currentUser.uid) || '_anon';
+  const _curFilterH = tareasCliGetFilter(_curUidH);
+  const onlyMineToggle = _showFilterH ? (function() {
     const stylePill = function(active) {
       const bg = active ? 'var(--accent)' : 'transparent';
       const color = active ? 'var(--bg)' : 'var(--text2)';
       const border = active ? '1px solid var(--accent)' : '1px solid var(--border)';
-      return 'background:' + bg + ';color:' + color + ';border:' + border + ';font-family:\'DM Mono\',monospace;font-size:10px;font-weight:700;letter-spacing:0.05em;padding:4px 10px;border-radius:6px;cursor:pointer;';
+      return 'background:' + bg + ';color:' + color + ';border:' + border + ';font-family:\'DM Mono\',monospace;font-size:10px;font-weight:700;letter-spacing:0.05em;padding:6px 12px;border-radius:6px;cursor:pointer;';
     };
     return ''
       + '<div style="display:flex;justify-content:flex-end;gap:4px;">'
-      +   '<button onclick="tareasCliToggleOnlyMine()" style="' + stylePill(labelTodo) + '">TODO</button>'
-      +   '<button onclick="tareasCliToggleOnlyMine()" style="' + stylePill(!labelTodo) + '">SOLO MÍOS</button>'
+      +   '<button onclick="tareasCliSetFilter(\'todos\')" style="' + stylePill(_curFilterH === 'todos') + '">TODOS</button>'
+      +   '<button onclick="tareasCliSetFilter(\'operativos\')" style="' + stylePill(_curFilterH === 'operativos') + '">OPERATIVOS</button>'
+      +   '<button onclick="tareasCliSetFilter(\'estrategicos\')" style="' + stylePill(_curFilterH === 'estrategicos') + '">ESTRATÉGICOS</button>'
       + '</div>';
   })() : '';
 
@@ -1621,12 +1641,15 @@ function tareasCliRenderCard(client, color, objetivos) {
 }
 
 function tareasCliRenderObjetivosList(client, objetivos) {
-  // PR3 v4.1: filtro por scope según rol del user + toggle "Solo míos".
+  // PR4: filtro 3-chips (todos|estrategicos|operativos) + flag can_see_estrategicos.
   const _curRol = _tareasCliGetCurrentRol();
-  const _onlyMine = tareasCliGetOnlyMine();
+  const _canSeeEstrategicos = !!(typeof window !== 'undefined' && window.currentUserProfile && window.currentUserProfile.can_see_estrategicos);
+  const _curUid = (typeof currentUser !== 'undefined' && currentUser && currentUser.uid) || '_anon';
+  const _filter = tareasCliGetFilter(_curUid);
   const _isSenior = tareasCliIsSeniorRol(_curRol);
+  const _showBadge = _isSenior || _canSeeEstrategicos;
   const _filtered = (objetivos || []).filter(function(o) {
-    return tareasCliScopeMatch(o, { userRol: _curRol, onlyMine: _onlyMine });
+    return tareasCliScopeMatch(o, { userRol: _curRol, canSeeEstrategicos: _canSeeEstrategicos, filter: _filter });
   });
   if (!_filtered.length) {
     return '<div style="padding:14px 0;color:var(--text3);font-size:12px;text-align:center;font-family:\'DM Mono\',monospace;">Sin objetivos creados</div>';
@@ -1726,7 +1749,7 @@ function tareasCliRenderObjetivosList(client, objetivos) {
       +       'onclick="tareasCliEditObjNameInline(event, \'' + cid + '\', \'' + oid + '\')">'
       +       objNombreSafe
       +     '</span>'
-      +     (_isSenior ? (function() {
+      +     (_showBadge ? (function() {
             // PR3 v4.1: badge solo para senior. HEX directo inline (sin CSS vars nuevas).
             const _sc = (o.scope) || 'compartido';
             const _badgeStyles = {
@@ -3111,8 +3134,8 @@ function initTareas() {
   window.tareasCliToggleSubtaskCollapse = tareasCliToggleSubtaskCollapse;
   // PR2 #4: flecha colapsar/expandir card cliente entera.
   window.tareasCliToggleCollapsed = tareasCliToggleCollapsed;
-  // PR3 v4.1: toggle "TODO | SOLO MÍOS" (solo senior renderiza el botón).
-  window.tareasCliToggleOnlyMine = tareasCliToggleOnlyMine;
+  // PR4: filter 3-chips (todos | estrategicos | operativos), cross-view Tareas + Mi Semana.
+  window.tareasCliSetFilter = tareasCliSetFilter;
   window.tareasCliCalPrevWeek = tareasCliCalPrevWeek;
   window.tareasCliCalNextWeek = tareasCliCalNextWeek;
   window.tareasCliCalToday = tareasCliCalToday;

@@ -20,7 +20,7 @@
     yesterday:  'Ayer',
     '7d':       '7 días',
     '30d':      '30 días',
-    mtd:        'Este Mes',
+    mtd:        'MTD',
     last_month: 'Mes Pasado'
   };
   const DEFAULT_PERIOD = 'mtd';
@@ -385,16 +385,16 @@
 
     if (state.mode === 'captaciones') {
       setHtml('goals-banner-meta-1',
-        `<strong>${fmtInt(goals.captaciones_meta)}</strong> captaciones objetivo`);
+        `<strong>${fmtInt(goals.captaciones_meta)}</strong> captaciones meta`);
       setHtml('goals-banner-meta-2',
-        `<strong>${fmtInt(goals.cierres_meta)}</strong> cierres objetivo`);
+        `<strong>${fmtInt(goals.cierres_meta)}</strong> cierres meta`);
       setHtml('goals-banner-meta-3',
-        `CAC objetivo <strong>${fmtMxn(goals.cac_meta)}</strong>`);
+        `CAC target <strong>${fmtMxn(goals.cac_meta)}</strong>`);
     } else {
       setHtml('goals-banner-meta-1',
-        `<strong>${fmtMxnShort(goals.venta_meta)}</strong> venta objetivo`);
+        `<strong>${fmtMxnShort(goals.venta_meta)}</strong> venta meta`);
       setHtml('goals-banner-meta-2',
-        `<strong>${fmtInt(goals.cierres_meta)}</strong> cierres objetivo`);
+        `<strong>${fmtInt(goals.cierres_meta)}</strong> cierres meta`);
       setHtml('goals-banner-meta-3',
         `Ticket promedio <strong>${ticketProm ? fmtMxn(ticketProm) : '—'}</strong>`);
     }
@@ -430,7 +430,7 @@
       const expectedPct = goalMes > 0 ? Math.min((goalProrrated / goalMes) * 100, 100) : 0;
 
       card.innerHTML = renderHeroCard({
-        label: 'Captaciones vs Objetivo',
+        label: 'Captaciones vs Meta',
         value: fmtInt(real),
         unit: 'captaciones',
         expected: fmtIntRound(goalProrrated),
@@ -438,7 +438,7 @@
         progressPct: Math.min(pct, 100),
         expectedPct: expectedPct,
         delta: delta,
-        deltaLabel: delta >= 0 ? 'en ritmo' : `${Math.abs(Math.round(delta))} atrás`
+        deltaLabel: delta >= 0 ? 'on pace' : `${Math.abs(Math.round(delta))} atrás`
       });
     } else {
       const real = current.venta || 0;
@@ -455,7 +455,7 @@
       const expectedPct = goalMes > 0 ? Math.min((goalProrrated / goalMes) * 100, 100) : 0;
 
       card.innerHTML = renderHeroCard({
-        label: 'Venta vs Objetivo',
+        label: 'Venta vs Meta',
         value: fmtMxnShort(real),
         unit: 'MXN',
         expected: fmtMxnShort(goalProrrated),
@@ -463,7 +463,7 @@
         progressPct: Math.min(pct, 100),
         expectedPct: expectedPct,
         delta: delta,
-        deltaLabel: delta >= 0 ? 'en ritmo' : `${fmtMxnShort(Math.abs(delta))} atrás`
+        deltaLabel: delta >= 0 ? 'on pace' : `${fmtMxnShort(Math.abs(delta))} atrás`
       });
     }
   }
@@ -485,7 +485,7 @@
         </div>
         <div class="hero-card-meta">
           <div class="hero-card-expected">${o.expected}</div>
-          <div class="hero-card-expected-label">Esperado</div>
+          <div class="hero-card-expected-label">Expected</div>
         </div>
         <div class="hero-card-goal">/ ${o.goal}</div>
       </div>
@@ -524,21 +524,16 @@
     const periodDays = get(d, 'meta.period.days') || 1;
     const totalDays = daysInMonth(get(d, 'meta.period.to'));
     const projected = projectEom(spend, periodDays, totalDays);
-    const monthProgressPct = Math.min((periodDays / totalDays) * 100, 100);
-
     card.innerHTML = `
-      <div class="hero-card-label">Inversión del Mes</div>
+      <div class="hero-card-label">Inversión vs Plan</div>
       <div class="hero-card-main">
         <div class="hero-card-value">${fmtMxnShort(spend)}</div>
         <div class="hero-card-unit">MXN</div>
       </div>
       <div class="hero-card-bar-wrap">
-        <div class="hero-card-progress">
-          <div class="hero-card-progress-fill" style="width: ${monthProgressPct}%"></div>
-        </div>
         <div class="hero-card-meta">
           <div class="hero-card-expected">${fmtMxnShort(projected)}</div>
-          <div class="hero-card-expected-label">Fin de Mes</div>
+          <div class="hero-card-expected-label">Projected EOM</div>
         </div>
       </div>
     `;
@@ -575,32 +570,32 @@
          <div class="kpi-card-sub muted">Tiempo real</div>`);
     }
 
-    // KPI 2: Citas Avg
+    // KPI 2: Citas Avg MTD
     const citasAgendadas = current.citas_agendadas || 0;
     const avgCitas = citasAgendadas / periodDays;
     setHtml('kpi-citas-avg',
-      `<div class="kpi-card-label">Citas Agendadas · Promedio Diario</div>
+      `<div class="kpi-card-label">Citas Agendadas Avg</div>
        <div class="kpi-card-main">
          <div class="kpi-card-value">${avgCitas.toFixed(1)}</div>
        </div>
-       <div class="kpi-card-sub muted">por día (en el mes)</div>`);
+       <div class="kpi-card-sub muted">por día (MTD)</div>`);
 
-    // KPI 3: Citas Proyectadas Fin de Mes
+    // KPI 3: Citas EOM proyectadas
     const eomCitas = Math.round(avgCitas * totalDays);
     setHtml('kpi-citas-eom',
-      `<div class="kpi-card-label">Citas Proyectadas Fin de Mes</div>
+      `<div class="kpi-card-label">Citas Proyectadas EOM</div>
        <div class="kpi-card-main">
          <div class="kpi-card-value">${eomCitas}</div>
        </div>
        <div class="kpi-card-sub muted">si mantiene ritmo</div>`);
 
-    // KPI 4: Cierres del Mes
+    // KPI 4: Cierres MTD
     const vsGoalCierres = get(scoped, 'vs_goal.cierres_pct');
     setHtml('kpi-cierres',
-      `<div class="kpi-card-label">Cierres del Mes</div>
+      `<div class="kpi-card-label">Cierres MTD</div>
        <div class="kpi-card-main">
          <div class="kpi-card-value">${fmtInt(current.cierres)}</div>
-         <div class="kpi-card-sub">/ ${fmtInt(goals.cierres_meta)} objetivo</div>
+         <div class="kpi-card-sub">/ ${fmtInt(goals.cierres_meta)} meta</div>
        </div>
        <div class="kpi-card-sub muted">${vsGoalCierres !== null && vsGoalCierres !== undefined ? vsGoalCierres.toFixed(1) : '0.0'}% del mes</div>`);
   }
@@ -628,7 +623,7 @@
         <div class="cac-card-info">
           <div class="cac-card-label">CAC Captación (blended)</div>
           <div class="cac-card-meta">
-            ${fmtInt(captaciones)} captaciones${cacMeta ? ` · Objetivo ${fmtMxn(cacMeta)}` : ''}
+            ${fmtInt(captaciones)} captaciones${cacMeta ? ` · Target ${fmtMxn(cacMeta)}` : ''}
           </div>
         </div>
         <div class="cac-card-value ${cacNull ? 'null-state' : ''}">
@@ -646,7 +641,7 @@
       c2.innerHTML = `
         <div class="cac-card-info">
           <div class="cac-card-label">CAC Cita Agendada (blended)</div>
-          <div class="cac-card-meta">${fmtInt(citas)} citas agendadas del mes</div>
+          <div class="cac-card-meta">${fmtInt(citas)} citas agendadas MTD</div>
         </div>
         <div class="cac-card-value ${cacCitaNull ? 'null-state' : ''}">
           ${cacCitaNull ? '—' : fmtMxn(cacCita)}

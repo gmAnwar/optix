@@ -20,7 +20,7 @@
 // ════════════════════════════════════════════════════════════════
 
 import { escapeHtml } from './utils.js';
-import { TAREAS_CLIENTE_COLORS, tareasCliScopeMatch, tareasCliGetOnlyMine } from './tareas.js';
+import { TAREAS_CLIENTE_COLORS, tareasCliScopeMatch, tareasCliGetFilter, tareasCliSetFilter } from './tareas.js';
 
 // ══════════════════════════════════════════════════════════════
 // MÓDULO PLAN SEMANAL — F1 (esqueleto + render bloques estáticos)
@@ -494,10 +494,11 @@ function _msRenderGrid(uid) {
     const dayLabel = isWeek ? weekDayLabels[di] : fullDayLabels[fecha.getDay()];
 
     // Bloques del día (filtrar one-off + dentro del rango horario visible)
-    // PR1 Cambio 3a: skip bloques completados — no se renderizan en grid.
+    // PR4: revert PR1 Cambio 3a — bloques completados quedan VISIBLES en grid con
+    // styling tachado pre-existente (opacity:0.5 + line-through L591-592) Y aparecen
+    // en sección "Completadas hoy" del panel (dual display).
     const bloquesDia = bloques.filter(function(b) {
       if (!b || b.recurrencia) return false;
-      if (b.completado === true) return false;
       const ts = _msToDate(b.inicio_ts);
       if (!ts) return false;
       const ymd = ts.getFullYear() + '-' + String(ts.getMonth() + 1).padStart(2, '0') + '-' + String(ts.getDate()).padStart(2, '0');
@@ -668,7 +669,7 @@ function _msRenderPanelTareas(uid) {
   const calCache = _calendarSemanaMemCache[uid] || {};
   const conBloque = new Set();
   Object.values(calCache).forEach(function(b) {
-    if (b && b.tarea_id && !b.completado) conBloque.add(b.tarea_id);
+    if (b && b.tarea_id) conBloque.add(b.tarea_id);
   });
 
   const wsId = currentAgencia || 'optimizads';
@@ -683,9 +684,25 @@ function _msRenderPanelTareas(uid) {
     : [];
   const catalog = _defaults.concat(_dynamic);
 
-  // PR3 v4.1: filtro scope por rol + toggle "Solo míos" (compartido cross-view con Tareas).
+  // PR4: filtro 3-chips (todos|estrategicos|operativos) + flag can_see_estrategicos.
   const _curRol = (window.currentUserProfile && window.currentUserProfile.rol) || 'junior';
-  const _onlyMine = tareasCliGetOnlyMine();
+  const _canSeeEstrategicos = !!(window.currentUserProfile && window.currentUserProfile.can_see_estrategicos);
+  const _curUid = (window.currentUser && window.currentUser.uid) || '_anon';
+  const _filter = tareasCliGetFilter(_curUid);
+
+  // PR4 hotfix #2: mapa tarea_id → scope del objetivo padre. Single source of truth
+  // para filtrar tareas individuales y bloques (que tampoco tienen scope directo).
+  // Resuelve bug donde el filter por objetivo no se propagaba a las tareas
+  // mostradas en el panel.
+  const scopeByTaskId = {};
+  Object.values(window._tareasCliMemCache || {}).forEach(function(doc) {
+    ((doc && doc.objetivos) || []).forEach(function(o) {
+      const scope = o.scope || 'compartido';
+      (o.tareas || []).forEach(function(t) {
+        if (t && t.id) scopeByTaskId[t.id] = scope;
+      });
+    });
+  });
 
   let totalPendientes = 0;
   const seccionesHtml = catalog.map(function(c) {
@@ -693,11 +710,12 @@ function _msRenderPanelTareas(uid) {
     if (!cdoc || !Array.isArray(cdoc.objetivos) || !cdoc.objetivos.length) return '';
     const items = [];
     cdoc.objetivos.forEach(function(o) {
-      // PR3 v4.1: skip objetivos no visibles para este rol con su toggle.
-      if (!tareasCliScopeMatch(o, { userRol: _curRol, onlyMine: _onlyMine })) return;
       (o.tareas || []).forEach(function(t) {
         if (t.completado) return;
         if (conBloque.has(t.id)) return;
+        // PR4 hotfix #2: filter por scope mapped (tarea hereda del objetivo padre).
+        const taskScope = scopeByTaskId[t.id] || (o.scope || 'compartido');
+        if (!tareasCliScopeMatch({ scope: taskScope }, { userRol: _curRol, canSeeEstrategicos: _canSeeEstrategicos, filter: _filter })) return;
         items.push({ tarea: t, objetivoNombre: o.nombre || '', objetivoId: o.id });
       });
     });
@@ -733,22 +751,23 @@ function _msRenderPanelTareas(uid) {
       + '</div>';
   }).filter(Boolean).join('');
 
-  // PR3 v4.1: toggle "TODO | SOLO MÍOS" en header del panel. Solo senior.
-  // Mismo patrón visual que pill SEMANA|DIARIO. window.tareasCliToggleOnlyMine
-  // expuesta por initTareas — cross-view sync con vista Tareas via localStorage.
+  // PR4: pill 3-chips (TODOS · OPERATIVOS · ESTRATÉGICOS) en header del panel.
+  // Visible si senior O canSeeEstrategicos=true. Junior puro NO renderiza.
+  // Cross-view sync con vista Tareas via tareasCliSetFilter (window.* expose init).
   const _isSenior = _curRol === 'all' || _curRol === 'direccion' || _curRol === 'owner';
-  const onlyMineToggleMs = _isSenior ? (function() {
-    const labelTodo = !_onlyMine;
+  const _showFilterMs = _isSenior || _canSeeEstrategicos;
+  const onlyMineToggleMs = _showFilterMs ? (function() {
     const stylePill = function(active) {
       const bg = active ? 'var(--accent)' : 'transparent';
       const color = active ? 'var(--bg)' : 'var(--text2)';
       const border = active ? '1px solid var(--accent)' : '1px solid var(--border)';
-      return 'background:' + bg + ';color:' + color + ';border:' + border + ';font-family:\'DM Mono\',monospace;font-size:9px;font-weight:700;letter-spacing:0.05em;padding:3px 8px;border-radius:5px;cursor:pointer;';
+      return 'background:' + bg + ';color:' + color + ';border:' + border + ';font-family:\'DM Mono\',monospace;font-size:9px;font-weight:700;letter-spacing:0.05em;padding:4px 9px;border-radius:5px;cursor:pointer;';
     };
     return ''
       + '<div style="display:flex;gap:4px;margin-bottom:6px;">'
-      +   '<button onclick="window.tareasCliToggleOnlyMine && window.tareasCliToggleOnlyMine()" style="' + stylePill(labelTodo) + '">TODO</button>'
-      +   '<button onclick="window.tareasCliToggleOnlyMine && window.tareasCliToggleOnlyMine()" style="' + stylePill(!labelTodo) + '">SOLO MÍOS</button>'
+      +   '<button onclick="tareasCliSetFilter(\'todos\')" style="' + stylePill(_filter === 'todos') + '">TODOS</button>'
+      +   '<button onclick="tareasCliSetFilter(\'operativos\')" style="' + stylePill(_filter === 'operativos') + '">OPERATIVOS</button>'
+      +   '<button onclick="tareasCliSetFilter(\'estrategicos\')" style="' + stylePill(_filter === 'estrategicos') + '">ESTRATÉGICOS</button>'
       + '</div>';
   })() : '';
 
@@ -781,6 +800,24 @@ function _msRenderPanelTareas(uid) {
 function _msRenderCompletadasHoy(uid) {
   const cache = _calendarSemanaMemCache[uid] || calendarSemanaLoadCache(uid) || {};
   const startToday = _msStartOfTodayCST();
+
+  // PR4 hotfix #2: misma estrategia que _msRenderPanelTareas — mapa tarea_id →
+  // scope del objetivo padre + filter por rol/chip. Bloques sin tarea_id NO se
+  // filtran (heredados pre-PR3, no enlazados a objetivo).
+  const _curRol = (window.currentUserProfile && window.currentUserProfile.rol) || 'junior';
+  const _canSeeEstrategicos = !!(window.currentUserProfile && window.currentUserProfile.can_see_estrategicos);
+  const _curUid = (window.currentUser && window.currentUser.uid) || '_anon';
+  const _filter = tareasCliGetFilter(_curUid);
+  const scopeByTaskId = {};
+  Object.values(window._tareasCliMemCache || {}).forEach(function(doc) {
+    ((doc && doc.objetivos) || []).forEach(function(o) {
+      const scope = o.scope || 'compartido';
+      (o.tareas || []).forEach(function(t) {
+        if (t && t.id) scopeByTaskId[t.id] = scope;
+      });
+    });
+  });
+
   const completados = [];
   Object.values(cache).forEach(function(b) {
     if (!b || b.completado !== true) return;
@@ -789,7 +826,14 @@ function _msRenderCompletadasHoy(uid) {
     const at = (b.completado_at && typeof b.completado_at.toDate === 'function')
       ? b.completado_at.toDate() : null;
     if (!at) return;
-    if (at >= startToday) completados.push({ b: b, at: at });
+    if (at < startToday) return;
+    // PR4 hotfix #2: filter por scope del objetivo padre. Bloques sin tarea_id
+    // (huérfanos o cliente_id manual) pasan siempre — no hay objetivo asociado.
+    if (b.tarea_id) {
+      const taskScope = scopeByTaskId[b.tarea_id] || 'compartido';
+      if (!tareasCliScopeMatch({ scope: taskScope }, { userRol: _curRol, canSeeEstrategicos: _canSeeEstrategicos, filter: _filter })) return;
+    }
+    completados.push({ b: b, at: at });
   });
   if (!completados.length) return '';
   // Orden: más reciente arriba.
@@ -814,11 +858,17 @@ function _msRenderCompletadasHoy(uid) {
       + '</div>';
   }).join('');
 
+  // PR4 Cambio 9: separador 2px solid antes + container con bg var(--surface2) +
+  // header 14px bold + subtítulo italic con instrucción explícita "Click + Desmarcar
+  // para regresar al calendario". Resuelve confusión UX reportada por Mario hoy.
+  // Si count===0 ya hicimos return '' en L798 — el separador no se renderiza huérfano.
   return ''
-    + '<div style="margin-top:18px;padding-top:14px;border-top:1px dashed var(--border);">'
-    +   '<div style="display:flex;align-items:center;gap:6px;font-family:\'Syne\',sans-serif;font-weight:700;font-size:12px;color:var(--text2);margin-bottom:4px;">'
-    +     '<span style="color:var(--accent);">✓</span> Completadas hoy <span style="font-family:\'DM Mono\',monospace;font-size:10px;color:var(--text3);font-weight:400;">(' + completados.length + ')</span>'
+    + '<div style="border-top:2px solid var(--border);margin:24px 0 0 0;"></div>'
+    + '<div style="margin-top:16px;padding:14px;background:var(--surface2);border-radius:8px;">'
+    +   '<div style="font-family:\'Syne\',sans-serif;font-weight:700;font-size:14px;color:var(--text);margin-bottom:4px;">'
+    +     '<span style="color:var(--accent);">✓</span> Completadas hoy <span style="font-family:\'DM Mono\',monospace;font-size:11px;color:var(--text3);font-weight:400;">(' + completados.length + ')</span>'
     +   '</div>'
+    +   '<div style="font-family:\'DM Mono\',monospace;font-size:11px;color:var(--text3);font-style:italic;margin-bottom:10px;">Click + Desmarcar para regresar al calendario</div>'
     +   itemsHtml
     + '</div>';
 }
