@@ -1,0 +1,744 @@
+/* EnPagos Home — F3.1 skeleton styles.
+ * Scope strictly limited to PeriodSelector + skeleton placeholders +
+ * minimal banner. Section styling lands in F3.2-F3.6.
+ * Full mobile breakpoint is F3.7 — this file ships a placeholder only.
+ */
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color: #1a1a1a;
+  background: #fafafa;
+}
+
+#home-header {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px;
+  background: #fff;
+  border-bottom: 1px solid #e5e5e5;
+}
+
+#period-selector {
+  display: flex;
+  gap: 8px;
+  padding: 0;
+}
+
+.period-chip {
+  appearance: none;
+  border: 1px solid #d0d0d0;
+  background: #fff;
+  color: #333;
+  padding: 6px 14px;
+  border-radius: 6px;
+  font: inherit;
+  cursor: pointer;
+  /* F3.7 GAP 2 — touch target 44x44 mín (WCAG AA, Apple HIG). Aplica
+   * en todos los viewports porque touch laptops también lo necesitan. */
+  min-height: 44px;
+  min-width: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
+}
+
+.period-chip:hover {
+  background: #f0f0f0;
+}
+
+.period-chip.active {
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  border-color: #333;
+}
+
+#period-selector.loading .period-chip {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+#home-main {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.skeleton-card {
+  height: 80px;
+  border-radius: 8px;
+  background: linear-gradient(90deg, #eee 0%, #f5f5f5 50%, #eee 100%);
+  background-size: 200% 100%;
+  animation: skeleton-pulse 1.5s infinite ease-in-out;
+}
+
+@keyframes skeleton-pulse {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+#banner-container {
+  position: fixed;
+  bottom: 16px;
+  left: 16px;
+  right: 16px;
+  z-index: 1000;
+  pointer-events: none;
+}
+
+.banner {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 8px;
+  background: #fff;
+  border: 1px solid #d0d0d0;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.banner--error {
+  border-color: #d04848;
+  background: #fff5f5;
+}
+
+.banner__text {
+  flex: 1;
+  font-size: 14px;
+}
+
+.banner__retry {
+  appearance: none;
+  border: 1px solid #d04848;
+  background: #fff;
+  color: #d04848;
+  padding: 6px 14px;
+  border-radius: 6px;
+  font: inherit;
+  cursor: pointer;
+  /* F3.7 GAP 2 — touch target 44x44 mín */
+  min-height: 44px;
+  min-width: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.banner__retry:hover {
+  background: #d04848;
+  color: #fff;
+}
+
+/* ── F3.2 Goals card — 3 chips (Cierres, Inversión, CAC) ───────────────── */
+
+.goals-chips {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.goal-chip {
+  flex: 1 1 200px;
+  min-width: 180px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+  background: #fff;
+  border: 1px solid #e5e5e5;
+  border-left: 3px solid #d0d0d0;
+  border-radius: 8px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.goal-chip__label {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #6b6b6b;
+}
+
+.goal-chip__values {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  font-size: 20px;
+  font-weight: 700;
+  color: #1a1a1a;
+}
+
+.goal-chip__value {
+  /* Actual — same weight as goal, distinguished by position only. */
+}
+
+.goal-chip__sep {
+  color: #b0b0b0;
+  font-weight: 400;
+}
+
+.goal-chip__goal {
+  font-weight: 400;
+  color: #6b6b6b;
+  font-size: 16px;
+}
+
+.goal-chip__pct {
+  font-size: 13px;
+  color: #6b6b6b;
+}
+
+/* Status tints — applied via border-left only so the chip body stays neutral
+ * and color-blind users still distinguish via the % number / value.
+ * Class names mirror the backend's English status strings (green/yellow/red);
+ * no translation layer between JSON and DOM. */
+.goal-chip--status-green  { border-left-color: #2e7d32; }
+.goal-chip--status-yellow { border-left-color: #f9a825; }
+.goal-chip--status-red    { border-left-color: #c62828; }
+
+/* Graceful: muted when value is "—" (pipeline down). Border stays
+ * status-colored if cac_status is present alongside the "—". */
+.goal-chip--graceful .goal-chip__value,
+.goal-chip--graceful .goal-chip__pct {
+  color: #b0b0b0;
+}
+
+/* ── F3.3 Hero section — two cards + ProjectionCard ─────────────────────
+ *
+ * Inline progress bar (not assets/components/ProgressBar.js) — see
+ * enpagos-home.js renderHero docblock for rationale. F3 view stays
+ * self-contained; design-system migration is a separate sprint.
+ */
+
+.hero-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.hero-card {
+  background: #fff;
+  border: 1px solid #e5e5e5;
+  border-radius: 10px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.hero-card__label {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #6b6b6b;
+}
+
+.hero-card__row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.hero-card__big {
+  font-size: 32px;
+  font-weight: 700;
+  color: #1a1a1a;
+  line-height: 1.1;
+}
+
+.hero-card__sub-right {
+  font-size: 13px;
+  color: #6b6b6b;
+}
+
+.hero-card__foot {
+  font-size: 12px;
+  color: #8a8a8a;
+}
+
+.hero-card--graceful .hero-card__big {
+  color: #b0b0b0;
+}
+
+/* Progress bar (inline; no design-token deps) */
+
+.hero-bar {
+  height: 8px;
+  background: #ececec;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.hero-bar__fill {
+  height: 100%;
+  background: #6b6b6b;
+  border-radius: 999px;
+  transition: width 0.2s ease;
+}
+
+.hero-bar__fill--green  { background: #2e7d32; }
+.hero-bar__fill--yellow { background: #f9a825; }
+.hero-bar__fill--red    { background: #c62828; }
+
+.hero-bar--graceful .hero-bar__fill {
+  background: #d0d0d0;
+}
+
+/* ProjectionCard — appears below the two hero cards when period === 'mtd' */
+
+.proj-card {
+  margin-top: 12px;
+  background: #fff;
+  border: 1px solid #e5e5e5;
+  border-radius: 10px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.proj-card__title {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #6b6b6b;
+}
+
+.proj-card__big {
+  font-size: 22px;
+  font-weight: 700;
+  color: #1a1a1a;
+}
+
+.proj-card__gap {
+  font-size: 14px;
+}
+
+.proj-card__status {
+  display: inline-block;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+.proj-card__status--green  { color: #1b5e20; background: #e8f5e9; }
+.proj-card__status--yellow { color: #856404; background: #fff8e1; }
+.proj-card__status--red    { color: #b71c1c; background: #ffebee; }
+
+.proj-card__basis {
+  font-size: 12px;
+  color: #8a8a8a;
+}
+
+.proj-card__inv {
+  font-size: 13px;
+  color: #6b6b6b;
+  padding-top: 6px;
+  border-top: 1px dashed #ececec;
+}
+
+/* ── F3.4 KPI strip — 5 cards in a row ─────────────────────────────────
+ *
+ * Cards mirror .hero-card visually (same bg/border/radius/shadow) with a
+ * smaller big-number (24px vs 32px) because 5-up is denser than the
+ * Hero's 2-up. Comparison line ("▲ +N vs abr 1-28") is new in F3.4 —
+ * Hero doesn't render any vs-previous line, so this is the first time
+ * the pattern lands in the view.
+ */
+
+.kpi-strip {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+
+.kpi-card {
+  background: #fff;
+  border: 1px solid #e5e5e5;
+  border-radius: 10px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  min-width: 0;
+}
+
+.kpi-card__label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: #6b6b6b;
+}
+
+.kpi-card__big {
+  font-size: 24px;
+  font-weight: 700;
+  color: #1a1a1a;
+  line-height: 1.1;
+}
+
+.kpi-delta {
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.kpi-delta--up      { color: #2e7d32; }
+.kpi-delta--down    { color: #c62828; }
+.kpi-delta--zero,
+.kpi-delta--missing { color: #8a8a8a; }
+
+/* ── F3.5 TodayDetailFeed — table of today's preautorized leads ────────
+ *
+ * Desktop: 3-col CSS grid (plaza / precio / campaña) with subtle row
+ * borders. Mobile <768px: stack each row as label/value pairs (no
+ * horizontal scroll). EmptyState inline (component reuse deferred —
+ * see renderTodayDetailFeed docblock in enpagos-home.js).
+ */
+
+.today-feed {
+  background: #fff;
+  border: 1px solid #e5e5e5;
+  border-radius: 10px;
+  padding: 16px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.today-feed__title {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #6b6b6b;
+  margin-bottom: 12px;
+}
+
+.today-feed__grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr 2fr;
+  row-gap: 0;
+}
+
+.today-feed__header {
+  display: contents;
+}
+
+.today-feed__row {
+  display: contents;
+}
+
+.today-feed__cell {
+  padding: 10px 8px;
+  font-size: 13px;
+  color: #1a1a1a;
+  border-bottom: 1px solid #f0f0f0;
+  /* F3.7 GAP 3 — nombres de campaña pueden ser largos, no romper layout */
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+
+.today-feed__header .today-feed__cell {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: #6b6b6b;
+  font-weight: 600;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.today-feed__cell--precio {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  text-align: right;
+}
+
+.today-feed__cell--campana {
+  color: #6b6b6b;
+}
+
+/* EmptyState inline — minimal equivalent of EmptyState.html() */
+.today-feed--empty {
+  text-align: left;
+}
+
+.today-feed__empty {
+  padding: 28px 16px;
+  border: 1px dashed #d0d0d0;
+  border-radius: 8px;
+  background: #fafafa;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.today-feed__empty-icon {
+  font-size: 22px;
+  opacity: 0.6;
+}
+
+.today-feed__empty-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #4a4a4a;
+}
+
+.today-feed__empty-msg {
+  font-size: 12px;
+  color: #8a8a8a;
+}
+
+/* ── F3.6 Plaza cards — 11 cards grid (3-col desktop) ──────────────────
+ *
+ * Replica visual de daily-card (enpagos-daily.css:300+, scoped a
+ * .app-redesign). Inline aquí para no arrastrar design system completo
+ * — patrón establecido F3.x. 5 filas: Inversión (simple) + 4 con grid
+ * 3-col (label | cpa | count) + footer combinado CIERRES/CAC.
+ */
+
+.plaza-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.plaza-card {
+  background: #fff;
+  border: 1px solid #e5e5e5;
+  border-radius: 10px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.plaza-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border-bottom: 1px solid #f0f0f0;
+  padding-bottom: 8px;
+  /* F3.7 GAP 3 — chip "FUERA DE META" + título largo (BAJIO-AGUASCALIENTES,
+   * 20 chars) puede colisionar a ~320px. Allow wrap si necesario. */
+  flex-wrap: wrap;
+}
+
+.plaza-card__title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: #1a1a1a;
+  letter-spacing: 0.3px;
+  /* F3.7 GAP 3 — flex item shrink + break en cualquier punto para
+   * plazas con nombre largo (BAJIO-AGUASCALIENTES, SIN-ATRIBUCION). */
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.plaza-card__chip {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.plaza-card__chip--green { color: #1b5e20; background: #e8f5e9; }
+.plaza-card__chip--amber { color: #856404; background: #fff8e1; }
+.plaza-card__chip--red   { color: #b71c1c; background: #ffebee; }
+
+.plaza-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.plaza-card__row {
+  display: grid;
+  align-items: baseline;
+  padding: 6px 0;
+  font-size: 13px;
+}
+
+.plaza-card__row--simple {
+  grid-template-columns: 1fr auto;
+}
+
+.plaza-card__row--with-cpa {
+  grid-template-columns: 1fr auto auto;
+  column-gap: 10px;
+}
+
+.plaza-card__row-label {
+  color: #6b6b6b;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  font-weight: 600;
+}
+
+.plaza-card__row-cpa {
+  font-size: 12px;
+  color: #8a8a8a;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  min-width: 60px;
+}
+
+.plaza-card__row-cpa--empty {
+  /* span vacío para mantener grid alineado (Cancelados sin $) */
+}
+
+.plaza-card__row-value {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1a1a1a;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  min-width: 40px;
+}
+
+.plaza-card__footer {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 0 4px 0;
+  border-top: 1px solid #f0f0f0;
+  margin-top: 4px;
+}
+
+.plaza-card__footer-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #6b6b6b;
+  font-weight: 600;
+}
+
+.plaza-card__footer-value {
+  font-size: 16px;
+  font-weight: 700;
+  color: #1a1a1a;
+  font-variant-numeric: tabular-nums;
+}
+
+.plaza-card__footer-sep {
+  color: #d0d0d0;
+  font-weight: 400;
+}
+
+.plaza-card__foot-msg {
+  font-size: 11px;
+  color: #8a8a8a;
+  text-align: center;
+  font-style: italic;
+  margin-top: 4px;
+}
+
+/* Variant tints — subtle top-border colored, no big visual noise */
+.plaza-card[data-variant="B"] { border-top: 3px solid #fff8e1; }
+.plaza-card[data-variant="C"] { opacity: 0.65; }
+.plaza-card[data-variant="D"] { border-top: 3px solid #ffe0b2; }
+.plaza-card[data-variant="E"] { border-top: 3px solid #ffcdd2; }
+
+/* ── F3.7 GAP 1 — Tablet breakpoint (paridad con enpagos-daily.css:292)
+ * Daily oculta el grid 3-col en favor de 2-col debajo de 1280px. Home
+ * replica esta transición para que el comportamiento entre vistas sea
+ * el mismo (mismas plazas, mismas filas, misma densidad). */
+@media (max-width: 1279px) {
+  .plaza-cards-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* ── F3.7 — Mobile full breakpoint (extiende el placeholder previo) ──
+ * 767px y abajo. Goal chips full-width, hero stack, kpi-strip 2-col,
+ * plaza-cards 1-col, today-feed reflow a label/value pairs. */
+@media (max-width: 767px) {
+  #period-selector {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    -webkit-overflow-scrolling: touch;
+  }
+  .goal-chip {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+  .hero-cards {
+    grid-template-columns: 1fr;
+  }
+  .hero-card__big {
+    font-size: 28px;
+  }
+  .kpi-strip {
+    grid-template-columns: repeat(2, 1fr);
+    /* 4 cards over 2 cols → 2 rows of 2 */
+  }
+  .kpi-card__big {
+    font-size: 22px;
+  }
+
+  /* Plaza cards mobile — 1 col stack. Full mobile polish lands en F3.7. */
+  .plaza-cards-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  /* Today feed mobile — stack each row as a card (label/value pairs).
+   * Avoids horizontal scroll (which the SPEC explicitly prohibits) while
+   * keeping all 3 fields visible per lead. The data-label attribute
+   * (set in JS) supplies the column name in front of each cell. */
+  .today-feed__grid {
+    display: block;
+  }
+  .today-feed__header {
+    display: none;
+  }
+  .today-feed__row {
+    display: block;
+    padding: 10px 0;
+    border-bottom: 1px solid #f0f0f0;
+  }
+  .today-feed__cell {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    border-bottom: none;
+    padding: 4px 0;
+  }
+  .today-feed__cell::before {
+    content: attr(data-label);
+    font-size: 11px;
+    color: #8a8a8a;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    font-weight: 600;
+    margin-right: 12px;
+  }
+  .today-feed__cell--precio {
+    text-align: left;
+  }
+}
