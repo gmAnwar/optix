@@ -490,6 +490,156 @@ body {
   color: #8a8a8a;
 }
 
+/* ── F3.6 Plaza cards — 11 cards grid (3-col desktop) ──────────────────
+ *
+ * Replica visual de daily-card (enpagos-daily.css:300+, scoped a
+ * .app-redesign). Inline aquí para no arrastrar design system completo
+ * — patrón establecido F3.x. 5 filas: Inversión (simple) + 4 con grid
+ * 3-col (label | cpa | count) + footer combinado CIERRES/CAC.
+ */
+
+.plaza-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+.plaza-card {
+  background: #fff;
+  border: 1px solid #e5e5e5;
+  border-radius: 10px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.plaza-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border-bottom: 1px solid #f0f0f0;
+  padding-bottom: 8px;
+}
+
+.plaza-card__title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: #1a1a1a;
+  letter-spacing: 0.3px;
+}
+
+.plaza-card__chip {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.plaza-card__chip--green { color: #1b5e20; background: #e8f5e9; }
+.plaza-card__chip--amber { color: #856404; background: #fff8e1; }
+.plaza-card__chip--red   { color: #b71c1c; background: #ffebee; }
+
+.plaza-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.plaza-card__row {
+  display: grid;
+  align-items: baseline;
+  padding: 6px 0;
+  font-size: 13px;
+}
+
+.plaza-card__row--simple {
+  grid-template-columns: 1fr auto;
+}
+
+.plaza-card__row--with-cpa {
+  grid-template-columns: 1fr auto auto;
+  column-gap: 10px;
+}
+
+.plaza-card__row-label {
+  color: #6b6b6b;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  font-weight: 600;
+}
+
+.plaza-card__row-cpa {
+  font-size: 12px;
+  color: #8a8a8a;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  min-width: 60px;
+}
+
+.plaza-card__row-cpa--empty {
+  /* span vacío para mantener grid alineado (Cancelados sin $) */
+}
+
+.plaza-card__row-value {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1a1a1a;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  min-width: 40px;
+}
+
+.plaza-card__footer {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 0 4px 0;
+  border-top: 1px solid #f0f0f0;
+  margin-top: 4px;
+}
+
+.plaza-card__footer-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #6b6b6b;
+  font-weight: 600;
+}
+
+.plaza-card__footer-value {
+  font-size: 16px;
+  font-weight: 700;
+  color: #1a1a1a;
+  font-variant-numeric: tabular-nums;
+}
+
+.plaza-card__footer-sep {
+  color: #d0d0d0;
+  font-weight: 400;
+}
+
+.plaza-card__foot-msg {
+  font-size: 11px;
+  color: #8a8a8a;
+  text-align: center;
+  font-style: italic;
+  margin-top: 4px;
+}
+
+/* Variant tints — subtle top-border colored, no big visual noise */
+.plaza-card[data-variant="B"] { border-top: 3px solid #fff8e1; }
+.plaza-card[data-variant="C"] { opacity: 0.65; }
+.plaza-card[data-variant="D"] { border-top: 3px solid #ffe0b2; }
+.plaza-card[data-variant="E"] { border-top: 3px solid #ffcdd2; }
+
 /* Mobile placeholder — full breakpoint is F3.7. Only ensures the period
  * selector doesn't overflow on narrow screens. */
 @media (max-width: 767px) {
@@ -514,6 +664,12 @@ body {
   }
   .kpi-card__big {
     font-size: 22px;
+  }
+
+  /* Plaza cards mobile — 1 col stack. Full mobile polish lands en F3.7. */
+  .plaza-cards-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
   }
 
   /* Today feed mobile — stack each row as a card (label/value pairs).

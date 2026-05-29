@@ -128,6 +128,7 @@
         renderGoals(data);
         renderHero(data, period);
         renderKpiStrip(data, period);
+        renderPlazaCards(data);
         renderTodayDetailFeed(data);
         clearBanner();
         setSelectorLoading(false);
@@ -640,6 +641,197 @@
   }
 
   window.__renderKpiStrip = renderKpiStrip;
+
+  // ── F3.6 Plaza cards — 11 cards, table 5 rows + footer CIERRES/CAC ─────
+  //
+  // Mirror visual de la card que daily renderiza en cardHtml() de
+  // enpagos-daily.js:533. Replico INLINE (no importar daily, no tocar
+  // daily) — patrón establecido en F3.x: daily CSS está scoped a
+  // .app-redesign con design tokens, esta vista standalone no los carga.
+  //
+  // Data source: data.by_city — MAP keyed por nombre de plaza con
+  // espacios ("NUEVO LEON", "GUADALAJARA"). 11 plazas: 9 regulares + 2
+  // especiales (ORGANICOS, SIN-ATRIBUCION).
+  //
+  // Diferencia explícita vs daily (per SPEC F3.6):
+  // - Daily oculta especiales cuando todo está en 0 (shouldHideSpecial).
+  //   F3.6 SIEMPRE renderiza las 11 plazas, aunque estén en cero.
+  //
+  // Renders por fila (todas leen de by_city.{plaza}.current):
+  //   Inversión          → inversion_atribuida (solo valor $, sin conteo)
+  //   Preautorizados     → leads_brutos (count) + CPA inv/leads_brutos
+  //                          ⚠️ count viene de leads_brutos, NO preaut_*
+  //   Preaut+            → preaut_positivos (count) + CPA inv/preaut_pos
+  //   Cancelados         → cancelados (count, SIN $ — Anwar S60)
+  //   Firmas Programadas → firmas_programadas (count) + CPA inv/firmas
+  //   Footer             → "CIERRES N | CAC $X" (— si cierres===0)
+  //
+  // Variant B (cierres===0 && preaut_positivos>0): CAC muestra "—" y
+  // foot string literal "Preaut+ sin cierre — data de referencia". Hoy
+  // en PROD aplica a BAJIO-GUANAJUATO y CHIHUAHUA.
+  //
+  // Status chip (header right): usa cac_status enum `red|amber|green`
+  // (NOT yellow — alinéate con daily; F3.2 Goals usó yellow por drift).
+  // Chip solo cuando current.cierres > 0 (sin denominador, sin chip).
+
+  function _cpaText(inversion, count) {
+    // Replica de daily cpaText() (enpagos-daily.js:485-489).
+    if (!count || count <= 0) return '—';
+    if (inversion == null || isNaN(inversion)) return '—';
+    return _fmtCurrency(inversion / count);
+  }
+
+  function _plazaVariant(current) {
+    // Replica de daily variantOf() (enpagos-daily.js:457-467).
+    var cierres = (current && current.cierres) || 0;
+    var preaut  = (current && current.preaut_positivos) || 0;
+    var leads   = (current && current.leads_brutos) || 0;
+    var spend   = (current && current.inversion_atribuida) || 0;
+    if (cierres > 0) return 'A';
+    if (preaut > 0)  return 'B';
+    if (leads > 0)   return 'D';
+    if (spend > 0)   return 'E';
+    return 'C';
+  }
+
+  function _plazaFootMessage(variant) {
+    // Replica de daily variantFootMessage() (enpagos-daily.js:474-480).
+    if (variant === 'B') return 'Preaut+ sin cierre — data de referencia';
+    if (variant === 'D') return 'Lead sin calificar — revisar tráfico';
+    if (variant === 'E') return 'Revisar mapping ads → plaza';
+    if (variant === 'C') return 'Sin actividad en el periodo';
+    return '';
+  }
+
+  function _plazaChipForStatus(cacStatus) {
+    // Match daily chipSpecFor() (enpagos-daily.js:282-287). Enum: red/amber/green.
+    if (cacStatus === 'red')   return { className: 'plaza-card__chip--red',   label: 'FUERA DE META' };
+    if (cacStatus === 'amber') return { className: 'plaza-card__chip--amber', label: 'CERCA DE META' };
+    if (cacStatus === 'green') return { className: 'plaza-card__chip--green', label: 'EN META' };
+    return null;
+  }
+
+  function _plazaMetricRowHtml(label, valueHTML) {
+    // Fila Inversión: solo label + valor (sin slot CPA).
+    return (
+      '<div class="plaza-card__row plaza-card__row--simple">' +
+        '<span class="plaza-card__row-label">' + escapeHtml(label) + '</span>' +
+        '<span class="plaza-card__row-value">' + valueHTML + '</span>' +
+      '</div>'
+    );
+  }
+
+  function _plazaMetricRowWithCpaHtml(label, valueHTML, cpaHTML) {
+    // Filas Preautorizados / Preaut+ / Cancelados / Firmas: 3 columnas
+    // (label | cpa | count). Cuando cpaHTML es null → span vacío para
+    // mantener el grid alineado (igual que daily).
+    var cpaSpan = (cpaHTML != null && cpaHTML !== '')
+      ? '<span class="plaza-card__row-cpa">' + cpaHTML + '</span>'
+      : '<span class="plaza-card__row-cpa plaza-card__row-cpa--empty" aria-hidden="true"></span>';
+    return (
+      '<div class="plaza-card__row plaza-card__row--with-cpa">' +
+        '<span class="plaza-card__row-label">' + escapeHtml(label) + '</span>' +
+        cpaSpan +
+        '<span class="plaza-card__row-value">' + valueHTML + '</span>' +
+      '</div>'
+    );
+  }
+
+  function _plazaFooterHtml(cierres, cacText) {
+    return (
+      '<div class="plaza-card__footer">' +
+        '<span class="plaza-card__footer-label">CIERRES</span>' +
+        '<span class="plaza-card__footer-value">' + _fmtInt(cierres) + '</span>' +
+        '<span class="plaza-card__footer-sep">|</span>' +
+        '<span class="plaza-card__footer-label">CAC</span>' +
+        '<span class="plaza-card__footer-value">' + cacText + '</span>' +
+      '</div>'
+    );
+  }
+
+  function _plazaCardHtml(plaza, city) {
+    var current = (city && city.current) || {};
+    var vsGoal  = (city && city.vs_goal) || {};
+    var variant = _plazaVariant(current);
+
+    // Chip header (solo cuando hay cierres → CAC tiene denominador).
+    var chip = (current.cierres > 0) ? _plazaChipForStatus(vsGoal.cac_status) : null;
+    var chipHtml = chip
+      ? '<span class="plaza-card__chip ' + chip.className + '">' + escapeHtml(chip.label) + '</span>'
+      : '';
+
+    // CAC text: "—" cuando cierres === 0 (variantes B/C/D/E todas caen aquí).
+    var cacText = (current.cierres > 0)
+      ? _fmtCurrency(current.cac)
+      : '—';
+
+    var inv = current.inversion_atribuida;
+    var rows = ''
+      + _plazaMetricRowHtml('Inversión', _fmtCurrency(inv))
+      + _plazaMetricRowWithCpaHtml('Preautorizados',     _fmtInt(current.leads_brutos),        _cpaText(inv, current.leads_brutos))
+      + _plazaMetricRowWithCpaHtml('Preaut+',            _fmtInt(current.preaut_positivos),    _cpaText(inv, current.preaut_positivos))
+      + _plazaMetricRowWithCpaHtml('Cancelados',         _fmtInt(current.cancelados),          null)
+      + _plazaMetricRowWithCpaHtml('Firmas Programadas', _fmtInt(current.firmas_programadas),  _cpaText(inv, current.firmas_programadas))
+      + _plazaFooterHtml(current.cierres, cacText);
+
+    var footMsg = _plazaFootMessage(variant);
+    var footMsgHtml = footMsg
+      ? '<div class="plaza-card__foot-msg">' + escapeHtml(footMsg) + '</div>'
+      : '';
+
+    return (
+      '<div class="plaza-card" data-variant="' + escapeHtml(variant) + '" data-plaza="' + escapeHtml(plaza) + '">' +
+        '<div class="plaza-card__header">' +
+          '<h3 class="plaza-card__title">' + escapeHtml(plaza) + '</h3>' +
+          chipHtml +
+        '</div>' +
+        '<div class="plaza-card__body">' + rows + '</div>' +
+        footMsgHtml +
+      '</div>'
+    );
+  }
+
+  function renderPlazaCards(data) {
+    var sec = document.getElementById('plaza-cards-section');
+    if (!sec) return;
+    if (!data || typeof data !== 'object') {
+      sec.innerHTML = '';
+      return;
+    }
+    var byCity = data.by_city;
+    if (!byCity || typeof byCity !== 'object' || Object.keys(byCity).length === 0) {
+      sec.innerHTML = '';
+      return;
+    }
+
+    // Sort: regulares (sorted DESC por inversion_atribuida) + especiales al final.
+    // Mismo orden que daily (enpagos-daily.js:432-447). Spec F3.6: NO ocultar
+    // especiales aunque estén en cero — sus cards siguen apareciendo con
+    // foot "Sin actividad en el periodo".
+    var SPECIAL_PLAZAS = ['ORGANICOS', 'SIN-ATRIBUCION'];
+    var isSpecial = function (p) { return SPECIAL_PLAZAS.indexOf(p) !== -1; };
+
+    var allPlazas = Object.keys(byCity);
+    var regulares = allPlazas.filter(function (p) { return !isSpecial(p); });
+    var especiales = SPECIAL_PLAZAS.filter(function (p) {
+      return Object.prototype.hasOwnProperty.call(byCity, p);
+    });
+
+    regulares.sort(function (a, b) {
+      var invA = ((byCity[a] && byCity[a].current) || {}).inversion_atribuida || 0;
+      var invB = ((byCity[b] && byCity[b].current) || {}).inversion_atribuida || 0;
+      return invB - invA;
+    });
+
+    var ordered = regulares.concat(especiales);
+    var cardsHtml = ordered.map(function (plaza) {
+      return _plazaCardHtml(plaza, byCity[plaza] || {});
+    }).join('');
+
+    sec.innerHTML = '<div class="plaza-cards-grid">' + cardsHtml + '</div>';
+  }
+
+  window.__renderPlazaCards = renderPlazaCards;
 
   // ── F3.5 TodayDetailFeed — table of today's preautorized leads ─────────
   //
