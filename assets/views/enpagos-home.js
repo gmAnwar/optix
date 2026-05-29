@@ -225,6 +225,9 @@
 
   function _chipHTML(opts) {
     // opts: { label, valueHTML, goalHTML, pctHTML, statusCls, tooltip, gracefulCls }
+    // goalHTML / pctHTML pueden venir vacíos para chips sin denominador
+    // (ej. Firmas, que no tiene goal backend) o sin pct (Venta/CAC, que
+    // muestran value/goal sin %).
     var tooltipAttr = opts.tooltip ? ' title="' + escapeHtml(opts.tooltip) + '"' : '';
     var cls = 'goal-chip';
     if (opts.statusCls) cls += ' ' + opts.statusCls;
@@ -232,13 +235,16 @@
     var pctBlock = opts.pctHTML
       ? '<span class="goal-chip__pct">(' + opts.pctHTML + ')</span>'
       : '';
+    var goalBlock = (opts.goalHTML != null && opts.goalHTML !== '')
+      ? '<span class="goal-chip__sep">/</span>' +
+        '<span class="goal-chip__goal">' + opts.goalHTML + '</span>'
+      : '';
     return (
       '<div class="' + cls + '"' + tooltipAttr + '>' +
         '<span class="goal-chip__label">' + escapeHtml(opts.label) + '</span>' +
         '<span class="goal-chip__values">' +
           '<span class="goal-chip__value">' + opts.valueHTML + '</span>' +
-          '<span class="goal-chip__sep">/</span>' +
-          '<span class="goal-chip__goal">' + opts.goalHTML + '</span>' +
+          goalBlock +
         '</span>' +
         pctBlock +
       '</div>'
@@ -296,9 +302,36 @@
       tooltip:   cacDown ? 'Pipeline de inversión actualizando' : ''
     });
 
+    // ── F3.9 Venta chip — monto vendido del periodo ──
+    // Backend: totals.current.venta (presente en los 6 periods, nunca null).
+    // 0 es real (today/yesterday/last_month suelen estar en 0, no es
+    // pipeline-down). Solo "—" cuando viene null/ausente.
+    // Goal opcional: goals_prorrated.venta_goal_periodo cuando exista.
+    // NO pct: backend no ship venta_pct en vs_goal (mismo patrón que CAC).
+    var ventaVal  = current.venta;
+    var ventaGoal = prorrated.venta_goal_periodo;
+    var ventaHTML = _chipHTML({
+      label: 'Venta',
+      valueHTML: (ventaVal == null) ? '—' : _fmtCurrency(ventaVal),
+      goalHTML:  (ventaGoal != null) ? _fmtCurrency(ventaGoal) : '',
+      pctHTML:   ''
+    });
+
+    // ── F3.9 Firmas Programadas chip — total agregado del periodo ──
+    // Backend: totals.current.firmas_programadas (verificado por_city sum
+    // matches → backend YA hace la agregación). Sin goal backend, sin
+    // pct, sin status. Solo el conteo.
+    var firmasVal = current.firmas_programadas;
+    var firmasHTML = _chipHTML({
+      label: 'Firmas Prog.',
+      valueHTML: (firmasVal == null) ? '—' : _fmtInt(firmasVal),
+      goalHTML:  '',
+      pctHTML:   ''
+    });
+
     sec.innerHTML =
       '<div class="goals-chips" role="group" aria-label="Metas del periodo">' +
-        cierresHTML + invHTML + cacHTML +
+        cierresHTML + invHTML + cacHTML + ventaHTML + firmasHTML +
       '</div>';
   }
 
