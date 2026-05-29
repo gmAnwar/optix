@@ -127,7 +127,7 @@
         console.log('[enpagos-home] data loaded for period=' + period + ', top-level keys: ' + topKeys);
         renderGoals(data);
         renderHero(data, period);
-        renderKpiStrip(data);
+        renderKpiStrip(data, period);
         clearBanner();
         setSelectorLoading(false);
       })
@@ -175,6 +175,12 @@
     if (decimal == null || isNaN(decimal)) return '—';
     // Backend stores ratios as decimals (0.557 = 55.7%). Multiply x100 + round.
     return Math.round(Number(decimal) * 100) + '%';
+  }
+
+  function _fmtFloat2(n) {
+    // 2 decimal places for fractional metrics like daily_avg_business_days (0.65).
+    if (n == null || isNaN(n)) return '—';
+    return Number(n).toFixed(2);
   }
 
   function _statusClass(status) {
@@ -570,37 +576,54 @@
     );
   }
 
-  function renderKpiStrip(data) {
+  function renderKpiStrip(data, period) {
     var sec = document.getElementById('kpi-strip-section');
     if (!sec) return;
     if (!data || typeof data !== 'object') {
       sec.innerHTML = '';
       return;
     }
-    var current = (data.totals && data.totals.current) || {};
-    var delta   = (data.totals && data.totals.delta)   || {};
-    var meta    = data.meta                            || {};
+    // Diseño A — KPI strip muestra métricas de PROYECCIÓN, sólo significativas
+    // bajo period='mtd' (proyección EOM contra otros windows = nonsense).
+    // En periods != mtd la sección se limpia sin empty state (UX silencioso).
+    if (period !== 'mtd') {
+      sec.innerHTML = '';
+      return;
+    }
+    var current    = (data.totals && data.totals.current)    || {};
+    var projection = (data.totals && data.totals.projection) || {};
+    var delta      = (data.totals && data.totals.delta)      || {};
+    var meta       = data.meta                               || {};
     var periodLabel = _formatPreviousRange(meta.previous_period);
 
-    // Each entry: { label, currentKey, absKey?, pctKey? }
-    // KPIs without an _abs or _pct backend key produce the "—" comparison.
+    // 4 métricas del Diseño A (SPEC canvas F0B65HXAUN7):
+    //  1. Today's Cierres        → totals.current.cierres       (MTD count hoy)
+    //  2. Daily Avg (días háb.)  → totals.projection.daily_avg_business_days
+    //  3. Projected EOM Cierres  → totals.projection.projected_cierres_eom
+    //  4. Projected EOM Inversión→ totals.projection.projected_inversion_eom
+    //
+    // "Today's Cierres" no existe en totals.projection; interpretación más
+    // literal es el contador MTD de hoy (current.cierres). Flagged en
+    // F3.INV report — corregible en mismo PR si SPEC quiso decir otra cosa.
+    //
+    // Solo Cierres MTD tiene delta backend (cierres_abs); las otras 3 son
+    // métricas derivadas/proyectivas sin counterpart en periodo previo —
+    // delta line muestra "— vs ABRIL (1-28)" (gris missing).
     var KPIS = [
-      { label: 'Mensajes',       currentKey: 'mensajes',           absKey: 'mensajes_abs' },
-      { label: 'Preaut brutos',  currentKey: 'preaut_brutos'       /* no delta key */ },
-      { label: 'Preaut+',        currentKey: 'preaut_positivos',   absKey: 'preaut_positivos_abs' },
-      { label: 'Firmas prog.',   currentKey: 'firmas_programadas'  /* no delta key */ },
-      { label: 'Cancelados',     currentKey: 'cancelados'          /* no delta key */ }
+      { label: "Cierres hoy",         value: current.cierres,                         absKey: 'cierres_abs', formatter: _fmtInt },
+      { label: "Cierres/día háb.",    value: projection.daily_avg_business_days,      formatter: _fmtFloat2 },
+      { label: "Proy. cierres EOM",   value: projection.projected_cierres_eom,        formatter: _fmtInt },
+      { label: "Proy. inversión EOM", value: projection.projected_inversion_eom,      formatter: _fmtCurrency }
     ];
 
     var cardsHTML = '';
     for (var i = 0; i < KPIS.length; i++) {
       var k = KPIS[i];
-      var val = current[k.currentKey];
       var abs = k.absKey ? delta[k.absKey] : null;
       var pct = k.pctKey ? delta[k.pctKey] : null;
       cardsHTML += _kpiCardHTML({
         label: k.label,
-        valueHTML: _fmtInt(val),
+        valueHTML: k.formatter(k.value),
         deltaHTML: _deltaLineHTML(abs, pct, periodLabel)
       });
     }
