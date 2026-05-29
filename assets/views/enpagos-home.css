@@ -33,10 +33,17 @@ body {
   border: 1px solid #d0d0d0;
   background: #fff;
   color: #333;
-  padding: 6px 12px;
+  padding: 6px 14px;
   border-radius: 6px;
   font: inherit;
   cursor: pointer;
+  /* F3.7 GAP 2 — touch target 44x44 mín (WCAG AA, Apple HIG). Aplica
+   * en todos los viewports porque touch laptops también lo necesitan. */
+  min-height: 44px;
+  min-width: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
 }
 
@@ -113,10 +120,16 @@ body {
   border: 1px solid #d04848;
   background: #fff;
   color: #d04848;
-  padding: 6px 12px;
+  padding: 6px 14px;
   border-radius: 6px;
   font: inherit;
   cursor: pointer;
+  /* F3.7 GAP 2 — touch target 44x44 mín */
+  min-height: 44px;
+  min-width: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .banner__retry:hover {
@@ -436,6 +449,9 @@ body {
   font-size: 13px;
   color: #1a1a1a;
   border-bottom: 1px solid #f0f0f0;
+  /* F3.7 GAP 3 — nombres de campaña pueden ser largos, no romper layout */
+  overflow-wrap: anywhere;
+  min-width: 0;
 }
 
 .today-feed__header .today-feed__cell {
@@ -522,6 +538,9 @@ body {
   gap: 8px;
   border-bottom: 1px solid #f0f0f0;
   padding-bottom: 8px;
+  /* F3.7 GAP 3 — chip "FUERA DE META" + título largo (BAJIO-AGUASCALIENTES,
+   * 20 chars) puede colisionar a ~320px. Allow wrap si necesario. */
+  flex-wrap: wrap;
 }
 
 .plaza-card__title {
@@ -530,6 +549,11 @@ body {
   font-weight: 700;
   color: #1a1a1a;
   letter-spacing: 0.3px;
+  /* F3.7 GAP 3 — flex item shrink + break en cualquier punto para
+   * plazas con nombre largo (BAJIO-AGUASCALIENTES, SIN-ATRIBUCION). */
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .plaza-card__chip {
@@ -640,8 +664,19 @@ body {
 .plaza-card[data-variant="D"] { border-top: 3px solid #ffe0b2; }
 .plaza-card[data-variant="E"] { border-top: 3px solid #ffcdd2; }
 
-/* Mobile placeholder — full breakpoint is F3.7. Only ensures the period
- * selector doesn't overflow on narrow screens. */
+/* ── F3.7 GAP 1 — Tablet breakpoint (paridad con enpagos-daily.css:292)
+ * Daily oculta el grid 3-col en favor de 2-col debajo de 1280px. Home
+ * replica esta transición para que el comportamiento entre vistas sea
+ * el mismo (mismas plazas, mismas filas, misma densidad). */
+@media (max-width: 1279px) {
+  .plaza-cards-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* ── F3.7 — Mobile full breakpoint (extiende el placeholder previo) ──
+ * 767px y abajo. Goal chips full-width, hero stack, kpi-strip 2-col,
+ * plaza-cards 1-col, today-feed reflow a label/value pairs. */
 @media (max-width: 767px) {
   #period-selector {
     overflow-x: auto;
