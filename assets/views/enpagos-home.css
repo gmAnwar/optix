@@ -392,6 +392,104 @@ body {
 .kpi-delta--zero,
 .kpi-delta--missing { color: #8a8a8a; }
 
+/* ── F3.5 TodayDetailFeed — table of today's preautorized leads ────────
+ *
+ * Desktop: 3-col CSS grid (plaza / precio / campaña) with subtle row
+ * borders. Mobile <768px: stack each row as label/value pairs (no
+ * horizontal scroll). EmptyState inline (component reuse deferred —
+ * see renderTodayDetailFeed docblock in enpagos-home.js).
+ */
+
+.today-feed {
+  background: #fff;
+  border: 1px solid #e5e5e5;
+  border-radius: 10px;
+  padding: 16px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.today-feed__title {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #6b6b6b;
+  margin-bottom: 12px;
+}
+
+.today-feed__grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr 2fr;
+  row-gap: 0;
+}
+
+.today-feed__header {
+  display: contents;
+}
+
+.today-feed__row {
+  display: contents;
+}
+
+.today-feed__cell {
+  padding: 10px 8px;
+  font-size: 13px;
+  color: #1a1a1a;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.today-feed__header .today-feed__cell {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: #6b6b6b;
+  font-weight: 600;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.today-feed__cell--precio {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  text-align: right;
+}
+
+.today-feed__cell--campana {
+  color: #6b6b6b;
+}
+
+/* EmptyState inline — minimal equivalent of EmptyState.html() */
+.today-feed--empty {
+  text-align: left;
+}
+
+.today-feed__empty {
+  padding: 28px 16px;
+  border: 1px dashed #d0d0d0;
+  border-radius: 8px;
+  background: #fafafa;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.today-feed__empty-icon {
+  font-size: 22px;
+  opacity: 0.6;
+}
+
+.today-feed__empty-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #4a4a4a;
+}
+
+.today-feed__empty-msg {
+  font-size: 12px;
+  color: #8a8a8a;
+}
+
 /* Mobile placeholder — full breakpoint is F3.7. Only ensures the period
  * selector doesn't overflow on narrow screens. */
 @media (max-width: 767px) {
@@ -412,9 +510,44 @@ body {
   }
   .kpi-strip {
     grid-template-columns: repeat(2, 1fr);
-    /* 5th card wraps onto its own row, full width remains 2-col grid */
+    /* 4 cards over 2 cols → 2 rows of 2 */
   }
   .kpi-card__big {
     font-size: 22px;
+  }
+
+  /* Today feed mobile — stack each row as a card (label/value pairs).
+   * Avoids horizontal scroll (which the SPEC explicitly prohibits) while
+   * keeping all 3 fields visible per lead. The data-label attribute
+   * (set in JS) supplies the column name in front of each cell. */
+  .today-feed__grid {
+    display: block;
+  }
+  .today-feed__header {
+    display: none;
+  }
+  .today-feed__row {
+    display: block;
+    padding: 10px 0;
+    border-bottom: 1px solid #f0f0f0;
+  }
+  .today-feed__cell {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    border-bottom: none;
+    padding: 4px 0;
+  }
+  .today-feed__cell::before {
+    content: attr(data-label);
+    font-size: 11px;
+    color: #8a8a8a;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    font-weight: 600;
+    margin-right: 12px;
+  }
+  .today-feed__cell--precio {
+    text-align: left;
   }
 }

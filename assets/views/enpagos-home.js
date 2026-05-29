@@ -128,6 +128,7 @@
         renderGoals(data);
         renderHero(data, period);
         renderKpiStrip(data, period);
+        renderTodayDetailFeed(data);
         clearBanner();
         setSelectorLoading(false);
       })
@@ -632,6 +633,102 @@
   }
 
   window.__renderKpiStrip = renderKpiStrip;
+
+  // ── F3.5 TodayDetailFeed — table of today's preautorized leads ─────────
+  //
+  // Data: totals.today_preaut_positivos — array of lead objects from
+  // resultado_ventas backend. Shape per SPEC: { plaza, precio, campana }.
+  // Today's PROD returns length 0 → EmptyState fires.
+  //
+  // EmptyState reuse decision: assets/components/EmptyState.js exists with
+  // window.EmptyState.html(props) API. BUT its companion EmptyState.css is
+  // scoped to .app-redesign and depends on design-token CSS vars not loaded
+  // by this standalone view (same blocker as ProgressBar / Goal chip
+  // status colors → I'm following the established F3.x pattern of inlining
+  // a minimal element in the home stylesheet rather than dragging in the
+  // design system mid-flight). Refactor to use EmptyState.create() lands
+  // when Home migrates to .app-redesign (post-F3.8).
+  //
+  // Mobile <768px: stack vertical (label/value pairs per card). NOT
+  // horizontal scroll. Full mobile breakpoint is F3.7; here only the feed
+  // gets the stacked treatment.
+
+  function _todayFeedRow(item) {
+    var plaza   = (item && item.plaza)   != null ? String(item.plaza)   : '—';
+    var campana = (item && item.campana) != null ? String(item.campana) : '—';
+    var precio  = (item && item.precio   != null && !isNaN(item.precio))
+      ? _fmtCurrency(item.precio) : '—';
+    return (
+      '<div class="today-feed__row" role="row">' +
+        '<div class="today-feed__cell today-feed__cell--plaza"   role="cell" data-label="Plaza">' + escapeHtml(plaza) + '</div>' +
+        '<div class="today-feed__cell today-feed__cell--precio"  role="cell" data-label="Precio">' + escapeHtml(precio) + '</div>' +
+        '<div class="today-feed__cell today-feed__cell--campana" role="cell" data-label="Campaña">' + escapeHtml(campana) + '</div>' +
+      '</div>'
+    );
+  }
+
+  function _todayFeedHeaderHTML() {
+    return (
+      '<div class="today-feed__header" role="row">' +
+        '<div class="today-feed__cell today-feed__cell--plaza"   role="columnheader">Plaza</div>' +
+        '<div class="today-feed__cell today-feed__cell--precio"  role="columnheader">Precio</div>' +
+        '<div class="today-feed__cell today-feed__cell--campana" role="columnheader">Campaña</div>' +
+      '</div>'
+    );
+  }
+
+  function _emptyStateHTML(title, message) {
+    // Inline equivalent of assets/components/EmptyState.html() — see
+    // renderTodayDetailFeed docblock for why we don't reuse the component
+    // wholesale today.
+    return (
+      '<div class="today-feed__empty" role="status">' +
+        '<div class="today-feed__empty-icon" aria-hidden="true">⏳</div>' +
+        '<div class="today-feed__empty-title">' + escapeHtml(title) + '</div>' +
+        (message
+          ? '<div class="today-feed__empty-msg">' + escapeHtml(message) + '</div>'
+          : '') +
+      '</div>'
+    );
+  }
+
+  function renderTodayDetailFeed(data) {
+    var sec = document.getElementById('today-detail-section');
+    if (!sec) return;
+    if (!data || typeof data !== 'object') {
+      sec.innerHTML = '';
+      return;
+    }
+    var feed = data.totals && data.totals.today_preaut_positivos;
+    // Defensive: backend may omit the array entirely OR return a non-array.
+    // Treat both as "no data today" — EmptyState fires.
+    if (!Array.isArray(feed) || feed.length === 0) {
+      sec.innerHTML =
+        '<div class="today-feed today-feed--empty">' +
+          '<div class="today-feed__title">Preautorizados de hoy</div>' +
+          _emptyStateHTML(
+            'Sin preautorizados hoy',
+            'Cuando llegue el primer preaut+ del día aparece aquí.'
+          ) +
+        '</div>';
+      return;
+    }
+
+    var rowsHTML = '';
+    for (var i = 0; i < feed.length; i++) {
+      rowsHTML += _todayFeedRow(feed[i]);
+    }
+    sec.innerHTML =
+      '<div class="today-feed" role="table" aria-label="Preautorizados de hoy">' +
+        '<div class="today-feed__title">Preautorizados de hoy</div>' +
+        '<div class="today-feed__grid">' +
+          _todayFeedHeaderHTML() +
+          rowsHTML +
+        '</div>' +
+      '</div>';
+  }
+
+  window.__renderTodayDetailFeed = renderTodayDetailFeed;
 
   function showSkeletons() {
     for (var i = 0; i < SECTION_IDS.length; i++) {
