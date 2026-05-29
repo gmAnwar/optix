@@ -125,15 +125,42 @@
         window.__homeData = data;
         var topKeys = data && typeof data === 'object' ? Object.keys(data).join(',') : '<non-object>';
         console.log('[enpagos-home] data loaded for period=' + period + ', top-level keys: ' + topKeys);
-        renderGoals(data);
-        renderHero(data, period);
-        renderKpiStrip(data, period);
-        renderPlazaCards(data);
-        renderTodayDetailFeed(data);
+
+        // Render sections in INDIVIDUAL try/catches. Rationale: any throw from
+        // a single renderer (e.g. unexpected payload shape) used to bubble to
+        // the outer .catch() — which is wired to the network-error banner
+        // "No se pudo cargar el periodo". That conflates two failure modes:
+        //   1. Real fetch failure (network / HTTP 4xx/5xx) → banner correct
+        //   2. Render-time bug (data IS loaded, JS threw) → banner misleads
+        //      ("no se pudo cargar" implies fetch failed when it didn't)
+        // Now: render errors are logged to console with full stack and that
+        // section is skipped; other sections still render. Real fetch errors
+        // still hit the outer .catch as before.
+        var sections = [
+          ['renderGoals',           function () { renderGoals(data); }],
+          ['renderHero',            function () { renderHero(data, period); }],
+          ['renderKpiStrip',        function () { renderKpiStrip(data, period); }],
+          ['renderPlazaCards',      function () { renderPlazaCards(data); }],
+          ['renderTodayDetailFeed', function () { renderTodayDetailFeed(data); }]
+        ];
+        for (var i = 0; i < sections.length; i++) {
+          try {
+            sections[i][1]();
+          } catch (renderErr) {
+            console.error(
+              '[enpagos-home] render error in ' + sections[i][0] +
+              ' for period=' + period + ':',
+              renderErr
+            );
+          }
+        }
         clearBanner();
         setSelectorLoading(false);
       })
       .catch(function (err) {
+        // This branch only fires for FETCH failures (network error, HTTP
+        // non-2xx, JSON parse failure). Render-time exceptions are caught
+        // above and never reach here.
         if (err && err.name === 'AbortError') {
           // Expected when user switches periods rapidly; do not surface.
           return;
