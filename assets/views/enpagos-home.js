@@ -598,20 +598,27 @@
     var periodLabel = _formatPreviousRange(meta.previous_period);
 
     // 4 métricas del Diseño A (SPEC canvas F0B65HXAUN7):
-    //  1. Today's Cierres        → totals.current.cierres       (MTD count hoy)
+    //  1. Preaut+ Hoy            → totals.today_preaut_positivos.length
     //  2. Daily Avg (días háb.)  → totals.projection.daily_avg_business_days
     //  3. Projected EOM Cierres  → totals.projection.projected_cierres_eom
     //  4. Projected EOM Inversión→ totals.projection.projected_inversion_eom
     //
-    // "Today's Cierres" no existe en totals.projection; interpretación más
-    // literal es el contador MTD de hoy (current.cierres). Flagged en
-    // F3.INV report — corregible en mismo PR si SPEC quiso decir otra cosa.
+    // Slot #1 — "Preaut+ Hoy" usa el length del MISMO array que alimenta
+    // el TodayDetailFeed (F3.5), no totals.current.preaut_positivos (que
+    // es MTD). Una sola fuente para el conteo y el detalle = imposible
+    // descuadre entre header KPI y filas de la tabla. Anwar 2026-05-29.
+    // length===0 es un cero válido (no "—"), igual que el feed muestra
+    // EmptyState sin tratarlo como dato faltante.
     //
-    // Solo Cierres MTD tiene delta backend (cierres_abs); las otras 3 son
-    // métricas derivadas/proyectivas sin counterpart en periodo previo —
-    // delta line muestra "— vs ABRIL (1-28)" (gris missing).
+    // Ninguna de las 4 métricas tiene un counterpart útil en el periodo
+    // previo (proyecciones EOM, conteo del día, daily avg basado en días
+    // hábiles transcurridos) — todas las delta lines muestran "—
+    // vs ABRIL (1-28)" gris missing. Eliminé el cierres_abs anterior
+    // porque mapeaba al slot #1 ahora descartado.
+    var todayFeed = (data.totals && data.totals.today_preaut_positivos) || [];
+    var todayPreautCount = Array.isArray(todayFeed) ? todayFeed.length : 0;
     var KPIS = [
-      { label: "Cierres hoy",         value: current.cierres,                         absKey: 'cierres_abs', formatter: _fmtInt },
+      { label: "Preaut+ Hoy",         value: todayPreautCount,                        formatter: _fmtInt },
       { label: "Cierres/día háb.",    value: projection.daily_avg_business_days,      formatter: _fmtFloat2 },
       { label: "Proy. cierres EOM",   value: projection.projected_cierres_eom,        formatter: _fmtInt },
       { label: "Proy. inversión EOM", value: projection.projected_inversion_eom,      formatter: _fmtCurrency }
