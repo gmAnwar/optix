@@ -436,7 +436,8 @@ html, body {
    ============================================ */
 .kpi-row {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  /* S80 Fase-B: 5 cards (citas hoy + avg + eom + llamadas + cierres). */
+  grid-template-columns: repeat(5, 1fr);
   gap: var(--s-4);
   margin-bottom: var(--s-4);
 }
@@ -824,7 +825,8 @@ html, body {
   .goals-banner-stats { margin-left: 0; width: 100%; }
 
   .hero-row { grid-template-columns: 1fr; }
-  .kpi-row { grid-template-columns: repeat(2, 1fr); }
+  /* S80 Fase-B: 3 cols en tablet — con 5 cards da 3+2 (sin orphan que daría 2+2+1). */
+  .kpi-row { grid-template-columns: repeat(3, 1fr); }
   .cac-row { grid-template-columns: 1fr; }
   .plaza-grid { grid-template-columns: 1fr; }
 

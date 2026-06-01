@@ -619,7 +619,17 @@
        <div class="kpi-card-sub muted">por día (en el mes)</div>
        ${renderVsMesAnterior(d, 'citas_agendadas')}`);
 
-    // KPI 3: Llamadas Agendadas (S80 Fase-B item 1 — campo nuevo).
+    // KPI 3: Citas Proyectadas Fin de Mes (run-rate de la métrica citas_agendadas).
+    // NO confundir con KPI 4 que es Llamadas Agendadas (etapa distinta del funnel).
+    const eomCitas = Math.round(avgCitas * totalDays);
+    setHtml('kpi-citas-eom',
+      `<div class="kpi-card-label">Citas Proyectadas Fin de Mes</div>
+       <div class="kpi-card-main">
+         <div class="kpi-card-value">${eomCitas}</div>
+       </div>
+       <div class="kpi-card-sub muted">si mantiene ritmo</div>`);
+
+    // KPI 4: Llamadas Agendadas (S80 Fase-B item 1 — campo nuevo).
     // Etapa #3 del funnel — captadora consiguió llamada con dueño. NO confundir
     // con captaciones (etapa #6: dueño firma contrato).
     const llamadasAgendadas = current.llamadas_agendadas;
@@ -632,7 +642,7 @@
        <div class="kpi-card-sub muted">etapa del funnel</div>
        ${renderVsMesAnterior(d, 'llamadas_agendadas')}`);
 
-    // KPI 4: Cierres del Mes con comparativo vs mes anterior (null-safe en mtd).
+    // KPI 5: Cierres del Mes con comparativo vs mes anterior (null-safe en mtd).
     const vsGoalCierres = get(scoped, 'vs_goal.cierres_pct');
     const cierresNull = current.cierres === null || current.cierres === undefined;
     setHtml('kpi-cierres',
