@@ -13,6 +13,55 @@ body {
   background: #fafafa;
 }
 
+/* S82 — view-nav (Home / Overview / Diario). Standalone-styled, no
+ * design tokens (consistente con el resto de home). Horizontal layout
+ * en lugar del sidebar vertical de overview/daily — home no carga el
+ * design system de .app-redesign. Hrefs reales para que las 3 vistas
+ * sean alcanzables entre sí. */
+#view-nav {
+  display: flex;
+  gap: 4px;
+  padding: 8px 16px;
+  background: #fff;
+  border-bottom: 1px solid #e5e5e5;
+}
+
+.view-nav__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  text-decoration: none;
+  color: #555;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  /* WCAG AA / Apple HIG — 44x44 touch target */
+  min-height: 44px;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+
+.view-nav__item:hover {
+  background: #f0f0f0;
+  color: #1a1a1a;
+}
+
+.view-nav__item--active {
+  background: #1a1a1a;
+  color: #fff;
+  cursor: default;
+}
+
+.view-nav__item--active:hover {
+  background: #1a1a1a;
+  color: #fff;
+}
+
+.view-nav__icon {
+  flex-shrink: 0;
+}
+
 #home-header {
   display: flex;
   flex-direction: column;
@@ -359,20 +408,40 @@ body {
  * the pattern lands in the view.
  */
 
+/* S82 — sticky positioning del KPI strip (paridad con daily-sticky
+ * de enpagos-daily.css:71+269). El strip de 6 KPIs queda fijo arriba al
+ * scrollear las plaza cards (lecturas rápidas sin perder el contexto KPI).
+ * Wrapper section debe tener position: relative para que el offset
+ * de sticky se calcule contra el flujo correcto.
+ */
+#kpi-strip-section {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: #fafafa;
+  padding-top: 8px;
+  padding-bottom: 4px;
+  margin-left: -16px;
+  margin-right: -16px;
+  padding-left: 16px;
+  padding-right: 16px;
+}
+
 .kpi-strip {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 12px;
+  /* S82: 6 KPIs (Preaut+ · Cierres · Inversión · CAC · Venta · Firmas) */
+  grid-template-columns: repeat(6, 1fr);
+  gap: 8px;
 }
 
 .kpi-card {
   background: #fff;
   border: 1px solid #e5e5e5;
   border-radius: 10px;
-  padding: 14px;
+  padding: 12px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
   min-width: 0;
 }
@@ -386,10 +455,29 @@ body {
 }
 
 .kpi-card__big {
-  font-size: 24px;
+  font-size: 22px;
   font-weight: 700;
   color: #1a1a1a;
-  line-height: 1.1;
+  line-height: 1.15;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+/* S82 AUX inline (Preaut+ usa para costo_preaut_positivo); paridad daily.js:240 */
+.kpi-card__aux {
+  font-size: 12px;
+  font-weight: 500;
+  color: #6b6b6b;
+  font-variant-numeric: tabular-nums;
+}
+
+/* S82 SUB línea bajo el big number (Cierres usa "de ~23 meta"); paridad daily */
+.kpi-card__sub {
+  font-size: 11px;
+  color: #8a8a8a;
+  font-variant-numeric: tabular-nums;
 }
 
 .kpi-delta {
@@ -672,6 +760,10 @@ body {
   .plaza-cards-grid {
     grid-template-columns: repeat(2, 1fr);
   }
+  /* S82 — tablet: 6 KPIs en 3 cols x 2 filas (cabe legible) */
+  .kpi-strip {
+    grid-template-columns: repeat(3, 1fr);
+  }
 }
 
 /* ── F3.7 — Mobile full breakpoint (extiende el placeholder previo) ──
@@ -694,8 +786,15 @@ body {
     font-size: 28px;
   }
   .kpi-strip {
+    /* S82 — mobile: 6 KPIs en 2 cols x 3 filas (legible, no scroll x). */
     grid-template-columns: repeat(2, 1fr);
-    /* 4 cards over 2 cols → 2 rows of 2 */
+  }
+  /* Sticky se reduce a top:0 sin negative margins (full-width OK) en mobile */
+  #kpi-strip-section {
+    margin-left: 0;
+    margin-right: 0;
+    padding-left: 0;
+    padding-right: 0;
   }
   .kpi-card__big {
     font-size: 22px;
