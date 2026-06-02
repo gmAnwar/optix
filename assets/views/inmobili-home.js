@@ -264,10 +264,16 @@
       renderTodayStrip();
     }
 
-    if (state.isLite || !d.by_plaza) {
-      renderPlazaPlaceholder();
-    } else {
+    // Plaza section: S80 Fase-B item 3 — preferir by_plaza_actuals (shape S80,
+    // 4 keys planas por plaza). Fallback al by_plaza viejo si está presente
+    // (compat con shape pre-LITE-LITE de algún otro entorno). Último recurso
+    // placeholder.
+    if (d.by_plaza_actuals) {
+      renderPlazaActualsCards();
+    } else if (!state.isLite && d.by_plaza) {
       renderPlazaCards();
+    } else {
+      renderPlazaPlaceholder();
     }
 
     renderFooterMeta();
@@ -369,6 +375,33 @@
         </div>
       </div>
     `;
+  }
+
+  // ──────────────────────────────────────────
+  // COMPARATIVO vs MES ANTERIOR (S80 Fase-B item 2 — capa NUEVA)
+  // ──────────────────────────────────────────
+  //
+  // ⚠️ IMPORTANTE: este NO es el delta-vs-meta-prorrateada del hero
+  // ("en ritmo" / "X atrás"). Esa lógica vive en renderHeroLeft() y se
+  // mantiene intacta. Este helper es una capa SEPARADA: compara current
+  // vs previous mes a mes, usando `totals.delta.<field>_pct` precomputado
+  // por el backend (ya viene en porcentaje: 16.7 no 0.167).
+  //
+  // Null-safe: en period=mtd el backend nulea intencionalmente
+  // previous.{cierres,venta,ticket_promedio} (mes-en-curso vs mes-completo
+  // produciría delta engañoso). Para esos campos delta.{cierres,venta}_pct
+  // tambien es null, y este helper devuelve string vacío para que el
+  // template no rompa.
+  function renderVsMesAnterior(d, field) {
+    if (!d || !d.totals || !d.totals.delta) return '';
+    const pct = d.totals.delta[`${field}_pct`];
+    if (pct === null || pct === undefined) return '';
+    const numeric = Number(pct);
+    if (!Number.isFinite(numeric)) return '';
+    const cls = numeric >= 0 ? 'positive' : 'negative';
+    const arrow = numeric >= 0 ? '↗' : '↘';
+    const sign = numeric >= 0 ? '+' : '';
+    return `<div class="kpi-card-vs-mes ${cls}">${arrow} ${sign}${numeric.toFixed(1)}% vs mes anterior</div>`;
   }
 
   // ──────────────────────────────────────────
@@ -575,7 +608,7 @@
          <div class="kpi-card-sub muted">Tiempo real</div>`);
     }
 
-    // KPI 2: Citas Avg
+    // KPI 2: Citas Avg con comparativo vs mes anterior
     const citasAgendadas = current.citas_agendadas || 0;
     const avgCitas = citasAgendadas / periodDays;
     setHtml('kpi-citas-avg',
@@ -583,9 +616,11 @@
        <div class="kpi-card-main">
          <div class="kpi-card-value">${avgCitas.toFixed(1)}</div>
        </div>
-       <div class="kpi-card-sub muted">por día (en el mes)</div>`);
+       <div class="kpi-card-sub muted">por día (en el mes)</div>
+       ${renderVsMesAnterior(d, 'citas_agendadas')}`);
 
-    // KPI 3: Citas Proyectadas Fin de Mes
+    // KPI 3: Citas Proyectadas Fin de Mes (run-rate de la métrica citas_agendadas).
+    // NO confundir con KPI 4 que es Llamadas Agendadas (etapa distinta del funnel).
     const eomCitas = Math.round(avgCitas * totalDays);
     setHtml('kpi-citas-eom',
       `<div class="kpi-card-label">Citas Proyectadas Fin de Mes</div>
@@ -594,15 +629,30 @@
        </div>
        <div class="kpi-card-sub muted">si mantiene ritmo</div>`);
 
-    // KPI 4: Cierres del Mes
+    // KPI 4: Llamadas Agendadas (S80 Fase-B item 1 — campo nuevo).
+    // Etapa #3 del funnel — captadora consiguió llamada con dueño. NO confundir
+    // con captaciones (etapa #6: dueño firma contrato).
+    const llamadasAgendadas = current.llamadas_agendadas;
+    const llamadasNull = llamadasAgendadas === null || llamadasAgendadas === undefined;
+    setHtml('kpi-llamadas',
+      `<div class="kpi-card-label">Llamadas Agendadas del Mes</div>
+       <div class="kpi-card-main">
+         <div class="kpi-card-value ${llamadasNull ? 'null-state' : ''}">${llamadasNull ? '—' : fmtInt(llamadasAgendadas)}</div>
+       </div>
+       <div class="kpi-card-sub muted">etapa del funnel</div>
+       ${renderVsMesAnterior(d, 'llamadas_agendadas')}`);
+
+    // KPI 5: Cierres del Mes con comparativo vs mes anterior (null-safe en mtd).
     const vsGoalCierres = get(scoped, 'vs_goal.cierres_pct');
+    const cierresNull = current.cierres === null || current.cierres === undefined;
     setHtml('kpi-cierres',
       `<div class="kpi-card-label">Cierres del Mes</div>
        <div class="kpi-card-main">
-         <div class="kpi-card-value">${fmtInt(current.cierres)}</div>
+         <div class="kpi-card-value ${cierresNull ? 'null-state' : ''}">${cierresNull ? '—' : fmtInt(current.cierres)}</div>
          <div class="kpi-card-sub">/ ${fmtInt(goals.cierres_meta)} objetivo</div>
        </div>
-       <div class="kpi-card-sub muted">${vsGoalCierres !== null && vsGoalCierres !== undefined ? vsGoalCierres.toFixed(1) : '0.0'}% del mes</div>`);
+       <div class="kpi-card-sub muted">${vsGoalCierres !== null && vsGoalCierres !== undefined ? vsGoalCierres.toFixed(1) : '0.0'}% del mes</div>
+       ${renderVsMesAnterior(d, 'cierres')}`);
   }
 
   // ──────────────────────────────────────────
@@ -630,6 +680,7 @@
           <div class="cac-card-meta">
             ${fmtInt(captaciones)} captaciones${cacMeta ? ` · Objetivo ${fmtMxn(cacMeta)}` : ''}
           </div>
+          ${renderVsMesAnterior(d, 'cac')}
         </div>
         <div class="cac-card-value ${cacNull ? 'null-state' : ''}">
           ${cacNull ? '—' : fmtMxn(cacCaptacion)}
@@ -686,7 +737,113 @@
   }
 
   // ──────────────────────────────────────────
-  // PLAZA CARDS (solo si no LITE)
+  // PLAZA ACTUALS CARDS (S80 Fase-B item 3 — shape by_plaza_actuals)
+  // ──────────────────────────────────────────
+  //
+  // Shape REAL del backend desde S80 turno 2:
+  //   by_plaza_actuals.torreon = { venta, cierres, ticket_promedio, captaciones }
+  //   by_plaza_actuals.gomez   = { venta, cierres, ticket_promedio, captaciones }
+  //
+  // Fila TOTAL agrega los 2 plazas — el backend ya garantiza que
+  // torreon.captaciones + gomez.captaciones === totals.current.captaciones
+  // (assert fail-loud en el pipeline). Cuando venta/cierres son null
+  // (period=mtd mes-en-curso por reglas Fase-A), el render muestra "—".
+  function renderPlazaActualsCards() {
+    const d = state.data;
+    const container = document.getElementById('plaza-grid');
+    if (!container) return;
+    container.style.display = '';
+    container.classList.remove('plaza-placeholder-wrap');
+
+    const by = d.by_plaza_actuals || {};
+    const plazas = ['torreon', 'gomez'];
+    // Total computado del backend (no del frontend) cuando viene el global.
+    const totalCaptaciones = get(d, 'totals.current.captaciones');
+    const totalVenta       = get(d, 'totals.current.venta');
+    const totalCierres     = get(d, 'totals.current.cierres');
+
+    const cards = plazas.map(key => renderPlazaActualsCard(key, by[key] || {})).join('');
+    const totalCard = renderPlazaActualsTotal({
+      captaciones: totalCaptaciones,
+      venta:       totalVenta,
+      cierres:     totalCierres,
+    });
+    container.innerHTML = cards + totalCard;
+  }
+
+  function renderPlazaActualsCard(key, plaza) {
+    const label = (PLAZA_LABELS && PLAZA_LABELS[key]) || key.toUpperCase();
+    const captaciones = plaza.captaciones;
+    const venta       = plaza.venta;
+    const cierres     = plaza.cierres;
+    const captNull = captaciones === null || captaciones === undefined;
+    const ventaNull   = venta === null || venta === undefined;
+    const cierresNull = cierres === null || cierres === undefined;
+
+    return `
+      <div class="plaza-card">
+        <div class="plaza-card-header">
+          <div class="plaza-card-title">${label}</div>
+        </div>
+        <div class="plaza-card-rows">
+          <div class="plaza-card-row highlight ${captNull ? 'null-state' : ''}">
+            <div class="plaza-card-row-label">Captaciones</div>
+            <div class="plaza-card-row-value">
+              <div class="plaza-card-row-value-main">${captNull ? '—' : fmtInt(captaciones)}</div>
+            </div>
+          </div>
+          <div class="plaza-card-row ${ventaNull ? 'null-state' : ''}">
+            <div class="plaza-card-row-label">Venta</div>
+            <div class="plaza-card-row-value">
+              <div class="plaza-card-row-value-main">${ventaNull ? '—' : fmtMxnShort(venta)}</div>
+            </div>
+          </div>
+          <div class="plaza-card-row ${cierresNull ? 'null-state' : ''}">
+            <div class="plaza-card-row-label">Cierres</div>
+            <div class="plaza-card-row-value">
+              <div class="plaza-card-row-value-main">${cierresNull ? '—' : fmtInt(cierres)}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  function renderPlazaActualsTotal(totals) {
+    const captNull = totals.captaciones === null || totals.captaciones === undefined;
+    const ventaNull   = totals.venta === null || totals.venta === undefined;
+    const cierresNull = totals.cierres === null || totals.cierres === undefined;
+    return `
+      <div class="plaza-card plaza-card-total">
+        <div class="plaza-card-header">
+          <div class="plaza-card-title">Total</div>
+        </div>
+        <div class="plaza-card-rows">
+          <div class="plaza-card-row highlight ${captNull ? 'null-state' : ''}">
+            <div class="plaza-card-row-label">Captaciones</div>
+            <div class="plaza-card-row-value">
+              <div class="plaza-card-row-value-main">${captNull ? '—' : fmtInt(totals.captaciones)}</div>
+            </div>
+          </div>
+          <div class="plaza-card-row ${ventaNull ? 'null-state' : ''}">
+            <div class="plaza-card-row-label">Venta</div>
+            <div class="plaza-card-row-value">
+              <div class="plaza-card-row-value-main">${ventaNull ? '—' : fmtMxnShort(totals.venta)}</div>
+            </div>
+          </div>
+          <div class="plaza-card-row ${cierresNull ? 'null-state' : ''}">
+            <div class="plaza-card-row-label">Cierres</div>
+            <div class="plaza-card-row-value">
+              <div class="plaza-card-row-value-main">${cierresNull ? '—' : fmtInt(totals.cierres)}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  // ──────────────────────────────────────────
+  // PLAZA CARDS (legacy shape by_plaza — pre-LITE-LITE)
   // ──────────────────────────────────────────
   function renderPlazaCards() {
     const d = state.data;

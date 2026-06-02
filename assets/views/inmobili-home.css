@@ -436,7 +436,8 @@ html, body {
    ============================================ */
 .kpi-row {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  /* S80 Fase-B: 5 cards (citas hoy + avg + eom + llamadas + cierres). */
+  grid-template-columns: repeat(5, 1fr);
   gap: var(--s-4);
   margin-bottom: var(--s-4);
 }
@@ -479,6 +480,17 @@ html, body {
 .kpi-card-sub.negative { color: var(--red); }
 .kpi-card-sub.positive { color: var(--green); }
 .kpi-card-sub.muted    { color: var(--text-muted); }
+
+/* S80 Fase-B item 2 — comparativo vs mes anterior (capa nueva, NO confundir
+   con hero-card-delta que es vs-meta-prorrateada). */
+.kpi-card-vs-mes {
+  font-size: 11px;
+  margin-top: 6px;
+  font-weight: 500;
+  letter-spacing: 0.2px;
+}
+.kpi-card-vs-mes.positive { color: var(--green); }
+.kpi-card-vs-mes.negative { color: var(--red); }
 
 /* ============================================
    CAC ROW
@@ -595,7 +607,8 @@ html, body {
    ============================================ */
 .plaza-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  /* S80 Fase-B item 3: 2 plazas + columna total → 3 columnas. */
+  grid-template-columns: 1fr 1fr 1fr;
   gap: var(--s-4);
   margin-bottom: var(--s-5);
 }
@@ -610,6 +623,16 @@ html, body {
 
 .plaza-card:hover {
   border-color: var(--inm-gold-border);
+}
+
+/* S80 Fase-B item 3 — la columna Total se diferencia con borde dorado y
+   fondo levemente acentuado, marcando la agregación. */
+.plaza-card.plaza-card-total {
+  border-color: var(--inm-gold-border);
+  background: var(--bg-card-accent, var(--bg-card));
+}
+.plaza-card.plaza-card-total .plaza-card-title {
+  color: var(--inm-gold, var(--text-primary));
 }
 
 .plaza-card-header {
@@ -802,7 +825,8 @@ html, body {
   .goals-banner-stats { margin-left: 0; width: 100%; }
 
   .hero-row { grid-template-columns: 1fr; }
-  .kpi-row { grid-template-columns: repeat(2, 1fr); }
+  /* S80 Fase-B: 3 cols en tablet — con 5 cards da 3+2 (sin orphan que daría 2+2+1). */
+  .kpi-row { grid-template-columns: repeat(3, 1fr); }
   .cac-row { grid-template-columns: 1fr; }
   .plaza-grid { grid-template-columns: 1fr; }
 
