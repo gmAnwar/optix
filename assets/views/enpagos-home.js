@@ -29,7 +29,6 @@
     'goals-section',
     'hero-section',
     'kpi-strip-section',
-    'dropdowns-section',
     'plaza-cards-section',
     'today-detail-section'
   ];
@@ -595,19 +594,53 @@
     return monthName + ' (1-' + toDay + ')';
   }
 
-  function _deltaLineHTML(absDelta, pctDelta, periodLabel) {
+  // S82 — Per-period delta sub-label (mirror of enpagos-daily.js:297-314
+  // deltaSubLabelFor). Returns the COMPLETE "vs X" phrase (incluye prefijo).
+  // Cada period tiene su frasing canónico — daily-parity:
+  //   today      → "vs ayer"
+  //   yesterday  → "vs anteayer"
+  //   7d         → "vs 7d anteriores"
+  //   30d        → "vs 30d anteriores"
+  //   mtd        → "vs ABRIL (1-28)" (computado dinámicamente)
+  //   last_month → "vs periodo anterior"
+  function _formatPreviousLabel(period, data) {
+    if (period === 'today')     return 'vs ayer';
+    if (period === 'yesterday') return 'vs anteayer';
+    if (period === '7d')        return 'vs 7d anteriores';
+    if (period === '30d')       return 'vs 30d anteriores';
+    if (period === 'mtd') {
+      var range = _formatPreviousRange(data && data.meta && data.meta.previous_period);
+      if (range === 'periodo anterior') return 'vs mes anterior';
+      return 'vs ' + range;
+    }
+    return 'vs periodo anterior';
+  }
+
+  function _deltaLineHTML(absDelta, pctDelta, periodLabel, opts) {
     // Priority: _abs first (more useful for these counting metrics).
     // Falls through to _pct if no _abs but pct is present and sane.
     // Returns gray "—" placeholder when neither is meaningful.
-    var label = ' vs ' + escapeHtml(periodLabel);
+    //
+    // opts.invertColor: when true (CAC, costo_preaut_positivo), positive delta
+    // is BAD (red) and negative is GOOD (green). Daily uses this for CAC; we
+    // mirror exact same semantics. Default false (direct color).
+    // opts.suppressZero: when true, omit the entire delta line for delta === 0
+    // (avoids visual noise on dead periods). Default false.
+    var invert = !!(opts && opts.invertColor);
+    var suppressZero = !!(opts && opts.suppressZero);
+    var label = ' ' + escapeHtml(periodLabel);
+    var up = invert ? 'kpi-delta--down' : 'kpi-delta--up';
+    var down = invert ? 'kpi-delta--up' : 'kpi-delta--down';
+
     if (absDelta != null && !isNaN(absDelta)) {
       var n = Number(absDelta);
       if (n > 0) {
-        return '<div class="kpi-delta kpi-delta--up">▲ +' + _fmtInt(n) + label + '</div>';
+        return '<div class="kpi-delta ' + up + '">▲ +' + _fmtInt(n) + label + '</div>';
       }
       if (n < 0) {
-        return '<div class="kpi-delta kpi-delta--down">▼ ' + _fmtInt(n) + label + '</div>';
+        return '<div class="kpi-delta ' + down + '">▼ ' + _fmtInt(n) + label + '</div>';
       }
+      if (suppressZero) return '';
       // delta = 0: neutral, still informative ("we didn't move")
       return '<div class="kpi-delta kpi-delta--zero">— 0' + label + '</div>';
     }
@@ -619,8 +652,9 @@
         return '<div class="kpi-delta kpi-delta--missing">—' + label + '</div>';
       }
       var pctStr = (p >= 0 ? '+' : '') + _fmtPct(p);
-      var cls = p > 0 ? 'kpi-delta--up' : (p < 0 ? 'kpi-delta--down' : 'kpi-delta--zero');
+      var cls = p > 0 ? up : (p < 0 ? down : 'kpi-delta--zero');
       var arrow = p > 0 ? '▲ ' : (p < 0 ? '▼ ' : '— ');
+      if (suppressZero && p === 0) return '';
       return '<div class="kpi-delta ' + cls + '">' + arrow + pctStr + label + '</div>';
     }
     // Neither _abs nor _pct → missing. Show "—" same color as zero, no number.
@@ -628,72 +662,142 @@
   }
 
   function _kpiCardHTML(opts) {
-    // opts: { label, valueHTML, deltaHTML }
+    // opts: { label, valueHTML, auxHTML?, subHTML?, deltaHTML? }
+    // S82 daily-parity:
+    //   auxHTML: inline secondary value next to big number (Preaut+ uses for
+    //            costo_preaut_positivo — daily.js:240).
+    //   subHTML: line under big number with extra context (Cierres uses for
+    //            "de ~23 meta" — daily.js:257).
+    var aux = opts.auxHTML
+      ? ' <span class="kpi-card__aux">' + opts.auxHTML + '</span>'
+      : '';
+    var sub = opts.subHTML
+      ? '<div class="kpi-card__sub">' + opts.subHTML + '</div>'
+      : '';
     return (
       '<div class="kpi-card">' +
         '<div class="kpi-card__label">' + escapeHtml(opts.label) + '</div>' +
-        '<div class="kpi-card__big">' + opts.valueHTML + '</div>' +
+        '<div class="kpi-card__big">' + opts.valueHTML + aux + '</div>' +
+        sub +
         (opts.deltaHTML || '') +
       '</div>'
     );
   }
 
   function renderKpiStrip(data, period) {
+    // S82 daily-parity rewrite. ANTES: 4 métricas proyección mtd-only.
+    // DESPUÉS: 6 métricas funnel en los 6 periods con delta vs previous,
+    // replicando daily renderStickyBar(enpagos-daily.js:203-273):
+    //   1. Preaut+      ← totals.current.preaut_positivos + AUX costo_preaut_positivo
+    //   2. Cierres      ← totals.current.cierres + SUB "de ~N meta"
+    //   3. Inversión    ← totals.current.inversion_total_meta_ads
+    //   4. CAC          ← totals.current.cac (— si cierres=0; invertColor)
+    //   5. Venta        ← totals.current.venta
+    //   6. Firmas Prog. ← totals.current.firmas_programadas
+    //
+    // Cada KPI tiene delta line "vs [periodo anterior]" con label canónico
+    // per period (today→ayer, yesterday→anteayer, 7d/30d→Nd anteriores,
+    // mtd→"ABRIL (1-28)", last_month→"periodo anterior"). Sin guard mtd —
+    // los 6 periods renderean. Si delta._abs/_pct es null para un KPI,
+    // _deltaLineHTML muestra "—" missing (no rompe).
+    //
+    // ProjectionCard (renderProjection en renderHero, mtd-only) preserva
+    // info de proyección EOM. No se pierde nada.
+
     var sec = document.getElementById('kpi-strip-section');
     if (!sec) return;
     if (!data || typeof data !== 'object') {
       sec.innerHTML = '';
       return;
     }
-    // Diseño A — KPI strip muestra métricas de PROYECCIÓN, sólo significativas
-    // bajo period='mtd' (proyección EOM contra otros windows = nonsense).
-    // En periods != mtd la sección se limpia sin empty state (UX silencioso).
-    if (period !== 'mtd') {
-      sec.innerHTML = '';
-      return;
-    }
-    var current    = (data.totals && data.totals.current)    || {};
-    var projection = (data.totals && data.totals.projection) || {};
-    var delta      = (data.totals && data.totals.delta)      || {};
-    var meta       = data.meta                               || {};
-    var periodLabel = _formatPreviousRange(meta.previous_period);
+    var current   = (data.totals && data.totals.current)   || {};
+    var delta     = (data.totals && data.totals.delta)     || {};
+    var meta      = data.meta                              || {};
+    var prorrated = data.goals_prorrated                   || {};
+    var periodLabel = _formatPreviousLabel(period, data);
 
-    // 4 métricas del Diseño A (SPEC canvas F0B65HXAUN7):
-    //  1. Preaut+ Hoy            → totals.today_preaut_positivos.length
-    //  2. Daily Avg (días háb.)  → totals.projection.daily_avg_business_days
-    //  3. Projected EOM Cierres  → totals.projection.projected_cierres_eom
-    //  4. Projected EOM Inversión→ totals.projection.projected_inversion_eom
-    //
-    // Slot #1 — "Preaut+ Hoy" usa el length del MISMO array que alimenta
-    // el TodayDetailFeed (F3.5), no totals.current.preaut_positivos (que
-    // es MTD). Una sola fuente para el conteo y el detalle = imposible
-    // descuadre entre header KPI y filas de la tabla. Anwar 2026-05-29.
-    // length===0 es un cero válido (no "—"), igual que el feed muestra
-    // EmptyState sin tratarlo como dato faltante.
-    //
-    // Ninguna de las 4 métricas tiene un counterpart útil en el periodo
-    // previo (proyecciones EOM, conteo del día, daily avg basado en días
-    // hábiles transcurridos) — todas las delta lines muestran "—
-    // vs ABRIL (1-28)" gris missing. Eliminé el cierres_abs anterior
-    // porque mapeaba al slot #1 ahora descartado.
-    var todayFeed = (data.totals && data.totals.today_preaut_positivos) || [];
-    var todayPreautCount = Array.isArray(todayFeed) ? todayFeed.length : 0;
+    // AUX inline para Preaut+: costo_preaut_positivo si preaut>0 y costo no null.
+    // Replica daily.js:240 — guard estricto, "—" cuando inválido (no $0).
+    var preautVal = current.preaut_positivos;
+    var costoPreaut = current.costo_preaut_positivo;
+    var preautAux = (preautVal != null && preautVal > 0 && costoPreaut != null && !isNaN(costoPreaut))
+      ? _fmtCurrency(costoPreaut)
+      : '—';
+
+    // SUB para Cierres: "de ~N meta" cuando goals_prorrated existe,
+    // "meta pendiente" cuando no. Replica daily.js:210-214,257.
+    var cierresGoalRaw = prorrated.cierres_goal_periodo;
+    var cierresGoalSub;
+    if (cierresGoalRaw != null && !isNaN(cierresGoalRaw) && cierresGoalRaw > 0) {
+      cierresGoalSub = 'de ~' + Math.max(1, Math.round(cierresGoalRaw)) + ' meta';
+    } else {
+      cierresGoalSub = 'meta pendiente';
+    }
+
+    // CAC text: "—" cuando cierres=0 (daily.js:217-219 / home plaza card mirror).
+    // Evita ruido $0 / div-by-zero del backend.
+    var cacText = (current.cierres > 0 && current.cac != null)
+      ? _fmtCurrency(current.cac)
+      : '—';
+
+    // 6 KPIs. invertColor=true para CAC (positive delta = bad).
     var KPIS = [
-      { label: "Preaut+ Hoy",         value: todayPreautCount,                        formatter: _fmtInt },
-      { label: "Cierres/día háb.",    value: projection.daily_avg_business_days,      formatter: _fmtFloat2 },
-      { label: "Proy. cierres EOM",   value: projection.projected_cierres_eom,        formatter: _fmtInt },
-      { label: "Proy. inversión EOM", value: projection.projected_inversion_eom,      formatter: _fmtCurrency }
+      {
+        label: 'Preaut+',
+        valueHTML: _fmtInt(preautVal),
+        auxHTML:   preautAux,
+        absDelta:  delta.preaut_positivos_abs,
+        pctDelta:  null,
+        invertColor: false
+      },
+      {
+        label: 'Cierres',
+        valueHTML: _fmtInt(current.cierres),
+        subHTML:   cierresGoalSub,
+        absDelta:  delta.cierres_abs,
+        pctDelta:  null,
+        invertColor: false
+      },
+      {
+        label: 'Inversión',
+        valueHTML: _fmtCurrency(current.inversion_total_meta_ads),
+        absDelta:  null,
+        pctDelta:  delta.inversion_pct,
+        invertColor: false
+      },
+      {
+        label: 'CAC',
+        valueHTML: cacText,
+        absDelta:  null,
+        pctDelta:  delta.cac_pct,
+        invertColor: true
+      },
+      {
+        label: 'Venta',
+        valueHTML: _fmtCurrency(current.venta),
+        absDelta:  null,
+        pctDelta:  delta.venta_pct,
+        invertColor: false
+      },
+      {
+        label: 'Firmas Prog.',
+        valueHTML: _fmtInt(current.firmas_programadas),
+        // Backend no ship delta para firmas — line muestra "—" missing.
+        absDelta:  null,
+        pctDelta:  null,
+        invertColor: false
+      }
     ];
 
     var cardsHTML = '';
     for (var i = 0; i < KPIS.length; i++) {
       var k = KPIS[i];
-      var abs = k.absKey ? delta[k.absKey] : null;
-      var pct = k.pctKey ? delta[k.pctKey] : null;
       cardsHTML += _kpiCardHTML({
         label: k.label,
-        valueHTML: k.formatter(k.value),
-        deltaHTML: _deltaLineHTML(abs, pct, periodLabel)
+        valueHTML: k.valueHTML,
+        auxHTML:  k.auxHTML || '',
+        subHTML:  k.subHTML || '',
+        deltaHTML: _deltaLineHTML(k.absDelta, k.pctDelta, periodLabel, { invertColor: k.invertColor })
       });
     }
 
