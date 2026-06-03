@@ -186,94 +186,21 @@ body {
   color: #fff;
 }
 
-/* ── F3.2 Goals card — 3 chips (Cierres, Inversión, CAC) ───────────────── */
-
-.goals-chips {
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.goal-chip {
-  flex: 1 1 200px;
-  min-width: 180px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 12px 14px;
-  background: #fff;
-  border: 1px solid #e5e5e5;
-  border-left: 3px solid #d0d0d0;
-  border-radius: 8px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
-}
-
-.goal-chip__label {
-  font-size: 12px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: #6b6b6b;
-}
-
-.goal-chip__values {
-  display: flex;
-  align-items: baseline;
-  gap: 4px;
-  font-size: 20px;
-  font-weight: 700;
-  color: #1a1a1a;
-}
-
-.goal-chip__value {
-  /* Actual — same weight as goal, distinguished by position only. */
-}
-
-.goal-chip__sep {
-  color: #b0b0b0;
-  font-weight: 400;
-}
-
-.goal-chip__goal {
-  font-weight: 400;
-  color: #6b6b6b;
-  font-size: 16px;
-}
-
-.goal-chip__pct {
-  font-size: 13px;
-  color: #6b6b6b;
-}
-
-/* Status tints — applied via border-left only so the chip body stays neutral
- * and color-blind users still distinguish via the % number / value.
- * Class names mirror the backend's English status strings (green/yellow/red);
- * no translation layer between JSON and DOM. */
-.goal-chip--status-green  { border-left-color: #2e7d32; }
-.goal-chip--status-yellow { border-left-color: #f9a825; }
-.goal-chip--status-red    { border-left-color: #c62828; }
-
-/* Graceful: muted when value is "—" (pipeline down). Border stays
- * status-colored if cac_status is present alongside the "—". */
-.goal-chip--graceful .goal-chip__value,
-.goal-chip--graceful .goal-chip__pct {
-  color: #b0b0b0;
-}
-
-/* ── F3.3 Hero section — two cards + ProjectionCard ─────────────────────
+/* ── S84 Home superior — Fila 1 (Cierres + Inversión) ───────────────────
  *
- * Inline progress bar (not assets/components/ProgressBar.js) — see
- * enpagos-home.js renderHero docblock for rationale. F3 view stays
- * self-contained; design-system migration is a separate sprint.
+ * 2 cajas grandes con barra de progreso + chip de estado. Cada barra tiene
+ * un marcador "esperado" (prorrateado) en posición proporcional al tope
+ * mensual. En periodos != mtd la barra/marcador se omiten y aparece la
+ * delta vs periodo previo.
  */
 
-.hero-cards {
+.row1-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 16px;
 }
 
-.hero-card {
+.row1-box {
   background: #fff;
   border: 1px solid #e5e5e5;
   border-radius: 10px;
@@ -284,7 +211,15 @@ body {
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
 }
 
-.hero-card__label {
+.row1-box__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.row1-box__label {
   font-size: 12px;
   font-weight: 600;
   text-transform: uppercase;
@@ -292,146 +227,129 @@ body {
   color: #6b6b6b;
 }
 
-.hero-card__row {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.hero-card__big {
-  font-size: 32px;
+.row1-box__big {
+  font-size: 34px;
   font-weight: 700;
   color: #1a1a1a;
   line-height: 1.1;
+  font-variant-numeric: tabular-nums;
 }
 
-.hero-card__sub-right {
-  font-size: 13px;
+.row1-box__meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 12px;
   color: #6b6b6b;
+  font-variant-numeric: tabular-nums;
 }
 
-.hero-card__foot {
+.row1-box__expected { color: #4a4a4a; }
+.row1-box__tope     { color: #8a8a8a; }
+
+.row1-box__foot {
   font-size: 12px;
   color: #8a8a8a;
 }
 
-.hero-card--graceful .hero-card__big {
+.row1-box--graceful .row1-box__big {
   color: #b0b0b0;
 }
 
-/* Progress bar (inline; no design-token deps) */
-
-.hero-bar {
-  height: 8px;
+/* Barra Fila 1 — fill prorrateado contra el tope mensual, con marcador
+ * "esperado a la fecha" superpuesto. */
+.row1-bar {
+  position: relative;
+  height: 10px;
   background: #ececec;
   border-radius: 999px;
-  overflow: hidden;
+  overflow: visible;
 }
 
-.hero-bar__fill {
+.row1-bar__fill {
   height: 100%;
   background: #6b6b6b;
   border-radius: 999px;
   transition: width 0.2s ease;
 }
 
-.hero-bar__fill--green  { background: #2e7d32; }
-.hero-bar__fill--yellow { background: #f9a825; }
-.hero-bar__fill--red    { background: #c62828; }
+.row1-bar__fill--green  { background: #2e7d32; }
+.row1-bar__fill--yellow { background: #f9a825; }
+.row1-bar__fill--red    { background: #c62828; }
 
-.hero-bar--graceful .hero-bar__fill {
+.row1-bar--graceful .row1-bar__fill {
   background: #d0d0d0;
 }
 
-/* ProjectionCard — appears below the two hero cards when period === 'mtd' */
+.row1-bar__marker {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 2px;
+  background: #1a1a1a;
+  border-radius: 1px;
+  transform: translateX(-1px);
+  pointer-events: none;
+}
 
-.proj-card {
-  margin-top: 12px;
-  background: #fff;
-  border: 1px solid #e5e5e5;
-  border-radius: 10px;
-  padding: 16px;
+.row1-bar__marker::after {
+  content: '';
+  position: absolute;
+  top: -4px;
+  left: -3px;
+  width: 8px;
+  height: 4px;
+  background: #1a1a1a;
+  border-radius: 1px;
+}
+
+/* Chip de tier — pill colorido en el head de la caja. */
+.row1-chip {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  white-space: nowrap;
+  text-transform: uppercase;
+}
+
+.row1-chip--green  { color: #1b5e20; background: #e8f5e9; }
+.row1-chip--yellow { color: #856404; background: #fff8e1; }
+.row1-chip--red    { color: #b71c1c; background: #ffebee; }
+
+/* ── S84 Home superior — Fila 2 + Fila 3 (kpi-strip-section) ────────────
+ *
+ * Fila 2: 4 cajas (Preaut+ · Daily avg · Proy Cierres EOM · Proy Inv EOM)
+ *         en mtd; 1 caja (Preaut+) en otros periods. row2-grid[data-mtd]
+ *         controla el número de columnas.
+ * Fila 3: 2 cajas CAC (Preaut+ y Cierres) con chip vs objetivo.
+ *
+ * Sin sticky — Fila 2+3 son densas y un sticky de 6 cajas en mobile
+ * cubriría demasiado viewport. Si Anwar lo pide, se reactiva.
+ */
+
+#kpi-strip-section {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  gap: 16px;
 }
 
-.proj-card__title {
-  font-size: 12px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: #6b6b6b;
-}
-
-.proj-card__big {
-  font-size: 22px;
-  font-weight: 700;
-  color: #1a1a1a;
-}
-
-.proj-card__gap {
-  font-size: 14px;
-}
-
-.proj-card__status {
-  display: inline-block;
-  font-weight: 600;
-  padding: 2px 8px;
-  border-radius: 999px;
-}
-
-.proj-card__status--green  { color: #1b5e20; background: #e8f5e9; }
-.proj-card__status--yellow { color: #856404; background: #fff8e1; }
-.proj-card__status--red    { color: #b71c1c; background: #ffebee; }
-
-.proj-card__basis {
-  font-size: 12px;
-  color: #8a8a8a;
-}
-
-.proj-card__inv {
-  font-size: 13px;
-  color: #6b6b6b;
-  padding-top: 6px;
-  border-top: 1px dashed #ececec;
-}
-
-/* ── F3.4 KPI strip — 5 cards in a row ─────────────────────────────────
- *
- * Cards mirror .hero-card visually (same bg/border/radius/shadow) with a
- * smaller big-number (24px vs 32px) because 5-up is denser than the
- * Hero's 2-up. Comparison line ("▲ +N vs abr 1-28") is new in F3.4 —
- * Hero doesn't render any vs-previous line, so this is the first time
- * the pattern lands in the view.
- */
-
-/* S82 — sticky positioning del KPI strip (paridad con daily-sticky
- * de enpagos-daily.css:71+269). El strip de 6 KPIs queda fijo arriba al
- * scrollear las plaza cards (lecturas rápidas sin perder el contexto KPI).
- * Wrapper section debe tener position: relative para que el offset
- * de sticky se calcule contra el flujo correcto.
- */
-#kpi-strip-section {
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  background: #fafafa;
-  padding-top: 8px;
-  padding-bottom: 4px;
-  margin-left: -16px;
-  margin-right: -16px;
-  padding-left: 16px;
-  padding-right: 16px;
-}
-
-.kpi-strip {
+.row2-grid {
   display: grid;
-  /* S82: 6 KPIs (Preaut+ · Cierres · Inversión · CAC · Venta · Firmas) */
-  grid-template-columns: repeat(6, 1fr);
-  gap: 8px;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+
+.row2-grid[data-mtd="0"] {
+  grid-template-columns: 1fr;
+}
+
+.row3-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
 }
 
 .kpi-card {
@@ -455,7 +373,7 @@ body {
 }
 
 .kpi-card__big {
-  font-size: 22px;
+  font-size: 26px;
   font-weight: 700;
   color: #1a1a1a;
   line-height: 1.15;
@@ -463,9 +381,9 @@ body {
   align-items: baseline;
   gap: 6px;
   flex-wrap: wrap;
+  font-variant-numeric: tabular-nums;
 }
 
-/* S82 AUX inline (Preaut+ usa para costo_preaut_positivo); paridad daily.js:240 */
 .kpi-card__aux {
   font-size: 12px;
   font-weight: 500;
@@ -473,12 +391,29 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
-/* S82 SUB línea bajo el big number (Cierres usa "de ~23 meta"); paridad daily */
 .kpi-card__sub {
   font-size: 11px;
   color: #8a8a8a;
   font-variant-numeric: tabular-nums;
 }
+
+/* Fila 3 — chip vs objetivo bajo el big number, antes de la delta line. */
+.kpi-card__chip-row {
+  display: flex;
+}
+
+.kpi-chip {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.kpi-chip--green  { color: #1b5e20; background: #e8f5e9; }
+.kpi-chip--yellow { color: #856404; background: #fff8e1; }
+.kpi-chip--red    { color: #b71c1c; background: #ffebee; }
 
 .kpi-delta {
   font-size: 11px;
@@ -754,47 +689,37 @@ body {
 
 /* ── F3.7 GAP 1 — Tablet breakpoint (paridad con enpagos-daily.css:292)
  * Daily oculta el grid 3-col en favor de 2-col debajo de 1280px. Home
- * replica esta transición para que el comportamiento entre vistas sea
- * el mismo (mismas plazas, mismas filas, misma densidad). */
+ * replica esta transición. Fila 2 (4 cajas en mtd) baja a 2x2 para que
+ * no se aprieten los números. */
 @media (max-width: 1279px) {
   .plaza-cards-grid {
     grid-template-columns: repeat(2, 1fr);
   }
-  /* S82 — tablet: 6 KPIs en 3 cols x 2 filas (cabe legible) */
-  .kpi-strip {
-    grid-template-columns: repeat(3, 1fr);
+  .row2-grid {
+    grid-template-columns: repeat(2, 1fr);
   }
 }
 
 /* ── F3.7 — Mobile full breakpoint (extiende el placeholder previo) ──
- * 767px y abajo. Goal chips full-width, hero stack, kpi-strip 2-col,
- * plaza-cards 1-col, today-feed reflow a label/value pairs. */
+ * 767px y abajo. Fila 1 apilada, Fila 2 = 2x2, Fila 3 = 2x1, plaza-cards
+ * 1-col, today-feed reflow a label/value pairs. */
 @media (max-width: 767px) {
   #period-selector {
     overflow-x: auto;
     flex-wrap: nowrap;
     -webkit-overflow-scrolling: touch;
   }
-  .goal-chip {
-    flex: 1 1 100%;
-    min-width: 0;
-  }
-  .hero-cards {
+  .row1-grid {
     grid-template-columns: 1fr;
   }
-  .hero-card__big {
+  .row1-box__big {
     font-size: 28px;
   }
-  .kpi-strip {
-    /* S82 — mobile: 6 KPIs en 2 cols x 3 filas (legible, no scroll x). */
+  .row2-grid {
     grid-template-columns: repeat(2, 1fr);
   }
-  /* Sticky se reduce a top:0 sin negative margins (full-width OK) en mobile */
-  #kpi-strip-section {
-    margin-left: 0;
-    margin-right: 0;
-    padding-left: 0;
-    padding-right: 0;
+  .row3-grid {
+    grid-template-columns: repeat(2, 1fr);
   }
   .kpi-card__big {
     font-size: 22px;
