@@ -610,30 +610,92 @@
     var periodLabel = _formatPreviousLabel(period, data);
 
     // ── Fila 2 ────────────────────────────────────────────────────────
-    // Preaut+ del periodo + delta. _deltaLineHTML rinde delta=0 en gris
-    // neutral por default, así que un sheet con retraso no se ve como
-    // baja. AUX inline: CAC Preaut+ del periodo cuando preaut > 0 (eco
-    // del número de la Fila 3 — útil para lectura rápida).
+    // Caja 1 — Preaut+ hoy (mtd) vs Preaut+ del periodo (otros periods).
+    //
+    // En mtd: patrón "Today's RX" del SPEC F0B7Q4VK4TE. Valor grande =
+    // preaut+ de HOY (length de totals.today_preaut_positivos, viene en
+    // el MTD payload — no hacemos segundo fetch). Badge = déficit de
+    // ritmo del día contra el ritmo necesario para cumplir la meta
+    // mensual en los días hábiles restantes:
+    //
+    //   dias_habiles_restantes = projection.business_days_total
+    //                          − projection.business_days_passed
+    //   preaut_restantes = goals.preaut_positivos_goal − current.preaut_positivos
+    //   ritmo_necesario  = preaut_restantes / dias_habiles_restantes
+    //   pace_delta       = preaut_hoy − ritmo_necesario
+    //
+    // pace_delta < 0 → rojo (atrasado). >= 0 → verde (al ritmo o arriba).
+    // Heredamos business_days_passed/total del backend en vez de
+    // recontarlos: si el cron cambia su criterio (fines de semana,
+    // feriados), la caja se mantiene cuadrada con Cierres/proyecciones.
+    //
+    // Gates de robustez:
+    //   - dias_habiles_restantes <= 0 → fin de mes, sin badge, sub "mes cerrado".
+    //   - goal mensual ausente → degradar a solo conteo de hoy (sin badge
+    //     ni sub de ritmo), patrón consistente con "meta pendiente" de Cierres.
+    //   - preaut_restantes <= 0 → meta ya cumplida → ritmo = 0, pace_delta
+    //     siempre verde (no penalizamos un cero cuando ya terminaste).
+    //
+    // En otros periods: degrada a "Preaut+ del periodo" con delta vs
+    // periodo previo (comportamiento del bloque superior original).
     var preautVal = current.preaut_positivos;
     var costoPreaut = current.costo_preaut_positivo;
-    var preautAux = (preautVal != null && preautVal > 0 &&
-                     costoPreaut != null && !isNaN(costoPreaut))
-      ? _fmtCurrency(costoPreaut)
-      : '';
-    var preautSub = (isMtd && (preautVal == null || preautVal === 0))
-      ? 'sheet con retraso ~24h'
-      : '';
-    var f2Boxes = [
-      _kpiCardHTML({
+    var f2Boxes = [];
+    if (isMtd) {
+      var todayFeed = data.totals && data.totals.today_preaut_positivos;
+      var preautHoy = Array.isArray(todayFeed) ? todayFeed.length : 0;
+      var bdTotal  = projection.business_days_total;
+      var bdPassed = projection.business_days_passed;
+      var bdRestantes = (bdTotal != null && bdPassed != null)
+        ? (Number(bdTotal) - Number(bdPassed)) : null;
+      var goalPreautMo = (goals.preaut_positivos_goal &&
+                          goals.preaut_positivos_goal.valor) ||
+                         (goals.preaut_positivos_meta &&
+                          goals.preaut_positivos_meta.valor);
+
+      var monthClosed = (bdRestantes != null && bdRestantes <= 0);
+      var goalMissing = (goalPreautMo == null);
+
+      var ritmoNec = null;
+      if (!monthClosed && !goalMissing && bdRestantes > 0) {
+        var restantes = Number(goalPreautMo) - Number(preautVal != null ? preautVal : 0);
+        if (restantes < 0) restantes = 0;
+        ritmoNec = restantes / bdRestantes;
+      }
+
+      var paceBadgeHTML = '';
+      var subHoy = '';
+      if (monthClosed) {
+        subHoy = 'mes cerrado';
+      } else if (goalMissing) {
+        subHoy = '';
+      } else if (ritmoNec != null) {
+        var paceDelta = preautHoy - ritmoNec;
+        var cls = (paceDelta >= 0) ? 'green' : 'red';
+        var sign = (paceDelta >= 0) ? '+' : '';
+        paceBadgeHTML = '<span class="kpi-chip kpi-chip--' + cls + '">' +
+                        sign + paceDelta.toFixed(1) + '/día</span>';
+        subHoy = 'vs ' + ritmoNec.toFixed(1) + '/día hábil necesario';
+      }
+
+      f2Boxes.push(_kpiCardHTML({
+        label: 'Preaut+ hoy',
+        valueHTML: _fmtInt(preautHoy),
+        chipHTML:  paceBadgeHTML,
+        subHTML:   subHoy
+      }));
+    } else {
+      // Non-mtd: degrade to count + delta vs previous (sin AUX inline de CAC,
+      // sin sub de "sheet con retraso" — esos eran del bloque mtd antiguo
+      // que ahora vive en la caja "Preaut+ hoy" con su propio badge).
+      f2Boxes.push(_kpiCardHTML({
         label: 'Preaut+ del periodo',
         valueHTML: _fmtInt(preautVal),
-        auxHTML:   preautAux,
-        subHTML:   preautSub,
         deltaHTML: _deltaLineHTML(
           delta.preaut_positivos_abs, null, periodLabel, { invertColor: false }
         )
-      })
-    ];
+      }));
+    }
 
     if (isMtd) {
       // Daily Preaut+ avg = preaut / business_days_passed. Backend no ship
