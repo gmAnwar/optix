@@ -27,7 +27,6 @@
 
   var SECTION_IDS = [
     'goals-section',
-    'hero-section',
     'kpi-strip-section',
     'plaza-cards-section',
     'today-detail-section'
@@ -136,8 +135,7 @@
         // section is skipped; other sections still render. Real fetch errors
         // still hit the outer .catch as before.
         var sections = [
-          ['renderGoals',           function () { renderGoals(data); }],
-          ['renderHero',            function () { renderHero(data, period); }],
+          ['renderGoals',           function () { renderGoals(data, period); }],
           ['renderKpiStrip',        function () { renderKpiStrip(data, period); }],
           ['renderPlazaCards',      function () { renderPlazaCards(data); }],
           ['renderTodayDetailFeed', function () { renderTodayDetailFeed(data); }]
@@ -171,23 +169,24 @@
       });
   }
 
-  // ── F3.2 Goals card ────────────────────────────────────────────────────
+  // ── S84 Home superior — Fila 1 (Cierres + Inversión) ──────────────────
   //
-  // Three chips: Cierres, Inversión, CAC. Each chip reads from a different
-  // tier of the response — actuals from totals.current, denominator from
-  // goals_prorrated (NOT goals — prorrated reflects the MTD-elapsed slice
-  // so the % matches what the user sees on the date the chip is rendered),
-  // % directly from totals.vs_goal (NOT computed client-side — the backend
-  // applies its own rounding/edge-case logic and we keep the calculation
-  // single-sourced).
+  // Reemplaza la triplicación previa (F3.2 goals chips + F3.3 hero cards +
+  // F3.4 kpi-strip) por 3 filas donde cada número aparece UNA vez:
   //
-  // Graceful degradation (S77-locked):
-  //   - inversion_total_meta_ads in (0, null) → "—" valor + "—" pct, tooltip
-  //     "Pipeline de inversión actualizando". Triggers any day the FB spend
-  //     sync is delayed; without this the user sees a misleading "$0".
-  //   - cac in (0, null) AND cierres > 0 → same "—/—" treatment.
-  //   - cac_status in (verde|amarillo|rojo) → border-left color tint on the
-  //     CAC chip; missing/unknown → neutral.
+  //   Fila 1 (renderGoals)    — 2 cajas grandes: Cierres + Inversión vs meta
+  //                             con barra prorrateada + chip de estado tier.
+  //   Fila 2 (renderKpiStrip) — Preaut+ hoy · Daily avg · Proy. Cierres EOM
+  //                             · Proy. Inversión EOM (proj/avg solo mtd).
+  //   Fila 3 (renderKpiStrip) — CAC Preaut+ · CAC Cierres con chip vs obj.
+  //
+  // Tier chip de Cierres compara contra los prorrateados
+  //   (cierres_tier_rojo_max_periodo / cierres_tier_amarillo_max_periodo)
+  // — escala coherente con la barra, ambas prorrateadas a días transcurridos.
+  // Inversión chip compara contra inversion_planeada_periodo (prorrateado).
+  //
+  // Barra SOLO en period=mtd. En otros periods cada caja degrada a un
+  // valor grande + delta vs periodo previo, sin barra.
 
   function _fmtInt(n) {
     if (n == null || isNaN(n)) return '—';
@@ -211,46 +210,120 @@
     return Number(n).toFixed(2);
   }
 
-  function _statusClass(status) {
-    // Backend contract: cac_status / costo_preaut_positivo_status come as
-    // English strings 'green' | 'yellow' | 'red'. CSS class names mirror
-    // the backend so there's no translation layer — if the contract ever
-    // changes the test breaks loud rather than silently dropping the tint.
-    if (status === 'green')  return 'goal-chip--status-green';
-    if (status === 'yellow') return 'goal-chip--status-yellow';
-    if (status === 'red')    return 'goal-chip--status-red';
+  // ── Fila 1 helpers ────────────────────────────────────────────────────
+
+  // Tier de Cierres en escala prorrateada (NOT escala mensual): si el valor
+  // a la fecha cae por debajo del rojo_max prorrateado → rojo; entre rojo
+  // y amarillo → amarillo; sobre amarillo → verde. Si los thresholds están
+  // ausentes (legacy nivel=semanal nulled o doc sin tiers) → '', neutral.
+  function _cierresTierStatus(actual, rojoMaxP, amarilloMaxP) {
+    if (actual == null || isNaN(actual)) return '';
+    if (rojoMaxP == null || isNaN(rojoMaxP)) return '';
+    if (amarilloMaxP == null || isNaN(amarilloMaxP)) return '';
+    var a = Number(actual);
+    if (a < Number(rojoMaxP))      return 'red';
+    if (a < Number(amarilloMaxP))  return 'yellow';
+    return 'green';
+  }
+
+  // Status de Inversión vs plan prorrateado. Sobregasto > +5% del esperado
+  // → rojo (alarma presupuesto); subgasto < -20% → amarillo (falta gastar);
+  // en banda → verde.
+  function _inversionPlanStatus(actual, expected) {
+    if (actual == null || isNaN(actual)) return '';
+    if (expected == null || isNaN(expected) || expected <= 0) return '';
+    var ratio = Number(actual) / Number(expected);
+    if (ratio > 1.05) return 'red';
+    if (ratio < 0.80) return 'yellow';
+    return 'green';
+  }
+
+  function _tierChipLabel(status, kind) {
+    // kind: 'cierres' | 'inversion'.
+    if (kind === 'cierres') {
+      if (status === 'green')  return 'EXCELENTE';
+      if (status === 'yellow') return 'BUENO';
+      if (status === 'red')    return 'BAJO META';
+      return '';
+    }
+    // inversion
+    if (status === 'green')  return 'EN PLAN';
+    if (status === 'yellow') return 'BAJO PLAN';
+    if (status === 'red')    return 'SOBREPLAN';
     return '';
   }
 
-  function _chipHTML(opts) {
-    // opts: { label, valueHTML, goalHTML, pctHTML, statusCls, tooltip, gracefulCls }
-    // goalHTML / pctHTML pueden venir vacíos para chips sin denominador
-    // (ej. Firmas, que no tiene goal backend) o sin pct (Venta/CAC, que
-    // muestran value/goal sin %).
-    var tooltipAttr = opts.tooltip ? ' title="' + escapeHtml(opts.tooltip) + '"' : '';
-    var cls = 'goal-chip';
-    if (opts.statusCls) cls += ' ' + opts.statusCls;
-    if (opts.gracefulCls) cls += ' ' + opts.gracefulCls;
-    var pctBlock = opts.pctHTML
-      ? '<span class="goal-chip__pct">(' + opts.pctHTML + ')</span>'
-      : '';
-    var goalBlock = (opts.goalHTML != null && opts.goalHTML !== '')
-      ? '<span class="goal-chip__sep">/</span>' +
-        '<span class="goal-chip__goal">' + opts.goalHTML + '</span>'
+  function _row1ProgressBarHTML(opts) {
+    // opts: { fillPct (0..1+), expectedPct (0..1+), status, graceful }
+    // expectedPct: posición de la marca "esperado" (prorrateado / tope).
+    // fillPct puede exceder 1.0 (overspend); se clampa a 100 visualmente
+    // pero el chip de status ya refleja la condición de exceso.
+    var fill = opts.fillPct == null || isNaN(opts.fillPct) ? 0 : Number(opts.fillPct);
+    var fillPx = Math.max(0, Math.min(100, fill * 100));
+    var exp = opts.expectedPct == null || isNaN(opts.expectedPct) ? null : Number(opts.expectedPct);
+    var expPx = exp == null ? null : Math.max(0, Math.min(100, exp * 100));
+    var cls = 'row1-bar';
+    if (opts.graceful) cls += ' row1-bar--graceful';
+    var fillCls = 'row1-bar__fill';
+    if (opts.status) fillCls += ' row1-bar__fill--' + opts.status;
+    var marker = (expPx != null)
+      ? '<div class="row1-bar__marker" style="left:' + expPx.toFixed(1) + '%"' +
+        ' title="Esperado a la fecha"></div>'
       : '';
     return (
-      '<div class="' + cls + '"' + tooltipAttr + '>' +
-        '<span class="goal-chip__label">' + escapeHtml(opts.label) + '</span>' +
-        '<span class="goal-chip__values">' +
-          '<span class="goal-chip__value">' + opts.valueHTML + '</span>' +
-          goalBlock +
-        '</span>' +
-        pctBlock +
+      '<div class="' + cls + '" role="progressbar"' +
+        ' aria-valuenow="' + fillPx.toFixed(1) + '"' +
+        ' aria-valuemin="0" aria-valuemax="100">' +
+        '<div class="' + fillCls + '" style="width:' + fillPx.toFixed(1) + '%"></div>' +
+        marker +
       '</div>'
     );
   }
 
-  function renderGoals(data) {
+  function _row1ChipHTML(status, label) {
+    if (!status || !label) return '';
+    return '<span class="row1-chip row1-chip--' + status + '">' + escapeHtml(label) + '</span>';
+  }
+
+  function _row1BoxHTML(opts) {
+    // opts: { label, bigHTML, chipHTML, barHTML, expectedHTML, topeHTML, footHTML, gracefulCls, tooltip }
+    var cls = 'row1-box';
+    if (opts.gracefulCls) cls += ' ' + opts.gracefulCls;
+    var tooltipAttr = opts.tooltip ? ' title="' + escapeHtml(opts.tooltip) + '"' : '';
+    var headRight = opts.chipHTML || '';
+    var meta = '';
+    if (opts.expectedHTML || opts.topeHTML) {
+      meta =
+        '<div class="row1-box__meta">' +
+          (opts.expectedHTML
+            ? '<span class="row1-box__expected">' + opts.expectedHTML + '</span>'
+            : '') +
+          (opts.topeHTML
+            ? '<span class="row1-box__tope">' + opts.topeHTML + '</span>'
+            : '') +
+        '</div>';
+    }
+    return (
+      '<div class="' + cls + '"' + tooltipAttr + '>' +
+        '<div class="row1-box__head">' +
+          '<span class="row1-box__label">' + escapeHtml(opts.label) + '</span>' +
+          headRight +
+        '</div>' +
+        '<div class="row1-box__big">' + opts.bigHTML + '</div>' +
+        (opts.barHTML || '') +
+        meta +
+        (opts.footHTML ? '<div class="row1-box__foot">' + opts.footHTML + '</div>' : '') +
+      '</div>'
+    );
+  }
+
+  function _row1DeltaHTML(absDelta, pctDelta, periodLabel, invertColor) {
+    // Reusa _deltaLineHTML (definido más abajo en el archivo). Se llama
+    // forward — function declarations son hoisted, no hay TDZ issue.
+    return _deltaLineHTML(absDelta, pctDelta, periodLabel, { invertColor: !!invertColor });
+  }
+
+  function renderGoals(data, period) {
     var sec = document.getElementById('goals-section');
     if (!sec) return;
     if (!data || typeof data !== 'object') {
@@ -258,307 +331,119 @@
       return;
     }
     var current   = (data.totals && data.totals.current)   || {};
-    var prorrated = data.goals_prorrated                  || {};
-    var vsGoal    = (data.totals && data.totals.vs_goal)   || {};
-
-    // ── Cierres chip ──
-    var cierresVal  = current.cierres;
-    var cierresGoal = prorrated.cierres_goal_periodo;
-    var cierresPct  = vsGoal.cierres_pct;
-    var cierresHTML = _chipHTML({
-      label: 'Cierres',
-      valueHTML: _fmtInt(cierresVal),
-      goalHTML:  _fmtInt(cierresGoal),
-      pctHTML:   _fmtPct(cierresPct)
-    });
-
-    // ── Inversión chip — graceful when spend pipeline down ──
-    var invVal  = current.inversion_total_meta_ads;
-    var invGoal = prorrated.inversion_planeada_periodo;
-    var invPct  = vsGoal.inversion_pct;
-    var invDown = (invVal == null || invVal === 0);
-    var invHTML = _chipHTML({
-      label: 'Inversión',
-      valueHTML: invDown ? '—' : _fmtCurrency(invVal),
-      goalHTML:  _fmtCurrency(invGoal),
-      pctHTML:   invDown ? '—' : _fmtPct(invPct),
-      gracefulCls: invDown ? 'goal-chip--graceful' : '',
-      tooltip:   invDown ? 'Pipeline de inversión actualizando' : ''
-    });
-
-    // ── CAC chip — no %, status color instead ──
-    var cacVal    = current.cac;
-    var cacGoal   = data.goals && data.goals.cac_meta && data.goals.cac_meta.valor;
-    var cacStatus = vsGoal.cac_status;
-    var cacDown   = (cacVal == null || cacVal === 0) && (cierresVal != null && cierresVal > 0);
-    var cacHTML = _chipHTML({
-      label: 'CAC',
-      valueHTML: cacDown ? '—' : _fmtCurrency(cacVal),
-      goalHTML:  _fmtCurrency(cacGoal),
-      pctHTML:   '',  // CAC uses color status, not %
-      statusCls: _statusClass(cacStatus),
-      gracefulCls: cacDown ? 'goal-chip--graceful' : '',
-      tooltip:   cacDown ? 'Pipeline de inversión actualizando' : ''
-    });
-
-    // ── F3.9 Venta chip — monto vendido del periodo ──
-    // Backend: totals.current.venta (presente en los 6 periods, nunca null).
-    // 0 es real (today/yesterday/last_month suelen estar en 0, no es
-    // pipeline-down). Solo "—" cuando viene null/ausente.
-    // Goal opcional: goals_prorrated.venta_goal_periodo cuando exista.
-    // NO pct: backend no ship venta_pct en vs_goal (mismo patrón que CAC).
-    var ventaVal  = current.venta;
-    var ventaGoal = prorrated.venta_goal_periodo;
-    var ventaHTML = _chipHTML({
-      label: 'Venta',
-      valueHTML: (ventaVal == null) ? '—' : _fmtCurrency(ventaVal),
-      goalHTML:  (ventaGoal != null) ? _fmtCurrency(ventaGoal) : '',
-      pctHTML:   ''
-    });
-
-    // ── F3.9 Firmas Programadas chip — total agregado del periodo ──
-    // Backend: totals.current.firmas_programadas (verificado por_city sum
-    // matches → backend YA hace la agregación). Sin goal backend, sin
-    // pct, sin status. Solo el conteo.
-    var firmasVal = current.firmas_programadas;
-    var firmasHTML = _chipHTML({
-      label: 'Firmas Prog.',
-      valueHTML: (firmasVal == null) ? '—' : _fmtInt(firmasVal),
-      goalHTML:  '',
-      pctHTML:   ''
-    });
-
-    sec.innerHTML =
-      '<div class="goals-chips" role="group" aria-label="Metas del periodo">' +
-        cierresHTML + invHTML + cacHTML + ventaHTML + firmasHTML +
-      '</div>';
-  }
-
-  // Exposed so F3.x tests / inspection can call without a network fetch:
-  //   window.__homeData = {...}; window.__renderGoals(window.__homeData);
-  window.__renderGoals = renderGoals;
-
-  // ── F3.3 Hero section + ProjectionCard ─────────────────────────────────
-  //
-  // Two big cards (Cierres MTD | Inversión MTD) side-by-side on desktop,
-  // stacked on mobile. ProjectionCard appears below them only when
-  // period === 'mtd' (EOM projection is meaningless against other windows).
-  //
-  // Why an inline progress bar instead of assets/components/ProgressBar.js:
-  // that component's CSS is scoped to .app-redesign and depends on the
-  // design-token stylesheet (--color-success, --space-2, etc.) which this
-  // standalone F3 view does not load. Reusing it would require dragging two
-  // additional stylesheets + adding a wrapper class — disproportionate for
-  // 2 bars. F3.3 ships its own minimal bar; design-system migration is a
-  // separate sprint.
-  //
-  // Status thresholds per S77 SPEC (NOT ProgressBar's deriveTier rule):
-  //   cierres: pct < 0.50 → red, 0.50 ≤ pct < 0.80 → yellow, pct ≥ 0.80 → green
-  //   inversion: no status until backend ships inversion_status (omit color)
-  //
-  // The Cierres status is computed CLIENT-SIDE because vs_goal doesn't ship
-  // cierres_status today — only cac_status + costo_preaut_positivo_status.
-  // When backend adds cierres_status, swap to backend value + delete this
-  // helper to keep single-source-of-truth.
-
-  function _cierresStatusFromPct(pct) {
-    if (pct == null || isNaN(pct)) return '';
-    var p = Number(pct);
-    if (p < 0.50) return 'red';
-    if (p < 0.80) return 'yellow';
-    return 'green';
-  }
-
-  function _progressBarHTML(opts) {
-    // opts: { pct (0..1), status ('green'|'yellow'|'red'|''), graceful (bool) }
-    var pct = opts.pct == null || isNaN(opts.pct) ? 0 : Number(opts.pct);
-    var fillPct = Math.max(0, Math.min(100, pct * 100));
-    var cls = 'hero-bar';
-    if (opts.graceful) cls += ' hero-bar--graceful';
-    var fillCls = 'hero-bar__fill';
-    if (opts.status) fillCls += ' hero-bar__fill--' + opts.status;
-    return (
-      '<div class="' + cls + '" role="progressbar"' +
-        ' aria-valuenow="' + fillPct.toFixed(1) + '"' +
-        ' aria-valuemin="0" aria-valuemax="100">' +
-        '<div class="' + fillCls + '" style="width:' + fillPct.toFixed(1) + '%"></div>' +
-      '</div>'
-    );
-  }
-
-  function _heroCardHTML(opts) {
-    // opts: { label, bigHTML, subRightHTML, barHTML, footHTML, gracefulCls, tooltip }
-    var cls = 'hero-card';
-    if (opts.gracefulCls) cls += ' ' + opts.gracefulCls;
-    var tooltipAttr = opts.tooltip ? ' title="' + escapeHtml(opts.tooltip) + '"' : '';
-    return (
-      '<div class="' + cls + '"' + tooltipAttr + '>' +
-        '<div class="hero-card__label">' + escapeHtml(opts.label) + '</div>' +
-        '<div class="hero-card__row">' +
-          '<span class="hero-card__big">' + opts.bigHTML + '</span>' +
-          (opts.subRightHTML ? '<span class="hero-card__sub-right">' + opts.subRightHTML + '</span>' : '') +
-        '</div>' +
-        (opts.barHTML || '') +
-        (opts.footHTML ? '<div class="hero-card__foot">' + opts.footHTML + '</div>' : '') +
-      '</div>'
-    );
-  }
-
-  function _projectionStatusFromGap(projected, goal) {
-    if (projected == null || goal == null || goal <= 0) return '';
-    if (projected >= goal) return 'green';
-    if (projected >= goal * 0.80) return 'yellow';
-    return 'red';
-  }
-
-  function renderProjection(data) {
-    // Only called when period === 'mtd' AND data.totals.projection exists.
-    var projection = data.totals && data.totals.projection;
-    if (!projection) return '';
-    var goal = data.goals && data.goals.cierres_meta && data.goals.cierres_meta.valor;
-    var projectedC = projection.projected_cierres_eom;
-    var gap = (projectedC != null && goal != null) ? Math.round(goal - projectedC) : null;
-    var status = _projectionStatusFromGap(projectedC, goal);
-
-    var gapLine;
-    if (gap == null) {
-      gapLine = '';
-    } else if (gap <= 0) {
-      gapLine = '<span class="proj-card__status proj-card__status--green">Vas a cumplir</span>';
-    } else {
-      gapLine = '<span class="proj-card__status proj-card__status--' + status + '">' +
-                'Faltan ' + gap + ' cierre' + (gap === 1 ? '' : 's') + ' para meta</span>';
-    }
-
-    var daily = projection.daily_avg_business_days;
-    var bdt = projection.business_days_total;
-    var bdp = projection.business_days_passed;
-    var basisLine = (daily != null && bdt != null && bdp != null)
-      ? 'Basado en ' + Number(daily).toFixed(2) + ' cierres/día × ' + bdt +
-        ' días hábiles (' + bdp + ' pasados)'
-      : '';
-
-    // Inversión proyectada — omit block when 0 (per spec: no "—" placeholder).
-    var invProjected = projection.projected_inversion_eom;
-    var invGoal = data.goals && data.goals.inversion_meta && data.goals.inversion_meta.valor;
-    var invBlock = '';
-    if (invProjected != null && invProjected > 0) {
-      invBlock = '<div class="proj-card__inv">' +
-                   _fmtCurrency(invProjected) + ' proyectado vs ' + _fmtCurrency(invGoal) + ' plan' +
-                 '</div>';
-    }
-
-    return (
-      '<div class="proj-card">' +
-        '<div class="proj-card__title">Proyección al cierre del mes</div>' +
-        '<div class="proj-card__big">' + _fmtInt(projectedC) + ' cierres proyectados</div>' +
-        (gapLine ? '<div class="proj-card__gap">' + gapLine + '</div>' : '') +
-        (basisLine ? '<div class="proj-card__basis">' + escapeHtml(basisLine) + '</div>' : '') +
-        invBlock +
-      '</div>'
-    );
-  }
-
-  function renderHero(data, period) {
-    var sec = document.getElementById('hero-section');
-    if (!sec) return;
-    if (!data || typeof data !== 'object') {
-      sec.innerHTML = '';
-      return;
-    }
-    var current   = (data.totals && data.totals.current)   || {};
+    var delta     = (data.totals && data.totals.delta)     || {};
     var prorrated = data.goals_prorrated                   || {};
-    var vsGoal    = (data.totals && data.totals.vs_goal)   || {};
     var goals     = data.goals                             || {};
+    var isMtd     = (period === 'mtd');
+    var periodLabel = _formatPreviousLabel(period, data);
 
-    var isMtd = (period === 'mtd');
+    // ── Cierres caja ──────────────────────────────────────────────────
+    var cierresVal     = current.cierres;
+    var cierresGoalMo  = goals.cierres_meta && goals.cierres_meta.valor;
+    var cierresGoalP   = prorrated.cierres_goal_periodo;
+    var cierresRojoP   = prorrated.cierres_tier_rojo_max_periodo;
+    var cierresAmarP   = prorrated.cierres_tier_amarillo_max_periodo;
 
-    // ── Cierres card ──
-    var cierresVal  = current.cierres;
-    var cierresPct  = vsGoal.cierres_pct;
-    var cierresStatus = _cierresStatusFromPct(cierresPct);
-    var cierresCard;
+    var cierresHTML;
     if (isMtd) {
-      var cierresGoalProrr = prorrated.cierres_goal_periodo;
-      var cierresFullGoal = goals.cierres_meta && goals.cierres_meta.valor;
-      cierresCard = _heroCardHTML({
-        label: 'Cierres MTD',
+      var tierStatus = _cierresTierStatus(cierresVal, cierresRojoP, cierresAmarP);
+      var fillPct = (cierresGoalMo != null && cierresGoalMo > 0 && cierresVal != null)
+        ? (Number(cierresVal) / Number(cierresGoalMo)) : 0;
+      var expPct = (cierresGoalMo != null && cierresGoalMo > 0 && cierresGoalP != null)
+        ? (Number(cierresGoalP) / Number(cierresGoalMo)) : null;
+      cierresHTML = _row1BoxHTML({
+        label: 'Cierres del mes',
         bigHTML: _fmtInt(cierresVal),
-        subRightHTML: '/ ' + _fmtInt(cierresGoalProrr) + ' meta del periodo',
-        barHTML: _progressBarHTML({ pct: cierresPct, status: cierresStatus }),
-        footHTML: cierresFullGoal != null
-          ? _fmtInt(cierresFullGoal) + ' al cierre del mes'
+        chipHTML: _row1ChipHTML(tierStatus, _tierChipLabel(tierStatus, 'cierres')),
+        barHTML: _row1ProgressBarHTML({
+          fillPct: fillPct, expectedPct: expPct, status: tierStatus
+        }),
+        expectedHTML: (cierresGoalP != null)
+          ? _fmtInt(cierresGoalP) + ' esperados'
+          : '',
+        topeHTML: (cierresGoalMo != null)
+          ? 'Meta ' + _fmtInt(cierresGoalMo)
           : ''
       });
     } else {
-      cierresCard = _heroCardHTML({
+      cierresHTML = _row1BoxHTML({
         label: 'Cierres',
         bigHTML: _fmtInt(cierresVal),
-        footHTML: 'Periodo: ' + escapeHtml(period || '—')
+        footHTML: _row1DeltaHTML(delta.cierres_abs, null, periodLabel, false)
       });
     }
 
-    // ── Inversión card ──
-    var invVal  = current.inversion_total_meta_ads;
-    var invPct  = vsGoal.inversion_pct;
-    var invDown = (invVal == null || invVal === 0);
-    var invCard;
+    // ── Inversión caja ────────────────────────────────────────────────
+    var invVal    = current.inversion_total_meta_ads;
+    var invGoalMo = (goals.inversion_meta && goals.inversion_meta.valor) ||
+                    (goals.inversion_planeada && goals.inversion_planeada.valor);
+    var invGoalP  = prorrated.inversion_planeada_periodo;
+    var invDown   = (invVal == null || invVal === 0);
+
+    var invHTML;
     if (isMtd) {
-      var invGoalProrr = prorrated.inversion_planeada_periodo;
-      var invFullGoal = goals.inversion_meta && goals.inversion_meta.valor;
-      invCard = _heroCardHTML({
-        label: 'Inversión MTD',
+      var invStatus = invDown ? '' : _inversionPlanStatus(invVal, invGoalP);
+      var invFillPct = (invGoalMo != null && invGoalMo > 0 && invVal != null)
+        ? (Number(invVal) / Number(invGoalMo)) : 0;
+      var invExpPct = (invGoalMo != null && invGoalMo > 0 && invGoalP != null)
+        ? (Number(invGoalP) / Number(invGoalMo)) : null;
+      invHTML = _row1BoxHTML({
+        label: 'Inversión del mes',
         bigHTML: invDown ? '—' : _fmtCurrency(invVal),
-        subRightHTML: '/ ' + _fmtCurrency(invGoalProrr) + ' plan del periodo',
-        // No status color — backend hasn't shipped inversion_status; neutral bar.
-        // Graceful when down: bar shows 0% in grey (graceful class drops it
-        // visually) so users see "pipeline pending" not "completely missed plan".
-        barHTML: _progressBarHTML({ pct: invDown ? 0 : invPct, status: '', graceful: invDown }),
-        footHTML: invFullGoal != null
-          ? _fmtCurrency(invFullGoal) + ' al cierre del mes'
+        chipHTML: _row1ChipHTML(invStatus, _tierChipLabel(invStatus, 'inversion')),
+        barHTML: _row1ProgressBarHTML({
+          fillPct: invFillPct, expectedPct: invExpPct,
+          status: invStatus, graceful: invDown
+        }),
+        expectedHTML: (invGoalP != null)
+          ? _fmtCurrency(invGoalP) + ' esperado'
           : '',
-        gracefulCls: invDown ? 'hero-card--graceful' : '',
+        topeHTML: (invGoalMo != null)
+          ? 'Plan ' + _fmtCurrency(invGoalMo)
+          : '',
+        gracefulCls: invDown ? 'row1-box--graceful' : '',
         tooltip: invDown ? 'Pipeline de inversión actualizando' : ''
       });
     } else {
-      invCard = _heroCardHTML({
+      invHTML = _row1BoxHTML({
         label: 'Inversión',
         bigHTML: invDown ? '—' : _fmtCurrency(invVal),
-        footHTML: 'Periodo: ' + escapeHtml(period || '—'),
-        gracefulCls: invDown ? 'hero-card--graceful' : '',
+        footHTML: _row1DeltaHTML(null, delta.inversion_pct, periodLabel, false),
+        gracefulCls: invDown ? 'row1-box--graceful' : '',
         tooltip: invDown ? 'Pipeline de inversión actualizando' : ''
       });
     }
 
-    // ── ProjectionCard — only for mtd ──
-    var projectionHTML = isMtd ? renderProjection(data) : '';
-
     sec.innerHTML =
-      '<div class="hero-cards">' + cierresCard + invCard + '</div>' +
-      projectionHTML;
+      '<div class="row1-grid" role="group" aria-label="Cierres e inversión vs meta">' +
+        cierresHTML + invHTML +
+      '</div>';
   }
 
-  window.__renderHero = renderHero;
+  window.__renderGoals = renderGoals;
 
-  // ── F3.4 KPI strip — 5 KPIs in a row ──────────────────────────────────
+  // ── S84 — Filas 2 + 3 (renderKpiStrip) ─────────────────────────────────
   //
-  // 5 cards: MENSAJES | PREAUT BRUTOS | PREAUT+ | FIRMAS PROG. | CANCELADOS
+  // Renderiza Filas 2 y 3 dentro del contenedor #kpi-strip-section.
   //
-  // Backend audit (period=mtd, verified 2026-05-28):
-  //   totals.delta has mensajes_abs (0) and preaut_positivos_abs (58).
-  //   It does NOT have preaut_brutos_*, firmas_programadas_*, cancelados_*.
-  //   For those 3 KPIs we render "—" in the comparison line (period label
-  //   still rendered for context, so the row stays visually balanced).
+  //   Fila 2 (4 cajas): Preaut+ hoy · Daily Preaut+ avg · Proy. Cierres EOM
+  //                     · Proy. Inversión EOM
+  //   Fila 3 (2 cajas): CAC Preaut+ · CAC Cierres con chip vs objetivo
   //
-  // The "vs {previous_period}" comparison line is new in F3.4 — Hero (F3.3)
-  // doesn't render any vs-previous line, so there was no pattern to mirror.
-  // Color scheme below: green for positive delta, red for negative, grey
-  // for zero or missing. Period label is derived from meta.previous_period
-  // (not hardcoded) so it stays correct across periods.
+  // En periodos != mtd, las 3 cajas mtd-only (Daily avg, Proy Cierres,
+  // Proy Inversión) se omiten — Fila 2 se reduce a la caja Preaut+ con
+  // delta vs periodo previo.
   //
-  // Defensive: if backend ever ships *_pct for these KPIs, _deltaLineHTML
-  // falls back to that with a >999% guardrail (matches the rounding
-  // discipline elsewhere in this file).
+  // Per spec: Preaut+ con delta=0 NO se pinta rojo (sheet llega con retraso
+  // — un cero no es una baja confirmable). _deltaLineHTML ya rinde el
+  // delta=0 en gris neutral, así que no requiere override.
+  //
+  // CAC null (denominador 0) muestra "—", nunca "$0". Chip vs objetivo:
+  //   - CAC Preaut+: vs costo_preaut_positivo_objetivo (934 hoy).
+  //   - CAC Cierres: vs cac_objetivo / cac_meta (2833 hoy).
+  // Status: backend ship costo_preaut_positivo_status hoy (red); cac_status
+  // viene null cuando cierres=0. Donde el status no esté disponible se
+  // computa client-side basado en value <= obj.
 
   // Aligned to enpagos-daily.js:293-311 ("vs ABRIL (1-28)" pattern) per
   // cross-view consistency requirement. Returns the suffix only — caller
@@ -662,146 +547,184 @@
   }
 
   function _kpiCardHTML(opts) {
-    // opts: { label, valueHTML, auxHTML?, subHTML?, deltaHTML? }
-    // S82 daily-parity:
-    //   auxHTML: inline secondary value next to big number (Preaut+ uses for
-    //            costo_preaut_positivo — daily.js:240).
-    //   subHTML: line under big number with extra context (Cierres uses for
-    //            "de ~23 meta" — daily.js:257).
+    // opts: { label, valueHTML, auxHTML?, subHTML?, chipHTML?, deltaHTML? }
     var aux = opts.auxHTML
       ? ' <span class="kpi-card__aux">' + opts.auxHTML + '</span>'
       : '';
     var sub = opts.subHTML
       ? '<div class="kpi-card__sub">' + opts.subHTML + '</div>'
       : '';
+    var chip = opts.chipHTML
+      ? '<div class="kpi-card__chip-row">' + opts.chipHTML + '</div>'
+      : '';
     return (
       '<div class="kpi-card">' +
         '<div class="kpi-card__label">' + escapeHtml(opts.label) + '</div>' +
         '<div class="kpi-card__big">' + opts.valueHTML + aux + '</div>' +
         sub +
+        chip +
         (opts.deltaHTML || '') +
       '</div>'
     );
   }
 
-  function renderKpiStrip(data, period) {
-    // S82 daily-parity rewrite. ANTES: 4 métricas proyección mtd-only.
-    // DESPUÉS: 6 métricas funnel en los 6 periods con delta vs previous,
-    // replicando daily renderStickyBar(enpagos-daily.js:203-273):
-    //   1. Preaut+      ← totals.current.preaut_positivos + AUX costo_preaut_positivo
-    //   2. Cierres      ← totals.current.cierres + SUB "de ~N meta"
-    //   3. Inversión    ← totals.current.inversion_total_meta_ads
-    //   4. CAC          ← totals.current.cac (— si cierres=0; invertColor)
-    //   5. Venta        ← totals.current.venta
-    //   6. Firmas Prog. ← totals.current.firmas_programadas
-    //
-    // Cada KPI tiene delta line "vs [periodo anterior]" con label canónico
-    // per period (today→ayer, yesterday→anteayer, 7d/30d→Nd anteriores,
-    // mtd→"ABRIL (1-28)", last_month→"periodo anterior"). Sin guard mtd —
-    // los 6 periods renderean. Si delta._abs/_pct es null para un KPI,
-    // _deltaLineHTML muestra "—" missing (no rompe).
-    //
-    // ProjectionCard (renderProjection en renderHero, mtd-only) preserva
-    // info de proyección EOM. No se pierde nada.
+  // Status CAC: actual <= objetivo → green; objetivo < actual <= limite →
+  // yellow; actual > limite → red. Sin limite, fallback green/red contra
+  // objetivo. Cuando actual o objetivo son null → '', neutral.
+  function _cacStatus(actual, objetivo, limite) {
+    if (actual == null || isNaN(actual)) return '';
+    if (objetivo == null || isNaN(objetivo)) return '';
+    var a = Number(actual);
+    var o = Number(objetivo);
+    if (a <= o) return 'green';
+    if (limite != null && !isNaN(limite)) {
+      return (a <= Number(limite)) ? 'yellow' : 'red';
+    }
+    return 'red';
+  }
 
+  function _cacChipHTML(status, objetivoText) {
+    if (!status || !objetivoText) return '';
+    var label;
+    if (status === 'green') label = 'Bajo objetivo';
+    else if (status === 'yellow') label = 'Sobre objetivo';
+    else label = 'Sobre límite';
+    return '<span class="kpi-chip kpi-chip--' + status + '">' +
+             escapeHtml(label) + ' (' + objetivoText + ')' +
+           '</span>';
+  }
+
+  function renderKpiStrip(data, period) {
     var sec = document.getElementById('kpi-strip-section');
     if (!sec) return;
     if (!data || typeof data !== 'object') {
       sec.innerHTML = '';
       return;
     }
-    var current   = (data.totals && data.totals.current)   || {};
-    var delta     = (data.totals && data.totals.delta)     || {};
-    var meta      = data.meta                              || {};
-    var prorrated = data.goals_prorrated                   || {};
+    var current     = (data.totals && data.totals.current)     || {};
+    var delta       = (data.totals && data.totals.delta)       || {};
+    var projection  = (data.totals && data.totals.projection)  || {};
+    var vsGoal      = (data.totals && data.totals.vs_goal)     || {};
+    var goals       = data.goals                               || {};
+    var isMtd       = (period === 'mtd');
     var periodLabel = _formatPreviousLabel(period, data);
 
-    // AUX inline para Preaut+: costo_preaut_positivo si preaut>0 y costo no null.
-    // Replica daily.js:240 — guard estricto, "—" cuando inválido (no $0).
+    // ── Fila 2 ────────────────────────────────────────────────────────
+    // Preaut+ del periodo + delta. _deltaLineHTML rinde delta=0 en gris
+    // neutral por default, así que un sheet con retraso no se ve como
+    // baja. AUX inline: CAC Preaut+ del periodo cuando preaut > 0 (eco
+    // del número de la Fila 3 — útil para lectura rápida).
     var preautVal = current.preaut_positivos;
     var costoPreaut = current.costo_preaut_positivo;
-    var preautAux = (preautVal != null && preautVal > 0 && costoPreaut != null && !isNaN(costoPreaut))
+    var preautAux = (preautVal != null && preautVal > 0 &&
+                     costoPreaut != null && !isNaN(costoPreaut))
       ? _fmtCurrency(costoPreaut)
-      : '—';
-
-    // SUB para Cierres: "de ~N meta" cuando goals_prorrated existe,
-    // "meta pendiente" cuando no. Replica daily.js:210-214,257.
-    var cierresGoalRaw = prorrated.cierres_goal_periodo;
-    var cierresGoalSub;
-    if (cierresGoalRaw != null && !isNaN(cierresGoalRaw) && cierresGoalRaw > 0) {
-      cierresGoalSub = 'de ~' + Math.max(1, Math.round(cierresGoalRaw)) + ' meta';
-    } else {
-      cierresGoalSub = 'meta pendiente';
-    }
-
-    // CAC text: "—" cuando cierres=0 (daily.js:217-219 / home plaza card mirror).
-    // Evita ruido $0 / div-by-zero del backend.
-    var cacText = (current.cierres > 0 && current.cac != null)
-      ? _fmtCurrency(current.cac)
-      : '—';
-
-    // 6 KPIs. invertColor=true para CAC (positive delta = bad).
-    var KPIS = [
-      {
-        label: 'Preaut+',
+      : '';
+    var preautSub = (isMtd && (preautVal == null || preautVal === 0))
+      ? 'sheet con retraso ~24h'
+      : '';
+    var f2Boxes = [
+      _kpiCardHTML({
+        label: 'Preaut+ del periodo',
         valueHTML: _fmtInt(preautVal),
         auxHTML:   preautAux,
-        absDelta:  delta.preaut_positivos_abs,
-        pctDelta:  null,
-        invertColor: false
-      },
-      {
-        label: 'Cierres',
-        valueHTML: _fmtInt(current.cierres),
-        subHTML:   cierresGoalSub,
-        absDelta:  delta.cierres_abs,
-        pctDelta:  null,
-        invertColor: false
-      },
-      {
-        label: 'Inversión',
-        valueHTML: _fmtCurrency(current.inversion_total_meta_ads),
-        absDelta:  null,
-        pctDelta:  delta.inversion_pct,
-        invertColor: false
-      },
-      {
-        label: 'CAC',
-        valueHTML: cacText,
-        absDelta:  null,
-        pctDelta:  delta.cac_pct,
-        invertColor: true
-      },
-      {
-        label: 'Venta',
-        valueHTML: _fmtCurrency(current.venta),
-        absDelta:  null,
-        pctDelta:  delta.venta_pct,
-        invertColor: false
-      },
-      {
-        label: 'Firmas Prog.',
-        valueHTML: _fmtInt(current.firmas_programadas),
-        // Backend no ship delta para firmas — line muestra "—" missing.
-        absDelta:  null,
-        pctDelta:  null,
-        invertColor: false
-      }
+        subHTML:   preautSub,
+        deltaHTML: _deltaLineHTML(
+          delta.preaut_positivos_abs, null, periodLabel, { invertColor: false }
+        )
+      })
     ];
 
-    var cardsHTML = '';
-    for (var i = 0; i < KPIS.length; i++) {
-      var k = KPIS[i];
-      cardsHTML += _kpiCardHTML({
-        label: k.label,
-        valueHTML: k.valueHTML,
-        auxHTML:  k.auxHTML || '',
-        subHTML:  k.subHTML || '',
-        deltaHTML: _deltaLineHTML(k.absDelta, k.pctDelta, periodLabel, { invertColor: k.invertColor })
-      });
+    if (isMtd) {
+      // Daily Preaut+ avg = preaut / business_days_passed. Backend no ship
+      // preaut_avg directo, lo computamos.
+      var bdp = projection.business_days_passed;
+      var dailyAvg = (preautVal != null && bdp != null && bdp > 0)
+        ? (Number(preautVal) / Number(bdp))
+        : null;
+      f2Boxes.push(_kpiCardHTML({
+        label: 'Daily Preaut+ avg',
+        valueHTML: (dailyAvg != null) ? _fmtFloat2(dailyAvg) : '—',
+        subHTML:   (bdp != null) ? bdp + ' días hábiles transcurridos' : ''
+      }));
+
+      var projC = projection.projected_cierres_eom;
+      var cierresMo = goals.cierres_meta && goals.cierres_meta.valor;
+      f2Boxes.push(_kpiCardHTML({
+        label: 'Proy. Cierres EOM',
+        valueHTML: (projC != null) ? _fmtInt(projC) : '—',
+        subHTML:   (cierresMo != null) ? 'vs meta ' + _fmtInt(cierresMo) : ''
+      }));
+
+      var projInv = projection.projected_inversion_eom;
+      var invMo   = (goals.inversion_meta && goals.inversion_meta.valor) ||
+                    (goals.inversion_planeada && goals.inversion_planeada.valor);
+      f2Boxes.push(_kpiCardHTML({
+        label: 'Proy. Inversión EOM',
+        valueHTML: (projInv != null && projInv > 0) ? _fmtCurrency(projInv) : '—',
+        subHTML:   (invMo != null) ? 'vs plan ' + _fmtCurrency(invMo) : ''
+      }));
     }
 
-    sec.innerHTML = '<div class="kpi-strip">' + cardsHTML + '</div>';
+    var fila2HTML = '<div class="row2-grid" data-mtd="' + (isMtd ? '1' : '0') + '">' +
+                    f2Boxes.join('') +
+                    '</div>';
+
+    // ── Fila 3 — CAC Preaut+ + CAC Cierres ────────────────────────────
+    var costoPreautObj    = goals.costo_preaut_positivo_objetivo &&
+                            goals.costo_preaut_positivo_objetivo.valor;
+    var costoPreautLimite = goals.costo_preaut_positivo_limite &&
+                            goals.costo_preaut_positivo_limite.valor;
+    var costoPreautStatus = (preautVal != null && preautVal > 0)
+      ? (vsGoal.costo_preaut_positivo_status ||
+         _cacStatus(costoPreaut, costoPreautObj, costoPreautLimite))
+      : '';
+    var costoPreautChip = (costoPreautObj != null && preautVal != null && preautVal > 0)
+      ? _cacChipHTML(costoPreautStatus, 'obj ' + _fmtCurrency(costoPreautObj))
+      : '';
+
+    var cacVal    = current.cac;
+    var cacObj    = (goals.cac_objetivo && goals.cac_objetivo.valor) ||
+                    (goals.cac_meta && goals.cac_meta.valor);
+    var cacLimite = goals.cac_limite && goals.cac_limite.valor;
+    var hasCierres = (current.cierres != null && current.cierres > 0);
+    var cacStatus  = hasCierres
+      ? (vsGoal.cac_status || _cacStatus(cacVal, cacObj, cacLimite))
+      : '';
+    var cacChip = (cacObj != null && hasCierres)
+      ? _cacChipHTML(cacStatus, 'obj ' + _fmtCurrency(cacObj))
+      : '';
+
+    var cacPreautText = (preautVal != null && preautVal > 0 &&
+                         costoPreaut != null && !isNaN(costoPreaut))
+      ? _fmtCurrency(costoPreaut) : '—';
+    var cacCierresText = hasCierres
+      ? ((cacVal != null) ? _fmtCurrency(cacVal) : '—')
+      : '—';
+
+    var fila3HTML = '<div class="row3-grid">' +
+      _kpiCardHTML({
+        label: 'CAC Preaut+',
+        valueHTML: cacPreautText,
+        chipHTML:  costoPreautChip,
+        subHTML:   (preautVal == null || preautVal === 0) ? 'sin preaut+ en el periodo' : '',
+        deltaHTML: _deltaLineHTML(
+          null, delta.costo_preaut_positivo_pct, periodLabel,
+          { invertColor: true }
+        )
+      }) +
+      _kpiCardHTML({
+        label: 'CAC Cierres',
+        valueHTML: cacCierresText,
+        chipHTML:  cacChip,
+        subHTML:   hasCierres ? '' : 'sin cierres en el periodo',
+        deltaHTML: _deltaLineHTML(
+          null, delta.cac_pct, periodLabel, { invertColor: true }
+        )
+      }) +
+      '</div>';
+
+    sec.innerHTML = fila2HTML + fila3HTML;
   }
 
   window.__renderKpiStrip = renderKpiStrip;
