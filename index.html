@@ -7754,6 +7754,27 @@ async function loadAnalisis() {
     <div style="font-family:'DM Sans',sans-serif; font-weight:600; font-size:20px; margin-bottom:4px; letter-spacing:-0.3px;">🧠 Análisis</div>
     <div style="font-size:12px; color:var(--text3); font-family:'DM Mono',monospace; margin-bottom:20px;">${client.nombre || client.id}</div>
 
+    ${client.id === 'enpagos' ? `
+    <!-- Editar Metas EnPagos — tool card. Modal abre con form de metas mensuales;
+         escribe a workspaces/optimizads/goals/enpagos_mensual_{YYYY-MM}_global
+         vía setDoc(merge:true) con read-back de confirmación. Solo cliente enpagos.
+         NOTA: comparte location con el card "Ads Manager" del feat/ads-manager-v5-mockup
+         (commit 8854441, aún no en main); cuando ambas branches mergeen habrá un
+         conflicto trivial de inserción en este punto — resolver poniendo ambas
+         cards una tras otra, mismo orden visual. -->
+    <div onclick="window.openEditarMetasModal && window.openEditarMetasModal()"
+         style="background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:16px; margin-bottom:20px; cursor:pointer; transition:border-color 0.15s; display:flex; align-items:center; gap:14px;"
+         onmouseover="this.style.borderColor='var(--accent)'"
+         onmouseout="this.style.borderColor='var(--border)'">
+      <div style="font-size:24px;">🎯</div>
+      <div style="flex:1;">
+        <div style="font-family:'DM Sans',sans-serif; font-weight:600; font-size:14px; color:var(--text1);">Editar Metas EnPagos</div>
+        <div style="font-size:11px; color:var(--text3); font-family:'DM Mono',monospace; margin-top:2px;">cierres · inversión · venta · CACs · tiers · doc Firestore mensual</div>
+      </div>
+      <div style="color:var(--text3); font-size:18px;">→</div>
+    </div>
+    ` : ''}
+
     ${hasData ? `
     <!-- MÓDULOS -->
     <div style="background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:16px; margin-bottom:20px;">
@@ -11034,5 +11055,435 @@ function aurisRenderResultado(r, prestador, scorecard) {
     </div>
   </div>
 </div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     EDITAR METAS ENPAGOS — modal de edición de metas mensuales.
+     Path Firestore: workspaces/optimizads/goals/enpagos_mensual_{YYYY-MM}_global
+     Trigger: card en loadAnalisis() (vista Análisis) cuando cliente es enpagos.
+     Periodo: Intl.DateTimeFormat 'en-CA' timeZone America/Mexico_City (DST-aware,
+              mismo criterio que el reader server-side firestore_goals_reader.py).
+     Aliases sincronizados al escribir:
+       cierres_goal ≡ cierres_meta
+       venta_goal ≡ venta_meta
+       inversion_planeada ≡ inversion_meta ≡ inversion_total_meta_ads  (3-way)
+       cac_objetivo ≡ cac_meta
+       preaut_positivos_goal ≡ preaut_positivos_meta
+     Forma de cada key: {valor:number, nivel:"mensual"|null, alcance:"global"}
+     Escritura: setDoc(merge:true) + read-back de confirmación. Cualquier
+                mismatch (incluido rules rebote silencioso) → error visible.
+                Bug fantasma S71 (Firestore write "exitoso" sin rules) NO
+                puede repetirse aquí porque la confirmación lee y compara.
+     Validación de inputs: vacío → omitir del merge (vaciar ≠ meta cero);
+                           texto/negativo/NaN → reject + borde rojo.
+     ═══════════════════════════════════════════════════════════ -->
+<div id="edm-overlay" style="display:none;">
+  <div id="edm-panel">
+    <div class="edm-header">
+      <div>
+        <div class="edm-title">🎯 Editar Metas EnPagos</div>
+        <div class="edm-subtitle" id="edm-subtitle">—</div>
+      </div>
+      <button class="edm-close" id="edm-close-x" type="button" aria-label="Cerrar">×</button>
+    </div>
+    <div class="edm-status" id="edm-status"></div>
+    <div class="edm-body" id="edm-body"></div>
+    <div class="edm-footer">
+      <button class="edm-btn edm-btn-ghost" id="edm-cancel" type="button">Cancelar</button>
+      <button class="edm-btn edm-btn-primary" id="edm-save" type="button" disabled>Guardar</button>
+    </div>
+  </div>
+</div>
+
+<style>
+  #edm-overlay {
+    position: fixed; inset: 0; z-index: 9999;
+    background: rgba(0,0,0,0.5);
+    display: none;
+    align-items: flex-start; justify-content: center;
+    padding: 40px 20px;
+    overflow-y: auto;
+  }
+  #edm-panel {
+    background: var(--surface); color: var(--text1);
+    border: 1px solid var(--border); border-radius: 12px;
+    width: 100%; max-width: 560px;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.4);
+    font-family: 'DM Sans', sans-serif;
+  }
+  .edm-header {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    gap: 12px; padding: 20px 24px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .edm-title { font-size: 16px; font-weight: 600; }
+  .edm-subtitle {
+    font-size: 11px; color: var(--text3);
+    font-family: 'DM Mono', monospace; margin-top: 4px;
+    overflow-wrap: anywhere;
+  }
+  .edm-close {
+    background: transparent; border: 1px solid var(--border);
+    color: var(--text2); width: 32px; height: 32px; border-radius: 8px;
+    cursor: pointer; font-size: 16px; line-height: 1;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .edm-close:hover { color: var(--text1); border-color: var(--text2); }
+
+  .edm-status {
+    padding: 12px 24px; font-size: 12px;
+    font-family: 'DM Mono', monospace; display: none;
+    overflow-wrap: anywhere;
+  }
+  .edm-status.show { display: block; }
+  .edm-status.info { background: rgba(255,255,255,0.04); color: var(--text2); border-bottom: 1px solid var(--border); }
+  .edm-status.ok   { background: rgba(46,125,50,0.12); color: #4ec45a; border-bottom: 1px solid rgba(46,125,50,0.4); }
+  .edm-status.err  { background: rgba(198,40,40,0.12); color: #ff6e6e; border-bottom: 1px solid rgba(198,40,40,0.5); }
+
+  .edm-body { padding: 16px 24px; }
+  .edm-section { margin-bottom: 14px; }
+  .edm-section-title {
+    font-size: 10px; color: var(--text3); font-family: 'DM Mono', monospace;
+    text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px;
+  }
+  .edm-field {
+    display: flex; align-items: center; gap: 12px; margin-bottom: 8px;
+  }
+  .edm-field label {
+    flex: 1; font-size: 13px; color: var(--text1);
+    font-family: 'DM Sans', sans-serif;
+  }
+  .edm-keys-hint {
+    display: block; font-size: 10px; color: var(--text3);
+    font-family: 'DM Mono', monospace; margin-top: 2px;
+  }
+  .edm-input {
+    width: 140px; padding: 6px 10px; font-size: 13px;
+    background: var(--bg2); color: var(--text1);
+    border: 1px solid var(--border); border-radius: 6px;
+    font-family: 'DM Mono', monospace; text-align: right;
+  }
+  .edm-input:focus { outline: none; border-color: var(--accent); }
+  .edm-input.invalid { border-color: #c62828; }
+
+  .edm-advanced { border-top: 1px solid var(--border); margin-top: 16px; padding-top: 14px; }
+  .edm-advanced summary {
+    cursor: pointer; font-size: 11px; color: var(--text3);
+    font-family: 'DM Mono', monospace; text-transform: uppercase;
+    letter-spacing: 1px; padding: 4px 0;
+    list-style: revert;
+  }
+  .edm-advanced[open] summary { margin-bottom: 10px; }
+
+  .edm-footer {
+    display: flex; justify-content: flex-end; gap: 8px;
+    padding: 14px 24px 20px; border-top: 1px solid var(--border);
+  }
+  .edm-btn {
+    appearance: none; border: 1px solid var(--border); background: var(--surface);
+    color: var(--text1); padding: 8px 18px; border-radius: 6px;
+    font: inherit; font-size: 13px; cursor: pointer;
+  }
+  .edm-btn-ghost:hover { background: var(--bg2); }
+  .edm-btn-primary {
+    background: var(--accent); color: #fff; border-color: var(--accent);
+  }
+  .edm-btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+</style>
+
+<script type="module">
+  import { db } from '/modules/core.js';
+  import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+  // Contract IDÉNTICO al seed scripts/seed_goals_enpagos_june_2026.py. Si el
+  // seed cambia este debe cambiar. Si esto cambia, validar que aún cuadra
+  // con el seed — un alias olvidado rompe el reader en silencio.
+  const EDM_WORKSPACE = 'optimizads';
+  const EDM_CLIENTE   = 'enpagos';
+  const EDM_KIND      = 'mensual';
+  const EDM_SCOPE     = 'global';
+
+  // 12 user-inputs → 18 keys Firestore.
+  //   fsSection: dónde vive en el doc ('metas' o 'tiers').
+  //   uiSection: dónde se dibuja en el form ('metas' o 'avanzados').
+  //   nivel/alcance: como en el seed; los tiers + casi todas las metas mensuales
+  //     son nivel="mensual"; los thresholds CAC son nivel=null.
+  //   keys: array — la PRIMERA es la canonical (usada para prefill); las
+  //     siguientes son aliases que se escriben sincronizadas con el mismo valor.
+  const EDM_FIELDS = [
+    // Metas del mes — sección visible
+    { id:'cierres',         label:'Cierres del mes',                 keys:['cierres_goal','cierres_meta'],                                          nivel:'mensual', fsSection:'metas', uiSection:'metas' },
+    { id:'inversion',       label:'Inversión del mes ($)',            keys:['inversion_planeada','inversion_meta','inversion_total_meta_ads'],       nivel:'mensual', fsSection:'metas', uiSection:'metas' },
+    { id:'venta',           label:'Venta del mes ($)',                keys:['venta_goal','venta_meta'],                                              nivel:'mensual', fsSection:'metas', uiSection:'metas' },
+    { id:'cac_obj',         label:'Costo por cierre objetivo ($)',    keys:['cac_objetivo','cac_meta'],                                              nivel:null,      fsSection:'metas', uiSection:'metas' },
+    { id:'cac_lim',         label:'Costo por cierre límite ($)',      keys:['cac_limite'],                                                           nivel:null,      fsSection:'metas', uiSection:'metas' },
+    { id:'preaut',          label:'Preaut+ del mes',                  keys:['preaut_positivos_goal','preaut_positivos_meta'],                        nivel:'mensual', fsSection:'metas', uiSection:'metas' },
+    { id:'preaut_cac_obj',  label:'Costo Preaut+ objetivo ($)',       keys:['costo_preaut_positivo_objetivo'],                                       nivel:null,      fsSection:'metas', uiSection:'metas' },
+    // Umbrales avanzados — colapsado
+    { id:'preaut_cac_lim',  label:'Costo Preaut+ límite ($)',         keys:['costo_preaut_positivo_limite'],                                         nivel:null,      fsSection:'metas', uiSection:'avanzados' },
+    { id:'cier_t_rojo',     label:'Cierres tier rojo (max)',          keys:['cierres_tier_rojo_max'],                                                nivel:'mensual', fsSection:'tiers', uiSection:'avanzados' },
+    { id:'cier_t_amar',     label:'Cierres tier amarillo (max)',      keys:['cierres_tier_amarillo_max'],                                            nivel:'mensual', fsSection:'tiers', uiSection:'avanzados' },
+    { id:'preaut_t_rojo',   label:'Preaut+ tier rojo (max)',          keys:['preaut_positivos_tier_rojo_max'],                                       nivel:'mensual', fsSection:'tiers', uiSection:'avanzados' },
+    { id:'preaut_t_amar',   label:'Preaut+ tier amarillo (max)',      keys:['preaut_positivos_tier_amarillo_max'],                                   nivel:'mensual', fsSection:'tiers', uiSection:'avanzados' },
+  ];
+
+  // Period ID en zona MX (DST-aware via Intl.DateTimeFormat). NUNCA UTC,
+  // NUNCA local del navegador (puede no ser MX). 'en-CA' con year+month
+  // produce "YYYY-MM" directo (formato ISO-like, sin separador localizado).
+  function edmGetPeriodId() {
+    return new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Mexico_City',
+      year: 'numeric', month: '2-digit'
+    }).format(new Date());
+  }
+  function edmDocId(periodId) {
+    return `${EDM_CLIENTE}_${EDM_KIND}_${periodId}_${EDM_SCOPE}`;
+  }
+  function edmDocRef(periodId) {
+    return doc(db, 'workspaces', EDM_WORKSPACE, 'goals', edmDocId(periodId));
+  }
+
+  function edmStatus(kind, msg) {
+    const el = document.getElementById('edm-status');
+    el.className = `edm-status show ${kind}`;
+    el.textContent = msg;
+  }
+  function edmStatusClear() {
+    const el = document.getElementById('edm-status');
+    el.className = 'edm-status';
+    el.textContent = '';
+  }
+
+  // Lectura — 3 estados explícitos (exists / empty / error). El SPEC fija que
+  // 'error' NO debe degradarse a 'empty' (sería como decir "mes vacío" cuando
+  // en realidad rules nos rebotaron). Cada uno se renderiza distinto.
+  async function edmLoadDoc(periodId) {
+    try {
+      const snap = await getDoc(edmDocRef(periodId));
+      if (!snap.exists()) return { state: 'empty' };
+      return { state: 'exists', data: snap.data() };
+    } catch (err) {
+      return { state: 'error', err };
+    }
+  }
+
+  function edmFieldHtml(f, docData) {
+    let prefill = '';
+    if (docData) {
+      const section = docData[f.fsSection] || {};
+      const entry = section[f.keys[0]];
+      if (entry && entry.valor != null && !isNaN(entry.valor)) {
+        prefill = String(entry.valor);
+      }
+    }
+    const keysHint = f.keys.length > 1
+      ? `<span class="edm-keys-hint">${f.keys.join(' · ')}</span>`
+      : `<span class="edm-keys-hint">${f.keys[0]}</span>`;
+    return `
+      <div class="edm-field">
+        <label for="edm-input-${f.id}">
+          ${f.label}
+          ${keysHint}
+        </label>
+        <input class="edm-input" type="number" min="0" step="any"
+               id="edm-input-${f.id}" data-field-id="${f.id}"
+               value="${prefill}" placeholder="—">
+      </div>
+    `;
+  }
+
+  function edmRenderForm(periodId, docData) {
+    const docId = edmDocId(periodId);
+    document.getElementById('edm-subtitle').textContent =
+      `${periodId} (México) · workspaces/${EDM_WORKSPACE}/goals/${docId}`;
+
+    const metasFields     = EDM_FIELDS.filter(f => f.uiSection === 'metas');
+    const avanzadosFields = EDM_FIELDS.filter(f => f.uiSection === 'avanzados');
+
+    document.getElementById('edm-body').innerHTML = `
+      <div class="edm-section">
+        <div class="edm-section-title">Metas del mes</div>
+        ${metasFields.map(f => edmFieldHtml(f, docData)).join('')}
+      </div>
+      <details class="edm-advanced">
+        <summary>Umbrales avanzados</summary>
+        ${avanzadosFields.map(f => edmFieldHtml(f, docData)).join('')}
+      </details>
+    `;
+    document.getElementById('edm-save').disabled = false;
+  }
+
+  function edmRenderErrorOnly() {
+    document.getElementById('edm-body').innerHTML = `
+      <div style="padding:24px; text-align:center; color: var(--text3); font-family:'DM Mono',monospace; font-size:12px;">
+        No se puede mostrar el form mientras el doc no se pueda leer.<br>
+        Si tu usuario no tiene permiso de escritura, contactar admin.
+      </div>
+    `;
+    document.getElementById('edm-save').disabled = true;
+  }
+
+  // Recolecta + valida (texto/negativo/NaN → invalid). Empty → null (omitir).
+  function edmCollect() {
+    const out = {};
+    const invalid = [];
+    for (const f of EDM_FIELDS) {
+      const el = document.getElementById('edm-input-' + f.id);
+      if (!el) { out[f.id] = null; continue; }
+      el.classList.remove('invalid');
+      const raw = el.value.trim();
+      if (raw === '') { out[f.id] = null; continue; }
+      const num = Number(raw);
+      if (!Number.isFinite(num) || num < 0) {
+        invalid.push(f.label);
+        el.classList.add('invalid');
+        out[f.id] = null;
+      } else {
+        out[f.id] = num;
+      }
+    }
+    return { values: out, invalid };
+  }
+
+  // Build payload — aliases sincronizados (1 user-input → N keys), empties OMITTED.
+  // setDoc(merge:true) sobre dict anidado hace deep-merge: solo las keys aquí
+  // se reemplazan, las demás del doc quedan intactas.
+  function edmBuildPayload(values) {
+    const payload = { metas: {}, tiers: {} };
+    for (const f of EDM_FIELDS) {
+      const v = values[f.id];
+      if (v == null) continue;
+      for (const k of f.keys) {
+        payload[f.fsSection][k] = { valor: v, nivel: f.nivel, alcance: 'global' };
+      }
+    }
+    if (Object.keys(payload.metas).length === 0) delete payload.metas;
+    if (Object.keys(payload.tiers).length === 0) delete payload.tiers;
+    return payload;
+  }
+
+  // Read-back verify — cada key del payload debe matchear lo que quedó en el doc.
+  // Si rules rebotan silenciosamente (caso S71), aquí se detecta porque la
+  // relectura devuelve el doc sin las nuevas keys (o sin actualizar).
+  function edmVerify(payload, docData) {
+    const mismatches = [];
+    for (const section of ['metas', 'tiers']) {
+      if (!payload[section]) continue;
+      const docSection = (docData && docData[section]) || {};
+      for (const [k, v] of Object.entries(payload[section])) {
+        const got = docSection[k];
+        if (!got
+            || got.valor !== v.valor
+            || got.nivel !== v.nivel
+            || got.alcance !== v.alcance) {
+          mismatches.push(k);
+        }
+      }
+    }
+    return mismatches;
+  }
+
+  async function edmSave() {
+    edmStatusClear();
+    const { values, invalid } = edmCollect();
+    if (invalid.length) {
+      edmStatus('err', `Inputs inválidos (texto/negativo): ${invalid.join(', ')}`);
+      return;
+    }
+    const payload = edmBuildPayload(values);
+    if (!payload.metas && !payload.tiers) {
+      edmStatus('info', 'Nada que guardar (todos los campos están vacíos).');
+      return;
+    }
+    const periodId = edmGetPeriodId();
+    const ref = edmDocRef(periodId);
+
+    document.getElementById('edm-save').disabled = true;
+    edmStatus('info', 'Guardando…');
+
+    try {
+      await setDoc(ref, payload, { merge: true });
+    } catch (err) {
+      edmStatus('err', `Falla al escribir (probablemente rules): ${err.code || err.message}`);
+      document.getElementById('edm-save').disabled = false;
+      return;
+    }
+
+    // Read-back de confirmación — este paso ES cómo confirmamos que el write landed.
+    let snap;
+    try {
+      snap = await getDoc(ref);
+    } catch (err) {
+      edmStatus('err', `Escrito pero NO pude releer (rules?): ${err.code || err.message}`);
+      document.getElementById('edm-save').disabled = false;
+      return;
+    }
+    if (!snap.exists()) {
+      edmStatus('err', 'Escrito pero el doc no existe en la relectura — algo bloqueó la escritura.');
+      document.getElementById('edm-save').disabled = false;
+      return;
+    }
+    const mismatches = edmVerify(payload, snap.data());
+    if (mismatches.length) {
+      edmStatus('err', `Drift en read-back — keys que NO matchean: ${mismatches.join(', ')}`);
+      document.getElementById('edm-save').disabled = false;
+      return;
+    }
+
+    const nMetas = payload.metas ? Object.keys(payload.metas).length : 0;
+    const nTiers = payload.tiers ? Object.keys(payload.tiers).length : 0;
+    edmStatus('ok', `Guardado ✓ — ${nMetas} keys en metas, ${nTiers} en tiers · doc ${edmDocId(periodId)}`);
+    document.getElementById('edm-save').disabled = false;
+  }
+
+  async function edmOpen() {
+    const periodId = edmGetPeriodId();
+    document.getElementById('edm-overlay').style.display = 'flex';
+    document.getElementById('edm-subtitle').textContent = `${periodId} (México) · cargando…`;
+    document.getElementById('edm-body').innerHTML = '';
+    document.getElementById('edm-save').disabled = true;
+    edmStatus('info', 'Cargando doc desde Firestore…');
+
+    const result = await edmLoadDoc(periodId);
+    if (result.state === 'error') {
+      // SPEC explícito: error al leer ≠ form vacío. Banner rojo + body de error.
+      edmStatus('err',
+        `No se pudo leer el doc (${result.err.code || result.err.message}). Revisa rules y red.`);
+      document.getElementById('edm-subtitle').textContent =
+        `${periodId} (México) · ERROR DE LECTURA`;
+      edmRenderErrorOnly();
+      return;
+    }
+    if (result.state === 'empty') {
+      edmRenderForm(periodId, null);
+      edmStatus('info',
+        `Doc ${edmDocId(periodId)} aún no existe — se creará al guardar el primer campo.`);
+      return;
+    }
+    edmRenderForm(periodId, result.data);
+    edmStatus('ok',
+      `Doc ${edmDocId(periodId)} cargado. Edita lo que quieras y guarda.`);
+  }
+
+  function edmClose() {
+    document.getElementById('edm-overlay').style.display = 'none';
+    edmStatusClear();
+  }
+
+  document.getElementById('edm-close-x').addEventListener('click', edmClose);
+  document.getElementById('edm-cancel').addEventListener('click', edmClose);
+  document.getElementById('edm-save').addEventListener('click', edmSave);
+  document.getElementById('edm-overlay').addEventListener('click', (e) => {
+    if (e.target.id === 'edm-overlay') edmClose();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && document.getElementById('edm-overlay').style.display === 'flex') {
+      edmClose();
+    }
+  });
+
+  // Expose opener para el card en loadAnalisis() (inline onclick, no import).
+  window.openEditarMetasModal = edmOpen;
+</script>
+
 </body>
 </html>
