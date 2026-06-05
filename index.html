@@ -7774,6 +7774,18 @@ async function loadAnalisis() {
       <div style="color:var(--text3); font-size:18px;">→</div>
     </div>
     ` : ''}
+    <!-- Ads Manager — tool card (integración temporal pre-refactor layout Optix). Mismo estilo que el panel de Módulos. -->
+    <div onclick="window.location.href='/ads-manager.html?client=' + encodeURIComponent('${(client.id || '').replace(/'/g, "\\'")}')"
+         style="background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:16px; margin-bottom:20px; cursor:pointer; transition:border-color 0.15s; display:flex; align-items:center; gap:14px;"
+         onmouseover="this.style.borderColor='var(--accent)'"
+         onmouseout="this.style.borderColor='var(--border)'">
+      <div style="font-size:24px;">📊</div>
+      <div style="flex:1;">
+        <div style="font-family:'DM Sans',sans-serif; font-weight:600; font-size:14px; color:var(--text1);">Ads Manager</div>
+        <div style="font-size:11px; color:var(--text3); font-family:'DM Mono',monospace; margin-top:2px;">CAC por anuncio · embudo Vambe · creativos · ROAS por venta cerrada</div>
+      </div>
+      <div style="color:var(--text3); font-size:18px;">→</div>
+    </div>
 
     ${hasData ? `
     <!-- MÓDULOS -->

@@ -6,12 +6,10 @@
 <title>Optix — Mini Ads Manager</title>
 
 <!-- ═══════════════════════════════════════════════════════════
-     AUTH GATE — Firebase Auth (compat). Mismo proyecto optix-5fb36
-     que index.html. Comparte sesión vía IndexedDB del mismo origen
-     (app.optix.com.mx). Si no hay user → redirect a /index.html
-     para login Google. Una vez autenticado, vuelve aquí.
-     RAZÓN: este dashboard tiene DATA hardcodeada (no proxy Worker
-     con Origin gate), así que requiere defensa propia a nivel página.
+     AUTH — Hereda la sesión Firebase de Optix (mismo proyecto
+     optix-5fb36, mismo origen app.optix.com.mx → comparte IndexedDB).
+     Entrada normal: desde sidebar Análisis > Ads Manager (ya autenticado).
+     Acceso URL directa SIN sesión: NO se muestran datos — empty state.
      ═══════════════════════════════════════════════════════════ -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
@@ -21,17 +19,16 @@
     authDomain: "optix-5fb36.firebaseapp.com",
     projectId: "optix-5fb36"
   });
-  // Hide content until auth resolves (evita flash de data sensible).
+  // Oculta el contenido hasta resolver auth (evita flash de data sensible).
   document.documentElement.style.visibility = 'hidden';
   firebase.auth().onAuthStateChanged(function(user){
+    document.documentElement.style.visibility = 'visible';
     if (user) {
-      document.documentElement.style.visibility = 'visible';
+      document.documentElement.dataset.authed = 'true';
       console.log('[ads-manager] authed as', user.email);
     } else {
-      // Bounce a /index.html (donde está el flujo de login Google).
-      // returnTo permite volver acá una vez autenticado (si index.html lo implementa).
-      var returnTo = encodeURIComponent(window.location.pathname);
-      window.location.replace('/index.html?returnTo=' + returnTo);
+      // Sin sesión: empty state, NO data.
+      document.documentElement.dataset.authed = 'false';
     }
   });
 </script>
@@ -54,6 +51,18 @@
     background:#1c2128;border:1px solid var(--border);border-radius:6px;padding:5px 10px;
     letter-spacing:.3px;white-space:nowrap}
   .data-stamp b{color:var(--text);font-weight:600}
+  /* Auth gate: oculta TODA la data si no hay sesión Firebase de Optix.
+     html[data-authed="true"] → muestra normal. html[data-authed="false"] → solo empty state. */
+  html[data-authed="false"] body > *:not(#auth-empty){display:none !important}
+  html[data-authed="true"] #auth-empty{display:none}
+  #auth-empty{display:none;max-width:480px;margin:80px auto;padding:32px;text-align:center;
+    background:var(--panel);border:1px solid var(--border);border-radius:12px}
+  #auth-empty .icon{font-size:36px;margin-bottom:14px}
+  #auth-empty h2{font-size:16px;font-weight:600;color:var(--text);margin-bottom:8px}
+  #auth-empty p{font-size:13px;color:var(--text-dim);line-height:1.6;margin-bottom:18px}
+  #auth-empty a{display:inline-block;background:var(--accent);color:#fff;text-decoration:none;
+    padding:10px 18px;border-radius:8px;font-size:13px;font-weight:600}
+  html[data-authed="false"] #auth-empty{display:block}
   h2{font-size:15px;font-weight:600;margin:24px 0 8px;color:var(--text)}
   h2 small{color:var(--text-dim);font-weight:400;font-size:12px;margin-left:6px}
   /* Header SLA: CAC capt blended es el número protagonista. */
@@ -153,6 +162,14 @@
 </style>
 </head>
 <body>
+
+<!-- Empty state cuando no hay sesión Firebase. CSS lo muestra solo si html[data-authed="false"]. -->
+<div id="auth-empty">
+  <div class="icon">🔒</div>
+  <h2>Sesión Optix requerida</h2>
+  <p>Este tablero hereda la sesión de Optix. Inicia sesión y vuelve a este enlace, o entra desde el sidebar de un cliente en <strong>Análisis → Ads Manager</strong>.</p>
+  <a href="/index.html">Ir a iniciar sesión</a>
+</div>
 
 <div class="header">
   <div class="header-left">
@@ -266,6 +283,20 @@ function onClientChange(client){
     main.forEach(el=>el.style.display='none');
   }
 }
+// Honor ?client= query param (sidebar Análisis pasa el cliente activo).
+(function(){
+  try{
+    const p=new URLSearchParams(window.location.search);
+    const c=(p.get('client')||'').toLowerCase();
+    if(c){
+      const sel=document.getElementById('client-select');
+      if(sel && Array.from(sel.options).some(o=>o.value===c)){
+        sel.value=c;
+        onClientChange(c);
+      }
+    }
+  }catch(e){}
+})();
 
 const COMISION_VENTA=65000;  // $65k = comisión típica por venta CERRADA (def. Anwar). NO se asume por captación.
 const CAC_TARGET=4500;       // Firestore S78. SLA OptimizAds = CAC a CAPTACIÓN. ÚNICA métrica con color de juicio.
