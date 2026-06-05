@@ -6,30 +6,22 @@
 <title>Optix — Mini Ads Manager</title>
 
 <!-- ═══════════════════════════════════════════════════════════
-     AUTH — Hereda la sesión Firebase de Optix (mismo proyecto
-     optix-5fb36, mismo origen app.optix.com.mx → comparte IndexedDB).
-     Entrada normal: desde sidebar Análisis > Ads Manager (ya autenticado).
-     Acceso URL directa SIN sesión: NO se muestran datos — empty state.
+     DATA + AUTH — Datos del cruce viven en Firestore, NO en el HTML
+     público. El HTML es solo shell + lógica de render.
+     Path: workspaces/optimizads/clients/{client}/sections/ads-manager
+     (regla require auth, verificado por behavioral test sin token →
+      HTTP 403 PERMISSION_DENIED, ver Slack S86).
+     Sin sesión Firebase activa → Firestore deniega fetch → empty state.
+     La seguridad real vive en las rules, NO en CSS.
      ═══════════════════════════════════════════════════════════ -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 <script>
   firebase.initializeApp({
     apiKey: "AIzaSyDFz4p5Me5lZwzCT7aM992JSiWeVbWJb6w",
     authDomain: "optix-5fb36.firebaseapp.com",
     projectId: "optix-5fb36"
-  });
-  // Oculta el contenido hasta resolver auth (evita flash de data sensible).
-  document.documentElement.style.visibility = 'hidden';
-  firebase.auth().onAuthStateChanged(function(user){
-    document.documentElement.style.visibility = 'visible';
-    if (user) {
-      document.documentElement.dataset.authed = 'true';
-      console.log('[ads-manager] authed as', user.email);
-    } else {
-      // Sin sesión: empty state, NO data.
-      document.documentElement.dataset.authed = 'false';
-    }
   });
 </script>
 
@@ -51,10 +43,7 @@
     background:#1c2128;border:1px solid var(--border);border-radius:6px;padding:5px 10px;
     letter-spacing:.3px;white-space:nowrap}
   .data-stamp b{color:var(--text);font-weight:600}
-  /* Auth gate: oculta TODA la data si no hay sesión Firebase de Optix.
-     html[data-authed="true"] → muestra normal. html[data-authed="false"] → solo empty state. */
-  html[data-authed="false"] body > *:not(#auth-empty){display:none !important}
-  html[data-authed="true"] #auth-empty{display:none}
+  /* Empty state (sin sesión o fetch denied). Sin CSS-hiding theater — visibility controlada por JS. */
   #auth-empty{display:none;max-width:480px;margin:80px auto;padding:32px;text-align:center;
     background:var(--panel);border:1px solid var(--border);border-radius:12px}
   #auth-empty .icon{font-size:36px;margin-bottom:14px}
@@ -62,7 +51,8 @@
   #auth-empty p{font-size:13px;color:var(--text-dim);line-height:1.6;margin-bottom:18px}
   #auth-empty a{display:inline-block;background:var(--accent);color:#fff;text-decoration:none;
     padding:10px 18px;border-radius:8px;font-size:13px;font-weight:600}
-  html[data-authed="false"] #auth-empty{display:block}
+  /* Main content hidden hasta que fetch responda (con o sin éxito). */
+  #main-content{display:none}
   h2{font-size:15px;font-weight:600;margin:24px 0 8px;color:var(--text)}
   h2 small{color:var(--text-dim);font-weight:400;font-size:12px;margin-left:6px}
   /* Header SLA: CAC capt blended es el número protagonista. */
@@ -163,13 +153,16 @@
 </head>
 <body>
 
-<!-- Empty state cuando no hay sesión Firebase. CSS lo muestra solo si html[data-authed="false"]. -->
+<!-- Empty state: sin sesión Firebase o Firestore denied. Controlado por JS, no por CSS. -->
 <div id="auth-empty">
   <div class="icon">🔒</div>
-  <h2>Sesión Optix requerida</h2>
-  <p>Este tablero hereda la sesión de Optix. Inicia sesión y vuelve a este enlace, o entra desde el sidebar de un cliente en <strong>Análisis → Ads Manager</strong>.</p>
+  <h2 id="auth-empty-title">Inicia sesión en Optix</h2>
+  <p id="auth-empty-msg">Este tablero lee los datos desde Firestore con tu sesión Optix. Inicia sesión y vuelve a este enlace, o entra desde el sidebar de un cliente en <strong>Análisis → Ads Manager</strong>.</p>
   <a href="/index.html">Ir a iniciar sesión</a>
 </div>
+
+<!-- Main content — oculto hasta que el fetch de Firestore responda OK. -->
+<div id="main-content">
 
 <div class="header">
   <div class="header-left">
@@ -213,14 +206,14 @@
 <div class="sla-headline">
   <div>
     <div class="label">CAC captación blended <span style="opacity:.7">— SLA OptimizAds</span></div>
-    <div class="big bad">$5,788</div>
+    <div class="big" id="sla-cac-blended">—</div>
   </div>
-  <div class="target">target <b>$4,500</b> (Firestore S78) · +28.6% sobre target · ranking por defecto = CAC capt ↑</div>
+  <div class="target">target <b id="sla-target">—</b> (Firestore S78) · <span id="sla-vs-target">—</span> · ranking por defecto = CAC capt ↑</div>
 </div>
 <div class="sla-secondary">
-  <span>CAC venta <b>$9,127</b></span>
-  <span>ROAS <b>7.1x</b></span>
-  <span style="opacity:.8">capt exactas <b>41</b> · OK <b>26</b></span>
+  <span>CAC venta <b id="sla-cac-venta">—</b></span>
+  <span>ROAS <b id="sla-roas">—</b></span>
+  <span style="opacity:.8">capt exactas <b id="sla-capt">—</b> · OK <b id="sla-ok">—</b></span>
 </div>
 <h2>Capa 1 — Tabla por ad <small>SLA = CAC capt. CAC venta / ROAS = contexto (dependen del equipo de ventas Inmobili).</small></h2>
 <div class="scroll">
@@ -231,13 +224,13 @@
 </table>
 </div>
 
-<h2>Capa 2 — Captación nivel familia <small>+27 captaciones atribuibles a la letra (adset family), NO al ad exacto · informativa, NO entra al CAC</small></h2>
+<h2>Capa 2 — Captación nivel familia <small>+<span id="lvl2-count">—</span> captaciones atribuibles a la letra (adset family), NO al ad exacto · informativa, NO entra al CAC</small></h2>
 <div class="family-grid" id="family-grid"></div>
 
-<h2>Capa 3 — Bucket DESC / ORG + combos <small>39 captaciones fuera del paid attribution · NO al CAC</small></h2>
+<h2>Capa 3 — Bucket DESC / ORG + combos <small><span id="lvl3-count">—</span> captaciones fuera del paid attribution · NO al CAC</small></h2>
 <div class="bucket-grid" id="bucket-grid"></div>
 
-<h2>Capa 4 — Adsets paid sin spend en ventana <small>CC / LL / KK · 5 captaciones · adsets existen pero amount_spent="Not available" feb 1 – jun 3</small></h2>
+<h2>Capa 4 — Adsets paid sin spend en ventana <small>CC / LL / KK · <span id="lvl4-count">—</span> captaciones · adsets existen pero amount_spent="Not available" feb 1 – jun 3</small></h2>
 <div class="scroll" style="margin-top:8px">
 <table style="min-width:980px">
   <thead><tr>
@@ -252,14 +245,15 @@
   · <strong>SLA OptimizAds = CAC a CAPTACIÓN.</strong> Única métrica con color de juicio (rojo &gt; $4,500 / verde ≤ $4,500). CAC venta / ROAS = <em>contexto</em>, dependen del equipo de ventas de Inmobili — visibles pero tipográficamente subordinadas, sin color.<br>
   · <strong>Columna "Cierre" removida de la tabla v5</strong> (engañaba por muestra chica: 100% sobre 1-3 maduras). El % de cierre necesita su propia vista dedicada (tamaño de muestra + lag bien tratados). El dato sigue vivo en el modelo (<code>row.mature / ok_mature / new_count + q_trc/q_gmz RAW</code>) con <code>MADUREZ_DIAS=90</code>; <code>calc()</code> aún expone <code>cierre</code> para reactivar cuando exista la vista.<br>
   · <strong>ROAS</strong> = <code>ventas_OK × $65,000 ÷ spend</code>. <strong>CAC venta</strong> = <code>spend ÷ ventas_OK</code>. <strong>$65,000</strong> = comisión típica por venta cerrada (def. Anwar). NO se asume por captación.<br>
-  · <strong>Venta cerrada = columna Q "OK"</strong> (normalizado trim+lowercase) en tab Leadtime de ambos sheets (Torreón <code>1820YhVcWRukLbYh3aOXg6nO8stYzIWfF</code>, Gómez <code>1ROH5NXbnvsiOpuHBYytAl31JUyNbbpg-</code>). RAW de Q preservado por captación (q_trc/q_gmz en data) para desgloses futuros; tablero solo usa OK vs resto hoy.<br>
+  · <strong>Venta cerrada = columna Q "OK"</strong> (normalizado trim+lowercase) en tab Leadtime de los sheets de captación de la plaza. RAW de Q preservado por captación (q_trc/q_gmz en data) para desgloses futuros; tablero solo usa OK vs resto hoy.<br>
   · Regla 1 — <strong>solo exacta cuenta al CAC + ROAS.</strong> Familia (Capa 2) es informativa, no entra. Combos org/pago tampoco.<br>
-  · Regla 2 — <strong>DESC/ORG fuera del CAC.</strong> 27 puras orgánico/desconocido + 12 combos mixtos = 39 fuera de paid (Capa 3).<br>
+  · Regla 2 — <strong>DESC/ORG fuera del CAC.</strong> Atribuciones sin paid o mixtas se reportan en Capa 3 pero no se reparten entre ads.<br>
   · Regla 3 — <strong>CC/LL/KK NO se fusiona con los 8 paid.</strong> Adsets sin spend en ventana → Capa 4 aparte.<br>
-  · <strong>Sanity:</strong> TRC 49 = 18 exacta + 15 familia + 8 DESC/ORG + 4 combo + 4 CC/LL/KK ✓ | GMZ 63 = 23 exacta + 12 familia + 19 DESC/ORG + 8 combo + 1 CC ✓.<br>
-  · <strong>Thumbnails</strong> en <code>/assets/ads-manager/</code> (descargados, fbcdn caduca por oe= timestamp). Videos 160px, SHARE 64px (image_url vacío API). Click thumb → modal FB Plugin (video.php / post.php) con fallback link.<br>
-  · <strong>Pendiente Parte 3:</strong> nube post-validación.
+  · <strong>Thumbnails</strong> en <code>/assets/ads-manager/</code> (descargados, fbcdn caduca por <code>oe=</code> timestamp). Click thumb → modal FB Plugin (video.php / post.php) con fallback link.<br>
+  · <strong>Datos del cruce</strong> en Firestore <code>workspaces/optimizads/clients/&lt;client&gt;/sections/ads-manager</code>, rules require auth. El HTML público es solo shell + lógica de render.
 </div>
+
+</div><!-- /#main-content -->
 
 <div class="modal" id="modal" onclick="if(event.target.id==='modal')closeModal()">
   <div class="modal-inner">
@@ -325,117 +319,14 @@ let columns=[
   {key:'roas',label:'ROAS',src:'calc',type:'roas',secondary:true},
 ];
 
-// 8 ads paid — captac exacta + ventas_ok (Q="OK" en Sheet Jenny, leído de columna Q ventana feb1-jun3 ✓).
-// q_trc / q_gmz preservan el RAW value de la columna Q por captación (PASO 2: no colapsar a binario).
-// Mapeo via columna K CAMPAÑA (BB17, EE15, JJ8, etc) en tab Leadtime de ambos sheets.
-const data=[
-  {id:'c1',level:'campaign',name:'OA15 - TF - MSJ - Gómez - Captación',state:null,spend:237314,mensajes:2027,cita_llamada:87,cita_visita:19,
-   captac:41,captac_trc:18,captac_gmz:23,ventas_ok:26,ventas_ok_trc:9,ventas_ok_gmz:17,
-   mature:9,ok_mature:9,new_count:32,no_date:0,children:[
-    {id:'a_ee',level:'adset',name:'OA11 - (EE) SA',state:null,spend:45959,mensajes:428,cita_llamada:19,cita_visita:4,
-     captac:8,captac_trc:5,captac_gmz:3,ventas_ok:4,ventas_ok_trc:1,ventas_ok_gmz:3,
-     mature:0,ok_mature:0,new_count:8,no_date:0,children:[
-      {id:'ad15',ad_id:'120241353924300053',code:'OA15',level:'ad',name:'OA15 - Video - EE15',state:'adset-paused',
-       spend:28280.62,mensajes:244,cita_llamada:12,cita_visita:3,
-       captac:6,captac_trc:4,captac_gmz:2,
-       ventas_ok:2,ventas_ok_trc:0,ventas_ok_gmz:2,
-       mature:0,ok_mature:0,new_count:6,no_date:0,
-       q_trc:{'SIN CERRAR':3,'Sale del inventario':1},
-       q_gmz:{'OK':2},
-       creative_id:'1282194627397192',object_type:'VIDEO',video_id:'2199599707442522',story_id:'117817476290631_1505008081635911'},
-      {id:'ad14',ad_id:'120241353761680053',code:'OA14',level:'ad',name:'OA14 - EE14',state:'paused',
-       spend:17678.34,mensajes:184,cita_llamada:7,cita_visita:1,
-       captac:2,captac_trc:1,captac_gmz:1,
-       ventas_ok:2,ventas_ok_trc:1,ventas_ok_gmz:1,
-       mature:0,ok_mature:0,new_count:2,no_date:0,
-       q_trc:{'OK':1},
-       q_gmz:{'OK':1},
-       creative_id:'2415478968894111',object_type:'VIDEO',video_id:'908675361922150',story_id:'117817476290631_1443077254495661'},
-    ]},
-    {id:'a_bb',level:'adset',name:'OA10 - (BB) Créditos',state:null,spend:134399,mensajes:1114,cita_llamada:45,cita_visita:6,
-     captac:23,captac_trc:10,captac_gmz:13,ventas_ok:15,ventas_ok_trc:7,ventas_ok_gmz:8,
-     mature:6,ok_mature:6,new_count:17,no_date:0,children:[
-      {id:'ad17',ad_id:'120240029010060053',code:'OA17',level:'ad',name:'OA17 - Video - Ara sabías que',state:'adset-paused',
-       spend:54996.12,mensajes:487,cita_llamada:27,cita_visita:6,
-       captac:9,captac_trc:4,captac_gmz:5,
-       ventas_ok:5,ventas_ok_trc:2,ventas_ok_gmz:3,
-       mature:1,ok_mature:1,new_count:8,no_date:0,
-       q_trc:{'OK':2,'Sale del inventario':1,'SIN CERRAR':1},
-       q_gmz:{'OK':3,'Sale de Inventario precio alto':1,'No aplica esta en juridico':1},
-       creative_id:'994695906309207',object_type:'VIDEO',video_id:'964586276444398',story_id:'117817476290631_1505009628302423'},
-      {id:'ad12',ad_id:'120238570383350053',code:'OA12',level:'ad',name:'OA12 - Reel 1 Elizandro',state:'adset-paused',
-       spend:66629.97,mensajes:485,cita_llamada:11,cita_visita:0,
-       captac:10,captac_trc:5,captac_gmz:5,
-       ventas_ok:9,ventas_ok_trc:5,ventas_ok_gmz:4,
-       mature:5,ok_mature:5,new_count:5,no_date:0,
-       q_trc:{'OK':5},
-       q_gmz:{'OK':4,'Sale de Inventario no siguio':1},
-       creative_id:'1052346530378105',object_type:'SHARE',video_id:null,story_id:'117817476290631_1392948939508493'},
-      {id:'ad10',ad_id:'120243031112680053',code:'OA10',level:'ad',name:'OA10 - Ara créditos',state:'adset-paused',
-       spend:12772.56,mensajes:142,cita_llamada:7,cita_visita:0,
-       captac:4,captac_trc:2,captac_gmz:2,
-       ventas_ok:1,ventas_ok_trc:0,ventas_ok_gmz:1,
-       mature:0,ok_mature:0,new_count:4,no_date:0,
-       q_trc:{'SIN CERRAR':2},
-       q_gmz:{'OK':1,'Sale del inventario':1},
-       creative_id:'2803669016685487',object_type:'VIDEO',video_id:'1618182232811952',story_id:'117817476290631_1505006838302702'},
-    ]},
-    {id:'a_oa1',level:'adset',name:'OA1 - Venta Propiedades + otros',state:null,spend:56956,mensajes:485,cita_llamada:23,cita_visita:9,
-     captac:10,captac_trc:2,captac_gmz:8,ventas_ok:7,ventas_ok_trc:1,ventas_ok_gmz:6,
-     mature:3,ok_mature:3,new_count:7,no_date:0,children:[
-      {id:'ad8',ad_id:'120238570227490053',code:'OA8',level:'ad',name:'OA8 - VID Ara',state:'paused',
-       spend:30731.32,mensajes:187,cita_llamada:11,cita_visita:2,
-       captac:6,captac_trc:0,captac_gmz:6,
-       ventas_ok:5,ventas_ok_trc:0,ventas_ok_gmz:5,
-       mature:2,ok_mature:2,new_count:4,no_date:0,
-       q_trc:{},
-       q_gmz:{'OK':5,'Sale del Inventario':1},
-       creative_id:'1198700512460615',object_type:'SHARE',video_id:null,story_id:'117817476290631_1392943746175679'},
-      {id:'ad22',ad_id:'120244663643810053',code:'OA22',level:'ad',name:'OA22',state:'adset-paused',
-       spend:13346.26,mensajes:161,cita_llamada:12,cita_visita:6,
-       captac:3,captac_trc:1,captac_gmz:2,
-       ventas_ok:1,ventas_ok_trc:0,ventas_ok_gmz:1,
-       mature:0,ok_mature:0,new_count:3,no_date:0,
-       q_trc:{'SIN CERRAR':1},
-       q_gmz:{'SIN CERRAR':1,'OK':1},
-       creative_id:'1289589039513859',object_type:'SHARE',video_id:null,story_id:'117817476290631_1488025036667549'},
-      {id:'ad2',ad_id:'120238570428590053',code:'OA2',level:'ad',name:'OA2 - NV2',state:'paused',
-       spend:12878.73,mensajes:137,cita_llamada:0,cita_visita:1,
-       captac:1,captac_trc:1,captac_gmz:0,
-       ventas_ok:1,ventas_ok_trc:1,ventas_ok_gmz:0,
-       mature:1,ok_mature:1,new_count:0,no_date:0,
-       q_trc:{'OK':1},
-       q_gmz:{},
-       creative_id:'1553163735947864',object_type:'SHARE',video_id:null,story_id:'117817476290631_1392951109508276'},
-    ]},
-  ]},
-];
-
-// Capa 2 — captación nivel familia (informativa, NO al CAC).
-// 27 captaciones por letra atribuibles al adset pero no al creative exacto.
-const familyData=[
-  {letter:'JJ',adset:'OA9 - (JJ) IR',total:10,trc:6,gmz:4,note:'Mayor en TRC (6) — JJ8 paid solo cubre GMZ (6)'},
-  {letter:'BB',adset:'OA10 - (BB) Créditos',total:8,trc:5,gmz:3,note:'BB17/BB22 paid son los exactos'},
-  {letter:'EE',adset:'OA11 - (EE) SA',total:4,trc:0,gmz:4,note:'TODO en GMZ; EE15/EE14/EE12 son los exactos'},
-  {letter:'MM',adset:'OA13 - (MM) IR',total:3,trc:2,gmz:1,note:'MM10 es el único exacto'},
-  {letter:'NV',adset:'OA12 - (NV) IR-Navidad',total:2,trc:2,gmz:0,note:'TRC puro; NV2 paid solo TRC'},
-];
-
-// Capa 3 — bucket DESC/ORG + combos.
-const buckets=[
-  {title:'DESC/ORG puros — TRC',num:8,sub:'Sin attribución pagada · 16.3% de las 49 capt TRC'},
-  {title:'DESC/ORG puros — GMZ',num:19,sub:'Sin attribución pagada · 30.2% de las 63 capt GMZ'},
-  {title:'Combos mixtos — TRC',num:4,sub:'Códigos: <code>JJ1-N4-JJ1</code> · <code>DESC-JJ8</code> · <code>DESC-EE21</code> · <code>DESC-BB19</code>'},
-  {title:'Combos mixtos — GMZ',num:8,sub:'Códigos: <code>BB14-ORG</code> · <code>ORG-BB14</code> · <code>CC3-EE12</code> · <code>NV2-EE12</code> · <code>DESC-NV4-EE12</code> · <code>DESC-BB17</code> · <code>DESC-EE3</code> · <code>DESC-EE12</code>'},
-];
-
-// Capa 4 — adsets paid sin spend en ventana (CC/LL/KK).
-const cclkkData=[
-  {code:'CC3',name:'OA2 - (CC) IR',adset_id:'120232281697900053',trc:1,gmz:1,tot:2},
-  {code:'CC8',name:'OA2 - (CC) IR',adset_id:'120232281697900053',trc:1,gmz:0,tot:1},
-  {code:'LL1',name:'OA8 - (LL) SA',adset_id:'120233721783560053',trc:1,gmz:0,tot:1},
-  {code:'KK2',name:'OA7 - (KK) IR',adset_id:'120232438730250053',trc:1,gmz:0,tot:1},
-];
+// Datos del cruce viven en Firestore, no en este HTML público.
+// Estructura del doc: campaigns[], familia[], buckets[], cclkk[] + _meta + blended.
+// Las variables se llenan al fetch (loadFromFirestore). Antes del fetch: empty arrays.
+let data=[];
+let familyData=[];
+let buckets=[];
+let cclkkData=[];
+let docMeta={};
 
 // Default ranking = CAC captación ascendente (la métrica SLA, MI métrica).
 let collapsed={},sortKey='cac',sortDir=1;
@@ -647,10 +538,114 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal();});
 
 function expandAll(o){collapsed={};if(!o){const w=rs=>rs.forEach(r=>{if(r.children){collapsed[r.id]=true;w(r.children);}});w(data);}render();}
 
-render();
-renderFamily();
-renderBuckets();
-renderCCLKK();
+// ─── Auth + Fetch lifecycle ─────────────────────────────────────────
+// Sin sesión Firebase O Firestore deniega → empty state. La seguridad
+// vive en las rules: workspaces/optimizads/clients/{client}/sections/{section}
+// require request.auth != null (verificado por behavioral test).
+
+function showAuthEmpty(reason){
+  const e=document.getElementById('auth-empty');
+  const m=document.getElementById('main-content');
+  if(reason==='no-data'){
+    document.getElementById('auth-empty-title').textContent='Sin datos para este cliente';
+    document.getElementById('auth-empty-msg').textContent='No hay corte cargado en Firestore para este cliente todavía. El pipeline data-driven viene en sprint aparte.';
+  } else if(reason==='denied'){
+    document.getElementById('auth-empty-title').textContent='Sin permisos para ver este tablero';
+    document.getElementById('auth-empty-msg').textContent='Tu sesión Optix no tiene permisos para leer este cliente. Habla con Anwar.';
+  } else if(reason==='error'){
+    document.getElementById('auth-empty-title').textContent='Error al cargar';
+    document.getElementById('auth-empty-msg').textContent='No se pudo cargar el corte desde Firestore. Recarga la página.';
+  }
+  e.style.display='block';
+  m.style.display='none';
+}
+function showMain(){
+  document.getElementById('auth-empty').style.display='none';
+  document.getElementById('main-content').style.display='';
+}
+
+function clientFromQuery(){
+  try{
+    const p=new URLSearchParams(window.location.search);
+    const c=(p.get('client')||'').toLowerCase().trim();
+    return /^[a-z0-9_-]+$/.test(c) ? c : 'inmobili';
+  }catch(e){ return 'inmobili'; }
+}
+
+function applyDocToView(doc){
+  docMeta=doc._meta||{};
+  data=(doc.campaigns||[]).map(c=>({
+    ...c, children:(c.adsets||[]).map(a=>({
+      ...a, children:(a.ads||[])
+    }))
+  }));
+  familyData=doc.familia||[];
+  buckets=doc.buckets||[];
+  cclkkData=doc.cclkk||[];
+
+  // Header SLA — fill placeholders desde blended.
+  const b=doc.blended||{};
+  const fmtM=v=>v==null?'—':'$'+Math.round(v).toLocaleString('es-MX');
+  const fmtR=v=>v==null?'—':v.toFixed(1)+'x';
+  const sla=document.getElementById('sla-cac-blended');
+  if(sla){
+    sla.textContent=fmtM(b.cac_capt);
+    sla.className='big '+(b.cac_capt>CAC_TARGET?'bad':'good');
+  }
+  document.getElementById('sla-target').textContent=fmtM(CAC_TARGET);
+  if(b.cac_capt){
+    const delta=(b.cac_capt/CAC_TARGET-1)*100;
+    document.getElementById('sla-vs-target').textContent=(delta>=0?'+':'')+delta.toFixed(1)+'% '+(delta>=0?'sobre':'bajo')+' target';
+  }
+  document.getElementById('sla-cac-venta').textContent=fmtM(b.cac_venta);
+  document.getElementById('sla-roas').textContent=fmtR(b.roas);
+  document.getElementById('sla-capt').textContent=(b.captac||0).toString();
+  document.getElementById('sla-ok').textContent=(b.ventas_ok||0).toString();
+
+  // Heading counts capas 2/3/4.
+  const lvl2=familyData.reduce((s,f)=>s+(f.total||0),0);
+  const lvl3=buckets.reduce((s,x)=>s+(x.num||0),0);
+  const lvl4=cclkkData.reduce((s,x)=>s+(x.tot||0),0);
+  document.getElementById('lvl2-count').textContent=lvl2||'—';
+  document.getElementById('lvl3-count').textContent=lvl3||'—';
+  document.getElementById('lvl4-count').textContent=lvl4||'—';
+
+  render();
+  renderFamily();
+  renderBuckets();
+  renderCCLKK();
+}
+
+async function loadFromFirestore(){
+  const client=clientFromQuery();
+  const path=`workspaces/optimizads/clients/${client}/sections/ads-manager`;
+  try{
+    const snap=await firebase.firestore().doc(path).get();
+    if(!snap.exists){
+      showAuthEmpty('no-data');
+      return;
+    }
+    applyDocToView(snap.data());
+    showMain();
+  } catch(err){
+    if(err && (err.code==='permission-denied' || err.code==='unauthenticated')){
+      showAuthEmpty('denied');
+    } else {
+      console.error('[ads-manager] fetch error:', err);
+      showAuthEmpty('error');
+    }
+  }
+}
+
+firebase.auth().onAuthStateChanged(function(user){
+  if(user){
+    console.log('[ads-manager] authed as', user.email);
+    loadFromFirestore();
+  } else {
+    // Sin sesión: empty state limpio. NO se inicia fetch (de todos modos Firestore denegaría).
+    showAuthEmpty('auth');
+  }
+});
 </script>
 </body>
 </html>
