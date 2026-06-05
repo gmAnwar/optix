@@ -196,7 +196,10 @@ body {
 
 .row1-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  /* S84 3a — 3 cajas: Cierres + Inversión + Preaut+. Cada una con barra
+   * + chip + meta line; 3-col en desktop respira sin apretar. Mobile
+   * stack 1-col (breakpoint 767px), tablet 2-col al estilo Fila 2. */
+  grid-template-columns: repeat(3, 1fr);
   gap: 16px;
 }
 
@@ -693,6 +696,11 @@ body {
  * no se aprieten los números. */
 @media (max-width: 1279px) {
   .plaza-cards-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .row1-grid {
+    /* Tablet: 3 cajas en 3-col apretarían las barras + meta line. Cae a
+     * 2-col con la 3ª caja envolviendo, mismo patrón que Fila 2. */
     grid-template-columns: repeat(2, 1fr);
   }
   .row2-grid {
