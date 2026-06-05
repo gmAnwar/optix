@@ -174,8 +174,9 @@
   // Reemplaza la triplicación previa (F3.2 goals chips + F3.3 hero cards +
   // F3.4 kpi-strip) por 3 filas donde cada número aparece UNA vez:
   //
-  //   Fila 1 (renderGoals)    — 2 cajas grandes: Cierres + Inversión vs meta
-  //                             con barra prorrateada + chip de estado tier.
+  //   Fila 1 (renderGoals)    — 3 cajas grandes: Cierres + Inversión + Preaut+
+  //                             vs meta del mes, con barra prorrateada +
+  //                             chip de estado.
   //   Fila 2 (renderKpiStrip) — Preaut+ hoy · Daily avg · Proy. Cierres EOM
   //                             · Proy. Inversión EOM (proj/avg solo mtd).
   //   Fila 3 (renderKpiStrip) — CAC Preaut+ · CAC Cierres con chip vs obj.
@@ -210,6 +211,13 @@
     return Number(n).toFixed(2);
   }
 
+  function _fmtFloat1(n) {
+    // 1 decimal place — para "esperados" prorrateados de Preaut+ del mes
+    // (91 × dias/30 raras veces es entero, 12.1 cuadra al display).
+    if (n == null || isNaN(n)) return '—';
+    return Number(n).toFixed(1);
+  }
+
   // ── Fila 1 helpers ────────────────────────────────────────────────────
 
   // Tier de Cierres en escala prorrateada (NOT escala mensual): si el valor
@@ -238,11 +246,27 @@
     return 'green';
   }
 
+  // Status simple de Preaut+ del mes vs lineal esperado. 2-estados (sin
+  // tier-bands) para mantener simetría visual con Cierres/Inversión sin
+  // arrastrar los tiers cantidad de Preaut+ (esos viven en Fila 2 si
+  // alguna vez se piden). actual >= expected → verde, < → rojo.
+  function _preautMesStatus(actual, expected) {
+    if (actual == null || isNaN(actual)) return '';
+    if (expected == null || isNaN(expected) || expected <= 0) return '';
+    return (Number(actual) >= Number(expected)) ? 'green' : 'red';
+  }
+
   function _tierChipLabel(status, kind) {
-    // kind: 'cierres' | 'inversion'.
+    // kind: 'cierres' | 'inversion' | 'preaut'.
     if (kind === 'cierres') {
       if (status === 'green')  return 'EXCELENTE';
       if (status === 'yellow') return 'BUENO';
+      if (status === 'red')    return 'BAJO META';
+      return '';
+    }
+    if (kind === 'preaut') {
+      // 2-estados, mismo eje que Cierres: al ritmo o atrasado.
+      if (status === 'green')  return 'AL RITMO';
       if (status === 'red')    return 'BAJO META';
       return '';
     }
@@ -414,9 +438,57 @@
       });
     }
 
+    // ── Preaut+ del mes caja (acumulado MTD vs meta mensual cruda) ────
+    // Mirror visual de Cierres del mes: misma helper _row1BoxHTML, misma
+    // barra _row1ProgressBarHTML, mismo chip _row1ChipHTML. Diferencias:
+    //   - Status SIMPLE 2-estados (al ritmo / bajo meta) en vez del
+    //     tier-band de Cierres. Anwar S84 3a: mantener simetría visual
+    //     con Inversión sin arrastrar los tier-bands de cantidad de
+    //     Preaut+ (esos viven en Fila 2 si se necesitan).
+    //   - "esperados" prorrateado con 1 decimal (91 × dias/30 raras veces
+    //     es entero, "12.1 esperados" cuadra al display).
+    // No es lo mismo que la caja "Preaut+ hoy" de Fila 2 (renderKpiStrip):
+    // esa es pulso diario con badge de ritmo, ésta es acumulado-del-mes
+    // con barra de progreso.
+    var preautVal    = current.preaut_positivos;
+    var preautGoalMo = (goals.preaut_positivos_goal &&
+                        goals.preaut_positivos_goal.valor) ||
+                       (goals.preaut_positivos_meta &&
+                        goals.preaut_positivos_meta.valor);
+    var preautGoalP  = prorrated.preaut_positivos_goal_periodo;
+
+    var preautHTML;
+    if (isMtd) {
+      var preautStatus = _preautMesStatus(preautVal, preautGoalP);
+      var preautFillPct = (preautGoalMo != null && preautGoalMo > 0 && preautVal != null)
+        ? (Number(preautVal) / Number(preautGoalMo)) : 0;
+      var preautExpPct = (preautGoalMo != null && preautGoalMo > 0 && preautGoalP != null)
+        ? (Number(preautGoalP) / Number(preautGoalMo)) : null;
+      preautHTML = _row1BoxHTML({
+        label: 'Preaut+ del mes',
+        bigHTML: _fmtInt(preautVal),
+        chipHTML: _row1ChipHTML(preautStatus, _tierChipLabel(preautStatus, 'preaut')),
+        barHTML: _row1ProgressBarHTML({
+          fillPct: preautFillPct, expectedPct: preautExpPct, status: preautStatus
+        }),
+        expectedHTML: (preautGoalP != null)
+          ? _fmtFloat1(preautGoalP) + ' esperados'
+          : '',
+        topeHTML: (preautGoalMo != null)
+          ? 'Meta ' + _fmtInt(preautGoalMo)
+          : ''
+      });
+    } else {
+      preautHTML = _row1BoxHTML({
+        label: 'Preaut+',
+        bigHTML: _fmtInt(preautVal),
+        footHTML: _row1DeltaHTML(delta.preaut_positivos_abs, null, periodLabel, false)
+      });
+    }
+
     sec.innerHTML =
-      '<div class="row1-grid" role="group" aria-label="Cierres e inversión vs meta">' +
-        cierresHTML + invHTML +
+      '<div class="row1-grid" role="group" aria-label="Cierres, inversión y Preaut+ vs meta">' +
+        cierresHTML + invHTML + preautHTML +
       '</div>';
   }
 

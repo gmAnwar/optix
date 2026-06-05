@@ -196,7 +196,12 @@ body {
 
 .row1-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  /* S84 3a — 3 cajas: Cierres + Inversión + Preaut+. Invariante de layout:
+   * 3 EN LÍNEA o 3 APILADAS, jamás 2+1 (desbalanceado visualmente). El área
+   * de contenido del dashboard (~1053px en viewports comunes) deja respirar
+   * las 3; el breakpoint a 1-col vive en @media max-width: 999px más abajo.
+   * NO definir un estado 2-col intermedio para esta fila. */
+  grid-template-columns: repeat(3, 1fr);
   gap: 16px;
 }
 
@@ -700,17 +705,26 @@ body {
   }
 }
 
+/* ── S84 3a — Fila 1 layout invariante: 3 EN LÍNEA o 3 APILADAS, jamás
+ * 2+1. El área de contenido del dashboard (~1053px en viewports comunes)
+ * deja respirar 3 cajas en línea; abajo de ~1000px se apilan a 1-col
+ * directamente, saltando el estado 2-col que producía el 2+1 visualmente
+ * desbalanceado. No tocamos plaza-cards / row2-grid / row3-grid — ellos
+ * mantienen sus transiciones 2-col propias. */
+@media (max-width: 999px) {
+  .row1-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* ── F3.7 — Mobile full breakpoint (extiende el placeholder previo) ──
- * 767px y abajo. Fila 1 apilada, Fila 2 = 2x2, Fila 3 = 2x1, plaza-cards
- * 1-col, today-feed reflow a label/value pairs. */
+ * 767px y abajo. Fila 1 ya viene apilada del breakpoint 999. Fila 2 = 2x2,
+ * Fila 3 = 2x1, plaza-cards 1-col, today-feed reflow a label/value pairs. */
 @media (max-width: 767px) {
   #period-selector {
     overflow-x: auto;
     flex-wrap: nowrap;
     -webkit-overflow-scrolling: touch;
-  }
-  .row1-grid {
-    grid-template-columns: 1fr;
   }
   .row1-box__big {
     font-size: 28px;
