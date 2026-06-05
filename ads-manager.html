@@ -560,8 +560,10 @@ function showAuthEmpty(reason){
   m.style.display='none';
 }
 function showMain(){
+  // CSS tiene #main-content{display:none} como default fail-closed; aquí lo override a 'block'.
+  // String vacía NO override la regla CSS — quedaría hidden y la página se ve negra.
   document.getElementById('auth-empty').style.display='none';
-  document.getElementById('main-content').style.display='';
+  document.getElementById('main-content').style.display='block';
 }
 
 function clientFromQuery(){
