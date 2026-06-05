@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Optix — Mini Ads Manager</title>
+
+<!-- ═══════════════════════════════════════════════════════════
+     AUTH GATE — Firebase Auth (compat). Mismo proyecto optix-5fb36
+     que index.html. Comparte sesión vía IndexedDB del mismo origen
+     (app.optix.com.mx). Si no hay user → redirect a /index.html
+     para login Google. Una vez autenticado, vuelve aquí.
+     RAZÓN: este dashboard tiene DATA hardcodeada (no proxy Worker
+     con Origin gate), así que requiere defensa propia a nivel página.
+     ═══════════════════════════════════════════════════════════ -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script>
+  firebase.initializeApp({
+    apiKey: "AIzaSyDFz4p5Me5lZwzCT7aM992JSiWeVbWJb6w",
+    authDomain: "optix-5fb36.firebaseapp.com",
+    projectId: "optix-5fb36"
+  });
+  // Hide content until auth resolves (evita flash de data sensible).
+  document.documentElement.style.visibility = 'hidden';
+  firebase.auth().onAuthStateChanged(function(user){
+    if (user) {
+      document.documentElement.style.visibility = 'visible';
+      console.log('[ads-manager] authed as', user.email);
+    } else {
+      // Bounce a /index.html (donde está el flujo de login Google).
+      // returnTo permite volver acá una vez autenticado (si index.html lo implementa).
+      var returnTo = encodeURIComponent(window.location.pathname);
+      window.location.replace('/index.html?returnTo=' + returnTo);
+    }
+  });
+</script>
+
+<style>
+  :root{
+    --bg:#0d1117;--panel:#161b22;--panel-2:#1c2128;--border:#30363d;
+    --text:#e6edf3;--text-dim:#8b949e;--accent:#2f81f7;
+    --green:#3fb950;--amber:#d29922;--red:#f85149;
+    --pend:#8b949e14;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;padding:24px;font-size:14px}
+  .header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:12px}
+  .header-left{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  h1{font-size:20px;font-weight:600}
+  h1 .sub{color:var(--text-dim);font-weight:400;font-size:14px}
+  /* Sello de fecha: gris fino, junto al título — para que nadie confunda con datos vivos. */
+  .data-stamp{font-size:11px;color:var(--text-dim);font-family:'DM Mono',monospace,monospace;
+    background:#1c2128;border:1px solid var(--border);border-radius:6px;padding:5px 10px;
+    letter-spacing:.3px;white-space:nowrap}
+  .data-stamp b{color:var(--text);font-weight:600}
+  h2{font-size:15px;font-weight:600;margin:24px 0 8px;color:var(--text)}
+  h2 small{color:var(--text-dim);font-weight:400;font-size:12px;margin-left:6px}
+  /* Header SLA: CAC capt blended es el número protagonista. */
+  .sla-headline{display:flex;align-items:baseline;gap:18px;margin:20px 0 6px;flex-wrap:wrap}
+  .sla-headline .label{font-size:12px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px}
+  .sla-headline .big{font-size:34px;font-weight:700;color:var(--text);line-height:1}
+  .sla-headline .target{font-size:12px;color:var(--text-dim)}
+  .sla-headline .target b{color:var(--text)}
+  .sla-secondary{font-size:12px;color:var(--text-dim);margin-bottom:14px;display:flex;gap:18px;flex-wrap:wrap}
+  .sla-secondary span b{color:var(--text);font-weight:600}
+  select,.chip,.btn{background:var(--panel-2);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:6px 11px;font-size:13px;cursor:pointer;transition:.12s}
+  .chip:hover,.btn:hover{border-color:var(--accent)}
+  .chip.active{background:var(--accent);border-color:var(--accent);color:#fff}
+  .toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+  .chip-group{display:flex;gap:5px;flex-wrap:wrap;background:var(--panel);padding:4px;border-radius:8px;border:1px solid var(--border)}
+  .legend{display:flex;gap:13px;margin:6px 0 16px;font-size:12px;flex-wrap:wrap;align-items:center}
+  .legend span{display:flex;align-items:center;gap:5px}
+  .dot{width:11px;height:11px;border-radius:3px;display:inline-block;border:1px solid var(--border)}
+  .dot.meta{border-color:var(--accent)}
+  .dot.vambe{border-color:#a371f7}
+  .dot.jenny{border-color:#db61a2}
+  .dot.calc{border-color:var(--green)}
+  .st{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:7px;vertical-align:middle;flex-shrink:0}
+  .st-active{background:var(--green);box-shadow:0 0 6px var(--green)}
+  .st-paused{background:var(--amber)}
+  .st-adset-paused{background:transparent;border:1.5px solid var(--amber)}
+  .st-never{background:transparent;border:1.5px dashed var(--text-dim)}
+  .scroll{overflow-x:auto;border-radius:10px;border:1px solid var(--border)}
+  table{width:100%;border-collapse:collapse;background:var(--panel);min-width:1240px}
+  th,td{padding:10px 12px;text-align:right;border-bottom:1px solid var(--border);white-space:nowrap}
+  th{background:var(--panel-2);color:var(--text-dim);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.4px;cursor:pointer;user-select:none}
+  th:hover{color:var(--text)}
+  th.left,td.left{text-align:left}
+  th .arrow{opacity:.4;font-size:9px;margin-left:3px}
+  th.sorted .arrow{opacity:1;color:var(--accent)}
+  th.drag-over{border-left:2px solid var(--accent)}
+  td.name{font-weight:500}
+  .row-campaign{background:#1b2535;cursor:pointer}
+  .row-campaign td{font-weight:700}
+  .row-adset{background:#151c26;cursor:pointer}
+  .row-adset td.left{padding-left:26px}
+  .row-ad td.left{padding-left:46px;color:var(--text-dim)}
+  .row-bucket{background:#1a1f28}
+  .row-bucket td.left{padding-left:18px}
+  .caret{display:inline-block;width:14px;color:var(--text-dim);transition:transform .15s;font-size:10px}
+  .collapsed .caret{transform:rotate(-90deg)}
+  /* Color de columna eliminado a propósito: SLA = solo CAC capt. tiene color de juicio. */
+  .col-meta,.col-vambe,.col-jenny,.col-calc{background:transparent}
+  /* Subordinadas: tipografía más ligera para CAC venta / ROAS */
+  .col-secondary{color:var(--text-dim)}
+  .col-secondary b{color:var(--text);font-weight:600}
+  /* CAC capt: ancla visual, tipografía más pesada */
+  .col-anchor{font-weight:700;font-size:14px}
+  .pend{color:var(--text-dim);font-style:italic;opacity:.6}
+  .none{color:var(--text-dim);opacity:.55}
+  .thumb{width:40px;height:40px;border-radius:5px;background:#1a1d24;border:1px solid var(--border);display:inline-flex;align-items:center;justify-content:center;font-size:7px;color:var(--text-dim);vertical-align:middle;margin-right:9px;flex-shrink:0;position:relative;overflow:hidden;cursor:pointer}
+  .thumb img{width:100%;height:100%;object-fit:cover;display:block}
+  .thumb .play{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.32);color:#fff;font-size:14px;opacity:0;transition:.12s}
+  .thumb:hover .play{opacity:1}
+  .thumb.has-video::after{content:"▶";position:absolute;bottom:1px;right:2px;font-size:8px;color:#fff;text-shadow:0 0 3px #000;pointer-events:none}
+  .namecell{display:flex;align-items:center}
+  .good{color:var(--green);font-weight:600} .mid{color:var(--amber);font-weight:600} .bad{color:var(--red);font-weight:600}
+  .badge{font-size:10px;border-radius:4px;padding:0 4px;margin-left:4px;color:var(--amber);border:1px solid var(--amber)}
+  .badge.target{color:var(--red);border-color:var(--red)}
+  .badge.win{color:var(--green);border-color:var(--green)}
+  .badge.lag{color:var(--text-dim);border-color:var(--text-dim);background:#1f242c}
+  .micro{font-size:10px;color:var(--text-dim);margin-left:6px}
+  .micro b{color:var(--text)}
+  .note{margin-top:18px;padding:14px 16px;background:var(--panel);border:1px solid var(--border);border-left:3px solid var(--amber);border-radius:8px;font-size:13px;color:var(--text-dim);line-height:1.7}
+  caption{caption-side:top;text-align:left;padding:10px 12px;font-size:12px;color:var(--text-dim)}
+  .hint{font-size:11px;color:var(--text-dim);font-style:italic}
+  /* Familia table */
+  .family-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px;margin-top:8px}
+  .family-card{background:var(--panel);border:1px dashed var(--border);border-radius:8px;padding:12px 14px;opacity:.85}
+  .family-card h3{font-size:12px;font-weight:600;color:var(--text-dim);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px}
+  .family-card .num{font-size:22px;font-weight:700;color:var(--text)}
+  .family-card .breakdown{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px;font-size:11px;color:var(--text-dim)}
+  .family-card .breakdown b{color:var(--text);font-weight:600}
+  /* Bucket section */
+  .bucket-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin-top:8px}
+  .bucket-card{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:12px 14px}
+  .bucket-card h3{font-size:12px;font-weight:600;color:var(--text-dim);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px}
+  .bucket-card .num{font-size:22px;font-weight:700;color:var(--text)}
+  .bucket-card .sub{font-size:11px;color:var(--text-dim);margin-top:6px;line-height:1.5}
+  .bucket-card code{background:#0d1117;border:1px solid var(--border);border-radius:3px;padding:1px 4px;font-size:10px;color:var(--text-dim)}
+  /* Modal */
+  .modal{position:fixed;inset:0;background:rgba(0,0,0,.78);display:none;align-items:center;justify-content:center;z-index:100;padding:20px}
+  .modal.open{display:flex}
+  .modal-inner{background:var(--panel);border:1px solid var(--border);border-radius:10px;max-width:560px;width:100%;max-height:90vh;overflow:auto;padding:14px;position:relative}
+  .modal-inner h3{font-size:14px;font-weight:600;margin-bottom:10px;padding-right:30px}
+  .modal-inner .close{position:absolute;top:10px;right:12px;font-size:18px;color:var(--text-dim);cursor:pointer;background:transparent;border:none;padding:4px 8px}
+  .modal-inner iframe{width:100%;border:none;border-radius:6px;background:#000;display:block}
+  .modal-inner .fallback{padding:30px;text-align:center;color:var(--text-dim);font-size:13px;line-height:1.7}
+  .modal-inner .fallback img{max-width:280px;border-radius:6px;margin:0 auto 14px;display:block}
+  .modal-inner .meta-line{font-size:11px;color:var(--text-dim);margin-top:8px;word-break:break-all}
+  .modal-inner a{color:var(--accent);text-decoration:none}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <h1>Mini Ads Manager <span class="sub">— interno OptimizAds · v5</span></h1>
+    <span class="data-stamp" title="Cruce manual; pipeline data-driven viene en sprint aparte.">Datos al corte: <b>3-jun-2026</b> · actualización manual</span>
+  </div>
+  <select id="client-select" onchange="onClientChange(this.value)">
+    <option value="inmobili">Inmobili</option>
+    <option value="enpagos">EnPagos</option>
+    <option value="bodygreen">Bodygreen</option>
+  </select>
+</div>
+<div id="no-data-banner" style="display:none;margin:8px 0 14px;padding:14px 16px;background:var(--panel);border:1px solid var(--border);border-left:3px solid var(--text-dim);border-radius:8px;font-size:13px;color:var(--text-dim);line-height:1.6">
+  <strong>Sin datos aún para este cliente.</strong> Hoy solo Inmobili tiene cruce manual (3-jun-2026). El pipeline multi-cliente data-driven viene en sprint aparte. <a href="#" onclick="document.getElementById('client-select').value='inmobili';onClientChange('inmobili');return false" style="color:var(--accent)">← Volver a Inmobili</a>
+</div>
+
+<div class="toolbar">
+  <div class="chip-group">
+    <span class="chip">Hoy</span><span class="chip">3d</span><span class="chip">5d</span>
+    <span class="chip">7d</span><span class="chip">14d</span><span class="chip">30d</span>
+    <span class="chip">MTD</span><span class="chip">Mes pasado</span>
+    <span class="chip active">feb–3jun</span><span class="chip">Personalizado…</span>
+  </div>
+  <button class="btn" onclick="expandAll(true)">Expandir</button>
+  <button class="btn" onclick="expandAll(false)">Colapsar</button>
+</div>
+
+<div class="legend">
+  <span><span class="dot meta"></span>Meta</span>
+  <span><span class="dot vambe"></span>Vambe</span>
+  <span><span class="dot jenny"></span>Sheet Jenny (captación)</span>
+  <span><span class="dot calc"></span>Calc</span>
+  <span style="margin-left:10px"><span class="st st-active"></span>Activo</span>
+  <span><span class="st st-paused"></span>Pausado</span>
+  <span><span class="st st-adset-paused"></span>Adset pausado</span>
+  <span><span class="st st-never"></span>Nunca activado</span>
+  <span style="margin-left:10px"><span class="badge target">&gt; target $4,500</span></span>
+  <span><span class="badge win">≤ target</span></span>
+</div>
+
+<div class="sla-headline">
+  <div>
+    <div class="label">CAC captación blended <span style="opacity:.7">— SLA OptimizAds</span></div>
+    <div class="big bad">$5,788</div>
+  </div>
+  <div class="target">target <b>$4,500</b> (Firestore S78) · +28.6% sobre target · ranking por defecto = CAC capt ↑</div>
+</div>
+<div class="sla-secondary">
+  <span>CAC venta <b>$9,127</b></span>
+  <span>ROAS <b>7.1x</b></span>
+  <span style="opacity:.8">capt exactas <b>41</b> · OK <b>26</b></span>
+</div>
+<h2>Capa 1 — Tabla por ad <small>SLA = CAC capt. CAC venta / ROAS = contexto (dependen del equipo de ventas Inmobili).</small></h2>
+<div class="scroll">
+<table id="t">
+  <caption>🟦Meta(spend,estado) · 🟪Vambe(mensaje+citas) · 🟥Sheet Jenny captación EXACTA + ventas Q="OK" leído de columna Q tab Leadtime ambas plazas · 🟩calc. ROAS = ventas_OK × $65k comisión ÷ spend. CAC venta = spend ÷ ventas_OK. Badge `+X pend.` = captaciones aún sin cerrar (lag de meses, todavía pueden cerrar o caer).</caption>
+  <thead><tr id="hrow"></tr></thead>
+  <tbody id="tbody"></tbody>
+</table>
+</div>
+
+<h2>Capa 2 — Captación nivel familia <small>+27 captaciones atribuibles a la letra (adset family), NO al ad exacto · informativa, NO entra al CAC</small></h2>
+<div class="family-grid" id="family-grid"></div>
+
+<h2>Capa 3 — Bucket DESC / ORG + combos <small>39 captaciones fuera del paid attribution · NO al CAC</small></h2>
+<div class="bucket-grid" id="bucket-grid"></div>
+
+<h2>Capa 4 — Adsets paid sin spend en ventana <small>CC / LL / KK · 5 captaciones · adsets existen pero amount_spent="Not available" feb 1 – jun 3</small></h2>
+<div class="scroll" style="margin-top:8px">
+<table style="min-width:980px">
+  <thead><tr>
+    <th class="left">Adset</th><th class="left">adset_id</th><th>TRC</th><th>GMZ</th><th>TOT</th><th>Spend ventana</th><th>CAC</th>
+  </tr></thead>
+  <tbody id="cclkk"></tbody>
+</table>
+</div>
+
+<div class="note">
+  <strong>⚠️ Reglas aplicadas (S86 cierre + Q column doctrina):</strong><br>
+  · <strong>SLA OptimizAds = CAC a CAPTACIÓN.</strong> Única métrica con color de juicio (rojo &gt; $4,500 / verde ≤ $4,500). CAC venta / ROAS = <em>contexto</em>, dependen del equipo de ventas de Inmobili — visibles pero tipográficamente subordinadas, sin color.<br>
+  · <strong>Columna "Cierre" removida de la tabla v5</strong> (engañaba por muestra chica: 100% sobre 1-3 maduras). El % de cierre necesita su propia vista dedicada (tamaño de muestra + lag bien tratados). El dato sigue vivo en el modelo (<code>row.mature / ok_mature / new_count + q_trc/q_gmz RAW</code>) con <code>MADUREZ_DIAS=90</code>; <code>calc()</code> aún expone <code>cierre</code> para reactivar cuando exista la vista.<br>
+  · <strong>ROAS</strong> = <code>ventas_OK × $65,000 ÷ spend</code>. <strong>CAC venta</strong> = <code>spend ÷ ventas_OK</code>. <strong>$65,000</strong> = comisión típica por venta cerrada (def. Anwar). NO se asume por captación.<br>
+  · <strong>Venta cerrada = columna Q "OK"</strong> (normalizado trim+lowercase) en tab Leadtime de ambos sheets (Torreón <code>1820YhVcWRukLbYh3aOXg6nO8stYzIWfF</code>, Gómez <code>1ROH5NXbnvsiOpuHBYytAl31JUyNbbpg-</code>). RAW de Q preservado por captación (q_trc/q_gmz en data) para desgloses futuros; tablero solo usa OK vs resto hoy.<br>
+  · Regla 1 — <strong>solo exacta cuenta al CAC + ROAS.</strong> Familia (Capa 2) es informativa, no entra. Combos org/pago tampoco.<br>
+  · Regla 2 — <strong>DESC/ORG fuera del CAC.</strong> 27 puras orgánico/desconocido + 12 combos mixtos = 39 fuera de paid (Capa 3).<br>
+  · Regla 3 — <strong>CC/LL/KK NO se fusiona con los 8 paid.</strong> Adsets sin spend en ventana → Capa 4 aparte.<br>
+  · <strong>Sanity:</strong> TRC 49 = 18 exacta + 15 familia + 8 DESC/ORG + 4 combo + 4 CC/LL/KK ✓ | GMZ 63 = 23 exacta + 12 familia + 19 DESC/ORG + 8 combo + 1 CC ✓.<br>
+  · <strong>Thumbnails</strong> en <code>/assets/ads-manager/</code> (descargados, fbcdn caduca por oe= timestamp). Videos 160px, SHARE 64px (image_url vacío API). Click thumb → modal FB Plugin (video.php / post.php) con fallback link.<br>
+  · <strong>Pendiente Parte 3:</strong> nube post-validación.
+</div>
+
+<div class="modal" id="modal" onclick="if(event.target.id==='modal')closeModal()">
+  <div class="modal-inner">
+    <button class="close" onclick="closeModal()">×</button>
+    <h3 id="modal-title"></h3>
+    <div id="modal-body"></div>
+  </div>
+</div>
+
+<script>
+// Multi-cliente: hoy solo Inmobili tiene data manual. Otros clientes muestran banner "sin datos aún"
+// sin romper la vista. Estructura lista para el pipeline data-driven futuro (un swap del DATA blob).
+function onClientChange(client){
+  const banner=document.getElementById('no-data-banner');
+  const main=document.querySelectorAll('.sla-headline, .sla-secondary, h2, .scroll, .family-grid, .bucket-grid');
+  if(client==='inmobili'){
+    banner.style.display='none';
+    main.forEach(el=>el.style.display='');
+  } else {
+    banner.style.display='block';
+    main.forEach(el=>el.style.display='none');
+  }
+}
+
+const COMISION_VENTA=65000;  // $65k = comisión típica por venta CERRADA (def. Anwar). NO se asume por captación.
+const CAC_TARGET=4500;       // Firestore S78. SLA OptimizAds = CAC a CAPTACIÓN. ÚNICA métrica con color de juicio.
+const MADUREZ_DIAS=90;       // Captación "madura" = F.cap ≥ 90 días desde hoy. Editable.
+                             // NOTA: la columna "Cierre" se removió de la tabla v5 (engaña por muestra chica),
+                             // pero el dato sigue en el modelo (row.mature/ok_mature/new_count + q_trc/q_gmz raw)
+                             // para una vista de cierre dedicada futura. calc() aún expone `cierre` sin usarlo.
+const FB_PAGE="inmobili.internacional";
+
+// SLA OptimizAds = CAC captación. Es la ancla (peso visual fuerte).
+// CAC venta / ROAS = secundarias (dependen del equipo de ventas de Inmobili → contexto, no veredicto).
+let columns=[
+  {key:'name',label:'Anuncio',src:'meta',type:'text',align:'left'},
+  {key:'spend',label:'Spend',src:'meta',type:'money'},
+  {key:'mensajes',label:'Mensajes ~aprox',src:'vambe',type:'int'},
+  {key:'costo_msg',label:'$/msg',src:'calc',type:'money'},
+  {key:'citas',label:'Citas (llam+vis)',src:'vambe',type:'int'},
+  {key:'costo_cita',label:'$/cita',src:'calc',type:'money'},
+  {key:'captac',label:'Captación',src:'jenny',type:'capt'},
+  {key:'cac',label:'CAC captación',src:'calc',type:'money',anchor:true},
+  // Columna "Cierre" REMOVIDA de la vista (engañaba por muestra chica: 100% sobre 1-3 maduras).
+  // Necesita su propia vista dedicada (tamaño de muestra + lag bien tratados). El DATO sigue en
+  // el modelo: row.mature / row.ok_mature / row.new_count / row.no_date + q_trc/q_gmz RAW + ventas_ok.
+  // calc() aún computa `cierre` (no se usa en la tabla; queda listo para la vista futura).
+  {key:'cac_venta',label:'CAC venta',src:'calc',type:'money',secondary:true},
+  {key:'roas',label:'ROAS',src:'calc',type:'roas',secondary:true},
+];
+
+// 8 ads paid — captac exacta + ventas_ok (Q="OK" en Sheet Jenny, leído de columna Q ventana feb1-jun3 ✓).
+// q_trc / q_gmz preservan el RAW value de la columna Q por captación (PASO 2: no colapsar a binario).
+// Mapeo via columna K CAMPAÑA (BB17, EE15, JJ8, etc) en tab Leadtime de ambos sheets.
+const data=[
+  {id:'c1',level:'campaign',name:'OA15 - TF - MSJ - Gómez - Captación',state:null,spend:237314,mensajes:2027,cita_llamada:87,cita_visita:19,
+   captac:41,captac_trc:18,captac_gmz:23,ventas_ok:26,ventas_ok_trc:9,ventas_ok_gmz:17,
+   mature:9,ok_mature:9,new_count:32,no_date:0,children:[
+    {id:'a_ee',level:'adset',name:'OA11 - (EE) SA',state:null,spend:45959,mensajes:428,cita_llamada:19,cita_visita:4,
+     captac:8,captac_trc:5,captac_gmz:3,ventas_ok:4,ventas_ok_trc:1,ventas_ok_gmz:3,
+     mature:0,ok_mature:0,new_count:8,no_date:0,children:[
+      {id:'ad15',ad_id:'120241353924300053',code:'OA15',level:'ad',name:'OA15 - Video - EE15',state:'adset-paused',
+       spend:28280.62,mensajes:244,cita_llamada:12,cita_visita:3,
+       captac:6,captac_trc:4,captac_gmz:2,
+       ventas_ok:2,ventas_ok_trc:0,ventas_ok_gmz:2,
+       mature:0,ok_mature:0,new_count:6,no_date:0,
+       q_trc:{'SIN CERRAR':3,'Sale del inventario':1},
+       q_gmz:{'OK':2},
+       creative_id:'1282194627397192',object_type:'VIDEO',video_id:'2199599707442522',story_id:'117817476290631_1505008081635911'},
+      {id:'ad14',ad_id:'120241353761680053',code:'OA14',level:'ad',name:'OA14 - EE14',state:'paused',
+       spend:17678.34,mensajes:184,cita_llamada:7,cita_visita:1,
+       captac:2,captac_trc:1,captac_gmz:1,
+       ventas_ok:2,ventas_ok_trc:1,ventas_ok_gmz:1,
+       mature:0,ok_mature:0,new_count:2,no_date:0,
+       q_trc:{'OK':1},
+       q_gmz:{'OK':1},
+       creative_id:'2415478968894111',object_type:'VIDEO',video_id:'908675361922150',story_id:'117817476290631_1443077254495661'},
+    ]},
+    {id:'a_bb',level:'adset',name:'OA10 - (BB) Créditos',state:null,spend:134399,mensajes:1114,cita_llamada:45,cita_visita:6,
+     captac:23,captac_trc:10,captac_gmz:13,ventas_ok:15,ventas_ok_trc:7,ventas_ok_gmz:8,
+     mature:6,ok_mature:6,new_count:17,no_date:0,children:[
+      {id:'ad17',ad_id:'120240029010060053',code:'OA17',level:'ad',name:'OA17 - Video - Ara sabías que',state:'adset-paused',
+       spend:54996.12,mensajes:487,cita_llamada:27,cita_visita:6,
+       captac:9,captac_trc:4,captac_gmz:5,
+       ventas_ok:5,ventas_ok_trc:2,ventas_ok_gmz:3,
+       mature:1,ok_mature:1,new_count:8,no_date:0,
+       q_trc:{'OK':2,'Sale del inventario':1,'SIN CERRAR':1},
+       q_gmz:{'OK':3,'Sale de Inventario precio alto':1,'No aplica esta en juridico':1},
+       creative_id:'994695906309207',object_type:'VIDEO',video_id:'964586276444398',story_id:'117817476290631_1505009628302423'},
+      {id:'ad12',ad_id:'120238570383350053',code:'OA12',level:'ad',name:'OA12 - Reel 1 Elizandro',state:'adset-paused',
+       spend:66629.97,mensajes:485,cita_llamada:11,cita_visita:0,
+       captac:10,captac_trc:5,captac_gmz:5,
+       ventas_ok:9,ventas_ok_trc:5,ventas_ok_gmz:4,
+       mature:5,ok_mature:5,new_count:5,no_date:0,
+       q_trc:{'OK':5},
+       q_gmz:{'OK':4,'Sale de Inventario no siguio':1},
+       creative_id:'1052346530378105',object_type:'SHARE',video_id:null,story_id:'117817476290631_1392948939508493'},
+      {id:'ad10',ad_id:'120243031112680053',code:'OA10',level:'ad',name:'OA10 - Ara créditos',state:'adset-paused',
+       spend:12772.56,mensajes:142,cita_llamada:7,cita_visita:0,
+       captac:4,captac_trc:2,captac_gmz:2,
+       ventas_ok:1,ventas_ok_trc:0,ventas_ok_gmz:1,
+       mature:0,ok_mature:0,new_count:4,no_date:0,
+       q_trc:{'SIN CERRAR':2},
+       q_gmz:{'OK':1,'Sale del inventario':1},
+       creative_id:'2803669016685487',object_type:'VIDEO',video_id:'1618182232811952',story_id:'117817476290631_1505006838302702'},
+    ]},
+    {id:'a_oa1',level:'adset',name:'OA1 - Venta Propiedades + otros',state:null,spend:56956,mensajes:485,cita_llamada:23,cita_visita:9,
+     captac:10,captac_trc:2,captac_gmz:8,ventas_ok:7,ventas_ok_trc:1,ventas_ok_gmz:6,
+     mature:3,ok_mature:3,new_count:7,no_date:0,children:[
+      {id:'ad8',ad_id:'120238570227490053',code:'OA8',level:'ad',name:'OA8 - VID Ara',state:'paused',
+       spend:30731.32,mensajes:187,cita_llamada:11,cita_visita:2,
+       captac:6,captac_trc:0,captac_gmz:6,
+       ventas_ok:5,ventas_ok_trc:0,ventas_ok_gmz:5,
+       mature:2,ok_mature:2,new_count:4,no_date:0,
+       q_trc:{},
+       q_gmz:{'OK':5,'Sale del Inventario':1},
+       creative_id:'1198700512460615',object_type:'SHARE',video_id:null,story_id:'117817476290631_1392943746175679'},
+      {id:'ad22',ad_id:'120244663643810053',code:'OA22',level:'ad',name:'OA22',state:'adset-paused',
+       spend:13346.26,mensajes:161,cita_llamada:12,cita_visita:6,
+       captac:3,captac_trc:1,captac_gmz:2,
+       ventas_ok:1,ventas_ok_trc:0,ventas_ok_gmz:1,
+       mature:0,ok_mature:0,new_count:3,no_date:0,
+       q_trc:{'SIN CERRAR':1},
+       q_gmz:{'SIN CERRAR':1,'OK':1},
+       creative_id:'1289589039513859',object_type:'SHARE',video_id:null,story_id:'117817476290631_1488025036667549'},
+      {id:'ad2',ad_id:'120238570428590053',code:'OA2',level:'ad',name:'OA2 - NV2',state:'paused',
+       spend:12878.73,mensajes:137,cita_llamada:0,cita_visita:1,
+       captac:1,captac_trc:1,captac_gmz:0,
+       ventas_ok:1,ventas_ok_trc:1,ventas_ok_gmz:0,
+       mature:1,ok_mature:1,new_count:0,no_date:0,
+       q_trc:{'OK':1},
+       q_gmz:{},
+       creative_id:'1553163735947864',object_type:'SHARE',video_id:null,story_id:'117817476290631_1392951109508276'},
+    ]},
+  ]},
+];
+
+// Capa 2 — captación nivel familia (informativa, NO al CAC).
+// 27 captaciones por letra atribuibles al adset pero no al creative exacto.
+const familyData=[
+  {letter:'JJ',adset:'OA9 - (JJ) IR',total:10,trc:6,gmz:4,note:'Mayor en TRC (6) — JJ8 paid solo cubre GMZ (6)'},
+  {letter:'BB',adset:'OA10 - (BB) Créditos',total:8,trc:5,gmz:3,note:'BB17/BB22 paid son los exactos'},
+  {letter:'EE',adset:'OA11 - (EE) SA',total:4,trc:0,gmz:4,note:'TODO en GMZ; EE15/EE14/EE12 son los exactos'},
+  {letter:'MM',adset:'OA13 - (MM) IR',total:3,trc:2,gmz:1,note:'MM10 es el único exacto'},
+  {letter:'NV',adset:'OA12 - (NV) IR-Navidad',total:2,trc:2,gmz:0,note:'TRC puro; NV2 paid solo TRC'},
+];
+
+// Capa 3 — bucket DESC/ORG + combos.
+const buckets=[
+  {title:'DESC/ORG puros — TRC',num:8,sub:'Sin attribución pagada · 16.3% de las 49 capt TRC'},
+  {title:'DESC/ORG puros — GMZ',num:19,sub:'Sin attribución pagada · 30.2% de las 63 capt GMZ'},
+  {title:'Combos mixtos — TRC',num:4,sub:'Códigos: <code>JJ1-N4-JJ1</code> · <code>DESC-JJ8</code> · <code>DESC-EE21</code> · <code>DESC-BB19</code>'},
+  {title:'Combos mixtos — GMZ',num:8,sub:'Códigos: <code>BB14-ORG</code> · <code>ORG-BB14</code> · <code>CC3-EE12</code> · <code>NV2-EE12</code> · <code>DESC-NV4-EE12</code> · <code>DESC-BB17</code> · <code>DESC-EE3</code> · <code>DESC-EE12</code>'},
+];
+
+// Capa 4 — adsets paid sin spend en ventana (CC/LL/KK).
+const cclkkData=[
+  {code:'CC3',name:'OA2 - (CC) IR',adset_id:'120232281697900053',trc:1,gmz:1,tot:2},
+  {code:'CC8',name:'OA2 - (CC) IR',adset_id:'120232281697900053',trc:1,gmz:0,tot:1},
+  {code:'LL1',name:'OA8 - (LL) SA',adset_id:'120233721783560053',trc:1,gmz:0,tot:1},
+  {code:'KK2',name:'OA7 - (KK) IR',adset_id:'120232438730250053',trc:1,gmz:0,tot:1},
+];
+
+// Default ranking = CAC captación ascendente (la métrica SLA, MI métrica).
+let collapsed={},sortKey='cac',sortDir=1;
+
+function calc(r){
+  const cac=(r.captac&&r.spend)?r.spend/r.captac:null;
+  // ROAS y CAC-venta usan SOLO ventas CERRADAS (Q="OK" en Sheet Jenny), NO todas las captaciones.
+  const ventas=r.ventas_ok;
+  const roas=(ventas&&r.spend)?(ventas*COMISION_VENTA)/r.spend:null;
+  const cac_venta=(ventas&&r.spend)?r.spend/ventas:null;
+  const citas=(r.cita_llamada||0)+(r.cita_visita||0);
+  const cm=(r.mensajes&&r.spend)?r.spend/r.mensajes:null;
+  const cc=(citas&&r.spend)?r.spend/citas:null;
+  // Cierre = OK ÷ maduras (captaciones con F.cap ≥ MADUREZ_DIAS). null si no hay maduras (lag puro).
+  const cierre=(r.mature&&r.mature>0)?(r.ok_mature/r.mature):null;
+  return {cac,roas,cac_venta,costo_msg:cm,costo_cita:cc,citas,cierre};
+}
+const fmtMoney=v=>v==null?null:'$'+Math.round(v).toLocaleString('es-MX');
+const fmtInt=v=>v==null?null:v.toLocaleString('es-MX');
+const fmtRoas=v=>v==null?null:v.toFixed(1)+'x';
+
+function cellClass(k,v){
+  // SLA OptimizAds = CAC a CAPTACIÓN. Es la ÚNICA métrica con color de juicio.
+  // Cierre/ROAS/CAC venta dependen del equipo de ventas de Inmobili → contexto, no veredicto → tono neutro.
+  if(v==null)return'';
+  if(k==='cac'){
+    if(v<=CAC_TARGET)return'good';
+    if(v<=CAC_TARGET*1.4)return'mid';
+    return'bad';
+  }
+  return'';
+}
+function stTitle(s){return{'active':'Activo','paused':'Pausado','adset-paused':'Adset pausado','never':'Nunca activado'}[s]||'';}
+
+function renderHeader(){
+  const hr=document.getElementById('hrow');hr.innerHTML='';
+  columns.forEach((col,idx)=>{
+    const th=document.createElement('th');
+    const extra=(col.anchor?' col-anchor':'')+(col.secondary?' col-secondary':'');
+    th.className=(col.align==='left'?'left ':'')+'col-'+col.src+(sortKey===col.key?' sorted':'')+extra;
+    th.draggable=true;
+    const arrow=sortKey===col.key?(sortDir===1?'▲':'▼'):'↕';
+    th.innerHTML=col.label+' <span class="arrow">'+arrow+'</span>';
+    th.onclick=()=>{if(sortKey===col.key){sortDir*=-1;}else{sortKey=col.key;sortDir=1;}render();};
+    th.ondragstart=e=>e.dataTransfer.setData('idx',idx);
+    th.ondragover=e=>{e.preventDefault();th.classList.add('drag-over');};
+    th.ondragleave=()=>th.classList.remove('drag-over');
+    th.ondrop=e=>{e.preventDefault();th.classList.remove('drag-over');const f=+e.dataTransfer.getData('idx');const m=columns.splice(f,1)[0];columns.splice(idx,0,m);render();};
+    hr.appendChild(th);
+  });
+}
+
+function flatten(rows,out,vis){rows.forEach(r=>{if(vis)out.push(r);if(r.children)flatten(r.children,out,vis&&!collapsed[r.id]);});}
+
+function sortTree(rows){
+  if(!sortKey||sortKey==='name')return rows;
+  const wc=r=>({...r,...calc(r)});
+  const cmp=(a,b)=>{const av=wc(a)[sortKey],bv=wc(b)[sortKey];if(av==null)return 1;if(bv==null)return -1;return(av-bv)*sortDir;};
+  const rec=arr=>arr.map(r=>r.children?{...r,children:rec([...r.children].sort(cmp))}:r);
+  return rec([...rows].sort(cmp));
+}
+
+function thumbCell(row){
+  if(row.level!=='ad')return '';
+  const src=`/assets/ads-manager/${row.code}_${row.ad_id}.jpg`;
+  const hasVid=row.object_type==='VIDEO';
+  const cls='thumb'+(hasVid?' has-video':'');
+  const title=(hasVid?'Ver video — ':'Ver post — ')+row.code;
+  return `<span class="${cls}" title="${title}" onclick="event.stopPropagation();openModal('${row.id}')"><img src="${src}" onerror="this.style.display='none';this.parentNode.innerHTML+='IMG'"><span class="play">▶</span></span>`;
+}
+
+function render(){
+  renderHeader();
+  const tb=document.getElementById('tbody');tb.innerHTML='';
+  const flat=[];flatten(sortTree(data),flat,true);
+  flat.forEach(row=>{
+    const c=calc(row);const tr=document.createElement('tr');tr.className='row-'+row.level;
+    if(row.level!=='ad'){tr.classList.toggle('collapsed',!!collapsed[row.id]);tr.onclick=()=>{collapsed[row.id]=!collapsed[row.id];render();};}
+    columns.forEach(col=>{
+      const td=document.createElement('td');
+      const extra=(col.anchor?' col-anchor':'')+(col.secondary?' col-secondary':'');
+      td.className=(col.align==='left'?'left ':'')+'col-'+col.src+extra;
+      if(col.key==='name'){
+        const caret=row.level!=='ad'?'<span class="caret">▼</span>':'';
+        const icon=row.level==='campaign'?'📁 ':row.level==='adset'?'📂 ':'';
+        const thumb=thumbCell(row);
+        const st=row.state?'<span class="st st-'+row.state+'" title="'+stTitle(row.state)+'"></span>':'';
+        td.innerHTML='<span class="namecell">'+caret+thumb+st+icon+row.name+'</span>';
+      } else if(col.key==='captac'){
+        // Capt exacta. ventas_ok / OK breakdown removido de la vista; preservado en row.q_trc/q_gmz para vista futura.
+        if(row.captac==null){td.innerHTML='<span class="none">—</span>';}
+        else{
+          const breakdown=row.level==='ad'?`<span class="micro">TRC <b>${row.captac_trc}</b> · GMZ <b>${row.captac_gmz}</b></span>`:'';
+          td.innerHTML='<b>'+row.captac+'</b>'+breakdown;
+        }
+      } else if(col.key==='citas'){
+        // Citas combinadas (llam+vis) con breakdown
+        const tot=c.citas;
+        if(!tot){td.innerHTML='<span class="pend">sin citas</span>';}
+        else{
+          const breakdown=`<span class="micro">${row.cita_llamada||0}L · ${row.cita_visita||0}V</span>`;
+          td.innerHTML='<b>'+tot+'</b>'+breakdown;
+        }
+      } else {
+        const v=(col.key in c)?c[col.key]:row[col.key];
+        if(col.key==='costo_cita' && row.level==='ad'){
+          const citas=(row.cita_llamada||0)+(row.cita_visita||0);
+          if(citas===0){td.innerHTML='<span class="pend">sin citas</span>';}
+          else{const cls=cellClass(col.key,v);td.innerHTML='<span class="'+cls+'">'+fmtMoney(v)+'</span>';}
+        }
+        else if((col.key==='cac_venta'||col.key==='roas')&&(!row.ventas_ok)){
+          td.innerHTML='<span class="pend">sin venta aún</span>';
+        }
+        else{
+          const cls=cellClass(col.key,v);
+          let txt=col.type==='money'?fmtMoney(v):col.type==='roas'?fmtRoas(v):fmtInt(v);
+          txt=txt==null?'—':txt;
+          // SLA: ÚNICO color de juicio en el tablero = CAC captación vs target $4,500.
+          if(col.key==='cac'&&v!=null){
+            if(v>CAC_TARGET) txt+=' <span class="badge target">&gt; target</span>';
+            else txt+=' <span class="badge win">≤ target</span>';
+          }
+          if(col.key==='mensajes'&&v!=null&&row.level==='ad')txt+=' <span class="hint" title="fecha aproximada vía created_at">~</span>';
+          td.innerHTML='<span class="'+cls+'">'+txt+'</span>';
+        }
+      }
+      tr.appendChild(td);
+    });
+    tb.appendChild(tr);
+  });
+}
+
+function renderFamily(){
+  const g=document.getElementById('family-grid');g.innerHTML='';
+  familyData.forEach(f=>{
+    const div=document.createElement('div');div.className='family-card';
+    div.innerHTML=`
+      <h3>Letra ${f.letter} <span style="color:var(--text-dim);font-weight:400">· ${f.adset}</span></h3>
+      <div class="num">${f.total}</div>
+      <div class="breakdown"><span>TRC <b>${f.trc}</b></span><span>GMZ <b>${f.gmz}</b></span></div>
+      <div style="font-size:11px;color:var(--text-dim);margin-top:6px">${f.note}</div>
+    `;
+    g.appendChild(div);
+  });
+}
+
+function renderBuckets(){
+  const g=document.getElementById('bucket-grid');g.innerHTML='';
+  buckets.forEach(b=>{
+    const div=document.createElement('div');div.className='bucket-card';
+    div.innerHTML=`<h3>${b.title}</h3><div class="num">${b.num}</div><div class="sub">${b.sub}</div>`;
+    g.appendChild(div);
+  });
+}
+
+function renderCCLKK(){
+  const tb=document.getElementById('cclkk');tb.innerHTML='';
+  cclkkData.forEach(r=>{
+    const tr=document.createElement('tr');tr.className='row-bucket';
+    tr.innerHTML=`<td class="left"><b>${r.code}</b> · ${r.name}</td><td class="left"><code style="font-size:11px;color:var(--text-dim)">${r.adset_id}</code></td><td>${r.trc}</td><td>${r.gmz}</td><td><b>${r.tot}</b></td><td><span class="pend">sin spend ventana</span></td><td><span class="pend">—</span></td>`;
+    tb.appendChild(tr);
+  });
+}
+
+// ---- Modal con iframe FB Plugin ----
+function findAd(id){
+  let found=null;
+  const w=arr=>arr.forEach(r=>{if(r.id===id)found=r;if(r.children)w(r.children);});
+  w(data);return found;
+}
+function buildEmbedUrl(ad){
+  // VIDEO → video.php · SHARE → post.php
+  if(ad.object_type==='VIDEO' && ad.video_id){
+    const href=encodeURIComponent(`https://www.facebook.com/${FB_PAGE}/videos/${ad.video_id}/`);
+    return `https://www.facebook.com/plugins/video.php?href=${href}&show_text=false&width=500&height=400`;
+  }
+  if(ad.story_id){
+    const [pageId,postId]=ad.story_id.split('_');
+    const href=encodeURIComponent(`https://www.facebook.com/${pageId}/posts/${postId}`);
+    return `https://www.facebook.com/plugins/post.php?href=${href}&show_text=true&width=500`;
+  }
+  return null;
+}
+function buildFallbackUrl(ad){
+  if(ad.video_id) return `https://www.facebook.com/${FB_PAGE}/videos/${ad.video_id}/`;
+  if(ad.story_id){const [p,post]=ad.story_id.split('_');return `https://www.facebook.com/${p}/posts/${post}`;}
+  return null;
+}
+function openModal(id){
+  const ad=findAd(id);if(!ad)return;
+  document.getElementById('modal-title').textContent=`${ad.code} · ${ad.name}`;
+  const body=document.getElementById('modal-body');
+  const url=buildEmbedUrl(ad);
+  const fb=buildFallbackUrl(ad);
+  const thumb=`/assets/ads-manager/${ad.code}_${ad.ad_id}.jpg`;
+  const isVideo=ad.object_type==='VIDEO';
+  body.innerHTML=`
+    <iframe src="${url}" height="${isVideo?420:500}" allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share" allowfullscreen onerror="this.style.display='none'"></iframe>
+    <div class="meta-line">
+      ad_id <code>${ad.ad_id}</code> · creative <code>${ad.creative_id}</code> · ${ad.object_type}${ad.video_id?` · video_id <code>${ad.video_id}</code>`:''}<br>
+      story_id <code>${ad.story_id}</code><br>
+      <a href="${fb}" target="_blank" rel="noopener">↗ Ver en Facebook (fallback)</a>
+    </div>
+  `;
+  document.getElementById('modal').classList.add('open');
+}
+function closeModal(){document.getElementById('modal').classList.remove('open');document.getElementById('modal-body').innerHTML='';}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal();});
+
+function expandAll(o){collapsed={};if(!o){const w=rs=>rs.forEach(r=>{if(r.children){collapsed[r.id]=true;w(r.children);}});w(data);}render();}
+
+render();
+renderFamily();
+renderBuckets();
+renderCCLKK();
+</script>
+</body>
+</html>
