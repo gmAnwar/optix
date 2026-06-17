@@ -111,7 +111,9 @@
   .col-toggle.on i { color:#1877f2; }
   .attr-seg { display:flex; background:#f0f2f5; border:0.5px solid #dadde1; border-radius:8px; overflow:hidden; }
   .attr-seg div { padding:7px 13px; font-size:12px; color:#65676b; cursor:pointer; user-select:none; display:flex; align-items:center; gap:6px; }
-  .attr-seg div i { font-size:13px; }
+  /* pointer-events:none en el icono ⇒ el click event.target siempre es
+     el div padre. Defiende contra event-bubble weirdness del S87. */
+  .attr-seg div i { font-size:13px; pointer-events:none; }
   .attr-seg div.active { background:#fff; color:#1c1e21; font-weight:500; box-shadow:0 0 0 0.5px #dadde1; }
   .plaza-seg { display:flex; background:#f0f2f5; border:0.5px solid #dadde1; border-radius:8px; overflow:hidden; }
   .plaza-seg div { padding:7px 13px; font-size:12px; color:#65676b; cursor:pointer; user-select:none; }
@@ -584,11 +586,23 @@ function sortTree(rows) {
 
 function thumbCell(row) {
   if (row.level !== "ad") return "";
-  const code = row.code || "—";
-  const src = "/assets/ads-manager/" + code + "_" + row.ad_id + ".jpg";
+  // Convención de archivo igual que v5: derivar "OA{N}" del ad_name.
+  // Los .jpg ya descargados en /assets/ads-manager/ usan prefijo
+  // OA{N}_{ad_id}.jpg (no la familia [XX]{N}). Mantenemos compat.
+  // `row.code` (= BB17, EE12, etc. de Fase 4a) se usa en otros lugares
+  // del UI pero NO para el path de thumb.
+  const oaMatch = (row.ad_name || "").match(/^OA\d+/i);
+  const oaCode = oaMatch ? oaMatch[0].toUpperCase() : null;
+  const src = oaCode ? ("/assets/ads-manager/" + oaCode + "_" + row.ad_id + ".jpg") : null;
   const isVideo = row.object_type === "VIDEO";
   const cls = "thumb" + (isVideo ? " video" : "");
   const ico = isVideo ? "ti-player-play" : "ti-photo";
+  // Fallback decente cuando el thumb no carga (ad nuevo sin .jpg
+  // descargado): mostramos el icono ti-photo/ti-player-play en lugar
+  // del cuadro gris vacío que reportó Anwar en S87.
+  if (!src) {
+    return '<span class="' + cls + '" title="Sin thumbnail disponible" onclick="event.stopPropagation();openModal(\'' + row.id + '\')"><i class="ti ' + ico + '"></i></span>';
+  }
   return '<span class="' + cls + '" onclick="event.stopPropagation();openModal(\'' + row.id + '\')"><img src="' + src + '" onerror="this.style.display=\'none\';this.parentNode.querySelector(\'i\').style.display=\'\';"><i class="ti ' + ico + '" style="display:none"></i></span>';
 }
 
@@ -912,14 +926,22 @@ firebase.auth().onAuthStateChanged(user => {
 
 // ═══ Wire toggles + segs + search ═══
 function wireTopbar() {
-  // Attribution toggle
-  document.querySelectorAll("#attr-seg div").forEach(d => {
-    d.addEventListener("click", () => {
-      attribution = d.dataset.attr;
-      document.querySelectorAll("#attr-seg div").forEach(x => x.classList.toggle("active", x === d));
+  // Attribution toggle — event delegation en el container.
+  // S87: el wire por div funcionaba en JSDOM/Puppeteer pero Anwar
+  // reportó que el click no registraba en su Chrome. Delegation en el
+  // parent + pointer-events:none en los icons garantiza que el click
+  // siempre llega al handler.
+  const attrSeg = document.getElementById("attr-seg");
+  if (attrSeg) {
+    attrSeg.addEventListener("click", (e) => {
+      const target = e.target.closest("div[data-attr]");
+      if (!target) return;
+      attribution = target.dataset.attr;
+      console.log("[v12] attribution →", attribution);
+      attrSeg.querySelectorAll("div[data-attr]").forEach(x => x.classList.toggle("active", x === target));
       render();
     });
-  });
+  }
   // Plaza toggle
   document.querySelectorAll("#plaza-seg div").forEach(d => {
     d.addEventListener("click", () => {
