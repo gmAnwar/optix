@@ -407,7 +407,10 @@ const FB_PAGE = "inmobili.internacional";   // para FB plugin embeds
 // Frontend lee el doc del período activo + cachea por período.
 const FIRESTORE_PATH = (client, p) =>
   `workspaces/optimizads/clients/${client}/sections/ads-manager-v2-${p}`;
-const DEFAULT_PERIOD = "30d";  // S87: default = 30d (sin lag, datos completos)
+// S87 HOTFIX: default cambió a since_feb. Está presente en el doc legacy
+// (3 periods) Y como split doc — siempre debería cargar algo. 30d (preferido
+// por UX) puede no estar en el legacy si las rules bloquean los split paths.
+const DEFAULT_PERIOD = "since_feb";
 
 // ═══ Estado ═══
 // Cache por período para evitar re-fetch al cambiar dropdown.
@@ -829,8 +832,12 @@ function renderHeaderPanel() {
 
   // Period label
   document.getElementById("period-label").textContent = M.period_from + " — " + M.period_to + " (" + period + ")";
-  const gen = (doc._meta || {}).generated_at || "—";
-  document.getElementById("corte").textContent = "Datos al corte: " + gen.substring(0, 10) + " · pipeline 2x/día";
+  // S87 HOTFIX: la variable global `doc` fue renombrada a `docsByPeriod`
+  // pero esta línea quedó referenciándola → ReferenceError que tumba
+  // todo el render() y muestra "Error al cargar" aunque el fetch fue OK.
+  const splitRoot = docsByPeriod[period] || {};
+  const gen = ((splitRoot._meta) || {}).generated_at || "—";
+  document.getElementById("corte").textContent = "Datos al corte: " + (gen || "—").toString().substring(0, 10) + " · pipeline 2x/día";
 
   // Footnote comisión
   const com = ((M.constants) || {}).comision_venta || 65000;
@@ -975,18 +982,57 @@ function showMain() {
   document.getElementById("main-content").style.display = "flex";
 }
 
+// S87 HOTFIX: fallback robusto al doc legacy `ads-manager-v2` (sin sufijo).
+// Si el doc split-per-period falla por cualquier razón (no-existe, rules,
+// red), intenta leer el doc viejo que aún existe con shape `{periods}`.
+const FIRESTORE_PATH_LEGACY = (client) =>
+  `workspaces/optimizads/clients/${client}/sections/ads-manager-v2`;
+
 async function loadPeriodDoc(targetPeriod) {
-  // S87: fetch del doc split-per-period. Cachea por período para
-  // evitar re-fetch al volver a un período ya cargado.
   if (docsByPeriod[targetPeriod]) return docsByPeriod[targetPeriod];
   const client = clientFromQuery();
   const path = FIRESTORE_PATH(client, targetPeriod);
-  console.log("[v12] fetching", path);
-  const snap = await firebase.firestore().doc(path).get();
-  if (!snap.exists) throw Object.assign(new Error("no-data"), { code: "no-data" });
-  const d = snap.data();
-  docsByPeriod[targetPeriod] = d;
-  return d;
+  console.log("[v12] fetching split-per-period:", path);
+  let lastErr = null;
+  // Intento 1: split path nuevo.
+  try {
+    const snap = await firebase.firestore().doc(path).get();
+    if (snap.exists) {
+      const d = snap.data();
+      docsByPeriod[targetPeriod] = d;
+      return d;
+    }
+    console.warn("[v12] split doc no existe:", path);
+  } catch (e) {
+    console.warn("[v12] split fetch failed (code=" + (e && e.code) + "):", e && e.message, e);
+    lastErr = e;
+  }
+  // Intento 2: legacy single doc, leer periods[period]. Permite recuperar
+  // si el cron volvió a escribir el doc viejo o si rules bloquean el path
+  // nuevo con guion.
+  const legacyPath = FIRESTORE_PATH_LEGACY(client);
+  console.log("[v12] fetching LEGACY single doc:", legacyPath);
+  try {
+    const snap = await firebase.firestore().doc(legacyPath).get();
+    if (snap.exists) {
+      const root = snap.data() || {};
+      const pdata = (root.periods || {})[targetPeriod];
+      if (pdata) {
+        // Adaptar al shape esperado por currentPeriod(): wrap en {data}.
+        const wrapped = { _meta: root._meta || {}, data: pdata };
+        docsByPeriod[targetPeriod] = wrapped;
+        return wrapped;
+      }
+      console.warn("[v12] legacy doc no tiene período", targetPeriod, "— periods disponibles:", Object.keys(root.periods || {}));
+      throw Object.assign(new Error("period-not-in-legacy"), { code: "no-data" });
+    }
+    console.warn("[v12] legacy doc tampoco existe:", legacyPath);
+    throw Object.assign(new Error("no-data"), { code: "no-data" });
+  } catch (e2) {
+    console.error("[v12] legacy fetch failed (code=" + (e2 && e2.code) + "):", e2 && e2.message);
+    // Si el primer error era informativo (rules), preferirlo.
+    throw lastErr || e2;
+  }
 }
 
 async function loadFromFirestore() {
@@ -995,9 +1041,10 @@ async function loadFromFirestore() {
     showMain();
     render();
   } catch (err) {
+    console.error("[v12] loadFromFirestore failed — err.code=" + (err && err.code) + " err.message=" + (err && err.message), err);
     if (err && (err.code === "permission-denied" || err.code === "unauthenticated")) showAuthEmpty("denied");
     else if (err && err.code === "no-data") showAuthEmpty("no-data");
-    else { console.error("[v12] fetch error", err); showAuthEmpty("error"); }
+    else showAuthEmpty("error");
   }
 }
 
@@ -1008,9 +1055,7 @@ async function switchPeriod(newPeriod) {
     await loadPeriodDoc(newPeriod);
     render();
   } catch (err) {
-    console.error("[v12] switch period error", err);
-    // Sigue mostrando el período anterior (silent fallback) — el log
-    // queda en console para diag.
+    console.error("[v12] switch period error — code=" + (err && err.code), err);
   }
 }
 
