@@ -91,6 +91,12 @@
   .lag-badge { font-size:10px; color:#b15a36; background:#f7e9e3; padding:1px 6px; border-radius:4px; white-space:nowrap; }
   .lag-banner { display:none; background:#fff7e6; color:#b15a36; border:0.5px solid #f7e9e3; border-radius:6px; padding:6px 10px; font-size:11.5px; margin:8px 0; }
   .lag-banner.show { display:inline-block; }
+  /* S87 MEJORA 1: leyenda visible de status. Una sola línea, justo
+     antes de la tabla — usuario la ve sin scroll. */
+  .status-legend { display:flex; flex-wrap:wrap; gap:18px; padding:8px 24px 12px; font-size:11px; color:#65676b; align-items:center; border-bottom:0.5px solid #e9ebee; }
+  .status-legend > span { display:flex; align-items:center; gap:7px; }
+  .status-legend b { color:#1c1e21; font-weight:500; }
+  .status-legend .legend-aside { color:#a8abb0; font-size:10.5px; margin-left:auto; font-style:italic; }
   .corte { font-size:11px; color:#8a8d91; margin-top:4px; text-align:right; }
 
   /* ─ Tabs ─ */
@@ -338,12 +344,23 @@
         </div>
         <div class="col-toggle on" id="tg-funnel"><i class="ti ti-filter"></i>Embudo</div>
         <div class="col-toggle on" id="tg-ret"><i class="ti ti-coin"></i>Retorno</div>
+        <!-- S87 MEJORA 2: sort prendidos-primero (status priority + spend desc). -->
+        <div class="col-toggle on" id="tg-activos-first" title="Activos arriba, desempate por inversión"><i class="ti ti-arrow-up"></i>Activos 1°</div>
         <div class="plaza-seg" id="plaza-seg">
           <div class="active" data-plaza="all">Todas</div>
           <div data-plaza="trc">Torreón</div>
           <div data-plaza="gmz">Gómez</div>
         </div>
       </div>
+    </div>
+
+    <!-- S87 MEJORA 1: leyenda visible de los 4 estados de status. -->
+    <div class="status-legend" id="status-legend">
+      <span><span class="st st-active"></span><b>Activo</b> — delivering</span>
+      <span><span class="st st-paused"></span><b>Pausado</b> — Anwar lo pausó</span>
+      <span><span class="st st-adset-paused"></span><b>Adset/Campaña pausada</b> — el ad cayó por su padre</span>
+      <span><span class="st st-never"></span><b>Nunca activado</b> — sin delivery</span>
+      <span class="legend-aside">El toggle on/off junto al dot es decorativo (refleja status, no prende/apaga — para eso ir a Meta).</span>
     </div>
 
     <div class="table-wrap">
@@ -424,6 +441,10 @@ let showFunnel = true, showRet = true;
 // ocultos); click expande. En Anuncios tab no aplica (lista flat).
 let expanded = {};
 let sortKey = "captac", sortDir = -1;
+// S87 MEJORA 2: sort "Activos primero". Cuando true, sort principal =
+// statusSortRank ASC (active=0, adset-paused=1, paused=2, never=3) +
+// desempate por spend DESC. Es default ON. Click en columna desactiva.
+let activosFirst = true;
 let searchQuery = "";
 
 // ═══ Columnas (mockup orden) ═══
@@ -489,12 +510,29 @@ function stTitle(s) {
   return { active: "Activo", paused: "Pausado", "adset-paused": "Adset pausado", never: "Nunca activado" }[s] || "";
 }
 
+// S87 MEJORA 1: mapeo correcto del effective_status de Meta. Antes
+// colapsaba todos los PAUSE en "paused"; ahora distingue:
+//   - PAUSED               = el ad mismo está pausado por Anwar
+//   - ADSET_PAUSED         = ad config activo, ADSET pausado (cayó por padre)
+//   - CAMPAIGN_PAUSED      = ad config activo, CAMPAIGN pausada
+// Esa distinción importa: "pausé este ad" ≠ "pausé la campaña entera".
+// El CSS para `.st-adset-paused` ya existía (ámbar outline) pero era
+// dead code porque statusToClass nunca lo retornaba.
 function statusToClass(status) {
   if (!status) return "never";
   const s = String(status).toUpperCase();
-  if (s.includes("ACTIVE")) return "active";
-  if (s.includes("PAUSE")) return "paused";
+  if (s === "ACTIVE") return "active";
+  if (s === "ADSET_PAUSED" || s === "CAMPAIGN_PAUSED") return "adset-paused";
+  if (s === "PAUSED") return "paused";
+  // Otros estados de Meta (DELETED, PENDING_REVIEW, DISAPPROVED, etc.)
+  // los tratamos como "never" — el ad no está delivering.
   return "never";
+}
+
+// S87 MEJORA 2: prioridad para sort "Activos primero". Empate por
+// inversión desc dentro de cada grupo.
+function statusSortRank(stCls) {
+  return { "active": 0, "adset-paused": 1, "paused": 2, "never": 3 }[stCls] ?? 9;
 }
 
 // ═══ Tree build: flat campaigns[] → campaign→adset→ad ═══
@@ -540,6 +578,41 @@ function rollup(node) {
 
 // Funnel sums need to come from raw counts inside each ad's funnel.{stage}.count.
 // Re-do rollup to handle funnel correctly.
+// S87 MEJORA 3: deriva el status agregado del nodo padre desde los ads
+// descendientes (Anwar: VERDE si AL MENOS UN hijo es ACTIVE puro).
+// effective_status del ad ya propaga el estado del padre — Meta marca
+// ADSET_PAUSED/CAMPAIGN_PAUSED cuando el ad config está activo pero el
+// padre está pausado. Por eso "active" cuenta solo los effective_status
+// === "ACTIVE" puro (NO ADSET_PAUSED/CAMPAIGN_PAUSED, que están apagados).
+function aggregateChildStatus(node) {
+  if (!node) return { cls: "never", activeCount: 0, totalAds: 0 };
+  if (node.level === "ad") {
+    const cls = statusToClass(node.status);
+    return { cls, activeCount: cls === "active" ? 1 : 0, totalAds: 1 };
+  }
+  let activeCount = 0, parentPausedCount = 0, pausedCount = 0, neverCount = 0, totalAds = 0;
+  (node.children || []).forEach(c => {
+    const r = aggregateChildStatus(c);
+    activeCount += r.activeCount;
+    totalAds += r.totalAds;
+    if (c.level === "ad") {
+      const cl = statusToClass(c.status);
+      if (cl === "adset-paused") parentPausedCount++;
+      else if (cl === "paused") pausedCount++;
+      else if (cl === "never") neverCount++;
+    }
+  });
+  // Si al menos UN ad descendant ACTIVE puro → el padre vive.
+  if (activeCount > 0) return { cls: "active", activeCount, totalAds };
+  // Si todos pausados por padre → el adset/campaign realmente está pausado.
+  if (parentPausedCount > 0 && pausedCount === 0 && neverCount === 0) return { cls: "adset-paused", activeCount: 0, totalAds };
+  // Algún pausado puro → "paused"
+  if (pausedCount > 0) return { cls: "paused", activeCount: 0, totalAds };
+  // Mix de parent-paused + never → adset-paused
+  if (parentPausedCount > 0) return { cls: "adset-paused", activeCount: 0, totalAds };
+  return { cls: "never", activeCount: 0, totalAds };
+}
+
 function rollupV2(node) {
   if (node.level === "ad") return node;
   const kids = (node.children || []).map(rollupV2);
@@ -549,8 +622,11 @@ function rollupV2(node) {
   const spend = sumKey("spend"), mensajes = sumKey("mensajes");
   const ll = sumFunnel("llamada"), ci = sumFunnel("cita"), ae = sumFunnel("a_espera");
   const safediv = (a, b) => b ? a / b : null;
+  // S87 MEJORA 3: status agregado del padre.
+  const aggSt = aggregateChildStatus({ ...node, children: kids });
   return {
     ...node,
+    _aggStatus: aggSt,  // { cls, activeCount, totalAds } para uso en render
     spend, mensajes,
     costo_msg: safediv(spend, mensajes),
     funnel: {
@@ -586,7 +662,14 @@ function renderHeader() {
     const arrow = sortKey === col.key ? (sortDir === 1 ? "▲" : "▼") : "↕";
     let label = col.label;
     th.innerHTML = label + ' <span class="arrow">' + arrow + "</span>" + (col.tip ? '<span class="ttip">' + col.tip + "</span>" : "");
-    th.onclick = () => { if (sortKey === col.key) sortDir *= -1; else { sortKey = col.key; sortDir = -1; } render(); };
+    th.onclick = () => {
+      // S87 MEJORA 2: click en columna override el "Activos primero".
+      activosFirst = false;
+      const tg = document.getElementById("tg-activos-first");
+      if (tg) tg.classList.remove("on");
+      if (sortKey === col.key) sortDir *= -1; else { sortKey = col.key; sortDir = -1; }
+      render();
+    };
     th.ondragstart = e => e.dataTransfer.setData("idx", String(idx));
     th.ondragover  = e => { e.preventDefault(); th.style.borderTop = "2px solid #1877f2"; };
     th.ondragleave = () => th.style.borderTop = "";
@@ -617,6 +700,17 @@ function getVisibleRows(tree) {
     // ANUNCIOS: lista flat de ads. NO tree, NO caret. Match al mockup
     // "Anuncios (8)" = 8 ad rows planas.
     tree.forEach(c => (c.children || []).forEach(a => (a.children || []).forEach(ad => out.push(ad))));
+    // S87 MEJORA 2: si "Activos primero" está ON, re-sortear FLAT global
+    // (no por grupos de adset). El sortTree previo solo ordena dentro
+    // de cada parent — en flat list queremos prioridad global.
+    if (activosFirst) {
+      out.sort((a, b) => {
+        const ra = statusSortRank(statusToClass(a.status));
+        const rb = statusSortRank(statusToClass(b.status));
+        if (ra !== rb) return ra - rb;
+        return (b.spend || 0) - (a.spend || 0);
+      });
+    }
     return out;
   }
   // CAMPAÑAS o CONJUNTOS: tree desde el nivel del tab.
@@ -632,6 +726,26 @@ function getVisibleRows(tree) {
 }
 
 function sortTree(rows) {
+  // S87 MEJORA 2: sort "Activos primero" tiene prioridad sobre el
+  // sortKey de columna. Activo=0, adset-paused=1, paused=2, never=3.
+  // Desempate dentro del grupo por inversión DESC. Aplica a los 3
+  // niveles del árbol (campaigns, adsets, ads) → recursivo.
+  const rankOf = (r) => {
+    if (r.level === "ad") return statusSortRank(statusToClass(r.status));
+    const agg = r._aggStatus || { cls: "never" };
+    return statusSortRank(agg.cls);
+  };
+  if (activosFirst) {
+    const cmp = (a, b) => {
+      const ra = rankOf(a), rb = rankOf(b);
+      if (ra !== rb) return ra - rb;
+      // Empate: por spend DESC.
+      return (b.spend || 0) - (a.spend || 0);
+    };
+    const rec = arr => arr.map(r => r.children ? { ...r, children: rec([...r.children].sort(cmp)) } : r);
+    return rec([...rows].sort(cmp));
+  }
+  // Fallback al sort de columna clickeada.
   if (!sortKey || sortKey === "name") return rows;
   const cmp = (a, b) => {
     const av = (calcRow(a))[sortKey], bv = (calcRow(b))[sortKey];
@@ -696,9 +810,22 @@ function renderRows() {
       if (col.key === "name") {
         const caret = row.level !== "ad" ? '<span class="caret">▼</span>' : "";
         const ico = row.level === "campaign" ? '<i class="ti ti-folder" style="font-size:13px;color:#65676b;margin-right:4px"></i>' : row.level === "adset" ? '<i class="ti ti-layout-grid" style="font-size:13px;color:#65676b;margin-right:4px"></i>' : "";
-        const stCls = row.level === "ad" ? statusToClass(row.status) : "";
-        const st = row.level === "ad" ? '<span class="st st-' + stCls + '" title="' + stTitle(stCls) + '"></span>' : "";
-        const toggle = row.level === "ad" ? '<div class="toggle ' + (stCls === "active" ? "on" : "off") + '"><div class="knob"></div></div>' : "";
+        // S87 MEJORA 3: dot también para campaign/adset (derivado de hijos).
+        let stCls, stTitleTxt;
+        if (row.level === "ad") {
+          stCls = statusToClass(row.status);
+          stTitleTxt = stTitle(stCls);
+        } else {
+          const agg = row._aggStatus || { cls: "never", activeCount: 0, totalAds: 0 };
+          stCls = agg.cls;
+          stTitleTxt = stTitle(agg.cls) + " · " + agg.activeCount + "/" + agg.totalAds + " ads activos";
+        }
+        const st = '<span class="st st-' + stCls + '" title="' + stTitleTxt + '"></span>';
+        // S87 MEJORA 1: el toggle ahora SOLO va en ad rows; tooltip aclara
+        // que es decorativo (espeja status, no prende/apaga).
+        const toggle = row.level === "ad"
+          ? '<div class="toggle ' + (stCls === "active" ? "on" : "off") + '" title="Decorativo — refleja el status del ad; para prender/apagar ir a Meta Ads Manager"><div class="knob"></div></div>'
+          : "";
         const thumb = thumbCell(row);
         // S87: subline tolerante. Antes mostraba "OAundefined" cuando el
         // ad_name no tenía OA{N}; ahora se omite el bloque OA si no matchea.
@@ -709,6 +836,10 @@ function renderRows() {
           if (oaM) parts.push("OA" + oaM[1]);
           if (row.code) parts.push("(" + row.code.replace(/\d+$/, "") + ")");
           if (parts.length) subLine = '<div class="ad-sub">' + parts.join(" · ") + '</div>';
+        } else if (row._aggStatus) {
+          // S87 MEJORA 3: "X/Y activos" como sub-info en filas adset/campaign.
+          const agg = row._aggStatus;
+          subLine = '<div class="ad-sub">' + agg.activeCount + "/" + agg.totalAds + " ads activos</div>";
         }
         td.innerHTML = '<div class="ad-cell">' + toggle + thumb + '<div>' + caret + st + ico + '<span class="ad-name">' + (row.ad_name || row.name || "—") + "</span>" + subLine + "</div></div>";
       } else if (col.key === "captac") {
@@ -1101,6 +1232,15 @@ function wireTopbar() {
   // Funnel + ret toggles
   document.getElementById("tg-funnel").addEventListener("click", function () { showFunnel = !showFunnel; this.classList.toggle("on", showFunnel); render(); });
   document.getElementById("tg-ret").addEventListener("click", function () { showRet = !showRet; this.classList.toggle("on", showRet); render(); });
+  // S87 MEJORA 2: toggle Activos primero. Default ON. Click alterna.
+  const tgAct = document.getElementById("tg-activos-first");
+  if (tgAct) {
+    tgAct.addEventListener("click", function () {
+      activosFirst = !activosFirst;
+      this.classList.toggle("on", activosFirst);
+      render();
+    });
+  }
   // Search
   document.getElementById("search-input").addEventListener("input", e => { searchQuery = e.target.value; render(); });
   // S87 BUG 3: dropdown real con menú + click-outside-to-close.
