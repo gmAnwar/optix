@@ -82,9 +82,15 @@
      absolute-positioned bajo el trigger, ocultable por click-outside. */
   .period-menu { position:absolute; right:0; top:36px; min-width:200px; background:#fff; border:0.5px solid #c8ccd1; border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,0.08); padding:4px; z-index:20; }
   .period-menu[hidden] { display:none; }
-  .period-opt { padding:8px 12px; font-size:12.5px; cursor:pointer; border-radius:6px; color:#1c1e21; }
+  .period-opt { padding:8px 12px; font-size:12.5px; cursor:pointer; border-radius:6px; color:#1c1e21; display:flex; justify-content:space-between; align-items:center; gap:8px; }
   .period-opt:hover { background:#f0f2f5; }
   .period-opt.active { background:#e7f0fe; color:#1877f2; font-weight:500; }
+  /* S87: badge de lag en períodos ≤14d. El sheet de Jenny tarda semanas
+     en registrar captaciones recientes → CAC inflado por captación
+     parcial. Visible y honesto. */
+  .lag-badge { font-size:10px; color:#b15a36; background:#f7e9e3; padding:1px 6px; border-radius:4px; white-space:nowrap; }
+  .lag-banner { display:none; background:#fff7e6; color:#b15a36; border:0.5px solid #f7e9e3; border-radius:6px; padding:6px 10px; font-size:11.5px; margin:8px 0; }
+  .lag-banner.show { display:inline-block; }
   .corte { font-size:11px; color:#8a8d91; margin-top:4px; text-align:right; }
 
   /* ─ Tabs ─ */
@@ -284,10 +290,15 @@
       </div>
       <div class="period-wrap">
         <div class="date-dd" id="period-dd"><i class="ti ti-calendar cal"></i><span id="period-label">— periodo —</span><i class="ti ti-chevron-down chev"></i></div>
+        <!-- S87: 7 períodos preset. ≤14d traen badge de lag. -->
         <div class="period-menu" id="period-menu" hidden>
-          <div class="period-opt" data-period="since_feb">Acumulado desde feb</div>
-          <div class="period-opt" data-period="last_month">Mes anterior</div>
+          <div class="period-opt" data-period="3d">Últimos 3 días <span class="lag-badge">⚠ parcial</span></div>
+          <div class="period-opt" data-period="7d">Últimos 7 días <span class="lag-badge">⚠ parcial</span></div>
+          <div class="period-opt" data-period="14d">Últimos 14 días <span class="lag-badge">⚠ parcial</span></div>
+          <div class="period-opt" data-period="30d">Últimos 30 días</div>
+          <div class="period-opt" data-period="45d">Últimos 45 días</div>
           <div class="period-opt" data-period="mtd">Mes actual (MTD)</div>
+          <div class="period-opt" data-period="last_month">Mes pasado</div>
         </div>
         <div class="corte" id="corte">Datos al corte: —</div>
       </div>
@@ -313,6 +324,7 @@
           <span class="axis-first"><b id="cov-first-pct">—%</b> al que <b>ENGANCHÓ</b></span>
         </div>
         <div class="blended-sub" id="cac-sub">cac_paid_blended (ads productivos) <b id="cac-paid">—</b></div>
+        <div class="lag-banner" id="lag-banner">⚠ Captación parcial — el Leadtime de Jenny llega con semanas de lag; el CAC sale inflado en ventanas cortas.</div>
       </div>
       <div class="blended-ctx" id="blended-ctx">ROAS <b id="ctx-roas">—</b> · <b id="ctx-captac">—</b> captaciones · CAC venta <b id="ctx-cac-venta">—</b> · spend sin captación <b id="ctx-spend-sin">—</b></div>
     </div>
@@ -389,11 +401,17 @@
 // ═══ Constantes ═══
 const CAC_TARGET = 4500;                    // Firestore S78 (frontend cache)
 const FB_PAGE = "inmobili.internacional";   // para FB plugin embeds
-const FIRESTORE_PATH = client => `workspaces/optimizads/clients/${client}/sections/ads-manager-v2`;
-const DEFAULT_PERIOD = "since_feb";
+// S87: el pipeline ahora escribe split-per-period cuando el bundle
+// excede 700 KB (8 períodos = ~906 KB). Cada doc tiene shape
+// { _meta: {...}, data: { _meta, totals, campaigns, ... } }.
+// Frontend lee el doc del período activo + cachea por período.
+const FIRESTORE_PATH = (client, p) =>
+  `workspaces/optimizads/clients/${client}/sections/ads-manager-v2-${p}`;
+const DEFAULT_PERIOD = "30d";  // S87: default = 30d (sin lag, datos completos)
 
 // ═══ Estado ═══
-let doc = null;             // doc completo Firestore
+// Cache por período para evitar re-fetch al cambiar dropdown.
+let docsByPeriod = {};      // { period: <doc Firestore> }
 let period = DEFAULT_PERIOD; // periodo activo
 let attribution = "close";   // "close" (default) | "first"
 let plazaFilter = "all";    // "all" | "trc" | "gmz"
@@ -623,24 +641,30 @@ function sortTree(rows) {
 
 function thumbCell(row) {
   if (row.level !== "ad") return "";
-  // Convención de archivo igual que v5: derivar "OA{N}" del ad_name.
-  // Los .jpg ya descargados en /assets/ads-manager/ usan prefijo
-  // OA{N}_{ad_id}.jpg (no la familia [XX]{N}). Mantenemos compat.
-  // `row.code` (= BB17, EE12, etc. de Fase 4a) se usa en otros lugares
-  // del UI pero NO para el path de thumb.
+  // Cascada de sources (S87 mejor fallback que el v5):
+  //   1. /assets/ads-manager/OA{N}_{ad_id}.jpg (pre-descargado del v5)
+  //   2. row.thumbnail_url del shape v2 (Meta creative.thumbnail_url —
+  //      cdn de fbcdn, caduca por oe=timestamp pero funciona días)
+  //   3. row.image_url del shape v2 (Meta creative.image_url)
+  //   4. Icono ti-photo/ti-player-play como último fallback
+  // El <img> usa el primer source disponible; si falla, onerror cascada
+  // al siguiente. Si NINGUNO carga, el icono Tabler queda visible.
   const oaMatch = (row.ad_name || "").match(/^OA\d+/i);
   const oaCode = oaMatch ? oaMatch[0].toUpperCase() : null;
-  const src = oaCode ? ("/assets/ads-manager/" + oaCode + "_" + row.ad_id + ".jpg") : null;
+  const sources = [];
+  if (oaCode) sources.push("/assets/ads-manager/" + oaCode + "_" + row.ad_id + ".jpg");
+  if (row.thumbnail_url) sources.push(row.thumbnail_url);
+  if (row.image_url) sources.push(row.image_url);
   const isVideo = row.object_type === "VIDEO";
   const cls = "thumb" + (isVideo ? " video" : "");
   const ico = isVideo ? "ti-player-play" : "ti-photo";
-  // Fallback decente cuando el thumb no carga (ad nuevo sin .jpg
-  // descargado): mostramos el icono ti-photo/ti-player-play en lugar
-  // del cuadro gris vacío que reportó Anwar en S87.
-  if (!src) {
-    return '<span class="' + cls + '" title="Sin thumbnail disponible" onclick="event.stopPropagation();openModal(\'' + row.id + '\')"><i class="ti ' + ico + '"></i></span>';
+  if (sources.length === 0) {
+    return '<span class="' + cls + '" title="Sin creative disponible" onclick="event.stopPropagation();openModal(\'' + row.id + '\')"><i class="ti ' + ico + '"></i></span>';
   }
-  return '<span class="' + cls + '" onclick="event.stopPropagation();openModal(\'' + row.id + '\')"><img src="' + src + '" onerror="this.style.display=\'none\';this.parentNode.querySelector(\'i\').style.display=\'\';"><i class="ti ' + ico + '" style="display:none"></i></span>';
+  // Cascada: data-srcs JSON-encoded; onerror promueve al siguiente.
+  const srcsJson = JSON.stringify(sources).replace(/"/g, '&quot;');
+  const onerror = "(function(img){try{var s=JSON.parse(img.getAttribute('data-srcs'));var i=parseInt(img.getAttribute('data-idx')||'0',10)+1;if(i<s.length){img.setAttribute('data-idx',i);img.src=s[i];}else{img.style.display='none';img.parentNode.querySelector('i').style.display='';}}catch(e){img.style.display='none';}})(this)";
+  return '<span class="' + cls + '" onclick="event.stopPropagation();openModal(\'' + row.id + '\')"><img src="' + sources[0] + '" data-srcs="' + srcsJson + '" data-idx="0" onerror="' + onerror + '"><i class="ti ' + ico + '" style="display:none"></i></span>';
 }
 
 function renderRows() {
@@ -673,7 +697,16 @@ function renderRows() {
         const st = row.level === "ad" ? '<span class="st st-' + stCls + '" title="' + stTitle(stCls) + '"></span>' : "";
         const toggle = row.level === "ad" ? '<div class="toggle ' + (stCls === "active" ? "on" : "off") + '"><div class="knob"></div></div>' : "";
         const thumb = thumbCell(row);
-        const subLine = row.level === "ad" ? '<div class="ad-sub">OA' + (row.ad_name || "").match(/OA(\d+)/)?.[1] + (row.code ? " · (" + row.code.replace(/\d+$/, "") + ")" : "") + "</div>" : "";
+        // S87: subline tolerante. Antes mostraba "OAundefined" cuando el
+        // ad_name no tenía OA{N}; ahora se omite el bloque OA si no matchea.
+        let subLine = "";
+        if (row.level === "ad") {
+          const oaM = (row.ad_name || "").match(/OA(\d+)/i);
+          const parts = [];
+          if (oaM) parts.push("OA" + oaM[1]);
+          if (row.code) parts.push("(" + row.code.replace(/\d+$/, "") + ")");
+          if (parts.length) subLine = '<div class="ad-sub">' + parts.join(" · ") + '</div>';
+        }
         td.innerHTML = '<div class="ad-cell">' + toggle + thumb + '<div>' + caret + st + ico + '<span class="ad-name">' + (row.ad_name || row.name || "—") + "</span>" + subLine + "</div></div>";
       } else if (col.key === "captac") {
         if (!c.captac) td.innerHTML = '<span class="muted">—</span>';
@@ -742,9 +775,11 @@ function renderRows() {
 }
 
 // ═══ Current period data ═══
+// S87: docs split-per-period tienen shape { _meta, data: { _meta, totals, campaigns, ... } }.
 function currentPeriod() {
-  if (!doc) return null;
-  return (doc.periods || {})[period] || null;
+  const d = docsByPeriod[period];
+  if (!d) return null;
+  return d.data || d;  // tolerant: si llega no-split (legacy), usa raíz
 }
 
 function currentTree() {
@@ -776,6 +811,12 @@ function renderHeaderPanel() {
   // Coverage labels — DOS números, NUNCA fundir (doctrina S87)
   document.getElementById("cov-close-pct").textContent = cov.close_pct != null ? cov.close_pct + "%" : "—%";
   document.getElementById("cov-first-pct").textContent = cov.first_pct != null ? cov.first_pct + "%" : "—%";
+
+  // S87: lag warning banner — el pipeline marca lag_warning=true en
+  // períodos ≤14d donde el Leadtime aún no registró todas las
+  // captaciones recientes → CAC inflado por captación parcial.
+  const lagBanner = document.getElementById("lag-banner");
+  if (lagBanner) lagBanner.classList.toggle("show", !!M.lag_warning);
 
   // cac_paid_blended (sub)
   document.getElementById("cac-paid").textContent = fmtMoney(T.cac_paid_blended);
@@ -934,19 +975,42 @@ function showMain() {
   document.getElementById("main-content").style.display = "flex";
 }
 
-async function loadFromFirestore() {
+async function loadPeriodDoc(targetPeriod) {
+  // S87: fetch del doc split-per-period. Cachea por período para
+  // evitar re-fetch al volver a un período ya cargado.
+  if (docsByPeriod[targetPeriod]) return docsByPeriod[targetPeriod];
   const client = clientFromQuery();
-  const path = FIRESTORE_PATH(client);
+  const path = FIRESTORE_PATH(client, targetPeriod);
   console.log("[v12] fetching", path);
+  const snap = await firebase.firestore().doc(path).get();
+  if (!snap.exists) throw Object.assign(new Error("no-data"), { code: "no-data" });
+  const d = snap.data();
+  docsByPeriod[targetPeriod] = d;
+  return d;
+}
+
+async function loadFromFirestore() {
   try {
-    const snap = await firebase.firestore().doc(path).get();
-    if (!snap.exists) { showAuthEmpty("no-data"); return; }
-    doc = snap.data();
+    await loadPeriodDoc(period);
     showMain();
     render();
   } catch (err) {
     if (err && (err.code === "permission-denied" || err.code === "unauthenticated")) showAuthEmpty("denied");
+    else if (err && err.code === "no-data") showAuthEmpty("no-data");
     else { console.error("[v12] fetch error", err); showAuthEmpty("error"); }
+  }
+}
+
+// S87: handler reusable para cambio de período desde el dropdown.
+async function switchPeriod(newPeriod) {
+  period = newPeriod;
+  try {
+    await loadPeriodDoc(newPeriod);
+    render();
+  } catch (err) {
+    console.error("[v12] switch period error", err);
+    // Sigue mostrando el período anterior (silent fallback) — el log
+    // queda en console para diag.
   }
 }
 
@@ -1015,9 +1079,9 @@ function wireTopbar() {
     const opt = e.target.closest(".period-opt");
     if (!opt) return;
     e.stopPropagation();
-    period = opt.dataset.period;
     closeMenu();
-    render();
+    // S87: switchPeriod fetcha el doc del período seleccionado (cache-aware).
+    switchPeriod(opt.dataset.period);
   });
   document.addEventListener("click", (e) => {
     if (pMenu.hidden) return;
