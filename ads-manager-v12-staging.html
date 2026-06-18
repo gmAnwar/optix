@@ -1,0 +1,1282 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Optix · Ads Manager v12</title>
+
+<!--
+═══════════════════════════════════════════════════════════
+  v12 (Fase 4b S87) — Meta Ads Manager style.
+  DATOS: workspaces/optimizads/clients/{client}/sections/ads-manager-v2
+  (escrito 2x/día por el pipeline, doctrina dual-CAC + dual-axis).
+  El doc viejo sections/ads-manager (que lee el v5 vivo) NO se toca.
+  AUTH: Firebase compat 9.23 — rules require auth, sin sesión → empty state.
+
+  PRESERVA del v5:
+    - Auth flow + ?client= routing + multi-cliente shell
+    - Thumbnails /assets/ads-manager/{code}_{ad_id}.jpg + modal FB Plugin
+    - Sort por cualquier métrica + drag-drop column reorder
+    - Status dots (active/paused/adset-paused/never)
+    - CAC traffic light (única métrica con color de juicio)
+
+  AGREGA (decisiones cerradas S87):
+    - Toggle "Atribución" Cierre/Enganche (last/first-touch)
+    - Dos coberturas como labels fijos arriba del CAC big
+    - Tabs Campañas/Conjuntos/Anuncios (agrupación client-side)
+    - Plaza filter Todas/Torreón/Gómez
+    - Capa 2 = solo no-resolubles (UNIQUE ya en Capa 1 via captacion_close)
+    - Tooltip comisión $65k provisional
+═══════════════════════════════════════════════════════════ -->
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script>
+  firebase.initializeApp({
+    apiKey: "AIzaSyDFz4p5Me5lZwzCT7aM992JSiWeVbWJb6w",
+    authDomain: "optix-5fb36.firebaseapp.com",
+    projectId: "optix-5fb36"
+  });
+</script>
+
+<!-- S87 BUG 4: cdnjs/tabler-icons/3.2.0 devolvía 404 (versión removida).
+     jsdelivr @tabler/icons-webfont@3.24.0 sirve el mismo set de clases
+     ti-* (target, folder, photo, player-play, chevron-down, calendar,
+     filter, coin, map-pin, info-circle, checkbox, search, etc). -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.24.0/dist/tabler-icons.min.css">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { background:#f0f2f5; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; color:#1c1e21; padding:20px; font-size:14px; }
+  .app { background:#fff; border-radius:14px; overflow:hidden; display:flex; min-height:760px; max-width:1640px; margin:0 auto; border:0.5px solid #dadde1; box-shadow:0 1px 4px rgba(0,0,0,0.04); }
+
+  /* ─ Rail ─ */
+  .rail { width:56px; flex-shrink:0; background:#f7f8fa; border-right:0.5px solid #e4e6eb; padding:14px 0; display:flex; flex-direction:column; align-items:center; }
+  .rail-logo { width:30px; height:30px; border-radius:7px; background:#1877f2; display:flex; align-items:center; justify-content:center; font-weight:600; font-size:15px; color:#fff; margin-bottom:18px; }
+  .rail-sec { width:100%; display:flex; flex-direction:column; align-items:center; gap:3px; }
+  .rail-div { width:24px; height:0.5px; background:#dadde1; margin:12px 0; }
+  .rail-item { position:relative; width:38px; height:38px; border-radius:9px; display:flex; align-items:center; justify-content:center; color:#65676b; cursor:pointer; }
+  .rail-item:hover { background:#ebedf0; color:#1c1e21; }
+  .rail-item:hover .tip { opacity:1; }
+  .rail-item.active { background:#e7f0fe; color:#1877f2; }
+  .rail-item i { font-size:19px; }
+  .tip { position:absolute; left:46px; top:50%; transform:translateY(-50%); background:#1c1e21; color:#fff; font-size:11px; padding:4px 8px; border-radius:6px; white-space:nowrap; opacity:0; pointer-events:none; transition:opacity .12s; z-index:10; }
+  .rail-foot { margin-top:auto; }
+
+  /* ─ Main ─ */
+  .main { flex:1; min-width:0; display:flex; flex-direction:column; }
+  .topbar { padding:16px 24px 0; display:flex; align-items:center; justify-content:space-between; }
+  .topbar-left { display:flex; align-items:center; gap:14px; }
+  .title { font-size:21px; font-weight:600; white-space:nowrap; }
+  .acct-sel { display:flex; align-items:center; background:#fff; border:0.5px solid #c8ccd1; border-radius:9px; padding:5px 10px 5px 5px; cursor:pointer; }
+  .acct-badge { width:30px; height:30px; border-radius:7px; background:#1877f2; color:#fff; display:flex; align-items:center; justify-content:center; font-size:14px; font-weight:600; margin-right:9px; }
+  .acct-divider { width:0.5px; height:24px; background:#dadde1; margin-right:9px; }
+  .acct-ico { color:#1877f2; font-size:18px; margin-right:8px; }
+  .acct-name { font-size:14px; font-weight:500; margin-right:8px; }
+  .acct-sel .chev { font-size:15px; color:#65676b; }
+  .period-wrap { position:relative; }
+  .date-dd { display:flex; align-items:center; gap:8px; background:#fff; border:0.5px solid #c8ccd1; border-radius:8px; padding:7px 12px; font-size:12.5px; cursor:pointer; }
+  .date-dd i.cal { font-size:15px; color:#65676b; } .date-dd i.chev { font-size:14px; color:#65676b; transition:transform .12s; }
+  .date-dd.open i.chev { transform:rotate(180deg); }
+  /* S87 BUG 3: dropdown real (era stub que cicla on-click). Menu
+     absolute-positioned bajo el trigger, ocultable por click-outside. */
+  .period-menu { position:absolute; right:0; top:36px; min-width:200px; background:#fff; border:0.5px solid #c8ccd1; border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,0.08); padding:4px; z-index:20; }
+  .period-menu[hidden] { display:none; }
+  .period-opt { padding:8px 12px; font-size:12.5px; cursor:pointer; border-radius:6px; color:#1c1e21; display:flex; justify-content:space-between; align-items:center; gap:8px; }
+  .period-opt:hover { background:#f0f2f5; }
+  .period-opt.active { background:#e7f0fe; color:#1877f2; font-weight:500; }
+  /* S87: badge de lag en períodos ≤14d. El sheet de Jenny tarda semanas
+     en registrar captaciones recientes → CAC inflado por captación
+     parcial. Visible y honesto. */
+  .lag-badge { font-size:10px; color:#b15a36; background:#f7e9e3; padding:1px 6px; border-radius:4px; white-space:nowrap; }
+  .lag-banner { display:none; background:#fff7e6; color:#b15a36; border:0.5px solid #f7e9e3; border-radius:6px; padding:6px 10px; font-size:11.5px; margin:8px 0; }
+  .lag-banner.show { display:inline-block; }
+  /* S87 MEJORA 1: leyenda visible de status. Una sola línea, justo
+     antes de la tabla — usuario la ve sin scroll. */
+  .status-legend { display:flex; flex-wrap:wrap; gap:18px; padding:8px 24px 12px; font-size:11px; color:#65676b; align-items:center; border-bottom:0.5px solid #e9ebee; }
+  .status-legend > span { display:flex; align-items:center; gap:7px; }
+  .status-legend b { color:#1c1e21; font-weight:500; }
+  .status-legend .legend-aside { color:#a8abb0; font-size:10.5px; margin-left:auto; font-style:italic; }
+  .corte { font-size:11px; color:#8a8d91; margin-top:4px; text-align:right; }
+
+  /* ─ Tabs ─ */
+  .tabbar { display:flex; align-items:flex-end; gap:3px; padding:18px 24px 0; border-bottom:1px solid #dadde1; }
+  .tab { display:flex; align-items:center; gap:7px; padding:9px 16px; font-size:13px; color:#65676b; cursor:pointer; background:#f0f2f5; border:1px solid #dadde1; border-bottom:none; border-radius:8px 8px 0 0; position:relative; top:1px; }
+  .tab:hover { background:#e9ebee; } .tab i { font-size:16px; }
+  .tab .badge { font-size:11px; color:#8a8d91; }
+  .tab.active { background:#fff; color:#1877f2; font-weight:600; border-bottom:1px solid #fff; }
+  .tab.active .badge { color:#1877f2; }
+
+  /* ─ Blended panel ─ */
+  .blended { display:flex; align-items:center; justify-content:space-between; padding:16px 24px 12px; flex-wrap:wrap; gap:8px; }
+  .blended-main { display:flex; align-items:baseline; gap:14px; flex-wrap:wrap; }
+  .blended-num { font-size:28px; font-weight:600; }
+  .blended-num.good { color:#1d9e75; } .blended-num.bad { color:#c4502a; }
+  .blended-lbl { font-size:12px; color:#8a8d91; margin-left:9px; }
+  .blended-pill { font-size:11.5px; padding:3px 10px; border-radius:6px; }
+  .blended-pill.bad { background:#f7e9e3; color:#b15a36; }
+  .blended-pill.good { background:#e3f7e9; color:#36b15a; }
+  .blended-ctx { font-size:11.5px; color:#8a8d91; }
+  .blended-ctx b { color:#1c1e21; font-weight:500; }
+  .coverage-labels { font-size:11px; color:#65676b; margin-top:4px; display:flex; gap:14px; flex-wrap:wrap; }
+  .coverage-labels span b { color:#1c1e21; font-weight:600; }
+  .coverage-labels .axis-close { color:#1d9e75; }
+  .coverage-labels .axis-first { color:#5a7fa8; }
+  .blended-sub { font-size:11px; color:#a8abb0; margin-top:2px; }
+
+  /* ─ Toolbar ─ */
+  .toolbar { display:flex; align-items:center; justify-content:space-between; padding:0 24px 12px; gap:12px; flex-wrap:wrap; }
+  .search { flex:1; max-width:260px; background:#f0f2f5; border:0.5px solid #dadde1; border-radius:8px; padding:8px 12px; font-size:12.5px; color:#1c1e21; display:flex; align-items:center; gap:8px; }
+  .search input { flex:1; border:none; background:transparent; outline:none; font-size:12.5px; color:#1c1e21; }
+  .search input::placeholder { color:#8a8d91; }
+  .toolbar-right { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .col-toggle { display:flex; align-items:center; gap:7px; background:#fff; border:0.5px solid #c8ccd1; border-radius:8px; padding:7px 11px; font-size:12px; color:#1c1e21; cursor:pointer; user-select:none; white-space:nowrap; }
+  .col-toggle i { font-size:14px; color:#65676b; }
+  .col-toggle.on { background:#e7f0fe; border-color:#cfe0fc; color:#1877f2; }
+  .col-toggle.on i { color:#1877f2; }
+  .attr-seg { display:flex; background:#f0f2f5; border:0.5px solid #dadde1; border-radius:8px; overflow:hidden; }
+  .attr-seg div { padding:7px 13px; font-size:12px; color:#65676b; cursor:pointer; user-select:none; display:flex; align-items:center; gap:6px; }
+  /* pointer-events:none en el icono ⇒ el click event.target siempre es
+     el div padre. Defiende contra event-bubble weirdness del S87. */
+  .attr-seg div i { font-size:13px; pointer-events:none; }
+  .attr-seg div.active { background:#fff; color:#1c1e21; font-weight:500; box-shadow:0 0 0 0.5px #dadde1; }
+  .plaza-seg { display:flex; background:#f0f2f5; border:0.5px solid #dadde1; border-radius:8px; overflow:hidden; }
+  .plaza-seg div { padding:7px 13px; font-size:12px; color:#65676b; cursor:pointer; user-select:none; }
+  .plaza-seg div.active { background:#fff; color:#1c1e21; font-weight:500; box-shadow:0 0 0 0.5px #dadde1; }
+
+  /* ─ Table ─ */
+  .table-wrap { padding:0 24px; overflow-x:auto; }
+  table { width:100%; border-collapse:collapse; font-size:12px; }
+  thead tr { color:#8a8d91; font-size:9.5px; letter-spacing:0.4px; text-transform:uppercase; }
+  th { padding:9px 6px; font-weight:500; text-align:right; white-space:nowrap; cursor:pointer; user-select:none; }
+  th.l { text-align:left; }
+  th.cost { color:#b0b3b8; font-weight:400; }
+  th.funnel-col { color:#5a7fa8; } th.funnel-cost { color:#9db4cf; font-weight:400; }
+  th.ret { color:#8a7a9a; }
+  th .arrow { opacity:0.4; font-size:9px; margin-left:3px; }
+  th.sorted .arrow { opacity:1; color:#1877f2; }
+  th.with-tip { position:relative; }
+  th.with-tip .ttip { position:absolute; bottom:100%; left:50%; transform:translateX(-50%); background:#1c1e21; color:#fff; padding:6px 10px; border-radius:6px; font-size:11px; white-space:nowrap; opacity:0; pointer-events:none; transition:opacity .12s; z-index:5; margin-bottom:4px; text-transform:none; letter-spacing:0; font-weight:400; }
+  th.with-tip:hover .ttip { opacity:1; }
+  tbody td { padding:10px 6px; text-align:right; color:#1c1e21; white-space:nowrap; }
+  tbody td.l { text-align:left; }
+  td.cost, td.funnel-cost { color:#a8abb0; }
+  .funnel-col, .funnel-cost { background:#fafcff; }
+  .ret { background:#fcfafd; color:#8a8d91; }
+  tbody tr { border-top:0.5px solid #e9ebee; cursor:pointer; }
+  tbody tr:hover { background:#f7f8fa; }
+  tbody tr.row-campaign { background:#f7f8fa; font-weight:600; }
+  tbody tr.row-adset { background:#fbfcfd; }
+  tbody tr.row-hidden { display:none; }
+  .ad-cell { display:flex; align-items:center; gap:9px; }
+  .toggle { width:28px; height:16px; border-radius:9px; flex-shrink:0; position:relative; }
+  .toggle.on { background:#1877f2; } .toggle.off { background:#ccd0d5; }
+  .toggle .knob { position:absolute; top:2px; width:12px; height:12px; border-radius:50%; background:#fff; }
+  .toggle.on .knob { left:14px; } .toggle.off .knob { left:2px; }
+  /* S87 BUG 1+2: default = colapsado (caret rotado a 90° = ▶). Expanded
+     = caret bajado (▼). Inverso a la semántica vieja `row-collapsed`. */
+  .caret { display:inline-block; width:12px; cursor:pointer; color:#65676b; user-select:none; transition:transform .12s; font-size:10px; margin-right:2px; transform:rotate(-90deg); }
+  .row-expanded .caret { transform:rotate(0); }
+  .thumb { width:34px; height:22px; border-radius:4px; flex-shrink:0; background:#e4e6eb; display:flex; align-items:center; justify-content:center; color:#b0b3b8; position:relative; cursor:pointer; }
+  .thumb i { font-size:12px; }
+  .thumb.video { background:#dde7f5; color:#1877f2; }
+  .thumb img { width:100%; height:100%; object-fit:cover; border-radius:4px; }
+  .thumb .play { position:absolute; right:1px; bottom:1px; background:rgba(0,0,0,0.7); color:#fff; font-size:7px; padding:1px 3px; border-radius:2px; line-height:1; }
+  .ad-name { color:#1877f2; font-size:12px; }
+  .ad-sub { color:#8a8d91; font-size:10px; }
+  .st { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:6px; vertical-align:middle; flex-shrink:0; }
+  .st-active { background:#1d9e75; box-shadow:0 0 4px #1d9e7560; }
+  .st-paused { background:#d4a533; }
+  .st-adset-paused { background:transparent; border:1.5px solid #d4a533; box-sizing:border-box; }
+  .st-never { background:transparent; border:1.5px dashed #8a8d91; box-sizing:border-box; }
+  .cac-num { color:#1c1e21; font-weight:400; }
+  .cac-num.good { color:#1d9e75; font-weight:500; }
+  .cac-num.mid  { color:#a0936a; }
+  .cac-num.bad  { color:#c4502a; font-weight:500; }
+  .pct-sub { font-size:9.5px; margin-top:2px; }
+  .pct-good { color:#1d9e75; } .pct-mid { color:#a0936a; } .pct-hi { color:#c4502a; }
+  .muted { color:#a8abb0; font-size:9.5px; }
+  .conv { color:#8a8d91; font-size:9px; margin-top:1px; display:block; }
+  .conv-low { color:#c4502a; font-size:9px; margin-top:1px; display:block; }
+  .total-row { border-top:1px solid #d0d3d8 !important; background:#f7f8fa; }
+  .total-row td { color:#65676b; font-size:11px; }
+  .total-row td.big { color:#1c1e21; font-weight:600; }
+
+  /* ─ Layers (Capas 2/3/4) ─ */
+  .layers { padding:8px 24px 0; }
+  .layer { margin-top:18px; }
+  .layer-head { font-size:13px; font-weight:600; margin-bottom:3px; }
+  .layer-hint { font-size:11px; color:#8a8d91; margin-bottom:10px; }
+  .fam-grid { display:grid; grid-template-columns:repeat(5,1fr); gap:10px; }
+  .bucket-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; }
+  .fam-card { background:#f7f8fa; border:0.5px solid #e9ebee; border-radius:9px; padding:11px 13px; }
+  .fam-letter { font-size:10px; color:#8a8d91; letter-spacing:0.4px; }
+  .fam-num { font-size:22px; font-weight:600; margin:2px 0; }
+  .fam-split { font-size:10px; color:#8a8d91; }
+  .fam-note { font-size:9.5px; color:#a8abb0; margin-top:6px; line-height:1.4; }
+  .cclkk-table { width:100%; border-collapse:collapse; font-size:12px; }
+  .cclkk-table th { text-align:left; padding:7px 8px; font-size:9.5px; color:#8a8d91; text-transform:uppercase; letter-spacing:0.5px; font-weight:500; }
+  .cclkk-table th.r { text-align:right; }
+  .cclkk-table td { padding:9px 8px; border-top:0.5px solid #e9ebee; }
+  .cclkk-table td.r { text-align:right; }
+
+  /* ─ Rules box ─ */
+  .rules { margin:22px 24px; background:#f7f8fa; border:0.5px solid #e4e6eb; border-radius:10px; padding:13px 16px; }
+  .rules-title { font-size:12px; font-weight:600; color:#65676b; display:flex; align-items:center; gap:7px; margin-bottom:7px; }
+  .rules-title i { font-size:15px; }
+  .rules-item { font-size:11.5px; color:#8a8d91; line-height:1.6; }
+  .rules-item b { font-weight:600; color:#65676b; }
+  .footnote { padding:10px 24px 16px; font-size:11px; color:#b58a00; }
+
+  /* ─ Auth / empty states ─ */
+  #main-content { display:none; }
+  #auth-empty { display:none; max-width:480px; margin:80px auto; padding:32px; text-align:center; background:#fff; border:0.5px solid #dadde1; border-radius:12px; }
+  #auth-empty .icon { font-size:36px; margin-bottom:14px; color:#65676b; }
+  #auth-empty h2 { font-size:16px; font-weight:600; margin-bottom:8px; }
+  #auth-empty p { font-size:13px; color:#65676b; line-height:1.6; margin-bottom:18px; }
+  #auth-empty a { display:inline-block; background:#1877f2; color:#fff; text-decoration:none; padding:10px 18px; border-radius:8px; font-size:13px; font-weight:600; }
+
+  /* ─ No-data banner (other clients) ─ */
+  #no-data-banner { display:none; padding:24px; text-align:center; color:#65676b; font-size:13px; }
+
+  /* ─ Modal (FB Plugin) ─ */
+  .modal { position:fixed; inset:0; background:rgba(0,0,0,0.5); display:none; align-items:center; justify-content:center; z-index:100; }
+  .modal.open { display:flex; }
+  .modal-inner { background:#fff; border-radius:12px; max-width:600px; width:95%; max-height:90vh; overflow:auto; padding:20px; position:relative; }
+  .modal .close { position:absolute; top:10px; right:14px; background:none; border:none; font-size:24px; cursor:pointer; color:#65676b; }
+  .modal h3 { font-size:14px; margin-bottom:14px; padding-right:24px; }
+  .modal iframe { width:100%; border:none; }
+  .modal .meta-line { margin-top:14px; padding-top:14px; border-top:0.5px solid #e9ebee; font-size:11px; color:#65676b; line-height:1.6; }
+  .modal .meta-line code { background:#f0f2f5; padding:1px 5px; border-radius:3px; font-size:10px; }
+  .modal .meta-line a { color:#1877f2; }
+</style>
+</head>
+<body>
+
+<div id="auth-empty">
+  <div class="icon">🔒</div>
+  <h2 id="auth-empty-title">Inicia sesión en Optix</h2>
+  <p id="auth-empty-msg">Este tablero lee los datos desde Firestore con tu sesión Optix. Inicia sesión y vuelve a este enlace, o entra desde el sidebar de un cliente en <strong>Análisis → Ads Manager</strong>.</p>
+  <a href="/index.html">Ir a iniciar sesión</a>
+</div>
+
+<div id="main-content" class="app">
+
+  <!-- ── Rail ── -->
+  <div class="rail">
+    <div class="rail-logo">O</div>
+    <div class="rail-sec">
+      <div class="rail-item active"><i class="ti ti-target"></i><span class="tip">SLA · captación</span></div>
+      <div class="rail-item"><i class="ti ti-checkbox"></i><span class="tip">Cierre</span></div>
+      <div class="rail-item"><i class="ti ti-photo"></i><span class="tip">Creativos</span></div>
+      <div class="rail-item"><i class="ti ti-clock"></i><span class="tip">Temporal</span></div>
+    </div>
+    <div class="rail-div"></div>
+    <div class="rail-sec">
+      <div class="rail-item"><i class="ti ti-player-play"></i><span class="tip">Solo activos</span></div>
+      <div class="rail-item"><i class="ti ti-flame"></i><span class="tip">Sobre target</span></div>
+      <div class="rail-item"><i class="ti ti-map-pin"></i><span class="tip">Plaza</span></div>
+    </div>
+    <div class="rail-foot rail-sec">
+      <div class="rail-item" onclick="location.href='/'"><i class="ti ti-arrow-left"></i><span class="tip">Cambiar cliente</span></div>
+    </div>
+  </div>
+
+  <!-- ── Main ── -->
+  <div class="main">
+    <div class="topbar">
+      <div class="topbar-left">
+        <div class="title">Ads Manager</div>
+        <div class="acct-sel">
+          <div class="acct-badge">I</div><div class="acct-divider"></div>
+          <i class="ti ti-id-badge-2 acct-ico"></i>
+          <span class="acct-name" id="acct-name">Inmobili · act_9369…2512</span>
+          <i class="ti ti-chevron-down chev"></i>
+        </div>
+      </div>
+      <div class="period-wrap">
+        <div class="date-dd" id="period-dd"><i class="ti ti-calendar cal"></i><span id="period-label">— periodo —</span><i class="ti ti-chevron-down chev"></i></div>
+        <!-- S87: 7 períodos preset. ≤14d traen badge de lag. -->
+        <div class="period-menu" id="period-menu" hidden>
+          <div class="period-opt" data-period="3d">Últimos 3 días <span class="lag-badge">⚠ parcial</span></div>
+          <div class="period-opt" data-period="7d">Últimos 7 días <span class="lag-badge">⚠ parcial</span></div>
+          <div class="period-opt" data-period="14d">Últimos 14 días <span class="lag-badge">⚠ parcial</span></div>
+          <div class="period-opt" data-period="30d">Últimos 30 días</div>
+          <div class="period-opt" data-period="45d">Últimos 45 días</div>
+          <div class="period-opt" data-period="mtd">Mes actual (MTD)</div>
+          <div class="period-opt" data-period="last_month">Mes pasado</div>
+        </div>
+        <div class="corte" id="corte">Datos al corte: —</div>
+      </div>
+    </div>
+
+    <div class="tabbar" id="tabbar">
+      <div class="tab" data-tab="campaign"><i class="ti ti-folder"></i>Campañas <span class="badge" id="badge-campaign">—</span></div>
+      <div class="tab" data-tab="adset"><i class="ti ti-layout-grid"></i>Conjuntos <span class="badge" id="badge-adset">—</span></div>
+      <div class="tab active" data-tab="ad"><i class="ti ti-photo"></i>Anuncios <span class="badge" id="badge-ad">—</span></div>
+    </div>
+
+    <div class="blended">
+      <div>
+        <div class="blended-main">
+          <div>
+            <span class="blended-num" id="cac-big">—</span>
+            <span class="blended-lbl">CAC captación blended · SLA OptimizAds</span>
+          </div>
+          <div class="blended-pill bad" id="cac-pill">—</div>
+        </div>
+        <div class="coverage-labels" id="coverage-labels">
+          <span class="axis-close"><b id="cov-close-pct">—%</b> atribuible al ad que <b>CERRÓ</b></span>
+          <span class="axis-first"><b id="cov-first-pct">—%</b> al que <b>ENGANCHÓ</b></span>
+        </div>
+        <div class="blended-sub" id="cac-sub">cac_paid_blended (ads productivos) <b id="cac-paid">—</b></div>
+        <div class="lag-banner" id="lag-banner">⚠ Captación parcial — el Leadtime de Jenny llega con semanas de lag; el CAC sale inflado en ventanas cortas.</div>
+      </div>
+      <div class="blended-ctx" id="blended-ctx">ROAS <b id="ctx-roas">—</b> · <b id="ctx-captac">—</b> captaciones · CAC venta <b id="ctx-cac-venta">—</b> · spend sin captación <b id="ctx-spend-sin">—</b></div>
+    </div>
+
+    <div class="toolbar">
+      <div class="search"><i class="ti ti-search" style="font-size:15px"></i><input type="text" id="search-input" placeholder="Buscar anuncio…"></div>
+      <div class="toolbar-right">
+        <div class="attr-seg" id="attr-seg">
+          <div data-attr="close" class="active" title="Atribución last-touch — qué ad cerró"><i class="ti ti-checkbox"></i>Cierre</div>
+          <div data-attr="first" title="Atribución first-touch — qué ad enganchó"><i class="ti ti-flame"></i>Enganche</div>
+        </div>
+        <div class="col-toggle on" id="tg-funnel"><i class="ti ti-filter"></i>Embudo</div>
+        <div class="col-toggle on" id="tg-ret"><i class="ti ti-coin"></i>Retorno</div>
+        <!-- S87 MEJORA 2: sort prendidos-primero (status priority + spend desc). -->
+        <div class="col-toggle on" id="tg-activos-first" title="Activos arriba, desempate por inversión"><i class="ti ti-arrow-up"></i>Activos 1°</div>
+        <div class="plaza-seg" id="plaza-seg">
+          <div class="active" data-plaza="all">Todas</div>
+          <div data-plaza="trc">Torreón</div>
+          <div data-plaza="gmz">Gómez</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- S87 MEJORA 1: leyenda visible de los 4 estados de status. -->
+    <div class="status-legend" id="status-legend">
+      <span><span class="st st-active"></span><b>Activo</b> — delivering</span>
+      <span><span class="st st-paused"></span><b>Pausado</b> — Anwar lo pausó</span>
+      <span><span class="st st-adset-paused"></span><b>Adset/Campaña pausada</b> — el ad cayó por su padre</span>
+      <span><span class="st st-never"></span><b>Nunca activado</b> — sin delivery</span>
+      <span class="legend-aside">El toggle on/off junto al dot es decorativo (refleja status, no prende/apaga — para eso ir a Meta).</span>
+    </div>
+
+    <div class="table-wrap">
+      <table id="tbl">
+        <thead><tr id="hrow"></tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+
+    <div class="layers">
+      <div class="layer">
+        <div class="layer-head">Capa 2 — Captación nivel familia</div>
+        <div class="layer-hint" id="lvl2-hint">— captaciones donde el código existe pero NO resuelve a ad único · informativa, NO entra al CAC</div>
+        <div class="fam-grid" id="family-grid"></div>
+      </div>
+      <div class="layer">
+        <div class="layer-head">Capa 3 — Bucket DESC / ORG</div>
+        <div class="layer-hint" id="lvl3-hint">— captaciones fuera del paid attribution · NO al CAC</div>
+        <div class="bucket-grid" id="bucket-grid"></div>
+      </div>
+      <div class="layer">
+        <div class="layer-head">Capa 4 — Adsets paid sin spend en ventana</div>
+        <div class="layer-hint" id="lvl4-hint">CC / LL / KK · adsets existen pero amount_spent="Not available" en el periodo</div>
+        <div class="table-wrap" style="padding:0; overflow-x:auto;">
+          <table class="cclkk-table">
+            <thead><tr><th>Adset</th><th>Adset ID</th><th class="r">TRC</th><th class="r">GMZ</th><th class="r">Tot</th><th class="r">Spend</th><th class="r">CAC</th></tr></thead>
+            <tbody id="cclkk"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="rules">
+      <div class="rules-title"><i class="ti ti-info-circle"></i>Reglas aplicadas (S86 → S87 dual-axis)</div>
+      <div class="rules-item"><b>Regla 1 — solo exacta cuenta al CAC.</b> Captación nivel familia (Capa 2) es informativa, NO entra. Decode 3-piezas resuelve el closer al ad exacto cuando hay UNIQUE; los no-resolubles (OVERLAP/NONE_ACTIVE) van a Capa 2.</div>
+      <div class="rules-item"><b>Regla 2 — DESC/ORG fuera del CAC.</b> Atribuciones sin paid o mixtas viven en Capa 3 sin repartir entre ads.</div>
+      <div class="rules-item"><b>Regla 3 — Dual-axis.</b> first-touch (qué enganchó) y close (qué cerró) son métricas distintas, nunca fundidas. Toggle "Atribución" cambia el eje. Las dos coberturas siempre visibles.</div>
+      <div class="rules-item"><b>Regla 4 — CC/LL/KK aparte.</b> Adsets paid sin spend en ventana → Capa 4.</div>
+    </div>
+    <div class="footnote" id="footnote">Comisión por venta cerrada: $65,000 (def. Anwar, sin confirmar cliente). ROAS y CAC venta son provisionales hasta confirmar.</div>
+  </div>
+</div>
+
+<div class="modal" id="modal" onclick="if(event.target.id==='modal')closeModal()">
+  <div class="modal-inner">
+    <button class="close" onclick="closeModal()">×</button>
+    <h3 id="modal-title"></h3>
+    <div id="modal-body"></div>
+  </div>
+</div>
+
+<div id="no-data-banner"></div>
+
+<script>
+// ═══ Constantes ═══
+const CAC_TARGET = 4500;                    // Firestore S78 (frontend cache)
+const FB_PAGE = "inmobili.internacional";   // para FB plugin embeds
+// S87: el pipeline ahora escribe split-per-period cuando el bundle
+// excede 700 KB (8 períodos = ~906 KB). Cada doc tiene shape
+// { _meta: {...}, data: { _meta, totals, campaigns, ... } }.
+// Frontend lee el doc del período activo + cachea por período.
+const FIRESTORE_PATH = (client, p) =>
+  `workspaces/optimizads/clients/${client}/sections/ads-manager-v2-${p}`;
+// S87 HOTFIX: default cambió a since_feb. Está presente en el doc legacy
+// (3 periods) Y como split doc — siempre debería cargar algo. 30d (preferido
+// por UX) puede no estar en el legacy si las rules bloquean los split paths.
+const DEFAULT_PERIOD = "since_feb";
+
+// ═══ Estado ═══
+// Cache por período para evitar re-fetch al cambiar dropdown.
+let docsByPeriod = {};      // { period: <doc Firestore> }
+let period = DEFAULT_PERIOD; // periodo activo
+let attribution = "close";   // "close" (default) | "first"
+let plazaFilter = "all";    // "all" | "trc" | "gmz"
+let tabLevel = "ad";        // "ad" | "adset" | "campaign"
+let showFunnel = true, showRet = true;
+// S87 BUG 1+2: semántica flippada. Default = todo COLAPSADO (children
+// ocultos); click expande. En Anuncios tab no aplica (lista flat).
+let expanded = {};
+let sortKey = "captac", sortDir = -1;
+// S87 MEJORA 2: sort "Activos primero". Cuando true, sort principal =
+// statusSortRank ASC (active=0, adset-paused=1, paused=2, never=3) +
+// desempate por spend DESC. Es default ON. Click en columna desactiva.
+let activosFirst = true;
+let searchQuery = "";
+
+// ═══ Columnas (mockup orden) ═══
+let columns = [
+  { key: "name",      label: "Anuncio",       type: "text",   align: "left" },
+  { key: "spend",     label: "Inversión",     type: "money" },
+  { key: "mensajes",  label: "Mensajes",      type: "int" },
+  { key: "costo_msg", label: "$/msg",         type: "money", cls: "cost" },
+  { key: "llamada",   label: "Llam.",         type: "int",   cls: "funnel-col" },
+  { key: "costo_llam",label: "$/llam.",       type: "money", cls: "funnel-cost" },
+  { key: "cita",      label: "Cita",          type: "int",   cls: "funnel-col" },
+  { key: "costo_cita",label: "$/cita",        type: "money", cls: "funnel-cost" },
+  { key: "a_espera",  label: "A espera",      type: "int",   cls: "funnel-col" },
+  { key: "costo_esp", label: "$/esp.",        type: "money", cls: "funnel-cost" },
+  { key: "captac",    label: "Captación",     type: "captac" },
+  { key: "cac",       label: "CAC captación", type: "money", anchor: true },
+  { key: "cac_venta", label: "CAC venta",     type: "money", cls: "ret", tip: "Asume comisión $65k por venta. Sin confirmar cliente." },
+  { key: "roas",      label: "ROAS",          type: "roas",  cls: "ret", tip: "Asume comisión $65k por venta. Sin confirmar cliente." },
+];
+
+// ═══ Helpers de formato ═══
+const fmtMoney = v => v == null ? "—" : "$" + Math.round(v).toLocaleString("es-MX");
+const fmtInt   = v => v == null ? "—" : v.toLocaleString("es-MX");
+const fmtRoas  = v => v == null ? "—" : v.toFixed(1) + "x";
+const fmtPct   = v => v == null ? "—" : Math.round(v) + "%";
+
+// ═══ Per-row calc según eje atribución ═══
+function calcRow(r) {
+  // Eje activo dicta qué captación se muestra como "Captación" y qué CAC.
+  const cap = attribution === "close" ? (r.captacion_close || r.captacion || {}) : (r.captacion_first_touch || r.captacion || {});
+  const captac_count = cap.count || 0;
+  const captac_trc = cap.trc || 0;
+  const captac_gmz = cap.gmz || 0;
+  // CAC del eje activo.
+  const cac = attribution === "close" ? r.cac_captacion_close : (r.cac_captacion_first_touch || r.cac_captacion);
+  const spend = r.spend || 0;
+  const mensajes = r.mensajes || 0;
+  const llamada = (r.funnel || {}).llamada || {};
+  const cita = (r.funnel || {}).cita || {};
+  const a_espera = (r.funnel || {}).a_espera || {};
+  return {
+    spend, mensajes,
+    costo_msg: r.costo_msg,
+    llamada: llamada.count || 0, costo_llam: llamada.cost,
+    cita: cita.count || 0, costo_cita: cita.cost,
+    a_espera: a_espera.count || 0, costo_esp: a_espera.cost,
+    llamada_conv: llamada.conv_pct, cita_conv: cita.conv_pct, a_espera_conv: a_espera.conv_pct,
+    captac: captac_count, captac_trc, captac_gmz,
+    cac, cac_venta: r.cac_venta, roas: r.roas,
+    // pct vs target del eje activo
+    pct_vs_target: cac && CAC_TARGET ? ((cac / CAC_TARGET - 1) * 100) : null,
+  };
+}
+
+function cacClass(v) {
+  if (v == null) return "";
+  if (v <= CAC_TARGET) return "good";
+  if (v <= CAC_TARGET * 1.4) return "mid";
+  return "bad";
+}
+
+function stTitle(s) {
+  return { active: "Activo", paused: "Pausado", "adset-paused": "Adset pausado", never: "Nunca activado" }[s] || "";
+}
+
+// S87 MEJORA 1: mapeo correcto del effective_status de Meta. Antes
+// colapsaba todos los PAUSE en "paused"; ahora distingue:
+//   - PAUSED               = el ad mismo está pausado por Anwar
+//   - ADSET_PAUSED         = ad config activo, ADSET pausado (cayó por padre)
+//   - CAMPAIGN_PAUSED      = ad config activo, CAMPAIGN pausada
+// Esa distinción importa: "pausé este ad" ≠ "pausé la campaña entera".
+// El CSS para `.st-adset-paused` ya existía (ámbar outline) pero era
+// dead code porque statusToClass nunca lo retornaba.
+function statusToClass(status) {
+  if (!status) return "never";
+  const s = String(status).toUpperCase();
+  if (s === "ACTIVE") return "active";
+  if (s === "ADSET_PAUSED" || s === "CAMPAIGN_PAUSED") return "adset-paused";
+  if (s === "PAUSED") return "paused";
+  // Otros estados de Meta (DELETED, PENDING_REVIEW, DISAPPROVED, etc.)
+  // los tratamos como "never" — el ad no está delivering.
+  return "never";
+}
+
+// S87 MEJORA 2: prioridad para sort "Activos primero". Empate por
+// inversión desc dentro de cada grupo.
+function statusSortRank(stCls) {
+  return { "active": 0, "adset-paused": 1, "paused": 2, "never": 3 }[stCls] ?? 9;
+}
+
+// ═══ Tree build: flat campaigns[] → campaign→adset→ad ═══
+function buildTree(campaigns) {
+  const byCamp = {};
+  campaigns.forEach(ad => {
+    const cid = ad.campaign_id || "—", aid = ad.adset_id || "—";
+    if (!byCamp[cid]) byCamp[cid] = { id: "C:" + cid, level: "campaign", name: ad.campaign_name || "(sin nombre)", campaign_id: cid, adsets: {} };
+    if (!byCamp[cid].adsets[aid]) byCamp[cid].adsets[aid] = { id: "A:" + aid, level: "adset", name: ad.adset_name || "(sin nombre)", adset_id: aid, ads: [] };
+    byCamp[cid].adsets[aid].ads.push({ ...ad, level: "ad", id: "AD:" + ad.ad_id });
+  });
+  const out = Object.values(byCamp).map(c => ({
+    ...c,
+    children: Object.values(c.adsets).map(as => ({ ...as, children: as.ads }))
+  }));
+  return out;
+}
+
+// ═══ Aggregate roll-ups (campaign/adset rows sum its children) ═══
+function rollup(node) {
+  if (node.level === "ad") return node;
+  const kids = (node.children || []).map(rollup);
+  const sum = (key, sub) => kids.reduce((s, k) => s + ((sub ? (k[key] || {})[sub] : k[key]) || 0), 0);
+  const captacion = { count: sum("captacion", "count"), trc: sum("captacion", "trc"), gmz: sum("captacion", "gmz") };
+  const captacion_close = { count: sum("captacion_close", "count"), trc: sum("captacion_close", "trc"), gmz: sum("captacion_close", "gmz") };
+  const captacion_first_touch = { count: sum("captacion_first_touch", "count"), trc: sum("captacion_first_touch", "trc"), gmz: sum("captacion_first_touch", "gmz") };
+  const spend = sum("spend"), mensajes = sum("mensajes");
+  return {
+    ...node,
+    spend, mensajes,
+    funnel: {
+      llamada: { count: sum("funnel", "llamada"), conv_pct: null, cost: null },
+      cita: { count: sum("funnel", "cita"), conv_pct: null, cost: null },
+      a_espera: { count: sum("funnel", "a_espera"), conv_pct: null, cost: null },
+    },
+    captacion, captacion_close, captacion_first_touch,
+    cac_captacion: captacion.count ? spend / captacion.count : null,
+    cac_captacion_close: captacion_close.count ? spend / captacion_close.count : null,
+    cac_captacion_first_touch: captacion_first_touch.count ? spend / captacion_first_touch.count : null,
+    children: kids,
+  };
+}
+
+// Funnel sums need to come from raw counts inside each ad's funnel.{stage}.count.
+// Re-do rollup to handle funnel correctly.
+// S87 MEJORA 3: deriva el status agregado del nodo padre desde los ads
+// descendientes (Anwar: VERDE si AL MENOS UN hijo es ACTIVE puro).
+// effective_status del ad ya propaga el estado del padre — Meta marca
+// ADSET_PAUSED/CAMPAIGN_PAUSED cuando el ad config está activo pero el
+// padre está pausado. Por eso "active" cuenta solo los effective_status
+// === "ACTIVE" puro (NO ADSET_PAUSED/CAMPAIGN_PAUSED, que están apagados).
+function aggregateChildStatus(node) {
+  if (!node) return { cls: "never", activeCount: 0, totalAds: 0 };
+  if (node.level === "ad") {
+    const cls = statusToClass(node.status);
+    return { cls, activeCount: cls === "active" ? 1 : 0, totalAds: 1 };
+  }
+  let activeCount = 0, parentPausedCount = 0, pausedCount = 0, neverCount = 0, totalAds = 0;
+  (node.children || []).forEach(c => {
+    const r = aggregateChildStatus(c);
+    activeCount += r.activeCount;
+    totalAds += r.totalAds;
+    if (c.level === "ad") {
+      const cl = statusToClass(c.status);
+      if (cl === "adset-paused") parentPausedCount++;
+      else if (cl === "paused") pausedCount++;
+      else if (cl === "never") neverCount++;
+    }
+  });
+  // Si al menos UN ad descendant ACTIVE puro → el padre vive.
+  if (activeCount > 0) return { cls: "active", activeCount, totalAds };
+  // Si todos pausados por padre → el adset/campaign realmente está pausado.
+  if (parentPausedCount > 0 && pausedCount === 0 && neverCount === 0) return { cls: "adset-paused", activeCount: 0, totalAds };
+  // Algún pausado puro → "paused"
+  if (pausedCount > 0) return { cls: "paused", activeCount: 0, totalAds };
+  // Mix de parent-paused + never → adset-paused
+  if (parentPausedCount > 0) return { cls: "adset-paused", activeCount: 0, totalAds };
+  return { cls: "never", activeCount: 0, totalAds };
+}
+
+function rollupV2(node) {
+  if (node.level === "ad") return node;
+  const kids = (node.children || []).map(rollupV2);
+  const sumKey = k => kids.reduce((s, x) => s + (x[k] || 0), 0);
+  const sumCaptac = (field, sub) => kids.reduce((s, x) => s + ((x[field] || {})[sub] || 0), 0);
+  const sumFunnel = stage => kids.reduce((s, x) => s + (((x.funnel || {})[stage] || {}).count || 0), 0);
+  const spend = sumKey("spend"), mensajes = sumKey("mensajes");
+  const ll = sumFunnel("llamada"), ci = sumFunnel("cita"), ae = sumFunnel("a_espera");
+  const safediv = (a, b) => b ? a / b : null;
+  // S87 MEJORA 3: status agregado del padre.
+  const aggSt = aggregateChildStatus({ ...node, children: kids });
+  return {
+    ...node,
+    _aggStatus: aggSt,  // { cls, activeCount, totalAds } para uso en render
+    spend, mensajes,
+    costo_msg: safediv(spend, mensajes),
+    funnel: {
+      llamada: { count: ll, conv_pct: safediv(ll, mensajes) * 100, cost: safediv(spend, ll) },
+      cita:    { count: ci, conv_pct: safediv(ci, ll) * 100,       cost: safediv(spend, ci) },
+      a_espera:{ count: ae, conv_pct: safediv(ae, ci) * 100,       cost: safediv(spend, ae) },
+    },
+    captacion:             { count: sumCaptac("captacion", "count"), trc: sumCaptac("captacion", "trc"), gmz: sumCaptac("captacion", "gmz") },
+    captacion_close:       { count: sumCaptac("captacion_close", "count"), trc: sumCaptac("captacion_close", "trc"), gmz: sumCaptac("captacion_close", "gmz") },
+    captacion_first_touch: { count: sumCaptac("captacion_first_touch", "count"), trc: sumCaptac("captacion_first_touch", "trc"), gmz: sumCaptac("captacion_first_touch", "gmz") },
+    ventas_ok: sumKey("ventas_ok"),
+    cac_captacion: safediv(spend, sumCaptac("captacion", "count")),
+    cac_captacion_close: safediv(spend, sumCaptac("captacion_close", "count")),
+    cac_captacion_first_touch: safediv(spend, sumCaptac("captacion_first_touch", "count")),
+    cac_venta: safediv(spend, sumKey("ventas_ok")),
+    roas: spend && sumKey("ventas_ok") ? (sumKey("ventas_ok") * 65000) / spend : null,
+    children: kids,
+  };
+}
+
+// ═══ Render header ═══
+function renderHeader() {
+  const hr = document.getElementById("hrow"); hr.innerHTML = "";
+  columns.forEach((col, idx) => {
+    // Filter cols by toggles
+    if (!showFunnel && (col.key.startsWith("llamada") || col.key.startsWith("cita") || col.key.startsWith("a_espera") || col.key.startsWith("costo_llam") || col.key.startsWith("costo_cita") || col.key.startsWith("costo_esp"))) return;
+    if (!showRet && (col.key === "cac_venta" || col.key === "roas")) return;
+    const th = document.createElement("th");
+    let cls = (col.align === "left" ? "l " : "") + (col.cls || "") + (sortKey === col.key ? " sorted" : "");
+    if (col.tip) cls += " with-tip";
+    th.className = cls.trim();
+    th.draggable = true;
+    const arrow = sortKey === col.key ? (sortDir === 1 ? "▲" : "▼") : "↕";
+    let label = col.label;
+    th.innerHTML = label + ' <span class="arrow">' + arrow + "</span>" + (col.tip ? '<span class="ttip">' + col.tip + "</span>" : "");
+    th.onclick = () => {
+      // S87 MEJORA 2: click en columna override el "Activos primero".
+      activosFirst = false;
+      const tg = document.getElementById("tg-activos-first");
+      if (tg) tg.classList.remove("on");
+      if (sortKey === col.key) sortDir *= -1; else { sortKey = col.key; sortDir = -1; }
+      render();
+    };
+    th.ondragstart = e => e.dataTransfer.setData("idx", String(idx));
+    th.ondragover  = e => { e.preventDefault(); th.style.borderTop = "2px solid #1877f2"; };
+    th.ondragleave = () => th.style.borderTop = "";
+    th.ondrop      = e => { e.preventDefault(); th.style.borderTop = ""; const f = +e.dataTransfer.getData("idx"); const m = columns.splice(f, 1)[0]; columns.splice(idx, 0, m); render(); };
+    hr.appendChild(th);
+  });
+}
+
+// ═══ Render table rows ═══
+function passesPlazaFilter(r) {
+  if (plazaFilter === "all") return true;
+  const c = calcRow(r);
+  return (plazaFilter === "trc" ? c.captac_trc : c.captac_gmz) > 0 || (c.captac === 0); // ads sin captac no se filtran out
+}
+
+function passesSearch(r) {
+  if (!searchQuery) return true;
+  const q = searchQuery.toLowerCase();
+  const hay = (r.ad_name || r.name || "").toLowerCase() + " " + (r.adset_name || "").toLowerCase() + " " + (r.campaign_name || "").toLowerCase() + " " + (r.code || "").toLowerCase() + " " + (r.ad_id || "");
+  return hay.includes(q);
+}
+
+// S87 BUG 1+2: lista de filas visibles según tab + estado `expanded`.
+// Default = todos los parents colapsados; click expande.
+function getVisibleRows(tree) {
+  const out = [];
+  if (tabLevel === "ad") {
+    // ANUNCIOS: lista flat de ads. NO tree, NO caret. Match al mockup
+    // "Anuncios (8)" = 8 ad rows planas.
+    tree.forEach(c => (c.children || []).forEach(a => (a.children || []).forEach(ad => out.push(ad))));
+    // S87 MEJORA 2: si "Activos primero" está ON, re-sortear FLAT global
+    // (no por grupos de adset). El sortTree previo solo ordena dentro
+    // de cada parent — en flat list queremos prioridad global.
+    if (activosFirst) {
+      out.sort((a, b) => {
+        const ra = statusSortRank(statusToClass(a.status));
+        const rb = statusSortRank(statusToClass(b.status));
+        if (ra !== rb) return ra - rb;
+        return (b.spend || 0) - (a.spend || 0);
+      });
+    }
+    return out;
+  }
+  // CAMPAÑAS o CONJUNTOS: tree desde el nivel del tab.
+  const roots = tabLevel === "campaign" ? tree : tree.flatMap(c => c.children || []);
+  const walk = (nodes) => {
+    nodes.forEach(n => {
+      out.push(n);
+      if ((n.children || []).length && expanded[n.id]) walk(n.children);
+    });
+  };
+  walk(roots);
+  return out;
+}
+
+function sortTree(rows) {
+  // S87 MEJORA 2: sort "Activos primero" tiene prioridad sobre el
+  // sortKey de columna. Activo=0, adset-paused=1, paused=2, never=3.
+  // Desempate dentro del grupo por inversión DESC. Aplica a los 3
+  // niveles del árbol (campaigns, adsets, ads) → recursivo.
+  const rankOf = (r) => {
+    if (r.level === "ad") return statusSortRank(statusToClass(r.status));
+    const agg = r._aggStatus || { cls: "never" };
+    return statusSortRank(agg.cls);
+  };
+  if (activosFirst) {
+    const cmp = (a, b) => {
+      const ra = rankOf(a), rb = rankOf(b);
+      if (ra !== rb) return ra - rb;
+      // Empate: por spend DESC.
+      return (b.spend || 0) - (a.spend || 0);
+    };
+    const rec = arr => arr.map(r => r.children ? { ...r, children: rec([...r.children].sort(cmp)) } : r);
+    return rec([...rows].sort(cmp));
+  }
+  // Fallback al sort de columna clickeada.
+  if (!sortKey || sortKey === "name") return rows;
+  const cmp = (a, b) => {
+    const av = (calcRow(a))[sortKey], bv = (calcRow(b))[sortKey];
+    if (av == null) return 1; if (bv == null) return -1;
+    return (av - bv) * sortDir;
+  };
+  const rec = arr => arr.map(r => r.children ? { ...r, children: rec([...r.children].sort(cmp)) } : r);
+  return rec([...rows].sort(cmp));
+}
+
+function thumbCell(row) {
+  if (row.level !== "ad") return "";
+  // Cascada de sources (S87 mejor fallback que el v5):
+  //   1. /assets/ads-manager/OA{N}_{ad_id}.jpg (pre-descargado del v5)
+  //   2. row.thumbnail_url del shape v2 (Meta creative.thumbnail_url —
+  //      cdn de fbcdn, caduca por oe=timestamp pero funciona días)
+  //   3. row.image_url del shape v2 (Meta creative.image_url)
+  //   4. Icono ti-photo/ti-player-play como último fallback
+  // El <img> usa el primer source disponible; si falla, onerror cascada
+  // al siguiente. Si NINGUNO carga, el icono Tabler queda visible.
+  const oaMatch = (row.ad_name || "").match(/^OA\d+/i);
+  const oaCode = oaMatch ? oaMatch[0].toUpperCase() : null;
+  const sources = [];
+  if (oaCode) sources.push("/assets/ads-manager/" + oaCode + "_" + row.ad_id + ".jpg");
+  if (row.thumbnail_url) sources.push(row.thumbnail_url);
+  if (row.image_url) sources.push(row.image_url);
+  const isVideo = row.object_type === "VIDEO";
+  const cls = "thumb" + (isVideo ? " video" : "");
+  const ico = isVideo ? "ti-player-play" : "ti-photo";
+  if (sources.length === 0) {
+    return '<span class="' + cls + '" title="Sin creative disponible" onclick="event.stopPropagation();openModal(\'' + row.id + '\')"><i class="ti ' + ico + '"></i></span>';
+  }
+  // Cascada: data-srcs JSON-encoded; onerror promueve al siguiente.
+  const srcsJson = JSON.stringify(sources).replace(/"/g, '&quot;');
+  const onerror = "(function(img){try{var s=JSON.parse(img.getAttribute('data-srcs'));var i=parseInt(img.getAttribute('data-idx')||'0',10)+1;if(i<s.length){img.setAttribute('data-idx',i);img.src=s[i];}else{img.style.display='none';img.parentNode.querySelector('i').style.display='';}}catch(e){img.style.display='none';}})(this)";
+  return '<span class="' + cls + '" onclick="event.stopPropagation();openModal(\'' + row.id + '\')"><img src="' + sources[0] + '" data-srcs="' + srcsJson + '" data-idx="0" onerror="' + onerror + '"><i class="ti ' + ico + '" style="display:none"></i></span>';
+}
+
+function renderRows() {
+  const tb = document.getElementById("tbody"); tb.innerHTML = "";
+  const sorted = sortTree(currentTree());
+  // S87 BUG 1+2: getVisibleRows resuelve correctamente el subset por
+  // tab (flat ads para Anuncios, tree expandible para Campañas/Conjuntos).
+  const rows = getVisibleRows(sorted);
+  // Apply search + plaza filter (en rows tipo ad; campañas/adsets siempre visibles)
+  const visible = rows.filter(r => {
+    if (r.level !== "ad") return true;
+    return passesSearch(r) && passesPlazaFilter(r);
+  });
+  visible.forEach(row => {
+    const c = calcRow(row);
+    const tr = document.createElement("tr");
+    tr.className = "row-" + row.level + (row.level !== "ad" && expanded[row.id] ? " row-expanded" : "");
+    if (row.level !== "ad") {
+      tr.onclick = () => { expanded[row.id] = !expanded[row.id]; render(); };
+    }
+    columns.forEach(col => {
+      if (!showFunnel && (col.key.startsWith("llamada") || col.key.startsWith("cita") || col.key.startsWith("a_espera") || col.key.startsWith("costo_llam") || col.key.startsWith("costo_cita") || col.key.startsWith("costo_esp"))) return;
+      if (!showRet && (col.key === "cac_venta" || col.key === "roas")) return;
+      const td = document.createElement("td");
+      td.className = (col.align === "left" ? "l " : "") + (col.cls || "");
+      if (col.key === "name") {
+        const caret = row.level !== "ad" ? '<span class="caret">▼</span>' : "";
+        const ico = row.level === "campaign" ? '<i class="ti ti-folder" style="font-size:13px;color:#65676b;margin-right:4px"></i>' : row.level === "adset" ? '<i class="ti ti-layout-grid" style="font-size:13px;color:#65676b;margin-right:4px"></i>' : "";
+        // S87 MEJORA 3: dot también para campaign/adset (derivado de hijos).
+        let stCls, stTitleTxt;
+        if (row.level === "ad") {
+          stCls = statusToClass(row.status);
+          stTitleTxt = stTitle(stCls);
+        } else {
+          const agg = row._aggStatus || { cls: "never", activeCount: 0, totalAds: 0 };
+          stCls = agg.cls;
+          stTitleTxt = stTitle(agg.cls) + " · " + agg.activeCount + "/" + agg.totalAds + " ads activos";
+        }
+        const st = '<span class="st st-' + stCls + '" title="' + stTitleTxt + '"></span>';
+        // S87 MEJORA 1: el toggle ahora SOLO va en ad rows; tooltip aclara
+        // que es decorativo (espeja status, no prende/apaga).
+        const toggle = row.level === "ad"
+          ? '<div class="toggle ' + (stCls === "active" ? "on" : "off") + '" title="Decorativo — refleja el status del ad; para prender/apagar ir a Meta Ads Manager"><div class="knob"></div></div>'
+          : "";
+        const thumb = thumbCell(row);
+        // S87: subline tolerante. Antes mostraba "OAundefined" cuando el
+        // ad_name no tenía OA{N}; ahora se omite el bloque OA si no matchea.
+        let subLine = "";
+        if (row.level === "ad") {
+          const oaM = (row.ad_name || "").match(/OA(\d+)/i);
+          const parts = [];
+          if (oaM) parts.push("OA" + oaM[1]);
+          if (row.code) parts.push("(" + row.code.replace(/\d+$/, "") + ")");
+          if (parts.length) subLine = '<div class="ad-sub">' + parts.join(" · ") + '</div>';
+        } else if (row._aggStatus) {
+          // S87 MEJORA 3: "X/Y activos" como sub-info en filas adset/campaign.
+          const agg = row._aggStatus;
+          subLine = '<div class="ad-sub">' + agg.activeCount + "/" + agg.totalAds + " ads activos</div>";
+        }
+        td.innerHTML = '<div class="ad-cell">' + toggle + thumb + '<div>' + caret + st + ico + '<span class="ad-name">' + (row.ad_name || row.name || "—") + "</span>" + subLine + "</div></div>";
+      } else if (col.key === "captac") {
+        if (!c.captac) td.innerHTML = '<span class="muted">—</span>';
+        else {
+          const breakdown = row.level === "ad" ? '<span class="muted">T' + c.captac_trc + "·G" + c.captac_gmz + "</span>" : "";
+          td.innerHTML = "<b>" + c.captac + "</b> " + breakdown;
+        }
+      } else if (col.key === "cac") {
+        const cls = cacClass(c.cac);
+        const pct = c.pct_vs_target;
+        const pctCls = pct == null ? "" : pct <= 0 ? "pct-good" : pct <= 25 ? "pct-mid" : "pct-hi";
+        const pctTxt = pct == null ? "" : (pct >= 0 ? "+" : "") + Math.round(pct) + "%";
+        td.innerHTML = '<span class="cac-num ' + cls + '">' + fmtMoney(c.cac) + "</span>" + (pct != null ? '<div class="pct-sub ' + pctCls + '">' + pctTxt + "</div>" : "");
+      } else if (col.key === "llamada" || col.key === "cita" || col.key === "a_espera") {
+        const conv = c[col.key + "_conv"];
+        const cls = conv != null && conv < 30 ? "conv-low" : "conv";
+        td.innerHTML = fmtInt(c[col.key]) + (conv != null ? '<span class="' + cls + '">' + fmtPct(conv) + "</span>" : "");
+      } else if (col.key === "costo_llam" || col.key === "costo_cita" || col.key === "costo_esp" || col.key === "costo_msg" || col.key === "spend") {
+        td.innerHTML = fmtMoney(c[col.key]);
+      } else if (col.key === "mensajes") {
+        td.innerHTML = fmtInt(c.mensajes);
+      } else if (col.key === "cac_venta") {
+        td.innerHTML = c.cac_venta == null ? '<span class="muted">sin venta</span>' : fmtMoney(c.cac_venta);
+      } else if (col.key === "roas") {
+        td.innerHTML = c.roas == null ? '<span class="muted">—</span>' : fmtRoas(c.roas);
+      }
+      tr.appendChild(td);
+    });
+    tb.appendChild(tr);
+  });
+
+  // Total row at end (use period totals from v2)
+  const T = (currentPeriod() || {}).totals || {};
+  if (T.spend) {
+    const tr = document.createElement("tr"); tr.className = "total-row";
+    columns.forEach(col => {
+      if (!showFunnel && (col.key.startsWith("llamada") || col.key.startsWith("cita") || col.key.startsWith("a_espera") || col.key.startsWith("costo_llam") || col.key.startsWith("costo_cita") || col.key.startsWith("costo_esp"))) return;
+      if (!showRet && (col.key === "cac_venta" || col.key === "roas")) return;
+      const td = document.createElement("td");
+      td.className = (col.align === "left" ? "l " : "") + (col.cls || "");
+      const cap = attribution === "close" ? "close" : (attribution === "first" ? "first_touch" : "");
+      const capObj = T["captacion_" + cap] || T.captacion || {};
+      switch (col.key) {
+        case "name": td.innerHTML = (visible.filter(v => v.level === "ad").length) + " anuncios"; break;
+        case "spend": td.innerHTML = fmtMoney(T.spend); break;
+        case "mensajes": td.innerHTML = fmtInt(T.mensajes); break;
+        case "costo_msg": td.innerHTML = fmtMoney(T.costo_msg); break;
+        case "llamada": td.innerHTML = fmtInt((T.funnel || {}).llamada?.count) + '<span class="conv">' + fmtPct((T.funnel || {}).llamada?.conv_pct) + "</span>"; break;
+        case "costo_llam": td.innerHTML = fmtMoney((T.funnel || {}).llamada?.cost); break;
+        case "cita": td.innerHTML = fmtInt((T.funnel || {}).cita?.count) + '<span class="conv">' + fmtPct((T.funnel || {}).cita?.conv_pct) + "</span>"; break;
+        case "costo_cita": td.innerHTML = fmtMoney((T.funnel || {}).cita?.cost); break;
+        case "a_espera": td.innerHTML = fmtInt((T.funnel || {}).a_espera?.count) + '<span class="conv">' + fmtPct((T.funnel || {}).a_espera?.conv_pct) + "</span>"; break;
+        case "costo_esp": td.innerHTML = fmtMoney((T.funnel || {}).a_espera?.cost); break;
+        case "captac": td.innerHTML = "<b>" + (capObj.count || 0) + "</b>"; break;
+        case "cac":
+          // Total row CAC big = cac_blended_total (honest, S88 doctrina)
+          td.className += " big"; td.innerHTML = fmtMoney(T.cac_blended_total); break;
+        case "cac_venta": td.innerHTML = fmtMoney(T.cac_venta); break;
+        case "roas": td.innerHTML = fmtRoas(T.roas); break;
+        default: td.innerHTML = "—";
+      }
+      tr.appendChild(td);
+    });
+    tb.appendChild(tr);
+  }
+}
+
+// ═══ Current period data ═══
+// S87: docs split-per-period tienen shape { _meta, data: { _meta, totals, campaigns, ... } }.
+function currentPeriod() {
+  const d = docsByPeriod[period];
+  if (!d) return null;
+  return d.data || d;  // tolerant: si llega no-split (legacy), usa raíz
+}
+
+function currentTree() {
+  const p = currentPeriod();
+  if (!p) return [];
+  const tree = buildTree(p.campaigns || []);
+  return tree.map(rollupV2);
+}
+
+// ═══ Header SLA + coverage labels + ctx ═══
+function renderHeaderPanel() {
+  const p = currentPeriod(); if (!p) return;
+  const T = p.totals || {};
+  const M = p._meta || {};
+  const cov = (M.coverage_attribution) || {};
+
+  // CAC big — totals.cac_blended_total (honest, S88)
+  const cacBig = T.cac_blended_total;
+  document.getElementById("cac-big").textContent = fmtMoney(cacBig);
+  document.getElementById("cac-big").className = "blended-num " + (cacBig > CAC_TARGET ? "bad" : "good");
+
+  // Pill +/- vs target
+  if (cacBig && CAC_TARGET) {
+    const delta = (cacBig / CAC_TARGET - 1) * 100;
+    document.getElementById("cac-pill").textContent = (delta >= 0 ? "+" : "") + delta.toFixed(1) + "% " + (delta >= 0 ? "sobre" : "bajo") + " target " + fmtMoney(CAC_TARGET);
+    document.getElementById("cac-pill").className = "blended-pill " + (delta >= 0 ? "bad" : "good");
+  }
+
+  // Coverage labels — DOS números, NUNCA fundir (doctrina S87)
+  document.getElementById("cov-close-pct").textContent = cov.close_pct != null ? cov.close_pct + "%" : "—%";
+  document.getElementById("cov-first-pct").textContent = cov.first_pct != null ? cov.first_pct + "%" : "—%";
+
+  // S87: lag warning banner — el pipeline marca lag_warning=true en
+  // períodos ≤14d donde el Leadtime aún no registró todas las
+  // captaciones recientes → CAC inflado por captación parcial.
+  const lagBanner = document.getElementById("lag-banner");
+  if (lagBanner) lagBanner.classList.toggle("show", !!M.lag_warning);
+
+  // cac_paid_blended (sub)
+  document.getElementById("cac-paid").textContent = fmtMoney(T.cac_paid_blended);
+
+  // Ctx
+  document.getElementById("ctx-roas").textContent = fmtRoas(T.roas);
+  document.getElementById("ctx-captac").textContent = T.captac_blended || 0;
+  document.getElementById("ctx-cac-venta").textContent = fmtMoney(T.cac_venta);
+  document.getElementById("ctx-spend-sin").textContent = fmtMoney(T.spend_sin_captacion);
+
+  // Period label
+  document.getElementById("period-label").textContent = M.period_from + " — " + M.period_to + " (" + period + ")";
+  // S87 HOTFIX: la variable global `doc` fue renombrada a `docsByPeriod`
+  // pero esta línea quedó referenciándola → ReferenceError que tumba
+  // todo el render() y muestra "Error al cargar" aunque el fetch fue OK.
+  const splitRoot = docsByPeriod[period] || {};
+  const gen = ((splitRoot._meta) || {}).generated_at || "—";
+  document.getElementById("corte").textContent = "Datos al corte: " + (gen || "—").toString().substring(0, 10) + " · pipeline 2x/día";
+
+  // Footnote comisión
+  const com = ((M.constants) || {}).comision_venta || 65000;
+  document.getElementById("footnote").textContent = "Comisión por venta cerrada: $" + com.toLocaleString("es-MX") + " (def. Anwar, sin confirmar cliente). ROAS y CAC venta son provisionales hasta confirmar.";
+
+  // Tab badges
+  const tree = currentTree();
+  document.getElementById("badge-campaign").textContent = tree.length;
+  document.getElementById("badge-adset").textContent = tree.reduce((s, c) => s + (c.children || []).length, 0);
+  document.getElementById("badge-ad").textContent = (p.campaigns || []).length;
+}
+
+// ═══ Capas 2/3/4 ═══
+function renderCapa2() {
+  const p = currentPeriod(); if (!p) return;
+  const fam = p.familia || [];
+  const total = fam.reduce((s, f) => s + (f.captac || 0), 0);
+  document.getElementById("lvl2-hint").textContent = "+" + total + " captaciones donde el código existe pero NO resuelve a ad único (OVERLAP = copias activas mismo mes; NONE_ACTIVE = ad off en la fecha) · informativa, NO entra al CAC";
+  const g = document.getElementById("family-grid"); g.innerHTML = "";
+  fam.forEach(f => {
+    const div = document.createElement("div"); div.className = "fam-card";
+    div.innerHTML = '<div class="fam-letter">LETRA ' + f.letter + "</div>" +
+                    '<div class="fam-num">' + f.captac + "</div>" +
+                    '<div class="fam-split">TRC ' + f.trc + " · GMZ " + f.gmz + "</div>" +
+                    '<div class="fam-note">overlap ' + (f.overlap || 0) + " · none_active " + (f.none_active || 0) + "</div>";
+    g.appendChild(div);
+  });
+}
+
+function renderCapa3() {
+  const p = currentPeriod(); if (!p) return;
+  const bb = p.buckets || [];
+  const total = bb.reduce((s, b) => s + (b.num || 0), 0);
+  document.getElementById("lvl3-hint").textContent = total + " captaciones fuera del paid attribution · NO al CAC";
+  const g = document.getElementById("bucket-grid"); g.innerHTML = "";
+  bb.forEach(b => {
+    const div = document.createElement("div"); div.className = "fam-card";
+    div.innerHTML = '<div class="fam-letter">' + b.title + "</div>" +
+                    '<div class="fam-num">' + b.num + "</div>" +
+                    '<div class="fam-note">' + (b.sub || "") + "</div>";
+    g.appendChild(div);
+  });
+}
+
+function renderCapa4() {
+  const p = currentPeriod(); if (!p) return;
+  const cl = p.cclkk || [];
+  const total = cl.reduce((s, x) => s + (x.captac || 0), 0);
+  document.getElementById("lvl4-hint").textContent = (cl.length ? "CC/LL/KK · " + total + " captaciones · adsets existen pero sin gasto en ventana" : "No hay ads CC/LL/KK con captaciones en este periodo");
+  const tb = document.getElementById("cclkk"); tb.innerHTML = "";
+  cl.forEach(r => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = '<td><b>' + r.code + "</b> · " + (r.name || "—") + "</td>" +
+                   '<td><code style="font-size:11px;color:#8a8d91">' + (r.adset_id || "—") + "</code></td>" +
+                   '<td class="r">' + (r.trc || 0) + "</td>" +
+                   '<td class="r">' + (r.gmz || 0) + "</td>" +
+                   '<td class="r"><b>' + (r.captac || 0) + "</b></td>" +
+                   '<td class="r muted">' + (r.spend ? fmtMoney(r.spend) : "sin spend") + "</td>" +
+                   '<td class="r muted">' + (r.captac && r.spend ? fmtMoney(r.spend / r.captac) : "—") + "</td>";
+    tb.appendChild(tr);
+  });
+}
+
+// ═══ Modal FB Plugin (preservada del v5) ═══
+function findAdById(id) {
+  const tree = currentTree(); let found = null;
+  const walk = arr => arr.forEach(r => { if (r.id === id) found = r; if (r.children) walk(r.children); });
+  walk(tree); return found;
+}
+function buildEmbedUrl(ad) {
+  if (ad.object_type === "VIDEO" && ad.video_id) {
+    const href = encodeURIComponent(`https://www.facebook.com/${FB_PAGE}/videos/${ad.video_id}/`);
+    return `https://www.facebook.com/plugins/video.php?href=${href}&show_text=false&width=500&height=400`;
+  }
+  if (ad.story_id) {
+    const [pageId, postId] = ad.story_id.split("_");
+    const href = encodeURIComponent(`https://www.facebook.com/${pageId}/posts/${postId}`);
+    return `https://www.facebook.com/plugins/post.php?href=${href}&show_text=true&width=500`;
+  }
+  return null;
+}
+function buildFallbackUrl(ad) {
+  if (ad.video_id) return `https://www.facebook.com/${FB_PAGE}/videos/${ad.video_id}/`;
+  if (ad.story_id) { const [p, post] = ad.story_id.split("_"); return `https://www.facebook.com/${p}/posts/${post}`; }
+  return null;
+}
+function openModal(id) {
+  const ad = findAdById(id); if (!ad) return;
+  document.getElementById("modal-title").textContent = (ad.code || "—") + " · " + (ad.ad_name || "");
+  const url = buildEmbedUrl(ad); const fb = buildFallbackUrl(ad);
+  const body = document.getElementById("modal-body");
+  const isVideo = ad.object_type === "VIDEO";
+  body.innerHTML = (url ? '<iframe src="' + url + '" height="' + (isVideo ? 420 : 500) + '" allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share" allowfullscreen onerror="this.style.display=\'none\'"></iframe>' : '<div style="padding:40px;text-align:center;color:#8a8d91">Sin video/story disponible para preview</div>') +
+    '<div class="meta-line">ad_id <code>' + ad.ad_id + "</code> · creative <code>" + (ad.creative_id || "—") + "</code> · " + (ad.object_type || "—") +
+    (ad.video_id ? " · video_id <code>" + ad.video_id + "</code>" : "") +
+    (ad.story_id ? "<br>story_id <code>" + ad.story_id + "</code>" : "") +
+    (fb ? '<br><a href="' + fb + '" target="_blank" rel="noopener">↗ Ver en Facebook (fallback)</a>' : "") +
+    "</div>";
+  document.getElementById("modal").classList.add("open");
+}
+function closeModal() {
+  document.getElementById("modal").classList.remove("open");
+  document.getElementById("modal-body").innerHTML = "";
+}
+document.addEventListener("keydown", e => { if (e.key === "Escape") closeModal(); });
+
+// ═══ Master render ═══
+function render() {
+  renderHeader();
+  renderRows();
+  renderHeaderPanel();
+  renderCapa2();
+  renderCapa3();
+  renderCapa4();
+}
+
+// ═══ Auth + fetch lifecycle ═══
+function clientFromQuery() {
+  try {
+    const p = new URLSearchParams(window.location.search);
+    const c = (p.get("client") || "").toLowerCase().trim();
+    return /^[a-z0-9_-]+$/.test(c) ? c : "inmobili";
+  } catch { return "inmobili"; }
+}
+
+function showAuthEmpty(reason) {
+  document.getElementById("auth-empty").style.display = "block";
+  document.getElementById("main-content").style.display = "none";
+  if (reason === "no-data") {
+    document.getElementById("auth-empty-title").textContent = "Sin datos para este cliente";
+    document.getElementById("auth-empty-msg").textContent = "El pipeline aún no escribió ads-manager-v2 para este cliente.";
+  } else if (reason === "denied") {
+    document.getElementById("auth-empty-title").textContent = "Sin permisos";
+    document.getElementById("auth-empty-msg").textContent = "Tu sesión Optix no tiene permisos para leer este cliente.";
+  } else if (reason === "error") {
+    document.getElementById("auth-empty-title").textContent = "Error al cargar";
+    document.getElementById("auth-empty-msg").textContent = "No se pudo cargar el corte desde Firestore. Recarga la página.";
+  }
+}
+function showMain() {
+  document.getElementById("auth-empty").style.display = "none";
+  document.getElementById("main-content").style.display = "flex";
+}
+
+// S87 HOTFIX: fallback robusto al doc legacy `ads-manager-v2` (sin sufijo).
+// Si el doc split-per-period falla por cualquier razón (no-existe, rules,
+// red), intenta leer el doc viejo que aún existe con shape `{periods}`.
+const FIRESTORE_PATH_LEGACY = (client) =>
+  `workspaces/optimizads/clients/${client}/sections/ads-manager-v2`;
+
+async function loadPeriodDoc(targetPeriod) {
+  if (docsByPeriod[targetPeriod]) return docsByPeriod[targetPeriod];
+  const client = clientFromQuery();
+  const path = FIRESTORE_PATH(client, targetPeriod);
+  console.log("[v12] fetching split-per-period:", path);
+  let lastErr = null;
+  // Intento 1: split path nuevo.
+  try {
+    const snap = await firebase.firestore().doc(path).get();
+    if (snap.exists) {
+      const d = snap.data();
+      docsByPeriod[targetPeriod] = d;
+      return d;
+    }
+    console.warn("[v12] split doc no existe:", path);
+  } catch (e) {
+    console.warn("[v12] split fetch failed (code=" + (e && e.code) + "):", e && e.message, e);
+    lastErr = e;
+  }
+  // Intento 2: legacy single doc, leer periods[period]. Permite recuperar
+  // si el cron volvió a escribir el doc viejo o si rules bloquean el path
+  // nuevo con guion.
+  const legacyPath = FIRESTORE_PATH_LEGACY(client);
+  console.log("[v12] fetching LEGACY single doc:", legacyPath);
+  try {
+    const snap = await firebase.firestore().doc(legacyPath).get();
+    if (snap.exists) {
+      const root = snap.data() || {};
+      const pdata = (root.periods || {})[targetPeriod];
+      if (pdata) {
+        // Adaptar al shape esperado por currentPeriod(): wrap en {data}.
+        const wrapped = { _meta: root._meta || {}, data: pdata };
+        docsByPeriod[targetPeriod] = wrapped;
+        return wrapped;
+      }
+      console.warn("[v12] legacy doc no tiene período", targetPeriod, "— periods disponibles:", Object.keys(root.periods || {}));
+      throw Object.assign(new Error("period-not-in-legacy"), { code: "no-data" });
+    }
+    console.warn("[v12] legacy doc tampoco existe:", legacyPath);
+    throw Object.assign(new Error("no-data"), { code: "no-data" });
+  } catch (e2) {
+    console.error("[v12] legacy fetch failed (code=" + (e2 && e2.code) + "):", e2 && e2.message);
+    // Si el primer error era informativo (rules), preferirlo.
+    throw lastErr || e2;
+  }
+}
+
+async function loadFromFirestore() {
+  try {
+    await loadPeriodDoc(period);
+    showMain();
+    render();
+  } catch (err) {
+    console.error("[v12] loadFromFirestore failed — err.code=" + (err && err.code) + " err.message=" + (err && err.message), err);
+    if (err && (err.code === "permission-denied" || err.code === "unauthenticated")) showAuthEmpty("denied");
+    else if (err && err.code === "no-data") showAuthEmpty("no-data");
+    else showAuthEmpty("error");
+  }
+}
+
+// S87: handler reusable para cambio de período desde el dropdown.
+async function switchPeriod(newPeriod) {
+  period = newPeriod;
+  try {
+    await loadPeriodDoc(newPeriod);
+    render();
+  } catch (err) {
+    console.error("[v12] switch period error — code=" + (err && err.code), err);
+  }
+}
+
+firebase.auth().onAuthStateChanged(user => {
+  if (user) { console.log("[v12] authed as", user.email); loadFromFirestore(); }
+  else showAuthEmpty("auth");
+});
+
+// ═══ Wire toggles + segs + search ═══
+function wireTopbar() {
+  // Attribution toggle — event delegation en el container.
+  // S87: el wire por div funcionaba en JSDOM/Puppeteer pero Anwar
+  // reportó que el click no registraba en su Chrome. Delegation en el
+  // parent + pointer-events:none en los icons garantiza que el click
+  // siempre llega al handler.
+  const attrSeg = document.getElementById("attr-seg");
+  if (attrSeg) {
+    attrSeg.addEventListener("click", (e) => {
+      const target = e.target.closest("div[data-attr]");
+      if (!target) return;
+      attribution = target.dataset.attr;
+      console.log("[v12] attribution →", attribution);
+      attrSeg.querySelectorAll("div[data-attr]").forEach(x => x.classList.toggle("active", x === target));
+      render();
+    });
+  }
+  // Plaza toggle
+  document.querySelectorAll("#plaza-seg div").forEach(d => {
+    d.addEventListener("click", () => {
+      plazaFilter = d.dataset.plaza;
+      document.querySelectorAll("#plaza-seg div").forEach(x => x.classList.toggle("active", x === d));
+      render();
+    });
+  });
+  // Tab toggle
+  document.querySelectorAll(".tab").forEach(t => {
+    t.addEventListener("click", () => {
+      tabLevel = t.dataset.tab;
+      document.querySelectorAll(".tab").forEach(x => x.classList.toggle("active", x === t));
+      render();
+    });
+  });
+  // Funnel + ret toggles
+  document.getElementById("tg-funnel").addEventListener("click", function () { showFunnel = !showFunnel; this.classList.toggle("on", showFunnel); render(); });
+  document.getElementById("tg-ret").addEventListener("click", function () { showRet = !showRet; this.classList.toggle("on", showRet); render(); });
+  // S87 MEJORA 2: toggle Activos primero. Default ON. Click alterna.
+  const tgAct = document.getElementById("tg-activos-first");
+  if (tgAct) {
+    tgAct.addEventListener("click", function () {
+      activosFirst = !activosFirst;
+      this.classList.toggle("on", activosFirst);
+      render();
+    });
+  }
+  // Search
+  document.getElementById("search-input").addEventListener("input", e => { searchQuery = e.target.value; render(); });
+  // S87 BUG 3: dropdown real con menú + click-outside-to-close.
+  // El stub anterior ciclaba on-click; ahora abre menú con opciones.
+  const pDd = document.getElementById("period-dd");
+  const pMenu = document.getElementById("period-menu");
+  const closeMenu = () => { pMenu.hidden = true; pDd.classList.remove("open"); };
+  pDd.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const willOpen = pMenu.hidden;
+    pMenu.hidden = !willOpen;
+    pDd.classList.toggle("open", willOpen);
+    if (willOpen) {
+      // Marcar opción activa.
+      pMenu.querySelectorAll(".period-opt").forEach(o => {
+        o.classList.toggle("active", o.dataset.period === period);
+      });
+    }
+  });
+  pMenu.addEventListener("click", (e) => {
+    const opt = e.target.closest(".period-opt");
+    if (!opt) return;
+    e.stopPropagation();
+    closeMenu();
+    // S87: switchPeriod fetcha el doc del período seleccionado (cache-aware).
+    switchPeriod(opt.dataset.period);
+  });
+  document.addEventListener("click", (e) => {
+    if (pMenu.hidden) return;
+    if (!pDd.contains(e.target) && !pMenu.contains(e.target)) closeMenu();
+  });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !pMenu.hidden) closeMenu(); });
+}
+
+wireTopbar();
+</script>
+
+</body>
+</html>
