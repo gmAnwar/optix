@@ -40,7 +40,11 @@
   });
 </script>
 
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tabler-icons/3.2.0/tabler-icons.min.css">
+<!-- S87 BUG 4: cdnjs/tabler-icons/3.2.0 devolvía 404 (versión removida).
+     jsdelivr @tabler/icons-webfont@3.24.0 sirve el mismo set de clases
+     ti-* (target, folder, photo, player-play, chevron-down, calendar,
+     filter, coin, map-pin, info-circle, checkbox, search, etc). -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.24.0/dist/tabler-icons.min.css">
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
   body { background:#f0f2f5; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; color:#1c1e21; padding:20px; font-size:14px; }
@@ -70,8 +74,17 @@
   .acct-ico { color:#1877f2; font-size:18px; margin-right:8px; }
   .acct-name { font-size:14px; font-weight:500; margin-right:8px; }
   .acct-sel .chev { font-size:15px; color:#65676b; }
+  .period-wrap { position:relative; }
   .date-dd { display:flex; align-items:center; gap:8px; background:#fff; border:0.5px solid #c8ccd1; border-radius:8px; padding:7px 12px; font-size:12.5px; cursor:pointer; }
-  .date-dd i.cal { font-size:15px; color:#65676b; } .date-dd i.chev { font-size:14px; color:#65676b; }
+  .date-dd i.cal { font-size:15px; color:#65676b; } .date-dd i.chev { font-size:14px; color:#65676b; transition:transform .12s; }
+  .date-dd.open i.chev { transform:rotate(180deg); }
+  /* S87 BUG 3: dropdown real (era stub que cicla on-click). Menu
+     absolute-positioned bajo el trigger, ocultable por click-outside. */
+  .period-menu { position:absolute; right:0; top:36px; min-width:200px; background:#fff; border:0.5px solid #c8ccd1; border-radius:8px; box-shadow:0 4px 12px rgba(0,0,0,0.08); padding:4px; z-index:20; }
+  .period-menu[hidden] { display:none; }
+  .period-opt { padding:8px 12px; font-size:12.5px; cursor:pointer; border-radius:6px; color:#1c1e21; }
+  .period-opt:hover { background:#f0f2f5; }
+  .period-opt.active { background:#e7f0fe; color:#1877f2; font-weight:500; }
   .corte { font-size:11px; color:#8a8d91; margin-top:4px; text-align:right; }
 
   /* ─ Tabs ─ */
@@ -148,8 +161,10 @@
   .toggle.on { background:#1877f2; } .toggle.off { background:#ccd0d5; }
   .toggle .knob { position:absolute; top:2px; width:12px; height:12px; border-radius:50%; background:#fff; }
   .toggle.on .knob { left:14px; } .toggle.off .knob { left:2px; }
-  .caret { display:inline-block; width:12px; cursor:pointer; color:#65676b; user-select:none; transition:transform .12s; font-size:10px; margin-right:2px; }
-  .row-collapsed .caret { transform:rotate(-90deg); }
+  /* S87 BUG 1+2: default = colapsado (caret rotado a 90° = ▶). Expanded
+     = caret bajado (▼). Inverso a la semántica vieja `row-collapsed`. */
+  .caret { display:inline-block; width:12px; cursor:pointer; color:#65676b; user-select:none; transition:transform .12s; font-size:10px; margin-right:2px; transform:rotate(-90deg); }
+  .row-expanded .caret { transform:rotate(0); }
   .thumb { width:34px; height:22px; border-radius:4px; flex-shrink:0; background:#e4e6eb; display:flex; align-items:center; justify-content:center; color:#b0b3b8; position:relative; cursor:pointer; }
   .thumb i { font-size:12px; }
   .thumb.video { background:#dde7f5; color:#1877f2; }
@@ -267,8 +282,13 @@
           <i class="ti ti-chevron-down chev"></i>
         </div>
       </div>
-      <div>
+      <div class="period-wrap">
         <div class="date-dd" id="period-dd"><i class="ti ti-calendar cal"></i><span id="period-label">— periodo —</span><i class="ti ti-chevron-down chev"></i></div>
+        <div class="period-menu" id="period-menu" hidden>
+          <div class="period-opt" data-period="since_feb">Acumulado desde feb</div>
+          <div class="period-opt" data-period="last_month">Mes anterior</div>
+          <div class="period-opt" data-period="mtd">Mes actual (MTD)</div>
+        </div>
         <div class="corte" id="corte">Datos al corte: —</div>
       </div>
     </div>
@@ -379,7 +399,9 @@ let attribution = "close";   // "close" (default) | "first"
 let plazaFilter = "all";    // "all" | "trc" | "gmz"
 let tabLevel = "ad";        // "ad" | "adset" | "campaign"
 let showFunnel = true, showRet = true;
-let collapsed = {};
+// S87 BUG 1+2: semántica flippada. Default = todo COLAPSADO (children
+// ocultos); click expande. En Anuncios tab no aplica (lista flat).
+let expanded = {};
 let sortKey = "captac", sortDir = -1;
 let searchQuery = "";
 
@@ -566,11 +588,26 @@ function passesSearch(r) {
   return hay.includes(q);
 }
 
-function flatten(rows, out, visible) {
-  rows.forEach(r => {
-    if (visible) out.push(r);
-    if (r.children) flatten(r.children, out, visible && !collapsed[r.id]);
-  });
+// S87 BUG 1+2: lista de filas visibles según tab + estado `expanded`.
+// Default = todos los parents colapsados; click expande.
+function getVisibleRows(tree) {
+  const out = [];
+  if (tabLevel === "ad") {
+    // ANUNCIOS: lista flat de ads. NO tree, NO caret. Match al mockup
+    // "Anuncios (8)" = 8 ad rows planas.
+    tree.forEach(c => (c.children || []).forEach(a => (a.children || []).forEach(ad => out.push(ad))));
+    return out;
+  }
+  // CAMPAÑAS o CONJUNTOS: tree desde el nivel del tab.
+  const roots = tabLevel === "campaign" ? tree : tree.flatMap(c => c.children || []);
+  const walk = (nodes) => {
+    nodes.forEach(n => {
+      out.push(n);
+      if ((n.children || []).length && expanded[n.id]) walk(n.children);
+    });
+  };
+  walk(roots);
+  return out;
 }
 
 function sortTree(rows) {
@@ -609,16 +646,10 @@ function thumbCell(row) {
 function renderRows() {
   const tb = document.getElementById("tbody"); tb.innerHTML = "";
   const sorted = sortTree(currentTree());
-  // For ad tab: only show ad rows (with parent collapsed control)
-  // For adset / campaign tabs: only show those rows (no drill-down for now)
-  const flat = [];
-  flatten(sorted, flat, true);
-  // Filter by tab level
-  const rows = flat.filter(r => {
-    if (tabLevel === "ad") return r.level === "ad" || r.level === "campaign" || r.level === "adset"; // collapsible tree
-    return r.level === tabLevel;
-  });
-  // Apply search + plaza filter (on ad rows only — group rows always visible if children pass)
+  // S87 BUG 1+2: getVisibleRows resuelve correctamente el subset por
+  // tab (flat ads para Anuncios, tree expandible para Campañas/Conjuntos).
+  const rows = getVisibleRows(sorted);
+  // Apply search + plaza filter (en rows tipo ad; campañas/adsets siempre visibles)
   const visible = rows.filter(r => {
     if (r.level !== "ad") return true;
     return passesSearch(r) && passesPlazaFilter(r);
@@ -626,9 +657,9 @@ function renderRows() {
   visible.forEach(row => {
     const c = calcRow(row);
     const tr = document.createElement("tr");
-    tr.className = "row-" + row.level + (collapsed[row.id] ? " row-collapsed" : "");
+    tr.className = "row-" + row.level + (row.level !== "ad" && expanded[row.id] ? " row-expanded" : "");
     if (row.level !== "ad") {
-      tr.onclick = () => { collapsed[row.id] = !collapsed[row.id]; render(); };
+      tr.onclick = () => { expanded[row.id] = !expanded[row.id]; render(); };
     }
     columns.forEach(col => {
       if (!showFunnel && (col.key.startsWith("llamada") || col.key.startsWith("cita") || col.key.startsWith("a_espera") || col.key.startsWith("costo_llam") || col.key.startsWith("costo_cita") || col.key.startsWith("costo_esp"))) return;
@@ -963,11 +994,36 @@ function wireTopbar() {
   document.getElementById("tg-ret").addEventListener("click", function () { showRet = !showRet; this.classList.toggle("on", showRet); render(); });
   // Search
   document.getElementById("search-input").addEventListener("input", e => { searchQuery = e.target.value; render(); });
-  // Period dd — stub for now (default since_feb only)
-  document.getElementById("period-dd").addEventListener("click", () => {
-    const next = period === "since_feb" ? "last_month" : period === "last_month" ? "mtd" : "since_feb";
-    period = next; render();
+  // S87 BUG 3: dropdown real con menú + click-outside-to-close.
+  // El stub anterior ciclaba on-click; ahora abre menú con opciones.
+  const pDd = document.getElementById("period-dd");
+  const pMenu = document.getElementById("period-menu");
+  const closeMenu = () => { pMenu.hidden = true; pDd.classList.remove("open"); };
+  pDd.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const willOpen = pMenu.hidden;
+    pMenu.hidden = !willOpen;
+    pDd.classList.toggle("open", willOpen);
+    if (willOpen) {
+      // Marcar opción activa.
+      pMenu.querySelectorAll(".period-opt").forEach(o => {
+        o.classList.toggle("active", o.dataset.period === period);
+      });
+    }
   });
+  pMenu.addEventListener("click", (e) => {
+    const opt = e.target.closest(".period-opt");
+    if (!opt) return;
+    e.stopPropagation();
+    period = opt.dataset.period;
+    closeMenu();
+    render();
+  });
+  document.addEventListener("click", (e) => {
+    if (pMenu.hidden) return;
+    if (!pDd.contains(e.target) && !pMenu.contains(e.target)) closeMenu();
+  });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !pMenu.hidden) closeMenu(); });
 }
 
 wireTopbar();
