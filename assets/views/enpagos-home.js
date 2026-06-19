@@ -902,6 +902,31 @@
     return _fmtCurrency(inversion / count);
   }
 
+  // CAC PRÓXIMO = inversion_atribuida ÷ (cierres + firmas_programadas).
+  // Reemplaza al cálculo viejo `inv / firmas_programadas` para la fila
+  // "Firmas Programadas" del plaza card. Las firmas programadas son
+  // cierres en pipeline a punto de materializarse, así que el numerador
+  // inversión se imputa contra el funnel-completo-a-la-fecha (cierres ya
+  // cerrados + los que están en visita firmada). El cálculo viejo daba
+  // valores engañosamente altos (ej. NUEVO LEON 11729/2 = $5,865); con
+  // la métrica correcta queda 11729/(5+2) = $1,676.
+  //
+  // Reglas de display (Anwar S89-firmas-hotfix):
+  //   - firmas_programadas <= 0  → no se muestra CAC (sólo conteo).
+  //     Retorna null → _plazaMetricRowWithCpaHtml emite span vacío y
+  //     conserva el grid 3-col.
+  //   - (cierres + firmas) <= 0  → "—" (safety net; con firmas > 0 el
+  //     denominador siempre es ≥ 1 pero el guard cubre data sucia).
+  //   - inv null/NaN → "—".
+  //   - resto → $fmt(inv / (cierres + firmas)).
+  function _cacProximoText(inversion, cierres, firmas) {
+    if (!firmas || firmas <= 0) return null;
+    var denom = (cierres || 0) + firmas;
+    if (denom <= 0) return '—';
+    if (inversion == null || isNaN(inversion)) return '—';
+    return _fmtCurrency(inversion / denom);
+  }
+
   function _plazaVariant(current) {
     // Replica de daily variantOf() (enpagos-daily.js:457-467).
     var cierres = (current && current.cierres) || 0;
@@ -992,7 +1017,7 @@
       + _plazaMetricRowWithCpaHtml('Preautorizados',     _fmtInt(current.leads_brutos),        _cpaText(inv, current.leads_brutos))
       + _plazaMetricRowWithCpaHtml('Preaut+',            _fmtInt(current.preaut_positivos),    _cpaText(inv, current.preaut_positivos))
       + _plazaMetricRowWithCpaHtml('Cancelados',         _fmtInt(current.cancelados),          null)
-      + _plazaMetricRowWithCpaHtml('Firmas Programadas', _fmtInt(current.firmas_programadas),  _cpaText(inv, current.firmas_programadas))
+      + _plazaMetricRowWithCpaHtml('Firmas Programadas', _fmtInt(current.firmas_programadas),  _cacProximoText(inv, current.cierres, current.firmas_programadas))
       + _plazaFooterHtml(current.cierres, cacText);
 
     var footMsg = _plazaFootMessage(variant);
