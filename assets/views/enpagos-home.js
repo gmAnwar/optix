@@ -503,6 +503,28 @@
     if (isMtd) {
       var ventaFillPct = (ventaGoalMo != null && ventaGoalMo > 0 && ventaVal != null)
         ? (Number(ventaVal) / Number(ventaGoalMo)) : 0;
+
+      // S89-firmas-proy — Sub-línea de proyección: "+ $X en N firmas
+      // programadas → $TOTAL proyectada". El big number arriba sigue siendo
+      // venta cerrada solamente; la sub-línea agrega contexto del pipeline
+      // sin contaminar el dato cerrado. Omitir entero (no mostrar "+$0" o
+      // "en 0 firmas") cuando venta_firmas o firmas son 0 o ausentes.
+      // El slot footHTML es nativo de _row1BoxHTML — renderea
+      // <div class="row1-box__foot"> con tipografía 12px gris #8a8a8a.
+      var ventaFirmasVal = current.venta_firmas_programadas;
+      var firmasCount    = current.firmas_programadas;
+      var ventaFootHTML  = '';
+      if (ventaFirmasVal != null && Number(ventaFirmasVal) > 0 &&
+          firmasCount != null && Number(firmasCount) > 0 &&
+          ventaVal != null) {
+        var proyectada = Number(ventaVal) + Number(ventaFirmasVal);
+        ventaFootHTML = '+ ' + _fmtCurrency(ventaFirmasVal) +
+          ' en ' + _fmtInt(firmasCount) +
+          ' firma' + (firmasCount === 1 ? '' : 's') + ' programada' +
+          (firmasCount === 1 ? '' : 's') +
+          ' → ' + _fmtCurrency(proyectada) + ' proyectada';
+      }
+
       ventaHTML = _row1BoxHTML({
         label: 'Venta del mes',
         bigHTML: _fmtCurrency(ventaVal),
@@ -515,7 +537,8 @@
         expectedHTML: '',                      // omit: sin "esperado"
         topeHTML: (ventaGoalMo != null)
           ? 'Plan ' + _fmtCurrency(ventaGoalMo)
-          : ''
+          : '',
+        footHTML: ventaFootHTML                // S89-firmas-proy
       });
     } else {
       ventaHTML = _row1BoxHTML({
@@ -875,6 +898,20 @@
       ? ((cacVal != null) ? _fmtCurrency(cacVal) : '—')
       : '—';
 
+    // S89-firmas-proy — 3ª caja "CAC próximo": inversion ÷ (cierres + firmas
+    // programadas). Mismo helper _cacProximoText que el plaza card; aplicado
+    // ahora a totales globales. Cuando firmas <= 0, _cacProximoText retorna
+    // null → forzamos "—" en valueHTML y subHTML explicativo. SIN chip en v1
+    // (decisión Anwar: el "objetivo" para CAC próximo no está formalizado).
+    var firmasGlobal = current.firmas_programadas;
+    var invAtribGlobal = current.inversion_atribuida;
+    var cacProxText = _cacProximoText(invAtribGlobal, current.cierres, firmasGlobal);
+    if (cacProxText == null) cacProxText = '—';
+    var cacProxSub = (firmasGlobal != null && firmasGlobal > 0)
+      ? 'si cierran las ' + _fmtInt(firmasGlobal) +
+        ' firma' + (firmasGlobal === 1 ? '' : 's')
+      : 'sin firmas programadas';
+
     var fila3HTML = '<div class="row3-grid">' +
       _kpiCardHTML({
         label: 'CAC Preaut+',
@@ -894,6 +931,12 @@
         deltaHTML: _deltaLineHTML(
           null, delta.cac_pct, periodLabel, { invertColor: true }
         )
+      }) +
+      _kpiCardHTML({
+        label: 'CAC próximo',
+        valueHTML: cacProxText,
+        chipHTML:  '',                          // omit: sin chip en v1
+        subHTML:   cacProxSub
       }) +
       '</div>';
 

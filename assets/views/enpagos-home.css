@@ -356,8 +356,20 @@ body {
 
 .row3-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  /* S89-firmas-proy — Fila 3 actualizada a 3 cajas (CAC Preaut+, CAC Cierres,
+   * CAC próximo). Desktop ≥1200px: 3 en línea con ~340px c/u en el área
+   * común ~1053px (3 × 340 + 2 × 12px gap = 1044px, cabe). Tablet
+   * 768-1199px: 3 cajas a 2-col dejarían una huérfana → apilamos a 1-col
+   * (decisión Anwar: apiladas mejor que apretadas o huérfanas). Mobile
+   * ≤767px: ya estaba en 1-col equivalente, se ajusta abajo. */
+  grid-template-columns: repeat(3, 1fr);
   gap: 12px;
+}
+
+@media (max-width: 1199px) {
+  .row3-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .kpi-card {
@@ -753,7 +765,9 @@ body {
     grid-template-columns: repeat(2, 1fr);
   }
   .row3-grid {
-    grid-template-columns: repeat(2, 1fr);
+    /* S89-firmas-proy — 3 cajas apiladas (ya cubierto por el breakpoint
+     * 1199px arriba; esta regla es redundante pero explícita para mobile). */
+    grid-template-columns: 1fr;
   }
   .kpi-card__big {
     font-size: 22px;
