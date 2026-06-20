@@ -1049,20 +1049,124 @@
     );
   }
 
-  function _plazaMetricRowWithCpaHtml(label, valueHTML, cpaHTML) {
+  function _plazaMetricRowWithCpaHtml(label, valueHTML, cpaHTML, subLabel) {
     // Filas Preautorizados / Preaut+ / Cancelados / Firmas: 3 columnas
     // (label | cpa | count). Cuando cpaHTML es null → span vacío para
     // mantener el grid alineado (igual que daily).
+    //
+    // S89-9 — subLabel opcional: microcopy bajo el label principal
+    // (ej. "si cierran las 2 firmas" en la fila Firmas Programadas).
+    // Backward-compatible: si subLabel falsy, label sale como antes.
     var cpaSpan = (cpaHTML != null && cpaHTML !== '')
       ? '<span class="plaza-card__row-cpa">' + cpaHTML + '</span>'
       : '<span class="plaza-card__row-cpa plaza-card__row-cpa--empty" aria-hidden="true"></span>';
+    var labelHTML = subLabel
+      ? '<div class="plaza-card__row-label-wrap">' +
+          '<span class="plaza-card__row-label">' + escapeHtml(label) + '</span>' +
+          '<span class="plaza-card__row-sublabel">' + escapeHtml(subLabel) + '</span>' +
+        '</div>'
+      : '<span class="plaza-card__row-label">' + escapeHtml(label) + '</span>';
     return (
       '<div class="plaza-card__row plaza-card__row--with-cpa">' +
-        '<span class="plaza-card__row-label">' + escapeHtml(label) + '</span>' +
+        labelHTML +
         cpaSpan +
         '<span class="plaza-card__row-value">' + valueHTML + '</span>' +
       '</div>'
     );
+  }
+
+  // ── S89-9 — Filas colapsables (Rechazados / Cancelados / Preaut+ por equipo) ──
+  // Patrón: <details>/<summary> nativo (cero JS). Marker propio ▸→▾ vía
+  // rotación CSS al estado [open]. Cuando no hay sub-filas o N=0, se
+  // emite una fila simple sin triángulo (no hay nada que desplegar).
+
+  function _plazaSubRowHtml(label, n) {
+    return (
+      '<div class="plaza-card__subrow">' +
+        '<span class="plaza-card__subrow-label">' + escapeHtml(label) + '</span>' +
+        '<span class="plaza-card__subrow-value">' + _fmtInt(n) + '</span>' +
+      '</div>'
+    );
+  }
+
+  function _plazaCollapsibleRowHtml(label, n, subRowsHtml) {
+    // Si n<=0 o no hay sub-filas → fila simple (sin triángulo, sin details).
+    // Conserva el grid 3-col del card pasando un cpa-vacío.
+    if (!n || n <= 0 || !subRowsHtml) {
+      return (
+        '<div class="plaza-card__row plaza-card__row--with-cpa">' +
+          '<span class="plaza-card__row-label">' + escapeHtml(label) + '</span>' +
+          '<span class="plaza-card__row-cpa plaza-card__row-cpa--empty" aria-hidden="true"></span>' +
+          '<span class="plaza-card__row-value">' + _fmtInt(n) + '</span>' +
+        '</div>'
+      );
+    }
+    return (
+      '<details class="plaza-card__details">' +
+        '<summary class="plaza-card__row plaza-card__row--with-cpa plaza-card__row--collapsible">' +
+          '<span class="plaza-card__row-label">' +
+            '<span class="plaza-card__marker" aria-hidden="true">▸</span>' +
+            escapeHtml(label) +
+          '</span>' +
+          '<span class="plaza-card__row-cpa plaza-card__row-cpa--empty" aria-hidden="true"></span>' +
+          '<span class="plaza-card__row-value">' + _fmtInt(n) + '</span>' +
+        '</summary>' +
+        '<div class="plaza-card__subrows">' + subRowsHtml + '</div>' +
+      '</details>'
+    );
+  }
+
+  function _buildRechazadosSubRows(byRejectionReason) {
+    // Etiquetas legibles para los 3 motivos canónicos del backend S89.
+    var br = byRejectionReason || {};
+    var labels = { buro: 'Buró', comite: 'Comité', capacidad: 'Capacidad' };
+    var items = [];
+    for (var key in br) {
+      if (Object.prototype.hasOwnProperty.call(br, key)) {
+        var n = Number(br[key]) || 0;
+        if (n > 0) items.push({ label: labels[key] || key, n: n });
+      }
+    }
+    items.sort(function (a, b) { return b.n - a.n; });
+    return items.map(function (it) { return _plazaSubRowHtml(it.label, it.n); }).join('');
+  }
+
+  function _buildCanceladosSubRows(byCancellationReason, totalCancelados) {
+    // Las razones las teclea un humano — escapeHtml en label es load-bearing.
+    // Edge case: cancelados>0 pero el dict viene vacío o no suma. Fallback
+    // explícito "Sin motivo registrado" para que el ▼ siga teniendo qué
+    // mostrar (palanca deliberada).
+    var bc = byCancellationReason || {};
+    var items = [];
+    for (var razon in bc) {
+      if (Object.prototype.hasOwnProperty.call(bc, razon)) {
+        var n = ((bc[razon] || {}).count) || 0;
+        if (n > 0) items.push({ label: razon, n: n });
+      }
+    }
+    items.sort(function (a, b) { return b.n - a.n; });
+    var sumDict = items.reduce(function (s, it) { return s + it.n; }, 0);
+    if ((totalCancelados || 0) > 0 && sumDict === 0) {
+      items.push({ label: 'Sin motivo registrado', n: totalCancelados });
+    }
+    return items.map(function (it) { return _plazaSubRowHtml(it.label, it.n); }).join('');
+  }
+
+  function _buildPreautPorEquipoSubRows(byEquipment) {
+    // Solo equipos con preaut_positivos > 0 (no listar 32 con ceros).
+    // by_equipment.{eq}.current.preaut_positivos es la fuente.
+    // No mostramos CAC por equipo — by_equipment.*.inversion=0 siempre
+    // (backend no atribuye spend a equipo), CAC sería ÷ por ceros.
+    var be = byEquipment || {};
+    var items = [];
+    for (var eq in be) {
+      if (Object.prototype.hasOwnProperty.call(be, eq)) {
+        var n = (((be[eq] || {}).current) || {}).preaut_positivos || 0;
+        if (n > 0) items.push({ label: eq, n: n });
+      }
+    }
+    items.sort(function (a, b) { return b.n - a.n; });
+    return items.map(function (it) { return _plazaSubRowHtml(it.label, it.n); }).join('');
   }
 
   function _plazaFooterHtml(cierres, cacText, venta) {
@@ -1103,12 +1207,32 @@
       : '—';
 
     var inv = current.inversion_atribuida;
+
+    // S89-9 — Filas colapsables (Rechazados / Cancelados / Preaut+ por equipo)
+    // se construyen ANTES del template para mantener legible la composición.
+    var rechazadosSubRows  = _buildRechazadosSubRows(city && city.by_rejection_reason);
+    var canceladosSubRows  = _buildCanceladosSubRows(city && city.by_cancellation_reason, current.cancelados);
+    var preautEqSubRows    = _buildPreautPorEquipoSubRows(city && city.by_equipment);
+
+    // S89-9 — Microcopy de Firmas Programadas: "si cierra la 1 firma" /
+    // "si cierran las N firmas". Solo cuando firmas > 0 (sin firmas no hay
+    // CAC próximo, sin CAC próximo no hay contexto que explicar).
+    var fp = Number(current.firmas_programadas) || 0;
+    var firmasSubLabel = '';
+    if (fp > 0) {
+      firmasSubLabel = (fp === 1)
+        ? 'si cierra la 1 firma'
+        : 'si cierran las ' + fp + ' firmas';
+    }
+
     var rows = ''
       + _plazaMetricRowHtml('Inversión', _fmtCurrency(inv))
       + _plazaMetricRowWithCpaHtml('Preautorizados',     _fmtInt(current.leads_brutos),        _cpaText(inv, current.leads_brutos))
       + _plazaMetricRowWithCpaHtml('Preaut+',            _fmtInt(current.preaut_positivos),    _cpaText(inv, current.preaut_positivos))
-      + _plazaMetricRowWithCpaHtml('Cancelados',         _fmtInt(current.cancelados),          null)
-      + _plazaMetricRowWithCpaHtml('Firmas Programadas', _fmtInt(current.firmas_programadas),  _cacProximoText(inv, current.cierres, current.firmas_programadas))
+      + _plazaCollapsibleRowHtml('Rechazados',           current.rechazados,                   rechazadosSubRows)
+      + _plazaCollapsibleRowHtml('Cancelados',           current.cancelados,                   canceladosSubRows)
+      + _plazaCollapsibleRowHtml('Preaut+ por equipo',   current.preaut_positivos,             preautEqSubRows)
+      + _plazaMetricRowWithCpaHtml('Firmas Programadas', _fmtInt(current.firmas_programadas),  _cacProximoText(inv, current.cierres, current.firmas_programadas), firmasSubLabel)
       + _plazaFooterHtml(current.cierres, cacText, current.venta);
 
     var footMsg = _plazaFootMessage(variant);
