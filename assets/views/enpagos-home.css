@@ -678,6 +678,17 @@ body {
   font-weight: 400;
 }
 
+/* S89 — Footer L2: VENTA $monto completo. Hermano del .plaza-card__footer
+ * (que ya trae border-top + padding-top); este NO repite el border (visualmente
+ * forman un solo bloque footer 2-líneas). Misma tipografía/centrado. */
+.plaza-card__footer-venta {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 0 8px 0;
+}
+
 .plaza-card__foot-msg {
   font-size: 11px;
   color: #8a8a8a;

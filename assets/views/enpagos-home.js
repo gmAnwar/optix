@@ -983,7 +983,12 @@
     );
   }
 
-  function _plazaFooterHtml(cierres, cacText) {
+  function _plazaFooterHtml(cierres, cacText, venta) {
+    // S89 — Footer L1: CIERRES · CAC (existente).
+    //       Footer L2: VENTA $monto completo sin abreviar (SPEC F0B7Q4VK4TE).
+    // venta=null/undefined → "—" via _fmtCurrency; venta=0 → "$0"; nunca
+    // se oculta la fila (decisión explícita: usuario quiere ver el cero
+    // como señal, no como ausencia).
     return (
       '<div class="plaza-card__footer">' +
         '<span class="plaza-card__footer-label">CIERRES</span>' +
@@ -991,6 +996,10 @@
         '<span class="plaza-card__footer-sep">|</span>' +
         '<span class="plaza-card__footer-label">CAC</span>' +
         '<span class="plaza-card__footer-value">' + cacText + '</span>' +
+      '</div>' +
+      '<div class="plaza-card__footer-venta">' +
+        '<span class="plaza-card__footer-label">VENTA</span>' +
+        '<span class="plaza-card__footer-value">' + _fmtCurrency(venta) + '</span>' +
       '</div>'
     );
   }
@@ -1018,7 +1027,7 @@
       + _plazaMetricRowWithCpaHtml('Preaut+',            _fmtInt(current.preaut_positivos),    _cpaText(inv, current.preaut_positivos))
       + _plazaMetricRowWithCpaHtml('Cancelados',         _fmtInt(current.cancelados),          null)
       + _plazaMetricRowWithCpaHtml('Firmas Programadas', _fmtInt(current.firmas_programadas),  _cacProximoText(inv, current.cierres, current.firmas_programadas))
-      + _plazaFooterHtml(current.cierres, cacText);
+      + _plazaFooterHtml(current.cierres, cacText, current.venta);
 
     var footMsg = _plazaFootMessage(variant);
     var footMsgHtml = footMsg
