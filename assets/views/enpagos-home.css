@@ -663,6 +663,94 @@ body {
   min-width: 40px;
 }
 
+/* S89-9 — wrap label+sublabel para microcopy (ej. Firmas "si cierran las N firmas").
+ * El span del label sigue siendo el child principal; el sublabel queda
+ * debajo en tipografía más chica y gris. */
+.plaza-card__row-label-wrap {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.plaza-card__row-sublabel {
+  font-size: 10px;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: normal;
+  color: #8a8a8a;
+  font-style: italic;
+  margin-top: 1px;
+  overflow-wrap: anywhere;
+}
+
+/* S89-9 — Filas colapsables con <details>/<summary>. Marker propio
+ * (▸ → ▾ vía rotación CSS al [open]). El summary hereda layout de
+ * .plaza-card__row--with-cpa para mantener alineación con el resto. */
+.plaza-card__details {
+  /* Reset; el grid lo provee el summary que adentro. */
+  margin: 0;
+  padding: 0;
+}
+.plaza-card__details > summary {
+  list-style: none;          /* drop default disclosure marker */
+  cursor: pointer;
+  outline: none;
+}
+.plaza-card__details > summary::-webkit-details-marker { display: none; }
+.plaza-card__details > summary::marker { content: ''; }
+
+.plaza-card__row--collapsible {
+  /* hereda --with-cpa pero summary necesita display: grid explícito */
+  display: grid;
+  user-select: none;
+}
+.plaza-card__row--collapsible:hover {
+  background: #fafafa;
+}
+
+.plaza-card__marker {
+  display: inline-block;
+  font-size: 10px;
+  margin-right: 4px;
+  color: #8a8a8a;
+  transition: transform 0.12s ease;
+  transform-origin: 50% 50%;
+}
+.plaza-card__details[open] > summary .plaza-card__marker {
+  transform: rotate(90deg);
+}
+
+.plaza-card__subrows {
+  padding: 2px 0 6px 18px;   /* indent + separation */
+  border-bottom: 1px dashed #f0f0f0;
+  margin-bottom: 2px;
+}
+
+.plaza-card__subrow {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: baseline;
+  column-gap: 10px;
+  padding: 3px 0;
+  font-size: 12px;
+  min-width: 0;
+}
+
+.plaza-card__subrow-label {
+  color: #6b6b6b;
+  /* Nombres de equipo largos se rompen sin desbordar el card en mobile. */
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+
+.plaza-card__subrow-value {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1a1a1a;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
 .plaza-card__footer {
   display: flex;
   align-items: baseline;
