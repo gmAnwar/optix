@@ -591,6 +591,22 @@
     const periodDays = get(d, 'meta.period.days') || 1;
     const totalDays = daysInMonth(get(d, 'meta.period.to'));
 
+    // KPI 0 (cabeza del funnel): Mensajes (S87 Fase 1).
+    // Source backend: totals.current.mensajes = contactos Vambe NEW (created_at en
+    // periodo, pipeline Comarca+Torreón). NO usa Meta-paid (sobrecuenta).
+    // Mismo patrón que citas: count + avg/día + proyección fin de mes inline.
+    const mensajes = current.mensajes;
+    const mensajesNull = mensajes === null || mensajes === undefined;
+    const avgMensajes = mensajesNull ? 0 : mensajes / periodDays;
+    const eomMensajes = mensajesNull ? null : Math.round(avgMensajes * totalDays);
+    setHtml('kpi-mensajes',
+      `<div class="kpi-card-label">Mensajes del Mes</div>
+       <div class="kpi-card-main">
+         <div class="kpi-card-value ${mensajesNull ? 'null-state' : ''}">${mensajesNull ? '—' : fmtInt(mensajes)}</div>
+       </div>
+       <div class="kpi-card-sub muted">${mensajesNull ? 'cabeza del funnel' : `${avgMensajes.toFixed(1)}/día · proyec. ${eomMensajes}`}</div>
+       ${renderVsMesAnterior(d, 'mensajes')}`);
+
     // KPI 1: Citas Hoy — LITE muestra placeholder
     if (state.isLite || !get(d, 'totals.today')) {
       setHtml('kpi-citas-today',
@@ -641,6 +657,16 @@
        </div>
        <div class="kpi-card-sub muted">etapa del funnel</div>
        ${renderVsMesAnterior(d, 'llamadas_agendadas')}`);
+
+    // KPI 4.5: Asistencias (S87 Fase 1) — placeholder fijo sin fuente automática.
+    // Sin Vambe stage "Llegó a la cita" ni equivalente en sheets, no hay
+    // conteo confiable hoy. Slot reservado para Fase 2 (manual o stage Vambe nuevo).
+    setHtml('kpi-asistencias',
+      `<div class="kpi-card-label">Asistencias del Mes</div>
+       <div class="kpi-card-main">
+         <div class="kpi-card-value null-state">—</div>
+       </div>
+       <div class="kpi-card-sub muted">sin fuente automática</div>`);
 
     // KPI 5: Cierres del Mes con comparativo vs mes anterior (null-safe en mtd).
     const vsGoalCierres = get(scoped, 'vs_goal.cierres_pct');

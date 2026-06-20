@@ -89,9 +89,16 @@
   </div>
 
   <!-- ============================================
-       KPI ROW (Citas Hoy + Citas Avg + Citas EoM + Llamadas + Cierres)
+       KPI ROW — funnel completo (S87 Fase 1): Mensajes → Llamadas → Citas
+       (Hoy/Avg/EoM) → Asistencias → Cierres. (Captaciones vive en hero-left).
        ============================================ -->
   <div class="kpi-row">
+    <div id="kpi-mensajes" class="kpi-card">
+      <div class="kpi-card-label">—</div>
+    </div>
+    <div id="kpi-llamadas" class="kpi-card">
+      <div class="kpi-card-label">—</div>
+    </div>
     <div id="kpi-citas-today" class="kpi-card">
       <div class="kpi-card-label">—</div>
     </div>
@@ -101,7 +108,7 @@
     <div id="kpi-citas-eom" class="kpi-card">
       <div class="kpi-card-label">—</div>
     </div>
-    <div id="kpi-llamadas" class="kpi-card">
+    <div id="kpi-asistencias" class="kpi-card">
       <div class="kpi-card-label">—</div>
     </div>
     <div id="kpi-cierres" class="kpi-card">
