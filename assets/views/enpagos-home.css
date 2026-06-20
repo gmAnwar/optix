@@ -196,12 +196,15 @@ body {
 
 .row1-grid {
   display: grid;
-  /* S84 3a — 3 cajas: Cierres + Inversión + Preaut+. Invariante de layout:
-   * 3 EN LÍNEA o 3 APILADAS, jamás 2+1 (desbalanceado visualmente). El área
-   * de contenido del dashboard (~1053px en viewports comunes) deja respirar
-   * las 3; el breakpoint a 1-col vive en @media max-width: 999px más abajo.
-   * NO definir un estado 2-col intermedio para esta fila. */
-  grid-template-columns: repeat(3, 1fr);
+  /* S89 — Fila 1 actualizada a 4 cajas: Cierres + Inversión + Preaut+ + Venta
+   * (todas "del mes"). Invariante de layout: 4 EN LÍNEA, 4→2x2 SIMÉTRICO en
+   * tablet, o 4 APILADAS en mobile — JAMÁS 3+1 ni 2+1+1. Breakpoints:
+   *   ≥1200px → 4 col (4-en-línea)
+   *   1199–1000px → 2 col (2x2 simétrico)
+   *   ≤999px → 1 col (4 apiladas)
+   * El número 4 cabe simétricamente en 2x2; el 3 anterior requería saltarse
+   * el 2-col (que daría 2+1). Anwar S89-venta: el invariante se actualizó. */
+  grid-template-columns: repeat(4, 1fr);
   gap: 16px;
 }
 
@@ -716,12 +719,18 @@ body {
   }
 }
 
-/* ── S84 3a — Fila 1 layout invariante: 3 EN LÍNEA o 3 APILADAS, jamás
- * 2+1. El área de contenido del dashboard (~1053px en viewports comunes)
- * deja respirar 3 cajas en línea; abajo de ~1000px se apilan a 1-col
- * directamente, saltando el estado 2-col que producía el 2+1 visualmente
- * desbalanceado. No tocamos plaza-cards / row2-grid / row3-grid — ellos
+/* ── S89 — Fila 1 con 4 cajas: tablet baja a 2x2 simétrico (4 cajas en
+ * grid de 2-col, dos filas — sin 3+1 problema). Antes (S84 3a, 3 cajas)
+ * se saltaba el 2-col para evitar 2+1; con 4 cajas el 2-col es legítimo
+ * y simétrico. No tocamos plaza-cards / row2-grid / row3-grid — ellos
  * mantienen sus transiciones 2-col propias. */
+@media (max-width: 1199px) {
+  .row1-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Mobile: 4 cajas apiladas en 1 col (cualquier tamaño ≤999px). */
 @media (max-width: 999px) {
   .row1-grid {
     grid-template-columns: 1fr;

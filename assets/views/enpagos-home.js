@@ -486,9 +486,48 @@
       });
     }
 
+    // ── Venta del mes caja (S89 — monto + barra vs meta, SIN chip ni marker) ───
+    // Decisión Anwar Opción B: la caja muestra solo el avance vs meta total,
+    // sin lectura "AL RITMO/BAJO META" (que con el prorrateo lineal sería
+    // engañosa en mes en curso). Sin marker prorrateado tampoco — la única
+    // referencia es el tope absoluto. _row1BoxHTML omite chip/marker/expected
+    // limpiamente cuando se pasan vacíos (verificado por inspección, lines
+    // 312-340: headRight = chipHTML||'', meta block solo emite si expected
+    // o tope no vacíos, _row1ProgressBarHTML deja marker fuera si
+    // expectedPct=null y barra gris si status='').
+    var ventaVal    = current.venta;
+    var ventaGoalMo = (goals.venta_meta && goals.venta_meta.valor) ||
+                      (goals.venta_goal && goals.venta_goal.valor);
+
+    var ventaHTML;
+    if (isMtd) {
+      var ventaFillPct = (ventaGoalMo != null && ventaGoalMo > 0 && ventaVal != null)
+        ? (Number(ventaVal) / Number(ventaGoalMo)) : 0;
+      ventaHTML = _row1BoxHTML({
+        label: 'Venta del mes',
+        bigHTML: _fmtCurrency(ventaVal),
+        chipHTML: '',                          // omit: sin chip
+        barHTML: _row1ProgressBarHTML({
+          fillPct: ventaFillPct,
+          expectedPct: null,                   // omit: sin marker
+          status: ''                           // sin status → barra gris default
+        }),
+        expectedHTML: '',                      // omit: sin "esperado"
+        topeHTML: (ventaGoalMo != null)
+          ? 'Plan ' + _fmtCurrency(ventaGoalMo)
+          : ''
+      });
+    } else {
+      ventaHTML = _row1BoxHTML({
+        label: 'Venta',
+        bigHTML: _fmtCurrency(ventaVal),
+        footHTML: _row1DeltaHTML(null, delta.venta_pct, periodLabel, false)
+      });
+    }
+
     sec.innerHTML =
-      '<div class="row1-grid" role="group" aria-label="Cierres, inversión y Preaut+ vs meta">' +
-        cierresHTML + invHTML + preautHTML +
+      '<div class="row1-grid" role="group" aria-label="Cierres, inversión, Preaut+ y venta vs meta">' +
+        cierresHTML + invHTML + preautHTML + ventaHTML +
       '</div>';
   }
 
