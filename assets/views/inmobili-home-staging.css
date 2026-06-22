@@ -1,0 +1,84 @@
+/* Inmobili home — overrides sobre enpagos-home.css (§22 Paridad).
+   Solo agregar lo que difiere: branding logo, badges Fase 2 /
+   Próximamente, atenuación de "Sin atribución".
+*/
+
+/* ── Brand header (replaza el #home-header de EnPagos visualmente) ── */
+.inmobili-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 24px;
+  background: #fff;
+  border-bottom: 1px solid #e5e5e5;
+  flex-wrap: wrap;
+}
+.inmobili-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1 1 auto;
+}
+.inmobili-brand-logo {
+  height: 40px;
+  width: auto;
+  display: block;
+}
+.inmobili-brand-main {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1a1a1a;
+  line-height: 1.2;
+}
+.inmobili-brand-sub {
+  font-size: 12px;
+  color: #6b6b6b;
+  margin-top: 2px;
+}
+
+/* ── Plaza card badges (Inmobili-specific, no existen en EnPagos) ── */
+.plaza-card__badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  margin-left: 8px;
+  vertical-align: middle;
+}
+.plaza-card__badge--fase2 {
+  background: #fff4e5;
+  color: #b6661c;
+  border: 1px solid #f0c590;
+}
+.plaza-card__badge--proximamente {
+  background: #e8f0fa;
+  color: #1f5fa8;
+  border: 1px solid #b5cee8;
+}
+
+/* ── Card atenuada (Sin atribución) ── */
+.plaza-card--atenuada {
+  opacity: 0.65;
+}
+
+/* ── Card note (microcopy bajo el footer) ── */
+.plaza-card__note {
+  font-size: 11px;
+  color: #8a8a8a;
+  font-style: italic;
+  padding: 8px 16px 12px;
+  text-align: center;
+  border-top: 1px dashed #eee;
+}
+
+/* ── Captaciones footer (verde, no rojo como Cancelados de EnPagos) ── */
+/* Sobrescribe styling default — el SPEC explícitamente pide que
+   Captaciones NO use color de mal-significado. La clase
+   .plaza-card__footer de EnPagos es neutral por default así que
+   solo aseguramos NO hereda nada rojo. */
+.plaza-card__footer-value {
+  color: #1a1a1a; /* explícito: neutral, NO error-red */
+}
