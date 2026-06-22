@@ -1089,14 +1089,19 @@
     );
   }
 
-  function _plazaCollapsibleRowHtml(label, n, subRowsHtml) {
-    // Si n<=0 o no hay sub-filas → fila simple (sin triángulo, sin details).
-    // Conserva el grid 3-col del card pasando un cpa-vacío.
+  function _plazaCollapsibleRowHtml(label, n, subRowsHtml, cpaHTML) {
+    // Fila colapsable. Grid 3-col (label | cpa | count).
+    // cpaHTML opcional: si viene, se pinta en la columna CPA; si no, span vacio.
+    // Rechazados/Cancelados llaman sin cpa; Preaut+ pasa su costo/preaut+.
+    // Si n<=0 o no hay sub-filas: fila simple (sin triangulo, sin details).
+    var cpaSpan = (cpaHTML != null && cpaHTML !== '')
+      ? '<span class="plaza-card__row-cpa">' + cpaHTML + '</span>'
+      : '<span class="plaza-card__row-cpa plaza-card__row-cpa--empty" aria-hidden="true"></span>';
     if (!n || n <= 0 || !subRowsHtml) {
       return (
         '<div class="plaza-card__row plaza-card__row--with-cpa">' +
           '<span class="plaza-card__row-label">' + escapeHtml(label) + '</span>' +
-          '<span class="plaza-card__row-cpa plaza-card__row-cpa--empty" aria-hidden="true"></span>' +
+          cpaSpan +
           '<span class="plaza-card__row-value">' + _fmtInt(n) + '</span>' +
         '</div>'
       );
@@ -1108,12 +1113,29 @@
             '<span class="plaza-card__marker" aria-hidden="true">▸</span>' +
             escapeHtml(label) +
           '</span>' +
-          '<span class="plaza-card__row-cpa plaza-card__row-cpa--empty" aria-hidden="true"></span>' +
+          cpaSpan +
           '<span class="plaza-card__row-value">' + _fmtInt(n) + '</span>' +
         '</summary>' +
         '<div class="plaza-card__subrows">' + subRowsHtml + '</div>' +
       '</details>'
     );
+  }
+
+  function _buildPreautPorFamiliaSubRows(byFamily) {
+    // S89-9b P2 - desglose de Preaut+ por familia. SOLO conteo: a nivel celda
+    // plaza x familia el denominador de spend es ~1 -> costo seria ruido
+    // (ver SPEC DISENO F0B7Q4VK4TE). Familia viene del lead (~100% cobertura).
+    // Solo familias con N>0. Keys ya normalizadas a las 5 canonicas por backend.
+    var bf = byFamily || {};
+    var items = [];
+    for (var fam in bf) {
+      if (Object.prototype.hasOwnProperty.call(bf, fam)) {
+        var n = Number(((bf[fam] || {}).preaut_positivos)) || 0;
+        if (n > 0) items.push({ label: fam, n: n });
+      }
+    }
+    items.sort(function (a, b) { return b.n - a.n; });
+    return items.map(function (it) { return _plazaSubRowHtml(it.label, it.n); }).join('');
   }
 
   function _buildRechazadosSubRows(byRejectionReason) {
@@ -1195,6 +1217,7 @@
     // se construyen ANTES del template para mantener legible la composición.
     var rechazadosSubRows  = _buildRechazadosSubRows(city && city.by_rejection_reason);
     var canceladosSubRows  = _buildCanceladosSubRows(city && city.by_cancellation_reason, current.cancelados);
+    var preautFamiliaSubRows = _buildPreautPorFamiliaSubRows(city && city.by_family);
 
     // S89-9 — Microcopy de Firmas Programadas: "si cierra la 1 firma" /
     // "si cierran las N firmas". Solo cuando firmas > 0 (sin firmas no hay
@@ -1211,7 +1234,7 @@
       + _plazaMetricRowHtml('Inversión', _fmtCurrency(inv))
       + _plazaMetricRowWithCpaHtml('Preautorizados',     _fmtInt(current.leads_brutos),        _cpaText(inv, current.leads_brutos))
       + _plazaCollapsibleRowHtml('Rechazados',           current.rechazados,                   rechazadosSubRows)
-      + _plazaMetricRowWithCpaHtml('Preaut+',            _fmtInt(current.preaut_positivos),    _cpaText(inv, current.preaut_positivos))
+      + _plazaCollapsibleRowHtml('Preaut+',            current.preaut_positivos,            preautFamiliaSubRows, _cpaText(inv, current.preaut_positivos))
       + _plazaCollapsibleRowHtml('Cancelados',           current.cancelados,                   canceladosSubRows)
       + _plazaMetricRowWithCpaHtml('Firmas Programadas', _fmtInt(current.firmas_programadas),  _cacProximoText(inv, current.cierres, current.firmas_programadas), firmasSubLabel)
       + _plazaFooterHtml(current.cierres, cacText, current.venta);
