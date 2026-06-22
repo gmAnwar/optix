@@ -20,7 +20,7 @@
 // ════════════════════════════════════════════════════════════════
 
 import { escapeHtml } from './utils.js';
-import { TAREAS_CLIENTE_COLORS, tareasCliScopeMatch, tareasCliGetFilter, tareasCliSetFilter } from './tareas.js';
+import { TAREAS_CLIENTE_COLORS, tareasCliScopeMatch, tareasCliGetFilter, tareasCliSetFilter, tareasCliOwnerVisible, tareasCliIsManager } from './tareas.js';
 
 // ══════════════════════════════════════════════════════════════
 // MÓDULO PLAN SEMANAL — F1 (esqueleto + render bloques estáticos)
@@ -689,6 +689,7 @@ function _msRenderPanelTareas(uid) {
   const _canSeeEstrategicos = !!(window.currentUserProfile && window.currentUserProfile.can_see_estrategicos);
   const _curUid = (window.currentUser && window.currentUser.uid) || '_anon';
   const _filter = tareasCliGetFilter(_curUid);
+  const _isManager = tareasCliIsManager(); // S90: eje dueño
 
   // PR4 hotfix #2: mapa tarea_id → scope del objetivo padre. Single source of truth
   // para filtrar tareas individuales y bloques (que tampoco tienen scope directo).
@@ -710,6 +711,8 @@ function _msRenderPanelTareas(uid) {
     if (!cdoc || !Array.isArray(cdoc.objetivos) || !cdoc.objetivos.length) return '';
     const items = [];
     cdoc.objetivos.forEach(function(o) {
+      // S90: filtro por dueño (superficie 2/5). Compone con scope, no lo reemplaza.
+      if (!tareasCliOwnerVisible(o, { viewerUid: _curUid, isManager: _isManager })) return;
       (o.tareas || []).forEach(function(t) {
         if (t.completado) return;
         if (conBloque.has(t.id)) return;
@@ -809,12 +812,16 @@ function _msRenderCompletadasHoy(uid) {
   const _canSeeEstrategicos = !!(window.currentUserProfile && window.currentUserProfile.can_see_estrategicos);
   const _curUid = (window.currentUser && window.currentUser.uid) || '_anon';
   const _filter = tareasCliGetFilter(_curUid);
+  const _isManager = tareasCliIsManager(); // S90: eje dueño
   const scopeByTaskId = {};
+  // S90: mapa tarea_id → visibilidad por dueño (el loop de bloques no tiene `o` a mano).
+  const ownerVisByTaskId = {};
   Object.values(window._tareasCliMemCache || {}).forEach(function(doc) {
     ((doc && doc.objetivos) || []).forEach(function(o) {
       const scope = o.scope || 'compartido';
+      const ownerVis = tareasCliOwnerVisible(o, { viewerUid: _curUid, isManager: _isManager });
       (o.tareas || []).forEach(function(t) {
-        if (t && t.id) scopeByTaskId[t.id] = scope;
+        if (t && t.id) { scopeByTaskId[t.id] = scope; ownerVisByTaskId[t.id] = ownerVis; }
       });
     });
   });
@@ -833,6 +840,8 @@ function _msRenderCompletadasHoy(uid) {
     if (b.tarea_id) {
       const taskScope = scopeByTaskId[b.tarea_id] || 'compartido';
       if (!tareasCliScopeMatch({ scope: taskScope }, { userRol: _curRol, canSeeEstrategicos: _canSeeEstrategicos, filter: _filter })) return;
+      // S90: filtro por dueño (superficie 3/5). Sin entrada en el mapa = legacy/visible.
+      if (ownerVisByTaskId[b.tarea_id] === false) return;
     }
     completados.push({ b: b, at: at });
   });

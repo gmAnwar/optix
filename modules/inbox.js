@@ -26,7 +26,7 @@ import {
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
 import { auth, db, WORKSPACE } from './core.js';
-import { tareasCliAddObjetivo, tareasCliAddTarea, tareasCliSave } from './tareas.js';
+import { tareasCliAddObjetivo, tareasCliAddTarea, tareasCliSave, tareasCliOwnerVisible, tareasCliIsManager } from './tareas.js';
 import { escapeHtml } from './utils.js';
 
 // ─────────────────────────────────────────
@@ -474,7 +474,14 @@ function _refreshStep3(ev, initialClientId, initialType, stickyObjId) {
   step3.style.display = '';
   const memCache = (typeof window !== 'undefined' && window._tareasCliMemCache) || {};
   const cached = memCache[clientId] || null;
-  const objetivos = (cached && Array.isArray(cached.objetivos)) ? cached.objetivos : [];
+  const objetivosRaw = (cached && Array.isArray(cached.objetivos)) ? cached.objetivos : [];
+  // S90 (SPEC F0BC6QGA7L3): filtro por dueño (superficie 4/5 — el dropdown de rutear).
+  // Sin esto Mario vería los privados de Anwar en la lista de objetivos a los que rutear.
+  const _ownerUid = (typeof window !== 'undefined' && window.currentUser && window.currentUser.uid) || '_anon';
+  const _ownerIsManager = tareasCliIsManager();
+  const objetivos = objetivosRaw.filter(function(o) {
+    return tareasCliOwnerVisible(o, { viewerUid: _ownerUid, isManager: _ownerIsManager });
+  });
 
   const objOptions = objetivos.map(function(o) {
     const sel = (stickyObjId && o.id === stickyObjId) ? ' selected' : '';
