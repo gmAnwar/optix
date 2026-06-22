@@ -954,17 +954,19 @@
     var goals      = data.goals || {};
     var objetivo   = (goals.costo_preaut_positivo_objetivo && goals.costo_preaut_positivo_objetivo.valor) || null;
     var spendMixto = (data.totals && data.totals.spend_mixto) || 0;
-    var withCost = [], without = [];
+    var CANON = { 'MAQUINA DE HIELO':1, 'CONGELADOR':1, 'ENFRIADOR':1, 'VITRINAS':1, 'PROCESAMIENTO':1 };
+    var withCost = [], without = [], residualN = 0;
     for (var fam in byFamily) {
       if (!Object.prototype.hasOwnProperty.call(byFamily, fam)) continue;
       var f = byFamily[fam] || {};
-      var costo = f.costo_por_preaut_positivo;
       var n = Number(f.preaut_positivos) || 0;
+      if (!CANON[fam]) { residualN += n; continue; }
+      var costo = f.costo_por_preaut_positivo;
       var noCampaign = (f.attribution_status === 'no_dedicated_campaign') || costo == null;
       if (noCampaign) { without.push({ fam: fam, n: n }); }
       else { withCost.push({ fam: fam, n: n, costo: Number(costo) }); }
     }
-    if (withCost.length === 0 && without.length === 0) { sec.innerHTML = ''; return; }
+    if (withCost.length === 0 && without.length === 0 && residualN === 0) { sec.innerHTML = ''; return; }
     withCost.sort(function (a, b) { return a.costo - b.costo; });
     without.sort(function (a, b) { return b.n - a.n; });
     var maxCosto = withCost.length ? withCost[withCost.length - 1].costo : 0;
@@ -982,15 +984,17 @@
         '<div class="pf-bar"><div class="pf-bar-fill pf-bar-fill--' + tier(it.costo) + '" style="width:' + pct + '%"></div></div>' +
         '<span class="pf-num"><span class="pf-cost">' + _fmtCurrency(it.costo) + '</span><span class="pf-n">' + _fmtInt(it.n) + ' preaut+</span></span></div>';
     }
-    for (var j = 0; j < without.length; j++) {
-      var w = without[j];
+    for (var k = 0; k < without.length; k++) {
+      var w = without[k];
       rows += '<div class="pf-row"><span class="pf-fam pf-fam--muted">' + escapeHtml(w.fam) + '</span>' +
         '<span class="pf-nocamp">sin campaña dedicada</span>' +
         '<span class="pf-num"><span class="pf-n">' + _fmtInt(w.n) + ' preaut+</span></span></div>';
     }
     var legend = objetivo ? '<div class="pf-legend"><span class="pf-leg"><span class="pf-sw pf-sw--amber"></span>hasta 1.5x meta</span><span class="pf-leg"><span class="pf-sw pf-sw--red"></span>arriba de 1.5x</span><span class="pf-leg-meta">meta ' + _fmtCurrency(objetivo) + ' / preaut+</span></div>' : '';
-    var footer = (spendMixto > 0) ? '<div class="pf-foot">+ ' + _fmtCurrency(spendMixto) + ' en campanas multi-familia (spend mixto), no atribuible a una sola linea.</div>' : '';
-    sec.innerHTML = '<div class="pf-card"><div class="pf-head"><span class="pf-title">Preaut+ por familia</span><span class="pf-sub">costo por preaut+ - global del mes</span></div>' + legend + rows + footer + '</div>';
+    var notes = '';
+    if (spendMixto > 0) notes += '<div class="pf-foot">+ ' + _fmtCurrency(spendMixto) + ' en campanas multi-familia (spend mixto), no atribuible a una sola linea.</div>';
+    if (residualN > 0) notes += '<div class="pf-foot">+ ' + _fmtInt(residualN) + ' preaut+ sin familia clasificada.</div>';
+    sec.innerHTML = '<div class="pf-card"><div class="pf-head"><span class="pf-title">Preaut+ por familia</span><span class="pf-sub">costo por preaut+ - global del mes</span></div>' + legend + rows + notes + '</div>';
   }
   window.__renderPreautFamilia = renderPreautFamilia;
 
