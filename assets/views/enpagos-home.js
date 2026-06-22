@@ -1075,7 +1075,7 @@
     );
   }
 
-  // ── S89-9 — Filas colapsables (Rechazados / Cancelados / Preaut+ por equipo) ──
+  // ── S89-9 — Filas colapsables (Rechazados / Cancelados) ──
   // Patrón: <details>/<summary> nativo (cero JS). Marker propio ▸→▾ vía
   // rotación CSS al estado [open]. Cuando no hay sub-filas o N=0, se
   // emite una fila simple sin triángulo (no hay nada que desplegar).
@@ -1152,23 +1152,6 @@
     return items.map(function (it) { return _plazaSubRowHtml(it.label, it.n); }).join('');
   }
 
-  function _buildPreautPorEquipoSubRows(byEquipment) {
-    // Solo equipos con preaut_positivos > 0 (no listar 32 con ceros).
-    // by_equipment.{eq}.current.preaut_positivos es la fuente.
-    // No mostramos CAC por equipo — by_equipment.*.inversion=0 siempre
-    // (backend no atribuye spend a equipo), CAC sería ÷ por ceros.
-    var be = byEquipment || {};
-    var items = [];
-    for (var eq in be) {
-      if (Object.prototype.hasOwnProperty.call(be, eq)) {
-        var n = (((be[eq] || {}).current) || {}).preaut_positivos || 0;
-        if (n > 0) items.push({ label: eq, n: n });
-      }
-    }
-    items.sort(function (a, b) { return b.n - a.n; });
-    return items.map(function (it) { return _plazaSubRowHtml(it.label, it.n); }).join('');
-  }
-
   function _plazaFooterHtml(cierres, cacText, venta) {
     // S89 — Footer L1: CIERRES · CAC (existente).
     //       Footer L2: VENTA $monto completo sin abreviar (SPEC F0B7Q4VK4TE).
@@ -1208,11 +1191,10 @@
 
     var inv = current.inversion_atribuida;
 
-    // S89-9 — Filas colapsables (Rechazados / Cancelados / Preaut+ por equipo)
+    // S89-9 — Filas colapsables (Rechazados / Cancelados)
     // se construyen ANTES del template para mantener legible la composición.
     var rechazadosSubRows  = _buildRechazadosSubRows(city && city.by_rejection_reason);
     var canceladosSubRows  = _buildCanceladosSubRows(city && city.by_cancellation_reason, current.cancelados);
-    var preautEqSubRows    = _buildPreautPorEquipoSubRows(city && city.by_equipment);
 
     // S89-9 — Microcopy de Firmas Programadas: "si cierra la 1 firma" /
     // "si cierran las N firmas". Solo cuando firmas > 0 (sin firmas no hay
@@ -1231,7 +1213,6 @@
       + _plazaCollapsibleRowHtml('Rechazados',           current.rechazados,                   rechazadosSubRows)
       + _plazaMetricRowWithCpaHtml('Preaut+',            _fmtInt(current.preaut_positivos),    _cpaText(inv, current.preaut_positivos))
       + _plazaCollapsibleRowHtml('Cancelados',           current.cancelados,                   canceladosSubRows)
-      + _plazaCollapsibleRowHtml('Preaut+ por equipo',   current.preaut_positivos,             preautEqSubRows)
       + _plazaMetricRowWithCpaHtml('Firmas Programadas', _fmtInt(current.firmas_programadas),  _cacProximoText(inv, current.cierres, current.firmas_programadas), firmasSubLabel)
       + _plazaFooterHtml(current.cierres, cacText, current.venta);
 
