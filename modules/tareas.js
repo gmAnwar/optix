@@ -1274,6 +1274,38 @@ export function tareasCliSetFilter(filter) {
   }
 }
 
+// S90 (SPEC F0BC6QGA7L3): filtro de VISTA por dueño 'mios' | 'todos', per-uid, ortogonal
+// al chip de scope. NO es regla de privacidad (eso es tareasCliOwnerVisible); solo enfoca
+// la vista en lo propio. Aplica en cards + panel Mi Semana.
+function _tareasCliOwnerFilterKey(uid) {
+  return 'oa-tareas-cli-owner-filter-' + (uid || '_anon');
+}
+export function tareasCliGetOwnerFilter(uid) {
+  if (uid == null) uid = (typeof currentUser !== 'undefined' && currentUser && currentUser.uid) || '_anon';
+  try {
+    const v = localStorage.getItem(_tareasCliOwnerFilterKey(uid));
+    if (v === 'mios' || v === 'todos') return v;
+    return 'todos';
+  } catch (e) { return 'todos'; }
+}
+export function tareasCliSetOwnerFilter(filter) {
+  if (filter !== 'todos' && filter !== 'mios') return;
+  const uid = (typeof currentUser !== 'undefined' && currentUser && currentUser.uid) || '_anon';
+  try { localStorage.setItem(_tareasCliOwnerFilterKey(uid), filter); } catch (e) {}
+  if (typeof renderTareasCli === 'function') { try { renderTareasCli(); } catch (e) {} }
+  if (typeof window !== 'undefined' && typeof window.renderMiSemana === 'function') {
+    try { window.renderMiSemana(); } catch (e) {}
+  }
+}
+
+// Helper: ¿el objetivo pasa el filtro de vista 'mios'/'todos'? 'mios' = soy el dueño.
+// 'todos' o legacy sin owner_uid → pasa siempre.
+export function tareasCliOwnerFilterMatch(objetivo, ownerFilter, viewerUid) {
+  if (ownerFilter !== 'mios') return true;
+  const o = objetivo || {};
+  return !!o.owner_uid && o.owner_uid === viewerUid;
+}
+
 const _tareasCliMemCache = {};
 const _tareasCliUnsubs = {};       // { clientId: unsubFn }
 
@@ -1566,6 +1598,7 @@ function renderTareasCli() {
   const _showFilterH = true || _isSeniorH || _canSeeEstrategicosH; // S90: filtro para todos
   const _curUidH = (typeof currentUser !== 'undefined' && currentUser && currentUser.uid) || '_anon';
   const _curFilterH = tareasCliGetFilter(_curUidH);
+  const _curOwnerFilterH = tareasCliGetOwnerFilter(_curUidH); // S90: vista 'mios'/'todos'
   const onlyMineToggle = _showFilterH ? (function() {
     const stylePill = function(active) {
       const bg = active ? 'var(--accent)' : 'transparent';
@@ -1574,11 +1607,19 @@ function renderTareasCli() {
       return 'background:' + bg + ';color:' + color + ';border:' + border + ';font-family:\'DM Mono\',monospace;font-size:10px;font-weight:700;letter-spacing:0.05em;padding:6px 12px;border-radius:6px;cursor:pointer;';
     };
     return ''
-      + '<div style="display:flex;justify-content:flex-end;gap:4px;">'
-      +   '<button onclick="tareasCliSetFilter(\'todos\')" style="' + stylePill(_curFilterH === 'todos') + '">TODOS</button>'
-      +   '<button onclick="tareasCliSetFilter(\'operativos\')" style="' + stylePill(_curFilterH === 'operativos') + '">OPERATIVOS</button>'
-      +   '<button onclick="tareasCliSetFilter(\'recurrentes\')" style="' + stylePill(_curFilterH === 'recurrentes') + '">RECURRENTES</button>'
-      +   '<button onclick="tareasCliSetFilter(\'estrategicos\')" style="' + stylePill(_curFilterH === 'estrategicos') + '">ESTRATÉGICOS</button>'
+      + '<div style="display:flex;justify-content:space-between;align-items:center;gap:4px;">'
+      // S90: toggle de vista por dueño (MÍOS/TODOS), izquierda. Para todos.
+      +   '<div style="display:flex;gap:4px;">'
+      +     '<button onclick="tareasCliSetOwnerFilter(\'mios\')" style="' + stylePill(_curOwnerFilterH === 'mios') + '">MÍOS</button>'
+      +     '<button onclick="tareasCliSetOwnerFilter(\'todos\')" style="' + stylePill(_curOwnerFilterH === 'todos') + '">TODOS</button>'
+      +   '</div>'
+      // Chips de scope, derecha.
+      +   '<div style="display:flex;gap:4px;">'
+      +     '<button onclick="tareasCliSetFilter(\'todos\')" style="' + stylePill(_curFilterH === 'todos') + '">TODOS</button>'
+      +     '<button onclick="tareasCliSetFilter(\'operativos\')" style="' + stylePill(_curFilterH === 'operativos') + '">OPERATIVOS</button>'
+      +     '<button onclick="tareasCliSetFilter(\'recurrentes\')" style="' + stylePill(_curFilterH === 'recurrentes') + '">RECURRENTES</button>'
+      +     '<button onclick="tareasCliSetFilter(\'estrategicos\')" style="' + stylePill(_curFilterH === 'estrategicos') + '">ESTRATÉGICOS</button>'
+      +   '</div>'
       + '</div>';
   })() : '';
 
@@ -1615,8 +1656,10 @@ function tareasCliRenderCard(client, color, objetivos) {
   // Mario contaría privados de Anwar que no se le pintan). Eje dueño, no scope.
   const _curUidCard = (typeof currentUser !== 'undefined' && currentUser && currentUser.uid) || '_anon';
   const _cardIsManager = tareasCliIsManager();
+  const _cardOwnerFilter = tareasCliGetOwnerFilter(_curUidCard);
   const _visObjetivos = (objetivos || []).filter(function(o) {
-    return tareasCliOwnerVisible(o, { viewerUid: _curUidCard, isManager: _cardIsManager });
+    return tareasCliOwnerVisible(o, { viewerUid: _curUidCard, isManager: _cardIsManager })
+      && tareasCliOwnerFilterMatch(o, _cardOwnerFilter, _curUidCard);
   });
   const totalTareas = _visObjetivos.reduce(function(s, o) { return s + ((o.tareas || []).length); }, 0);
   const totalDone = _visObjetivos.reduce(function(s, o) { return s + ((o.tareas || []).filter(function(t) { return t.completado; }).length); }, 0);
@@ -1699,10 +1742,12 @@ function tareasCliRenderObjetivosList(client, objetivos) {
   const _isSenior = tareasCliIsSeniorRol(_curRol);
   const _showBadge = true || _isSenior || _canSeeEstrategicos; // S90: badges para todos
   const _isManager = tareasCliIsManager(); // S90: eje dueño
+  const _ownerFilter = tareasCliGetOwnerFilter(_curUid); // S90: vista 'mios'/'todos'
   const _filtered = (objetivos || []).filter(function(o) {
-    // S90: componer scope AND owner (no reemplazar el filtro de scope existente).
+    // S90: componer scope AND owner-privacy AND owner-view-filter (no reemplazar scope).
     return tareasCliScopeMatch(o, { userRol: _curRol, canSeeEstrategicos: _canSeeEstrategicos, filter: _filter })
-      && tareasCliOwnerVisible(o, { viewerUid: _curUid, isManager: _isManager });
+      && tareasCliOwnerVisible(o, { viewerUid: _curUid, isManager: _isManager })
+      && tareasCliOwnerFilterMatch(o, _ownerFilter, _curUid);
   });
   if (!_filtered.length) {
     return '<div style="padding:14px 0;color:var(--text3);font-size:12px;text-align:center;font-family:\'DM Mono\',monospace;">Sin objetivos creados</div>';
@@ -3246,6 +3291,8 @@ function initTareas() {
   window.tareasCliToggleCollapsed = tareasCliToggleCollapsed;
   // PR4: filter 3-chips (todos | estrategicos | operativos), cross-view Tareas + Mi Semana.
   window.tareasCliSetFilter = tareasCliSetFilter;
+  // S90: toggle de vista por dueño (MÍOS/TODOS), cross-view Tareas + Mi Semana.
+  window.tareasCliSetOwnerFilter = tareasCliSetOwnerFilter;
   window.tareasCliCalPrevWeek = tareasCliCalPrevWeek;
   window.tareasCliCalNextWeek = tareasCliCalNextWeek;
   window.tareasCliCalToday = tareasCliCalToday;
