@@ -137,6 +137,7 @@
         var sections = [
           ['renderGoals',           function () { renderGoals(data, period); }],
           ['renderKpiStrip',        function () { renderKpiStrip(data, period); }],
+          ['renderPreautFamilia',   function () { renderPreautFamilia(data); }],
           ['renderPlazaCards',      function () { renderPlazaCards(data); }],
           ['renderTodayDetailFeed', function () { renderTodayDetailFeed(data); }]
         ];
@@ -944,6 +945,54 @@
   }
 
   window.__renderKpiStrip = renderKpiStrip;
+
+  function renderPreautFamilia(data) {
+    var sec = document.getElementById('preaut-familia-section');
+    if (!sec) return;
+    if (!data || typeof data !== 'object') { sec.innerHTML = ''; return; }
+    var byFamily   = (data.totals && data.totals.by_family) || {};
+    var goals      = data.goals || {};
+    var objetivo   = (goals.costo_preaut_positivo_objetivo && goals.costo_preaut_positivo_objetivo.valor) || null;
+    var spendMixto = (data.totals && data.totals.spend_mixto) || 0;
+    var withCost = [], without = [];
+    for (var fam in byFamily) {
+      if (!Object.prototype.hasOwnProperty.call(byFamily, fam)) continue;
+      var f = byFamily[fam] || {};
+      var costo = f.costo_por_preaut_positivo;
+      var n = Number(f.preaut_positivos) || 0;
+      var noCampaign = (f.attribution_status === 'no_dedicated_campaign') || costo == null;
+      if (noCampaign) { without.push({ fam: fam, n: n }); }
+      else { withCost.push({ fam: fam, n: n, costo: Number(costo) }); }
+    }
+    if (withCost.length === 0 && without.length === 0) { sec.innerHTML = ''; return; }
+    withCost.sort(function (a, b) { return a.costo - b.costo; });
+    without.sort(function (a, b) { return b.n - a.n; });
+    var maxCosto = withCost.length ? withCost[withCost.length - 1].costo : 0;
+    function tier(costo) {
+      if (!objetivo) return 'none';
+      if (costo <= objetivo)       return 'green';
+      if (costo <= objetivo * 1.5) return 'amber';
+      return 'red';
+    }
+    var rows = '';
+    for (var i = 0; i < withCost.length; i++) {
+      var it = withCost[i];
+      var pct = maxCosto > 0 ? Math.round((it.costo / maxCosto) * 100) : 0;
+      rows += '<div class="pf-row"><span class="pf-fam">' + escapeHtml(it.fam) + '</span>' +
+        '<div class="pf-bar"><div class="pf-bar-fill pf-bar-fill--' + tier(it.costo) + '" style="width:' + pct + '%"></div></div>' +
+        '<span class="pf-num"><span class="pf-cost">' + _fmtCurrency(it.costo) + '</span><span class="pf-n">' + _fmtInt(it.n) + ' preaut+</span></span></div>';
+    }
+    for (var j = 0; j < without.length; j++) {
+      var w = without[j];
+      rows += '<div class="pf-row"><span class="pf-fam pf-fam--muted">' + escapeHtml(w.fam) + '</span>' +
+        '<span class="pf-nocamp">sin campaña dedicada</span>' +
+        '<span class="pf-num"><span class="pf-n">' + _fmtInt(w.n) + ' preaut+</span></span></div>';
+    }
+    var legend = objetivo ? '<div class="pf-legend"><span class="pf-leg"><span class="pf-sw pf-sw--amber"></span>hasta 1.5x meta</span><span class="pf-leg"><span class="pf-sw pf-sw--red"></span>arriba de 1.5x</span><span class="pf-leg-meta">meta ' + _fmtCurrency(objetivo) + ' / preaut+</span></div>' : '';
+    var footer = (spendMixto > 0) ? '<div class="pf-foot">+ ' + _fmtCurrency(spendMixto) + ' en campanas multi-familia (spend mixto), no atribuible a una sola linea.</div>' : '';
+    sec.innerHTML = '<div class="pf-card"><div class="pf-head"><span class="pf-title">Preaut+ por familia</span><span class="pf-sub">costo por preaut+ - global del mes</span></div>' + legend + rows + footer + '</div>';
+  }
+  window.__renderPreautFamilia = renderPreautFamilia;
 
   // ── F3.6 Plaza cards — 11 cards, table 5 rows + footer CIERRES/CAC ─────
   //
