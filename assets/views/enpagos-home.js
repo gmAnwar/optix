@@ -1228,8 +1228,8 @@
     var rows = ''
       + _plazaMetricRowHtml('Inversión', _fmtCurrency(inv))
       + _plazaMetricRowWithCpaHtml('Preautorizados',     _fmtInt(current.leads_brutos),        _cpaText(inv, current.leads_brutos))
-      + _plazaMetricRowWithCpaHtml('Preaut+',            _fmtInt(current.preaut_positivos),    _cpaText(inv, current.preaut_positivos))
       + _plazaCollapsibleRowHtml('Rechazados',           current.rechazados,                   rechazadosSubRows)
+      + _plazaMetricRowWithCpaHtml('Preaut+',            _fmtInt(current.preaut_positivos),    _cpaText(inv, current.preaut_positivos))
       + _plazaCollapsibleRowHtml('Cancelados',           current.cancelados,                   canceladosSubRows)
       + _plazaCollapsibleRowHtml('Preaut+ por equipo',   current.preaut_positivos,             preautEqSubRows)
       + _plazaMetricRowWithCpaHtml('Firmas Programadas', _fmtInt(current.firmas_programadas),  _cacProximoText(inv, current.cierres, current.firmas_programadas), firmasSubLabel)
