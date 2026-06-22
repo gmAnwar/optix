@@ -1171,7 +1171,7 @@ export const TAREAS_CLIENTE_COLORS = {
 // PR3 v4.1 (SPEC F0B6LPZCWEN): scopes de objetivos por rol.
 // Lazy migration en read: objetivos sin field `scope` se tratan como 'compartido'.
 // Defensive fallback en _getCurrentRol: si profile no resolvió aún, asume 'junior' (más restrictivo).
-export const TAREAS_CLI_SCOPES = ['operativo', 'estrategico', 'compartido'];
+export const TAREAS_CLI_SCOPES = ['operativo', 'estrategico', 'recurrente', 'compartido'];
 const TAREAS_CLI_SENIOR_ROLES = ['all', 'direccion', 'owner'];
 
 function _tareasCliGetCurrentRol() {
@@ -1196,7 +1196,8 @@ export function tareasCliScopeMatch(objetivo, opts) {
   const filter = opts.filter || 'todos';
 
   const isSeniorByRol = TAREAS_CLI_SENIOR_ROLES.indexOf(userRol) !== -1;
-  const canSeeAll = isSeniorByRol || canSeeEstrategicos;
+  // S90: etiquetas para todos. Reversible: restaurar `isSeniorByRol || canSeeEstrategicos`.
+  const canSeeAll = true || isSeniorByRol || canSeeEstrategicos;
 
   if (!canSeeAll) {
     return scope !== 'estrategico';
@@ -1206,6 +1207,9 @@ export function tareasCliScopeMatch(objetivo, opts) {
   }
   if (filter === 'operativos') {
     return scope === 'operativo' || scope === 'compartido';
+  }
+  if (filter === 'recurrentes') {
+    return scope === 'recurrente' || scope === 'compartido';
   }
   return true;
 }
@@ -1218,12 +1222,12 @@ export function tareasCliGetFilter(uid) {
   if (uid == null) uid = (typeof currentUser !== 'undefined' && currentUser && currentUser.uid) || '_anon';
   try {
     const v = localStorage.getItem(_tareasCliFilterKey(uid));
-    if (v === 'estrategicos' || v === 'operativos' || v === 'todos') return v;
+    if (v === 'estrategicos' || v === 'operativos' || v === 'recurrentes' || v === 'todos') return v;
     return 'todos';
   } catch (e) { return 'todos'; }
 }
 export function tareasCliSetFilter(filter) {
-  if (filter !== 'todos' && filter !== 'estrategicos' && filter !== 'operativos') return;
+  if (filter !== 'todos' && filter !== 'estrategicos' && filter !== 'operativos' && filter !== 'recurrentes') return;
   const uid = (typeof currentUser !== 'undefined' && currentUser && currentUser.uid) || '_anon';
   try { localStorage.setItem(_tareasCliFilterKey(uid), filter); } catch (e) {}
   if (typeof renderTareasCli === 'function') { try { renderTareasCli(); } catch (e) {} }
@@ -1521,7 +1525,7 @@ function renderTareasCli() {
   const _curRolH = _tareasCliGetCurrentRol();
   const _isSeniorH = tareasCliIsSeniorRol(_curRolH);
   const _canSeeEstrategicosH = !!(typeof window !== 'undefined' && window.currentUserProfile && window.currentUserProfile.can_see_estrategicos);
-  const _showFilterH = _isSeniorH || _canSeeEstrategicosH;
+  const _showFilterH = true || _isSeniorH || _canSeeEstrategicosH; // S90: filtro para todos
   const _curUidH = (typeof currentUser !== 'undefined' && currentUser && currentUser.uid) || '_anon';
   const _curFilterH = tareasCliGetFilter(_curUidH);
   const onlyMineToggle = _showFilterH ? (function() {
@@ -1535,6 +1539,7 @@ function renderTareasCli() {
       + '<div style="display:flex;justify-content:flex-end;gap:4px;">'
       +   '<button onclick="tareasCliSetFilter(\'todos\')" style="' + stylePill(_curFilterH === 'todos') + '">TODOS</button>'
       +   '<button onclick="tareasCliSetFilter(\'operativos\')" style="' + stylePill(_curFilterH === 'operativos') + '">OPERATIVOS</button>'
+      +   '<button onclick="tareasCliSetFilter(\'recurrentes\')" style="' + stylePill(_curFilterH === 'recurrentes') + '">RECURRENTES</button>'
       +   '<button onclick="tareasCliSetFilter(\'estrategicos\')" style="' + stylePill(_curFilterH === 'estrategicos') + '">ESTRATÉGICOS</button>'
       + '</div>';
   })() : '';
@@ -1647,7 +1652,7 @@ function tareasCliRenderObjetivosList(client, objetivos) {
   const _curUid = (typeof currentUser !== 'undefined' && currentUser && currentUser.uid) || '_anon';
   const _filter = tareasCliGetFilter(_curUid);
   const _isSenior = tareasCliIsSeniorRol(_curRol);
-  const _showBadge = _isSenior || _canSeeEstrategicos;
+  const _showBadge = true || _isSenior || _canSeeEstrategicos; // S90: badges para todos
   const _filtered = (objetivos || []).filter(function(o) {
     return tareasCliScopeMatch(o, { userRol: _curRol, canSeeEstrategicos: _canSeeEstrategicos, filter: _filter });
   });
@@ -1755,6 +1760,7 @@ function tareasCliRenderObjetivosList(client, objetivos) {
             const _badgeStyles = {
               'operativo':   { bg: 'rgba(59,130,246,0.18)',  fg: '#3b82f6',          label: 'OPERATIVO' },
               'estrategico': { bg: 'rgba(168,85,247,0.18)',  fg: '#a855f7',          label: 'ESTRATÉGICO' },
+              'recurrente':  { bg: 'rgba(20,184,166,0.18)',  fg: '#2dd4bf',          label: 'RECURRENTE' },
               'compartido':  { bg: 'rgba(148,163,184,0.18)', fg: 'var(--text3)',    label: 'COMPARTIDO' }
             };
             const _b = _badgeStyles[_sc] || _badgeStyles['compartido'];
@@ -2641,8 +2647,8 @@ function tareasCliShowAddObjetivoInput(clientId) {
   // PR3 v4.1: dropdown scope debajo del input (Enter confirma, lee valor del select).
   const defaultScope = tareasCliDefaultScopeForRol(_tareasCliGetCurrentRol());
   const scopeOptionsHtml = TAREAS_CLI_SCOPES.map(function(s) {
-    const label = s.charAt(0).toUpperCase() + s.slice(1).replace('estrategico', 'Estratégico');
-    const finalLabel = s === 'estrategico' ? 'Estratégico' : (s === 'operativo' ? 'Operativo' : 'Compartido');
+    const _scopeLabels = { operativo: 'Operativo', estrategico: 'Estratégico', recurrente: 'Recurrente', compartido: 'Compartido' };
+    const finalLabel = _scopeLabels[s] || (s.charAt(0).toUpperCase() + s.slice(1));
     const sel = s === defaultScope ? ' selected' : '';
     return '<option value="' + s + '"' + sel + '>' + finalLabel + '</option>';
   }).join('');

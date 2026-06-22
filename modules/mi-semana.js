@@ -755,7 +755,7 @@ function _msRenderPanelTareas(uid) {
   // Visible si senior O canSeeEstrategicos=true. Junior puro NO renderiza.
   // Cross-view sync con vista Tareas via tareasCliSetFilter (window.* expose init).
   const _isSenior = _curRol === 'all' || _curRol === 'direccion' || _curRol === 'owner';
-  const _showFilterMs = _isSenior || _canSeeEstrategicos;
+  const _showFilterMs = true || _isSenior || _canSeeEstrategicos; // S90: filtro para todos
   const onlyMineToggleMs = _showFilterMs ? (function() {
     const stylePill = function(active) {
       const bg = active ? 'var(--accent)' : 'transparent';
@@ -767,6 +767,7 @@ function _msRenderPanelTareas(uid) {
       + '<div style="display:flex;gap:4px;margin-bottom:6px;">'
       +   '<button onclick="tareasCliSetFilter(\'todos\')" style="' + stylePill(_filter === 'todos') + '">TODOS</button>'
       +   '<button onclick="tareasCliSetFilter(\'operativos\')" style="' + stylePill(_filter === 'operativos') + '">OPERATIVOS</button>'
+      +   '<button onclick="tareasCliSetFilter(\'recurrentes\')" style="' + stylePill(_filter === 'recurrentes') + '">RECURRENTES</button>'
       +   '<button onclick="tareasCliSetFilter(\'estrategicos\')" style="' + stylePill(_filter === 'estrategicos') + '">ESTRATÉGICOS</button>'
       + '</div>';
   })() : '';
