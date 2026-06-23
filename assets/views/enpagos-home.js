@@ -379,7 +379,15 @@
         ? (Number(cierresGoalP) / Number(cierresGoalMo)) : null;
       cierresHTML = _row1BoxHTML({
         label: 'Cierres del mes',
-        bigHTML: _fmtInt(cierresVal),
+        bigHTML: (function() {
+          var base = _fmtInt(cierresVal);
+          var fp = current.firmas_programadas;
+          if (fp != null && Number(fp) > 0) {
+            base += '<span class="row1-box__firmas-prog"> +' + _fmtInt(fp) +
+              ' <span class="row1-box__firmas-label">FIRMAS PROG.</span></span>';
+          }
+          return base;
+        }()),
         chipHTML: _row1ChipHTML(tierStatus, _tierChipLabel(tierStatus, 'cierres')),
         barHTML: _row1ProgressBarHTML({
           fillPct: fillPct, expectedPct: expPct, status: tierStatus
@@ -513,18 +521,28 @@
       // "en 0 firmas") cuando venta_firmas o firmas son 0 o ausentes.
       // El slot footHTML es nativo de _row1BoxHTML — renderea
       // <div class="row1-box__foot"> con tipografía 12px gris #8a8a8a.
-      var ventaFirmasVal = current.venta_firmas_programadas;
-      var firmasCount    = current.firmas_programadas;
-      var ventaFootHTML  = '';
-      if (ventaFirmasVal != null && Number(ventaFirmasVal) > 0 &&
-          firmasCount != null && Number(firmasCount) > 0 &&
-          ventaVal != null) {
-        var proyectada = Number(ventaVal) + Number(ventaFirmasVal);
-        ventaFootHTML = '+ ' + _fmtCurrency(ventaFirmasVal) +
-          ' en ' + _fmtInt(firmasCount) +
-          ' firma' + (firmasCount === 1 ? '' : 's') + ' programada' +
-          (firmasCount === 1 ? '' : 's') +
-          ' → ' + _fmtCurrency(proyectada) + ' proyectada';
+      var ventaFootHTML = '';
+      // Sub-línea 1: ticket promedio del mes
+      var ticketVal = current.ticket_promedio;
+      if (ticketVal != null && Number(ticketVal) > 0) {
+        ventaFootHTML += 'Ticket prom. ' + _fmtCurrency(ticketVal);
+      }
+      // Sub-línea 2: proyección EOM
+      // preaut_avg_diario = preaut_positivos / dias_transcurridos
+      // dias_restantes = 30 - dias_transcurridos (cap a 0)
+      // cierres_proyectados = avg_diario * dias_restantes * 0.30 (tasa fija)
+      // venta_proyectada = venta_actual + cierres_proyectados * ticket_promedio
+      var metaPeriodDays = Number((data.meta && data.meta.period && data.meta.period.days) || 0);
+      var diasRest = Math.max(0, 30 - metaPeriodDays);
+      var preautTot = Number(current.preaut_positivos) || 0;
+      var ticketProy = Number(ticketVal) || 0;
+      if (metaPeriodDays > 0 && diasRest > 0 && preautTot > 0 && ticketProy > 0) {
+        var preautAvgDiario = preautTot / metaPeriodDays;
+        var cierresProy = preautAvgDiario * diasRest * 0.30;
+        var ventaTotalProy = Number(current.venta || 0) + (cierresProy * ticketProy);
+        if (ventaFootHTML) ventaFootHTML += ' · ';
+        ventaFootHTML += 'Proy. EOM ' + _fmtCurrency(Math.round(ventaTotalProy)) +
+          ' (' + _fmtFloat1(cierresProy) + ' cierres est.)';
       }
 
       ventaHTML = _row1BoxHTML({
@@ -540,7 +558,7 @@
         topeHTML: (ventaGoalMo != null)
           ? 'Plan ' + _fmtCurrency(ventaGoalMo)
           : '',
-        footHTML: ventaFootHTML                // S89-firmas-proy
+        footHTML: ventaFootHTML                // S89-kpi-reorder
       });
     } else {
       ventaHTML = _row1BoxHTML({
@@ -551,8 +569,8 @@
     }
 
     sec.innerHTML =
-      '<div class="row1-grid" role="group" aria-label="Cierres, inversión, Preaut+ y venta vs meta">' +
-        cierresHTML + invHTML + preautHTML + ventaHTML +
+      '<div class="row1-grid" role="group" aria-label="Preaut+, cierres, venta e inversión vs meta">' +
+        preautHTML + cierresHTML + ventaHTML + invHTML +
       '</div>';
   }
 
