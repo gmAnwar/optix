@@ -139,6 +139,7 @@
           ['renderKpiStrip',        function () { renderKpiStrip(data, period); }],
           ['renderPreautFamilia',   function () { renderPreautFamilia(data); }],
           ['renderPlazaCards',      function () { renderPlazaCards(data); }],
+          ['renderVolanteoFootnote',function () { renderVolanteoFootnote(data); }],
           ['renderTodayDetailFeed', function () { renderTodayDetailFeed(data); }]
         ];
         for (var i = 0; i < sections.length; i++) {
@@ -1350,6 +1351,22 @@
   }
 
   window.__renderPlazaCards = renderPlazaCards;
+
+  // ── VOLANTEO footnote — leads del canal volanteo separados del paid Meta ──
+  // Lee data.channels.volanteo. Si cierres===0 o ausente: oculto.
+  // Si cierres>0: fila discreta bajo plaza cards, no cuenta en CAC paid.
+  function renderVolanteoFootnote(data) {
+    var sec = document.getElementById('volanteo-footnote-section');
+    if (!sec) return;
+    var v = (data && data.channels && data.channels.volanteo) || null;
+    var cierres = Number((v || {}).cierres) || 0;
+    if (!v || cierres <= 0) { sec.innerHTML = ''; return; }
+    var venta = Number(v.venta) || 0;
+    var plural = cierres === 1 ? 'cierre' : 'cierres';
+    sec.innerHTML = '<div class="pf-foot">+ ' + _fmtInt(cierres) + ' ' + plural +
+      ' VOLANTEO · ' + _fmtCurrency(venta) + ' venta · no incluido en CAC paid.</div>';
+  }
+  window.__renderVolanteoFootnote = renderVolanteoFootnote;
 
   // ── F3.5 TodayDetailFeed — table of today's preautorized leads ─────────
   //
