@@ -196,6 +196,14 @@
     return Math.round(Number(n)).toLocaleString('es-MX');
   }
 
+  function _fmtCurrencyShort(n) {
+    if (n == null || isNaN(n)) return '—';
+    var v = Number(n);
+    if (v >= 1000000) return '$' + (v / 1000000).toFixed(1) + 'M';
+    if (v >= 1000)    return '$' + Math.round(v / 1000) + 'K';
+    return '$' + Math.round(v).toLocaleString('es-MX');
+  }
+
   function _fmtCurrency(n) {
     if (n == null || isNaN(n)) return '—';
     return '$' + Math.round(Number(n)).toLocaleString('es-MX');
@@ -258,7 +266,7 @@
     var diff = Number(expected) - Number(actual);
     if (diff <= 0)  return 'green';   // al ritmo o adelantado
     if (diff <= 5)  return 'green';   // 0-5 de diferencia → verde
-    if (diff <= 15) return 'amber';   // 6-15 de diferencia → ámbar
+    if (diff <= 15) return 'yellow';  // 6-15 de diferencia → ámbar
     return 'red';                     // más de 15 → rojo
   }
 
@@ -271,8 +279,8 @@
       return '';
     }
     if (kind === 'preaut') {
-      // 2-estados, mismo eje que Cierres: al ritmo o atrasado.
       if (status === 'green')  return 'AL RITMO';
+      if (status === 'yellow') return 'CERCA DE META';
       if (status === 'red')    return 'BAJO META';
       return '';
     }
@@ -401,7 +409,15 @@
           : '',
         topeHTML: (cierresGoalMo != null)
           ? 'Meta ' + _fmtInt(cierresGoalMo)
-          : ''
+          : '',
+        footHTML: (function() {
+          var parts = [];
+          var tk = current.ticket_promedio;
+          if (tk != null && Number(tk) > 0) parts.push('Ticket prom. ' + _fmtCurrency(tk));
+          var tasa = current.tasa_cierre_preaut_positivo;
+          if (tasa != null && !isNaN(tasa) && Number(tasa) > 0) parts.push(_fmtPct(tasa) + ' cierre/preaut+');
+          return parts.join(' · ');
+        }())
       });
     } else {
       cierresHTML = _row1BoxHTML({
@@ -545,11 +561,7 @@
       // El slot footHTML es nativo de _row1BoxHTML — renderea
       // <div class="row1-box__foot"> con tipografía 12px gris #8a8a8a.
       var ventaFootHTML = '';
-      // Sub-línea 1: ticket promedio del mes
       var ticketVal = current.ticket_promedio;
-      if (ticketVal != null && Number(ticketVal) > 0) {
-        ventaFootHTML += 'Ticket prom. ' + _fmtCurrency(ticketVal);
-      }
       // Sub-línea 2: proyección EOM
       // preaut_avg_diario = preaut_positivos / dias_transcurridos
       // dias_restantes = 30 - dias_transcurridos (cap a 0)
@@ -564,7 +576,7 @@
         var cierresProy = preautAvgDiario * diasRest * 0.30;
         var ventaTotalProy = Number(current.venta || 0) + (cierresProy * ticketProy);
         if (ventaFootHTML) ventaFootHTML += ' · ';
-        ventaFootHTML += 'Proy. fin de mes: ' + _fmtCurrency(Math.round(ventaTotalProy));
+        ventaFootHTML += 'Proy. fin de mes: <strong style="color:#1a1a1a;font-size:13px;">' + _fmtCurrency(Math.round(ventaTotalProy)) + '</strong>';
       }
 
       ventaHTML = _row1BoxHTML({
@@ -578,7 +590,7 @@
         }),
         expectedHTML: '',                      // omit: sin "esperado"
         topeHTML: (ventaGoalMo != null)
-          ? 'Plan ' + _fmtCurrency(ventaGoalMo)
+          ? _fmtCurrencyShort(ventaGoalMo)
           : '',
         footHTML: ventaFootHTML                // S89-kpi-reorder
       });
@@ -890,8 +902,14 @@
       var cierresMo = goals.cierres_meta && goals.cierres_meta.valor;
       f2Boxes.push(_kpiCardHTML({
         label: 'Proy. Cierres EOM',
-        valueHTML: (projC != null) ? _fmtInt(projC) : '—',
-        subHTML:   (cierresMo != null) ? 'vs meta ' + _fmtInt(cierresMo) : ''
+        valueHTML: (function() {
+          var pd = Number((data.meta && data.meta.period && data.meta.period.days) || 0);
+          var dr = Math.max(0, 30 - pd);
+          var pp = Number((data.totals && data.totals.current && data.totals.current.preaut_positivos) || 0);
+          if (pd <= 0 || dr <= 0 || pp <= 0) return '—';
+          return _fmtInt(Math.round((pp / pd) * dr * 0.30));
+        }()),
+        subHTML: (cierresMo != null) ? 'vs meta ' + _fmtInt(cierresMo) : ''
       }));
 
       var projInv = projection.projected_inversion_eom;
@@ -1292,12 +1310,7 @@
     return items.map(function (it) { return _plazaSubRowHtml(it.label, it.n); }).join('');
   }
 
-  function _plazaFooterHtml(cierres, cacText, venta) {
-    // S89 — Footer L1: CIERRES · CAC (existente).
-    //       Footer L2: VENTA $monto completo sin abreviar (SPEC F0B7Q4VK4TE).
-    // venta=null/undefined → "—" via _fmtCurrency; venta=0 → "$0"; nunca
-    // se oculta la fila (decisión explícita: usuario quiere ver el cero
-    // como señal, no como ausencia).
+  function _plazaFooterHtml(cierres, cacText, venta, ticketText) {
     return (
       '<div class="plaza-card__footer">' +
         '<span class="plaza-card__footer-label">CIERRES</span>' +
@@ -1309,6 +1322,11 @@
       '<div class="plaza-card__footer-venta">' +
         '<span class="plaza-card__footer-label">VENTA</span>' +
         '<span class="plaza-card__footer-value">' + _fmtCurrency(venta) + '</span>' +
+        (ticketText
+          ? '<span class="plaza-card__footer-sep">|</span>' +
+            '<span class="plaza-card__footer-label">TICKET</span>' +
+            '<span class="plaza-card__footer-value">' + ticketText + '</span>'
+          : '') +
       '</div>'
     );
   }
@@ -1359,7 +1377,9 @@
           ? _plazaCollapsibleRowHtml('Cierres', current.cierres, cierresFamiliaSubRows)
           : _plazaMetricRowHtml('Cierres', _fmtInt(current.cierres)))
       + _plazaMetricRowWithCpaHtml('Firmas Programadas', _fmtInt(current.firmas_programadas),  _cacProximoText(inv, current.cierres, current.firmas_programadas), firmasSubLabel)
-      + _plazaFooterHtml(current.cierres, cacText, current.venta);
+      + _plazaFooterHtml(current.cierres, cacText, current.venta,
+          (current.ticket_promedio != null && Number(current.ticket_promedio) > 0 && Number(current.cierres) > 0)
+            ? _fmtCurrency(current.ticket_promedio) : null);
 
     var footMsg = _plazaFootMessage(variant);
     var footMsgHtml = footMsg
