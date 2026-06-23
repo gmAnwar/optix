@@ -1180,6 +1180,11 @@ const TAREAS_CLI_SCOPE_BADGES = {
   'recurrente':  { bg: 'rgba(20,184,166,0.18)',  fg: '#2dd4bf',       label: 'RECURRENTE' },
   'compartido':  { bg: 'rgba(148,163,184,0.18)', fg: 'var(--text3)',  label: 'COMPARTIDO' }
 };
+// S90 ajuste sug #19: etiquetas ELEGIBLES = tipos de trabajo. 'compartido' NO es un
+// tipo: es el cubo "sin-etiqueta" (default/fallback interno, valor legacy). Sigue en
+// TAREAS_CLI_SCOPES y en el comodín del filtro, pero NO se ofrece en el menú ni se
+// pinta como badge. Lo de compartir/privado lo maneja el candado 🔒/🌐 (eje dueño).
+const TAREAS_CLI_SELECTABLE_SCOPES = ['operativo', 'estrategico', 'recurrente'];
 const TAREAS_CLI_SENIOR_ROLES = ['all', 'direccion', 'owner'];
 
 function _tareasCliGetCurrentRol() {
@@ -1856,11 +1861,16 @@ function tareasCliRenderObjetivosList(client, objetivos) {
       +       objNombreSafe
       +     '</span>'
       +     (_showBadge ? (function() {
-            // PR3 v4.1: badge de scope. S90 sug #19: clickeable → menú para cambiar etiqueta.
+            // S90 sug #19: badge de scope clickeable → menú. Ajuste: 'compartido' (sin-etiqueta)
+            // NO pinta badge; en su lugar un afford "+" tenue para poder asignar una etiqueta.
             const _sc = (o.scope) || 'compartido';
-            const _b = TAREAS_CLI_SCOPE_BADGES[_sc] || TAREAS_CLI_SCOPE_BADGES['compartido'];
-            return '<span onclick="tareasCliShowScopeMenu(event, \'' + cid + '\', \'' + oid + '\', \'' + _sc + '\')" '
-              + 'title="Cambiar etiqueta" '
+            const _b = TAREAS_CLI_SCOPE_BADGES[_sc];
+            const _onclick = 'onclick="tareasCliShowScopeMenu(event, \'' + cid + '\', \'' + oid + '\', \'' + _sc + '\')" ';
+            if (!_b || _sc === 'compartido') {
+              return '<span ' + _onclick + 'title="Asignar etiqueta" '
+                + 'style="font-family:\'DM Mono\',monospace;font-size:9px;color:var(--text3);margin-left:6px;cursor:pointer;flex-shrink:0;padding:2px 4px;">+</span>';
+            }
+            return '<span ' + _onclick + 'title="Cambiar etiqueta" '
               + 'style="font-family:\'DM Mono\',monospace;font-size:9px;padding:2px 6px;border-radius:4px;text-transform:uppercase;letter-spacing:0.05em;margin-left:6px;background:' + _b.bg + ';color:' + _b.fg + ';flex-shrink:0;cursor:pointer;">' + _b.label + '</span>';
           })() : '')
       +     // S90: badge de dueño (owner_label denormalizado). Legacy sin owner = sin badge.
@@ -2649,7 +2659,10 @@ async function tareasCliSetScope(clientId, objId, nuevoScope) {
   await tareasCliSave(clientId, function(d) {
     const o = (d.objetivos || []).find(function(x) { return x.id === objId; });
     if (!o) return d;
-    o.scope = nuevoScope;
+    const actual = o.scope || 'compartido';
+    // S90 ajuste: toggle. Re-elegir la etiqueta activa la quita → vuelve a 'compartido'
+    // (sin-etiqueta). Cualquier otra → la asigna.
+    o.scope = (nuevoScope === actual) ? 'compartido' : nuevoScope;
     return d;
   });
   renderTareasCli();
@@ -2669,7 +2682,9 @@ function tareasCliShowScopeMenu(e, clientId, objId, currentScope) {
   menu.style.cssText = 'position:fixed;z-index:9999;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:4px;box-shadow:0 6px 20px rgba(0,0,0,0.35);display:flex;flex-direction:column;gap:2px;min-width:150px;';
   menu.style.top = (rect.bottom + 4) + 'px';
   menu.style.left = rect.left + 'px';
-  TAREAS_CLI_SCOPES.forEach(function(s) {
+  // Solo tipos de trabajo (operativo/estrategico/recurrente). 'compartido' = sin-etiqueta,
+  // no se ofrece. Si el objetivo es 'compartido', ninguna lleva ✓ (no tiene etiqueta).
+  TAREAS_CLI_SELECTABLE_SCOPES.forEach(function(s) {
     const b = TAREAS_CLI_SCOPE_BADGES[s] || TAREAS_CLI_SCOPE_BADGES['compartido'];
     const isCur = (s === currentScope);
     const opt = document.createElement('button');
@@ -2682,7 +2697,8 @@ function tareasCliShowScopeMenu(e, clientId, objId, currentScope) {
     opt.onmouseout = function() { opt.style.background = isCur ? 'var(--surface2)' : 'transparent'; };
     opt.onclick = function() {
       tareasCliCloseScopeMenu();
-      if (s !== currentScope) tareasCliSetScope(clientId, objId, s);
+      // Siempre llama setScope: si es la activa, setScope la togglea a 'compartido'.
+      tareasCliSetScope(clientId, objId, s);
     };
     menu.appendChild(opt);
   });
