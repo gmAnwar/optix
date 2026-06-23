@@ -1,165 +1,38 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="theme-color" content="#0a0a0a">
-  <title>Inmobili · Dashboard</title>
-  <link rel="preconnect" href="https://optix-proxy.anwarhsg.workers.dev">
-  <link rel="stylesheet" href="/assets/views/inmobili-home.css?v=4">
-  <link rel="icon" type="image/png" href="/assets/img-inmobili-logo.png">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0a0a0a">
+<title>Inmobili · Dashboard</title>
+<link rel="preconnect" href="https://optix-proxy.anwarhsg.workers.dev">
+<!-- §22 Paridad EnPagos: reusa enpagos-home.css para primitives de layout
+     (row1-box, kpi-card, plaza-card). inmobili-home.css agrega
+     branding mínimo (logo, badges Fase 2 / Próximamente) que NO existen
+     en EnPagos. -->
+<link rel="stylesheet" href="assets/views/enpagos-home.css">
+<link rel="stylesheet" href="assets/views/inmobili-home.css">
+<link rel="icon" type="image/png" href="/assets/img-inmobili-logo.png">
 </head>
 <body>
-
-<div class="container">
-
-  <!-- ============================================
-       TOP BAR — Brand + Tier badge + Filtros
-       ============================================ -->
-  <div class="top-bar">
-    <div class="brand">
-      <img src="/assets/img-inmobili-logo.png" alt="Inmobili Internacional" class="brand-logo">
-      <div class="brand-text">
-        <div class="brand-text-main">Inmobili Internacional</div>
-        <div class="brand-text-sub">Dashboard Operativo</div>
-      </div>
-      <div id="tier-badge" class="tier-badge" title="Vista preliminar">
-        <span class="tier-badge-text">Vista preliminar</span>
-      </div>
-    </div>
-
-    <div class="filters">
-      <div class="toggle-group mode-toggle" role="tablist" aria-label="Modo de vista">
-        <button type="button" data-mode="captaciones" class="active">Captaciones</button>
-        <button type="button" data-mode="venta">Venta</button>
-      </div>
-      <select id="plaza-select" class="plaza-select" aria-label="Filtro de plaza">
-        <option value="all">Todas las Plazas</option>
-        <option value="torreon">Torreón</option>
-        <option value="gomez">Gómez Palacios</option>
-      </select>
-    </div>
-  </div>
-
-  <!-- ============================================
-       ERROR BANNER (oculto por default)
-       ============================================ -->
-  <div id="error-banner" class="error-banner" style="display: none;">
-    <span class="error-text">Error de carga</span>
-    <button type="button" onclick="window.__inmobiliRetry()">Reintentar</button>
-  </div>
-
-  <!-- ============================================
-       GOALS BANNER
-       ============================================ -->
-  <div class="goals-banner">
+<header id="home-header" class="inmobili-header">
+  <div class="inmobili-brand">
+    <img src="/assets/img-inmobili-logo.png" alt="Inmobili Internacional" class="inmobili-brand-logo">
     <div>
-      <div class="goals-banner-label">Objetivos del Mes</div>
-      <div id="goals-banner-period" class="goals-banner-period">—</div>
-    </div>
-    <div class="goals-banner-stats">
-      <div id="goals-banner-meta-1" class="goals-banner-stat">—</div>
-      <div id="goals-banner-meta-2" class="goals-banner-stat">—</div>
-      <div id="goals-banner-meta-3" class="goals-banner-stat">—</div>
+      <div class="inmobili-brand-main">Inmobili Internacional</div>
+      <div id="home-subtitle" class="inmobili-brand-sub">Dashboard Operativo</div>
     </div>
   </div>
-
-  <!-- ============================================
-       PERIOD SELECTOR
-       ============================================ -->
-  <div class="period-selector" role="tablist" aria-label="Período">
-    <button type="button" class="period-chip" data-period="today">Hoy</button>
-    <button type="button" class="period-chip" data-period="yesterday">Ayer</button>
-    <button type="button" class="period-chip" data-period="7d">7 días</button>
-    <button type="button" class="period-chip" data-period="30d">30 días</button>
-    <button type="button" class="period-chip active" data-period="mtd">Este Mes</button>
-    <button type="button" class="period-chip" data-period="last_month">Mes Pasado</button>
-  </div>
-
-  <!-- ============================================
-       HERO ROW
-       ============================================ -->
-  <div class="hero-row">
-    <div id="hero-left" class="hero-card">
-      <div class="hero-card-label">Cargando…</div>
-    </div>
-    <div id="hero-right" class="hero-card">
-      <div class="hero-card-label">Cargando…</div>
-    </div>
-  </div>
-
-  <!-- ============================================
-       KPI ROW — funnel completo (S87 Fase 1): Mensajes → Llamadas → Citas
-       (Hoy/Avg/EoM) → Asistencias → Cierres. (Captaciones vive en hero-left).
-       ============================================ -->
-  <div class="kpi-row">
-    <div id="kpi-mensajes" class="kpi-card">
-      <div class="kpi-card-label">—</div>
-    </div>
-    <div id="kpi-llamadas" class="kpi-card">
-      <div class="kpi-card-label">—</div>
-    </div>
-    <div id="kpi-citas-today" class="kpi-card">
-      <div class="kpi-card-label">—</div>
-    </div>
-    <div id="kpi-citas-avg" class="kpi-card">
-      <div class="kpi-card-label">—</div>
-    </div>
-    <div id="kpi-citas-eom" class="kpi-card">
-      <div class="kpi-card-label">—</div>
-    </div>
-    <div id="kpi-asistencias" class="kpi-card">
-      <div class="kpi-card-label">—</div>
-    </div>
-    <div id="kpi-cierres" class="kpi-card">
-      <div class="kpi-card-label">—</div>
-    </div>
-  </div>
-
-  <!-- ============================================
-       CAC ROW
-       ============================================ -->
-  <div class="cac-row">
-    <div id="cac-captacion" class="cac-card">
-      <div class="cac-card-info">
-        <div class="cac-card-label">CAC Captación</div>
-      </div>
-      <div class="cac-card-value null-state">—</div>
-    </div>
-    <div id="cac-cita" class="cac-card">
-      <div class="cac-card-info">
-        <div class="cac-card-label">CAC Cita Agendada</div>
-      </div>
-      <div class="cac-card-value null-state">—</div>
-    </div>
-  </div>
-
-  <!-- ============================================
-       TODAY STRIP — render entero via JS
-       ============================================ -->
-  <div id="today-strip" class="today-strip"></div>
-
-  <!-- ============================================
-       PLAZA CARDS (o placeholder LITE)
-       ============================================ -->
-  <div id="plaza-grid" class="plaza-grid"></div>
-
-  <!-- ============================================
-       FOOTER META
-       ============================================ -->
-  <div class="footer-meta">
-    <div>
-      <span id="footer-period">—</span>
-    </div>
-    <div>
-      <span class="footer-meta-source">Fuente: <span id="footer-source">—</span></span>
-      &nbsp;·&nbsp;
-      Actualizado <span id="footer-updated">—</span>
-    </div>
-  </div>
-
-</div>
-
-<script src="/assets/views/inmobili-home.js?v=4"></script>
+  <nav id="period-selector"></nav>
+  <div id="live-pill"></div>
+</header>
+<main id="home-main">
+  <section id="goals-section"></section>
+  <section id="kpi-strip-section"></section>
+  <section id="plaza-cards-section"></section>
+  <section id="today-detail-section"></section>
+</main>
+<div id="banner-container"></div>
+<script src="assets/views/inmobili-home.js"></script>
 </body>
 </html>

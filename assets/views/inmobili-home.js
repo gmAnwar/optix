@@ -1,1082 +1,826 @@
-// ============================================
-// INMOBILI HOME — Dashboard Optix
-// v2 — Tier B LITE support (plaza split + daily diferidos)
-// ============================================
-
+// Inmobili Home — §22 Paridad EnPagos (staging).
+// SPEC: Slack canvas F0B6FH740PN §22.
+// Clone visual de enpagos-home.js, vocabulario y datos de Inmobili.
+//
+// Sections (mismos containers que EnPagos):
+//   #goals-section            → Fila 1 (4 heros: Captac/Inversión/Citas/Venta)
+//   #kpi-strip-section        → Fila 2 (Ritmo) + Fila 3 (CAC)
+//   #plaza-cards-section      → 5 plaza cards (Torreón/Gómez/NL/Orgánicos/Sin-atribución)
+//   #today-detail-section     → Feed "Captaciones de hoy"
+//
+// Diferencias clave vs EnPagos:
+//   - Cierres NO se muestra como conteo (decisión cerrada SPEC).
+//   - 4to hero = Venta (no Preaut+).
+//   - Plaza cards con badges Fase 2 / Próximamente (no existen en EnPagos).
+//   - CAC Cita peso completo (sin atenuar).
+//   - Captaciones footer NO en rojo (gotcha de color §22).
 (function () {
   'use strict';
 
-  // ──────────────────────────────────────────
-  // CONFIG
-  // ──────────────────────────────────────────
-  const ENDPOINT_BASE = 'https://optix-proxy.anwarhsg.workers.dev/client_data_public';
-  const CLIENT = 'inmobili';
-  const VIEW = 'home';
-  const FIXTURE_PATH = '/assets/fixtures/inmobili-home-mtd.json';
+  var HOME_VALID_PERIODS = ['mtd', 'last_month'];
+  var DEFAULT_PERIOD = 'mtd';
+  var ENDPOINT = 'https://optix-proxy.anwarhsg.workers.dev/client_data_public';
+  var CLIENT = 'inmobili';
+  var SKELETON_DEBOUNCE_MS = 300;
 
-  const ALL_PERIODS = ['today', 'yesterday', '7d', '30d', 'mtd', 'last_month'];
-  const PERIOD_LABELS = {
-    today:      'Hoy',
-    yesterday:  'Ayer',
-    '7d':       '7 días',
-    '30d':      '30 días',
-    mtd:        'Este Mes',
+  var PERIOD_LABELS = {
+    mtd: 'Este Mes',
     last_month: 'Mes Pasado'
   };
-  const DEFAULT_PERIOD = 'mtd';
 
-  const PLAZA_LABELS = {
-    all:     'Todas las Plazas',
-    torreon: 'Torreón',
-    gomez:   'Gómez Palacios'
-  };
+  var SECTION_IDS = [
+    'goals-section',
+    'kpi-strip-section',
+    'plaza-cards-section',
+    'today-detail-section'
+  ];
 
-  const LS_PERIOD_KEY  = 'inmobili_home_period';
-  const LS_MODE_KEY    = 'inmobili_home_mode';
-  const LS_PLAZA_KEY   = 'inmobili_home_plaza';
+  var currentPeriod = null;
+  var currentController = null;
 
-  // ──────────────────────────────────────────
-  // STATE
-  // ──────────────────────────────────────────
-  let state = {
-    period:  DEFAULT_PERIOD,
-    mode:    'captaciones',
-    plaza:   'all',
-    data:    null,
-    isLite:  false,
-    loading: false,
-    error:   null
-  };
-
-  let currentController = null;
-  let currentRequestId = 0;
-
-  // ──────────────────────────────────────────
-  // INIT
-  // ──────────────────────────────────────────
-  document.addEventListener('DOMContentLoaded', init);
-
-  function init() {
-    state.period = readPeriodFromHash() || readLS(LS_PERIOD_KEY, DEFAULT_PERIOD);
-    state.mode   = readLS(LS_MODE_KEY, 'captaciones');
-    state.plaza  = readLS(LS_PLAZA_KEY, 'all');
-
-    if (!ALL_PERIODS.includes(state.period)) state.period = DEFAULT_PERIOD;
-    if (!['captaciones', 'venta'].includes(state.mode)) state.mode = 'captaciones';
-    if (!['all', 'torreon', 'gomez'].includes(state.plaza)) state.plaza = 'all';
-
-    bindPeriodChips();
-    bindModeToggle();
-    bindPlazaSelect();
-    bindHashListener();
-
-    syncControlsToState();
-    fetchAndRender();
-  }
-
-  // ──────────────────────────────────────────
-  // CONTROLS
-  // ──────────────────────────────────────────
-  function bindPeriodChips() {
-    document.querySelectorAll('.period-chip').forEach(el => {
-      el.addEventListener('click', () => {
-        if (el.classList.contains('disabled') || el.disabled) return;
-        const p = el.dataset.period;
-        if (state.period === p) return;
-        state.period = p;
-        writeLS(LS_PERIOD_KEY, p);
-        writeHashPeriod(p);
-        syncPeriodChips();
-        fetchAndRender();
-      });
-    });
-  }
-
-  function bindModeToggle() {
-    document.querySelectorAll('.mode-toggle button').forEach(el => {
-      el.addEventListener('click', () => {
-        const m = el.dataset.mode;
-        if (state.mode === m) return;
-        state.mode = m;
-        writeLS(LS_MODE_KEY, m);
-        syncModeToggle();
-        if (state.data) {
-          renderHeroLeft();
-          renderGoalsBanner();
-        }
-      });
-    });
-  }
-
-  function bindPlazaSelect() {
-    const sel = document.getElementById('plaza-select');
-    if (!sel) return;
-    sel.addEventListener('change', e => {
-      if (sel.disabled) return;
-      const p = e.target.value;
-      if (state.plaza === p) return;
-      state.plaza = p;
-      writeLS(LS_PLAZA_KEY, p);
-      if (state.data) renderAll();
-    });
-  }
-
-  function bindHashListener() {
-    window.addEventListener('hashchange', () => {
-      const p = readPeriodFromHash();
-      if (p && p !== state.period && ALL_PERIODS.includes(p)) {
-        state.period = p;
-        writeLS(LS_PERIOD_KEY, p);
-        syncPeriodChips();
-        fetchAndRender();
-      }
-    });
-  }
-
-  function syncControlsToState() {
-    syncPeriodChips();
-    syncModeToggle();
-    const sel = document.getElementById('plaza-select');
-    if (sel) sel.value = state.plaza;
-  }
-
-  function syncPeriodChips() {
-    document.querySelectorAll('.period-chip').forEach(el => {
-      el.classList.toggle('active', el.dataset.period === state.period);
-    });
-  }
-
-  function syncModeToggle() {
-    document.querySelectorAll('.mode-toggle button').forEach(el => {
-      el.classList.toggle('active', el.dataset.mode === state.mode);
-    });
-  }
-
-  // ──────────────────────────────────────────
-  // HASH + LS
-  // ──────────────────────────────────────────
-  function readPeriodFromHash() {
-    const h = window.location.hash.replace(/^#/, '');
-    if (!h) return null;
-    const m = h.match(/period=([a-z_0-9]+)/i);
-    return m ? m[1] : null;
-  }
-
-  function writeHashPeriod(p) {
-    const newHash = `period=${p}`;
-    if (window.location.hash.replace(/^#/, '') === newHash) return;
-    history.replaceState(null, '', '#' + newHash);
-  }
-
-  function readLS(key, fallback) {
-    try { return localStorage.getItem(key) || fallback; } catch (e) { return fallback; }
-  }
-
-  function writeLS(key, val) {
-    try { localStorage.setItem(key, val); } catch (e) { /* noop */ }
-  }
-
-  // ──────────────────────────────────────────
-  // FETCH
-  // ──────────────────────────────────────────
-  async function fetchAndRender() {
-    state.loading = true;
-    state.error = null;
-
-    if (currentController) currentController.abort();
-    currentController = new AbortController();
-    const reqId = ++currentRequestId;
-
-    const url = buildFetchUrl(state.period);
-
+  // ── Period selector ──────────────────────────────────────────────────
+  function getInitialPeriod() {
+    var hash = window.location.hash || '';
+    var m = hash.match(/#period=([^&]+)/);
+    if (m && HOME_VALID_PERIODS.indexOf(m[1]) !== -1) return m[1];
     try {
-      const res = await fetch(url, {
-        signal: currentController.signal,
-        headers: { 'Accept': 'application/json' }
-      });
+      var saved = window.localStorage.getItem('inmobili_home_period');
+      if (saved && HOME_VALID_PERIODS.indexOf(saved) !== -1) return saved;
+    } catch (e) { /* noop */ }
+    return DEFAULT_PERIOD;
+  }
 
-      if (reqId !== currentRequestId) return;
-
-      if (!res.ok) throw new Error('HTTP ' + res.status);
-
-      const data = await res.json();
-
-      if (reqId !== currentRequestId) return;
-
-      state.data = data;
-      state.isLite = isLiteShape(data);
-      state.loading = false;
-      state.error = null;
-      hideError();
-      renderAll();
-    } catch (err) {
-      if (err.name === 'AbortError') return;
-      if (reqId !== currentRequestId) return;
-
-      console.warn('[inmobili-home] fetch error', err);
-      state.error = err.message || 'Error desconocido';
-      state.loading = false;
-      renderError();
+  function renderPeriodSelector(active) {
+    var nav = document.getElementById('period-selector');
+    if (!nav) return;
+    var html = '';
+    for (var i = 0; i < HOME_VALID_PERIODS.length; i++) {
+      var p = HOME_VALID_PERIODS[i];
+      var cls = 'period-chip' + (p === active ? ' active' : '');
+      html += '<button type="button" class="' + cls + '" data-period="' + p + '">' +
+              PERIOD_LABELS[p] + '</button>';
+    }
+    nav.innerHTML = html;
+    nav.classList.add('loading');
+    var chips = nav.querySelectorAll('.period-chip');
+    for (var j = 0; j < chips.length; j++) {
+      chips[j].addEventListener('click', onChipClick);
     }
   }
-
-  function buildFetchUrl(period) {
-    const host = window.location.hostname;
-    const isLocal = host === 'localhost' || host === '127.0.0.1' || host === '';
-    if (isLocal) return FIXTURE_PATH + '?_=' + Date.now();
-    return `${ENDPOINT_BASE}?client=${CLIENT}&view=${VIEW}&period=${period}`;
+  function setSelectorLoading(loading) {
+    var nav = document.getElementById('period-selector');
+    if (!nav) return;
+    if (loading) nav.classList.add('loading'); else nav.classList.remove('loading');
+  }
+  function onChipClick(evt) { switchPeriod(evt.currentTarget.getAttribute('data-period')); }
+  function switchPeriod(newPeriod) {
+    if (newPeriod === currentPeriod) return;
+    if (currentController) { try { currentController.abort(); } catch (e) {} }
+    try { window.location.hash = '#period=' + newPeriod; } catch (e) {}
+    try { window.localStorage.setItem('inmobili_home_period', newPeriod); } catch (e) {}
+    fetchAndRender(newPeriod);
   }
 
-  // ──────────────────────────────────────────
-  // SHAPE DETECTION
-  // ──────────────────────────────────────────
-  function isLiteShape(d) {
-    if (!d) return false;
-    if (d.meta && d.meta.tier === 'B_lite') return true;
-    // Fallback detection: si no hay by_plaza ni today, asumimos LITE
-    if (!d.by_plaza && (!d.totals || !d.totals.today)) return true;
-    return false;
-  }
+  // ── Fetch ────────────────────────────────────────────────────────────
+  function fetchAndRender(period) {
+    currentPeriod = period;
+    currentController = new AbortController();
+    renderPeriodSelector(period);
+    var skeletonTimer = setTimeout(showSkeletons, SKELETON_DEBOUNCE_MS);
+    var url = ENDPOINT + '?client=' + encodeURIComponent(CLIENT) +
+              '&view=home&period=' + encodeURIComponent(period);
+    var signal = currentController.signal;
 
-  // ──────────────────────────────────────────
-  // RENDER ORCHESTRATOR
-  // ──────────────────────────────────────────
-  function renderAll() {
-    if (!state.data) return;
-    const d = state.data;
-
-    // Configurar UI según tier
-    if (state.isLite) {
-      disableUnavailablePeriods();
-      disablePlazaSelector();
-    }
-
-    renderTierBadge();
-    renderGoalsBanner();
-    renderHeroLeft();
-    renderHeroRight();
-    renderKpiRow();
-    renderCacRow();
-
-    if (state.isLite || !get(d, 'totals.today')) {
-      renderTodayPlaceholder();
-    } else {
-      renderTodayStrip();
-    }
-
-    // Plaza section: S80 Fase-B item 3 — preferir by_plaza_actuals (shape S80,
-    // 4 keys planas por plaza). Fallback al by_plaza viejo si está presente
-    // (compat con shape pre-LITE-LITE de algún otro entorno). Último recurso
-    // placeholder.
-    if (d.by_plaza_actuals) {
-      renderPlazaActualsCards();
-    } else if (!state.isLite && d.by_plaza) {
-      renderPlazaCards();
-    } else {
-      renderPlazaPlaceholder();
-    }
-
-    renderFooterMeta();
-  }
-
-  function renderError() {
-    const banner = document.getElementById('error-banner');
-    if (!banner) return;
-    banner.style.display = 'flex';
-    const txt = banner.querySelector('.error-text');
-    if (txt) txt.textContent = `No se pudo cargar el dashboard. ${state.error}`;
-  }
-
-  function hideError() {
-    const banner = document.getElementById('error-banner');
-    if (banner) banner.style.display = 'none';
-  }
-
-  // ──────────────────────────────────────────
-  // TIER BADGE
-  // ──────────────────────────────────────────
-  function renderTierBadge() {
-    const badge = document.getElementById('tier-badge');
-    if (!badge) return;
-    if (state.isLite) {
-      const disclaimer = get(state.data, 'meta.tier_b_lite_disclaimer') ||
-        'Vista preliminar — métricas adicionales próximamente.';
-      badge.style.display = 'inline-flex';
-      badge.title = disclaimer;
-      badge.querySelector('.tier-badge-text').textContent = 'Vista preliminar';
-    } else {
-      badge.style.display = 'none';
-    }
-  }
-
-  // ──────────────────────────────────────────
-  // GRACEFUL DEGRADATION
-  // ──────────────────────────────────────────
-  function disableUnavailablePeriods() {
-    const available = get(state.data, 'meta.available_periods') || ['mtd', 'last_month'];
-    document.querySelectorAll('.period-chip').forEach(el => {
-      const p = el.dataset.period;
-      if (!available.includes(p)) {
-        el.classList.add('disabled');
-        el.disabled = true;
-        el.title = 'Disponible próximamente';
-      } else {
-        el.classList.remove('disabled');
-        el.disabled = false;
-        el.removeAttribute('title');
-      }
-    });
-    // Si el período activo no es válido, forzar default
-    if (!available.includes(state.period)) {
-      state.period = DEFAULT_PERIOD;
-      writeLS(LS_PERIOD_KEY, state.period);
-      syncPeriodChips();
-    }
-  }
-
-  function disablePlazaSelector() {
-    const sel = document.getElementById('plaza-select');
-    if (!sel) return;
-    Array.from(sel.options).forEach(opt => {
-      if (opt.value !== 'all') {
-        opt.disabled = true;
-        if (!opt.text.includes('(próximamente)')) {
-          opt.text = opt.text + ' (próximamente)';
+    fetch(url, { signal: signal })
+      .then(function (resp) {
+        if (!resp.ok) { var err = new Error('HTTP ' + resp.status); err.status = resp.status; throw err; }
+        return resp.json();
+      })
+      .then(function (data) {
+        clearTimeout(skeletonTimer);
+        hideSkeletons();
+        if (currentPeriod !== period) return;
+        window.__homeData = data;
+        var sections = [
+          ['renderGoals',           function () { renderGoals(data, period); }],
+          ['renderKpiStrip',        function () { renderKpiStrip(data, period); }],
+          ['renderPlazaCards',      function () { renderPlazaCards(data); }],
+          ['renderTodayDetailFeed', function () { renderTodayDetailFeed(data); }]
+        ];
+        for (var i = 0; i < sections.length; i++) {
+          try { sections[i][1](); }
+          catch (renderErr) {
+            console.error('[inmobili-home] render error in ' + sections[i][0] +
+                          ' for period=' + period + ':', renderErr);
+          }
         }
-      }
-    });
-    sel.value = 'all';
-    sel.title = 'Vista por plaza próximamente';
-    state.plaza = 'all';
-    writeLS(LS_PLAZA_KEY, 'all');
+        clearBanner();
+        setSelectorLoading(false);
+      })
+      .catch(function (err) {
+        if (err && err.name === 'AbortError') return;
+        clearTimeout(skeletonTimer);
+        hideSkeletons();
+        setSelectorLoading(false);
+        showErrorBanner(period, err);
+      });
   }
 
-  function renderTodayPlaceholder() {
-    const strip = document.getElementById('today-strip');
-    if (!strip) return;
-    strip.innerHTML = `
-      <div class="today-strip-title">Hoy</div>
-      <div class="today-strip-placeholder">
-        Métricas del día disponibles en próxima iteración.
-      </div>
-    `;
-    strip.classList.add('placeholder');
+  // ── Format helpers ───────────────────────────────────────────────────
+  function _fmtInt(n) {
+    if (n == null || isNaN(n)) return '—';
+    return Math.round(Number(n)).toLocaleString('es-MX');
+  }
+  function _fmtCurrency(n) {
+    if (n == null || isNaN(n)) return '—';
+    return '$' + Math.round(Number(n)).toLocaleString('es-MX');
+  }
+  function _fmtFloat1(n) {
+    if (n == null || isNaN(n)) return '—';
+    return Number(n).toFixed(1);
+  }
+  function _fmtPct(decimal) {
+    if (decimal == null || isNaN(decimal)) return '—';
+    return Math.round(Number(decimal) * 100) + '%';
+  }
+  function escapeHtml(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
 
-  function renderPlazaPlaceholder() {
-    const container = document.getElementById('plaza-grid');
-    if (!container) return;
-    container.innerHTML = `
-      <div class="plaza-placeholder">
-        <div class="plaza-placeholder-tag">Próximamente</div>
-        <div class="plaza-placeholder-title">Vista por Plaza</div>
-        <div class="plaza-placeholder-sub">
-          Desglose Torreón &middot; Gómez Palacios en próxima iteración
-        </div>
-      </div>
-    `;
+  // ── FILA 1 helpers (clone de enpagos-home.js, ajustados) ─────────────
+
+  // Status simple 2-estados (al ritmo / bajo meta) — usado para
+  // Captaciones y Citas (más=mejor).
+  function _ritmoStatus(actual, expected) {
+    if (actual == null || isNaN(actual)) return '';
+    if (expected == null || isNaN(expected) || expected <= 0) return '';
+    return (Number(actual) >= Number(expected)) ? 'green' : 'red';
   }
 
-  // ──────────────────────────────────────────
-  // COMPARATIVO vs MES ANTERIOR (S80 Fase-B item 2 — capa NUEVA)
-  // ──────────────────────────────────────────
-  //
-  // ⚠️ IMPORTANTE: este NO es el delta-vs-meta-prorrateada del hero
-  // ("en ritmo" / "X atrás"). Esa lógica vive en renderHeroLeft() y se
-  // mantiene intacta. Este helper es una capa SEPARADA: compara current
-  // vs previous mes a mes, usando `totals.delta.<field>_pct` precomputado
-  // por el backend (ya viene en porcentaje: 16.7 no 0.167).
-  //
-  // Null-safe: en period=mtd el backend nulea intencionalmente
-  // previous.{cierres,venta,ticket_promedio} (mes-en-curso vs mes-completo
-  // produciría delta engañoso). Para esos campos delta.{cierres,venta}_pct
-  // tambien es null, y este helper devuelve string vacío para que el
-  // template no rompa.
-  function renderVsMesAnterior(d, field) {
-    if (!d || !d.totals || !d.totals.delta) return '';
-    const pct = d.totals.delta[`${field}_pct`];
-    if (pct === null || pct === undefined) return '';
-    const numeric = Number(pct);
-    if (!Number.isFinite(numeric)) return '';
-    const cls = numeric >= 0 ? 'positive' : 'negative';
-    const arrow = numeric >= 0 ? '↗' : '↘';
-    const sign = numeric >= 0 ? '+' : '';
-    return `<div class="kpi-card-vs-mes ${cls}">${arrow} ${sign}${numeric.toFixed(1)}% vs mes anterior</div>`;
+  // Status Inversión (3 estados): >+5% sobre-plan rojo, <-20% subgasto amarillo, en banda verde.
+  function _inversionPlanStatus(actual, expected) {
+    if (actual == null || isNaN(actual)) return '';
+    if (expected == null || isNaN(expected) || expected <= 0) return '';
+    var ratio = Number(actual) / Number(expected);
+    if (ratio > 1.05) return 'red';
+    if (ratio < 0.80) return 'yellow';
+    return 'green';
   }
 
-  // ──────────────────────────────────────────
-  // GOALS BANNER
-  // ──────────────────────────────────────────
-  function renderGoalsBanner() {
-    const d = state.data;
-    if (!d) return;
-    const periodLabel = formatPeriodLabel(get(d, 'meta.period'));
-    setHtml('goals-banner-period', periodLabel);
-
-    const goals = d.goals || {};
-    const ticketProm = get(d, 'totals.current.ticket_promedio');
-
-    if (state.mode === 'captaciones') {
-      setHtml('goals-banner-meta-1',
-        `<strong>${fmtInt(goals.captaciones_meta)}</strong> captaciones objetivo`);
-      setHtml('goals-banner-meta-2',
-        `<strong>${fmtInt(goals.cierres_meta)}</strong> cierres objetivo`);
-      setHtml('goals-banner-meta-3',
-        `CAC objetivo <strong>${fmtMxn(goals.cac_meta)}</strong>`);
-    } else {
-      setHtml('goals-banner-meta-1',
-        `<strong>${fmtMxnShort(goals.venta_meta)}</strong> venta objetivo`);
-      setHtml('goals-banner-meta-2',
-        `<strong>${fmtInt(goals.cierres_meta)}</strong> cierres objetivo`);
-      setHtml('goals-banner-meta-3',
-        `Ticket promedio <strong>${ticketProm ? fmtMxn(ticketProm) : '—'}</strong>`);
+  function _chipLabel(status, kind) {
+    // kind: 'captac' | 'inversion' | 'citas'
+    if (kind === 'captac' || kind === 'citas') {
+      if (status === 'green') return 'AL RITMO';
+      if (status === 'red')   return 'BAJO META';
+      return '';
     }
+    if (kind === 'inversion') {
+      if (status === 'green')  return 'EN PLAN';
+      if (status === 'yellow') return 'BAJO PLAN';
+      if (status === 'red')    return 'SOBREPLAN';
+      return '';
+    }
+    return '';
   }
 
-  // ──────────────────────────────────────────
-  // HERO LEFT (Captaciones / Venta vs Meta)
-  // ──────────────────────────────────────────
-  function renderHeroLeft() {
-    const d = state.data;
-    if (!d) return;
-    const card = document.getElementById('hero-left');
-    if (!card) return;
+  function _row1ProgressBarHTML(opts) {
+    var fill = opts.fillPct == null || isNaN(opts.fillPct) ? 0 : Number(opts.fillPct);
+    var fillPx = Math.max(0, Math.min(100, fill * 100));
+    var exp = opts.expectedPct == null || isNaN(opts.expectedPct) ? null : Number(opts.expectedPct);
+    var expPx = exp == null ? null : Math.max(0, Math.min(100, exp * 100));
+    var cls = 'row1-bar';
+    if (opts.graceful) cls += ' row1-bar--graceful';
+    var fillCls = 'row1-bar__fill';
+    if (opts.status) fillCls += ' row1-bar__fill--' + opts.status;
+    var marker = (expPx != null)
+      ? '<div class="row1-bar__marker" style="left:' + expPx.toFixed(1) + '%" title="Esperado a la fecha"></div>'
+      : '';
+    return (
+      '<div class="' + cls + '" role="progressbar" aria-valuenow="' + fillPx.toFixed(1) + '" aria-valuemin="0" aria-valuemax="100">' +
+        '<div class="' + fillCls + '" style="width:' + fillPx.toFixed(1) + '%"></div>' +
+        marker +
+      '</div>'
+    );
+  }
 
-    const scoped = scopeData(d, state.plaza);
-    const current = scoped.current || {};
-    const goals = scoped.goals || {};
-    const periodDays = get(d, 'meta.period.days') || 1;
-    const totalDays = daysInMonth(get(d, 'meta.period.to'));
+  function _row1ChipHTML(status, label) {
+    if (!status || !label) return '';
+    return '<span class="row1-chip row1-chip--' + status + '">' + escapeHtml(label) + '</span>';
+  }
 
-    if (state.mode === 'captaciones') {
-      const real = current.captaciones || 0;
-      const goalMes = goals.captaciones_meta || 0;
-      let goalProrrated;
-      if (state.plaza === 'all') {
-        goalProrrated = get(d, 'goals_prorrated.captaciones_goal_periodo')
-          || (goalMes * (periodDays / totalDays));
-      } else {
-        goalProrrated = goalMes * (periodDays / totalDays);
-      }
-      const delta = real - goalProrrated;
-      const pct = goalMes > 0 ? (real / goalMes) * 100 : 0;
-      const expectedPct = goalMes > 0 ? Math.min((goalProrrated / goalMes) * 100, 100) : 0;
+  function _row1BoxHTML(opts) {
+    var cls = 'row1-box';
+    if (opts.gracefulCls) cls += ' ' + opts.gracefulCls;
+    var tooltipAttr = opts.tooltip ? ' title="' + escapeHtml(opts.tooltip) + '"' : '';
+    var meta = '';
+    if (opts.expectedHTML || opts.topeHTML) {
+      meta =
+        '<div class="row1-box__meta">' +
+          (opts.expectedHTML ? '<span class="row1-box__expected">' + opts.expectedHTML + '</span>' : '') +
+          (opts.topeHTML ? '<span class="row1-box__tope">' + opts.topeHTML + '</span>' : '') +
+        '</div>';
+    }
+    return (
+      '<div class="' + cls + '"' + tooltipAttr + '>' +
+        '<div class="row1-box__head">' +
+          '<span class="row1-box__label">' + escapeHtml(opts.label) + '</span>' +
+          (opts.chipHTML || '') +
+        '</div>' +
+        '<div class="row1-box__big">' + opts.bigHTML + '</div>' +
+        (opts.barHTML || '') +
+        meta +
+        (opts.subHTML ? '<div class="row1-box__foot">' + opts.subHTML + '</div>' : '') +
+      '</div>'
+    );
+  }
 
-      card.innerHTML = renderHeroCard({
-        label: 'Captaciones vs Objetivo',
-        value: fmtInt(real),
-        unit: 'captaciones',
-        expected: fmtIntRound(goalProrrated),
-        goal: fmtInt(goalMes),
-        progressPct: Math.min(pct, 100),
-        expectedPct: expectedPct,
-        delta: delta,
-        deltaLabel: delta >= 0 ? 'en ritmo' : `${Math.abs(Math.round(delta))} atrás`
+  // ── FILA 1: 4 heros (Captac, Inversión, Citas, Venta) ────────────────
+  function renderGoals(data, period) {
+    var sec = document.getElementById('goals-section');
+    if (!sec) return;
+    if (!data || typeof data !== 'object') { sec.innerHTML = ''; return; }
+
+    var current   = (data.totals && data.totals.current) || {};
+    var prorrated = data.goals_prorrated                  || {};
+    var goals     = data.goals                            || {};
+    var isMtd     = (period === 'mtd');
+
+    // ── Captaciones del mes ──
+    // §22 2026-06-23: hero = Leadtime FB (Jenny CRM = source de verdad).
+    // Sub-bloque "control de fuentes" SIEMPRE VISIBLE — transparencia
+    // growth-partner total, sin modo oculto. Decisión cerrada Anwar.
+    var captacVal    = current.captaciones;
+    var captacGoalMo = goals.captaciones_meta;
+    var captacGoalP  = prorrated.captaciones_goal_periodo;
+    // 3 fuentes paralelas de "real propiedad captada":
+    //   Leadtime = Leadtime CRM rows con fecha de captación  ← OFICIAL (gobierna hero+CAC)
+    //   Vambe    = stage "Promoción para venta" first-entry paid
+    //   Diario   = sheet "Análisis Mensual 2026 2.0" R23 manual del cliente
+    // Avalúo se quitó (es etapa intermedia, no captación consumada).
+    var captacSrcDiario    = current.captac_source_diario;
+    var captacSrcVambeProm = current.captac_source_vambe_promocion;
+    var captacSrcLeadtime  = current.captac_source_leadtime;
+    function _captacControlSub() {
+      if (captacSrcLeadtime == null && captacSrcVambeProm == null && captacSrcDiario == null) return '';
+      // Orden: oficial primero, luego Vambe, luego Diario.
+      var parts = [];
+      if (captacSrcLeadtime  != null) parts.push('Leadtime ' + _fmtInt(captacSrcLeadtime) + ' (oficial)');
+      if (captacSrcVambeProm != null) parts.push('Vambe ' + _fmtInt(captacSrcVambeProm));
+      if (captacSrcDiario    != null) parts.push('Diario ' + _fmtInt(captacSrcDiario));
+      var sourcesLine = 'fuentes: ' + parts.join(' · ');
+      var narrativaLine = '<div class="row1-box__foot-narrativa">Las diferencias reflejan el avance de registro de captaciones en cada sistema.</div>';
+      return sourcesLine + narrativaLine;
+    }
+    var captacHTML;
+    if (isMtd) {
+      var captacStatus = _ritmoStatus(captacVal, captacGoalP);
+      var captacFill = (captacGoalMo != null && captacGoalMo > 0 && captacVal != null)
+        ? (Number(captacVal) / Number(captacGoalMo)) : 0;
+      var captacExp  = (captacGoalMo != null && captacGoalMo > 0 && captacGoalP != null)
+        ? (Number(captacGoalP) / Number(captacGoalMo)) : null;
+      captacHTML = _row1BoxHTML({
+        label: 'Captaciones del mes',
+        bigHTML: _fmtInt(captacVal),
+        chipHTML: _row1ChipHTML(captacStatus, _chipLabel(captacStatus, 'captac')),
+        barHTML: _row1ProgressBarHTML({ fillPct: captacFill, expectedPct: captacExp, status: captacStatus }),
+        expectedHTML: (captacGoalP != null) ? _fmtFloat1(captacGoalP) + ' esperadas' : '',
+        topeHTML: (captacGoalMo != null) ? 'Meta ' + _fmtInt(captacGoalMo) : '',
+        subHTML: _captacControlSub()
       });
     } else {
-      const real = current.venta || 0;
-      const goalMes = goals.venta_meta || 0;
-      let goalProrrated;
-      if (state.plaza === 'all') {
-        goalProrrated = get(d, 'goals_prorrated.venta_goal_periodo')
-          || (goalMes * (periodDays / totalDays));
-      } else {
-        goalProrrated = goalMes * (periodDays / totalDays);
-      }
-      const delta = real - goalProrrated;
-      const pct = goalMes > 0 ? (real / goalMes) * 100 : 0;
-      const expectedPct = goalMes > 0 ? Math.min((goalProrrated / goalMes) * 100, 100) : 0;
+      captacHTML = _row1BoxHTML({
+        label: 'Captaciones',
+        bigHTML: _fmtInt(captacVal),
+        subHTML: _captacControlSub()
+      });
+    }
 
-      card.innerHTML = renderHeroCard({
-        label: 'Venta vs Objetivo',
-        value: fmtMxnShort(real),
-        unit: 'MXN',
-        expected: fmtMxnShort(goalProrrated),
-        goal: fmtMxnShort(goalMes),
-        progressPct: Math.min(pct, 100),
-        expectedPct: expectedPct,
-        delta: delta,
-        deltaLabel: delta >= 0 ? 'en ritmo' : `${fmtMxnShort(Math.abs(delta))} atrás`
+    // ── Inversión del mes ──
+    var invVal    = current.inversion_meta_ads;
+    var invGoalMo = goals.inversion_meta;
+    var invGoalP  = prorrated.inversion_planeada_periodo;
+    var invDown   = (invVal == null);
+    var invHTML;
+    if (isMtd) {
+      var invStatus = invDown ? '' : _inversionPlanStatus(invVal, invGoalP);
+      var invFill   = (invGoalMo != null && invGoalMo > 0 && invVal != null)
+        ? (Number(invVal) / Number(invGoalMo)) : 0;
+      var invExp    = (invGoalMo != null && invGoalMo > 0 && invGoalP != null)
+        ? (Number(invGoalP) / Number(invGoalMo)) : null;
+      invHTML = _row1BoxHTML({
+        label: 'Inversión del mes',
+        bigHTML: invDown ? '—' : _fmtCurrency(invVal),
+        chipHTML: _row1ChipHTML(invStatus, _chipLabel(invStatus, 'inversion')),
+        barHTML: _row1ProgressBarHTML({
+          fillPct: invFill, expectedPct: invExp, status: invStatus, graceful: invDown
+        }),
+        expectedHTML: (invGoalP != null) ? _fmtCurrency(invGoalP) + ' esperado' : '',
+        topeHTML: (invGoalMo != null) ? 'Plan ' + _fmtCurrency(invGoalMo) : '',
+        gracefulCls: invDown ? 'row1-box--graceful' : ''
+      });
+    } else {
+      invHTML = _row1BoxHTML({
+        label: 'Inversión',
+        bigHTML: invDown ? '—' : _fmtCurrency(invVal)
+      });
+    }
+
+    // ── Citas del mes ──
+    // §22 2026-06-23: sub-label expone breakdown del 29 (active 18 / previous 11)
+    // + orgánicas detectadas (7). El 29 es la única autoridad del hero (sin
+    // contradicciones con CAC-cita que usa el mismo 29 como denominador).
+    var citasVal    = current.citas_agendadas;
+    var citasGoalMo = goals.citas_meta;
+    var citasGoalP  = prorrated.citas_goal_periodo;
+    var citasActiveCap = current.citas_paid_active_captac;
+    var citasPrevCap   = current.citas_paid_previous_captac;
+    var citasOrgDet    = current.citas_organic_detected;
+    function _citasSub() {
+      var parts = [];
+      if (citasActiveCap != null && citasPrevCap != null) {
+        parts.push(_fmtInt(citasActiveCap) + ' de campañas activas · ' +
+                   _fmtInt(citasPrevCap) + ' de campañas previas');
+      }
+      if (citasOrgDet != null && Number(citasOrgDet) > 0) {
+        parts.push('+' + _fmtInt(citasOrgDet) + ' orgánicas/no atribuidas detectadas');
+      }
+      return parts.join(' · ');
+    }
+    var citasHTML;
+    if (isMtd) {
+      var citasStatus = _ritmoStatus(citasVal, citasGoalP);
+      var citasFill   = (citasGoalMo != null && citasGoalMo > 0 && citasVal != null)
+        ? (Number(citasVal) / Number(citasGoalMo)) : 0;
+      var citasExp    = (citasGoalMo != null && citasGoalMo > 0 && citasGoalP != null)
+        ? (Number(citasGoalP) / Number(citasGoalMo)) : null;
+      citasHTML = _row1BoxHTML({
+        label: 'Citas del mes',
+        bigHTML: _fmtInt(citasVal),
+        chipHTML: _row1ChipHTML(citasStatus, _chipLabel(citasStatus, 'citas')),
+        barHTML: _row1ProgressBarHTML({ fillPct: citasFill, expectedPct: citasExp, status: citasStatus }),
+        expectedHTML: (citasGoalP != null) ? _fmtFloat1(citasGoalP) + ' esperadas' : '',
+        topeHTML: (citasGoalMo != null) ? 'Meta ' + _fmtInt(citasGoalMo) : '',
+        subHTML: _citasSub() || 'Asistidas: —'
+      });
+    } else {
+      citasHTML = _row1BoxHTML({
+        label: 'Citas',
+        bigHTML: _fmtInt(citasVal),
+        subHTML: _citasSub() || 'Asistidas: —'
+      });
+    }
+
+    // ── Venta del mes ──
+    // SPEC: barra + marker + esperada-a-la-fecha + sublabel aclaratoria.
+    var ventaVal    = current.venta;
+    var ventaGoalMo = goals.venta_meta;
+    var ventaGoalP  = prorrated.venta_goal_periodo;
+    var ventaHTML;
+    if (isMtd) {
+      // Venta NO usa chip (decisión SPEC: ratio venta del mes vs captaciones
+      // del mes engañoso porque venta cierra captaciones PREVIAS; el sublabel
+      // aclara la causa).
+      var ventaFill = (ventaGoalMo != null && ventaGoalMo > 0 && ventaVal != null)
+        ? (Number(ventaVal) / Number(ventaGoalMo)) : 0;
+      var ventaExp  = (ventaGoalMo != null && ventaGoalMo > 0 && ventaGoalP != null)
+        ? (Number(ventaGoalP) / Number(ventaGoalMo)) : null;
+      ventaHTML = _row1BoxHTML({
+        label: 'Venta del mes',
+        bigHTML: _fmtCurrency(ventaVal),
+        chipHTML: '',
+        barHTML: _row1ProgressBarHTML({ fillPct: ventaFill, expectedPct: ventaExp, status: '' }),
+        expectedHTML: (ventaGoalP != null) ? _fmtCurrency(ventaGoalP) + ' esperada' : '',
+        topeHTML: (ventaGoalMo != null) ? 'Plan ' + _fmtCurrency(ventaGoalMo) : '',
+        subHTML: 'cierres-venta del mes, no de las captaciones de junio'
+      });
+    } else {
+      ventaHTML = _row1BoxHTML({
+        label: 'Venta',
+        bigHTML: _fmtCurrency(ventaVal),
+        subHTML: 'cierres-venta del periodo'
+      });
+    }
+
+    sec.innerHTML =
+      '<div class="row1-grid" role="group" aria-label="Captaciones, inversión, citas y venta del mes">' +
+        captacHTML + invHTML + citasHTML + ventaHTML +
+      '</div>';
+  }
+  window.__renderGoals = renderGoals;
+
+  // ── FILA 2 (Ritmo) + FILA 3 (CAC) ────────────────────────────────────
+
+  function _daysInMonth(yyyymmdd) {
+    if (!yyyymmdd) return 30;
+    var parts = String(yyyymmdd).split('-');
+    if (parts.length !== 3) return 30;
+    var y = parseInt(parts[0], 10), m = parseInt(parts[1], 10);
+    if (isNaN(y) || isNaN(m)) return 30;
+    return new Date(y, m, 0).getDate();
+  }
+
+  function _kpiCardHTML(opts) {
+    var sub = opts.subHTML ? '<div class="kpi-card__sub">' + opts.subHTML + '</div>' : '';
+    var chip = opts.chipHTML ? '<div class="kpi-card__chip-row">' + opts.chipHTML + '</div>' : '';
+    return (
+      '<div class="kpi-card">' +
+        '<div class="kpi-card__label">' + escapeHtml(opts.label) + '</div>' +
+        '<div class="kpi-card__big">' + opts.valueHTML + '</div>' +
+        sub +
+        chip +
+      '</div>'
+    );
+  }
+
+  // Status CAC vs objetivo (Inmobili tiene 1 umbral; sin "límite" → 2 estados).
+  function _cacStatusVsObj(actual, objetivo) {
+    if (actual == null || isNaN(actual)) return '';
+    if (objetivo == null || isNaN(objetivo)) return '';
+    return (Number(actual) <= Number(objetivo)) ? 'green' : 'yellow';
+  }
+
+  function _cacChipHTML(status, objetivoText) {
+    if (!status || !objetivoText) return '';
+    var label = (status === 'green') ? 'Bajo objetivo' : 'Sobre objetivo';
+    return '<span class="kpi-chip kpi-chip--' + status + '">' +
+             escapeHtml(label) + ' (' + objetivoText + ')' +
+           '</span>';
+  }
+
+  function renderKpiStrip(data, period) {
+    var sec = document.getElementById('kpi-strip-section');
+    if (!sec) return;
+    if (!data || typeof data !== 'object') { sec.innerHTML = ''; return; }
+
+    var current = (data.totals && data.totals.current) || {};
+    var goals   = data.goals || {};
+    var meta    = data.meta  || {};
+    var isMtd   = (period === 'mtd');
+    var periodDays = (meta.period && meta.period.days) || 1;
+    var totalDays  = _daysInMonth(meta.period && meta.period.to);
+
+    // ── FILA 2: ritmo ──
+    var f2Boxes = [];
+
+    // Caja 1 — Citas hoy (placeholder — no hay today_citas en backend).
+    f2Boxes.push(_kpiCardHTML({
+      label: 'Citas agendadas hoy',
+      valueHTML: '<span class="kpi-card__big--muted">—</span>',
+      subHTML: 'sin desglose diario todavía'
+    }));
+
+    // Caja 2 — Citas avg/día.
+    var citasVal = current.citas_agendadas;
+    var citasAvg = (citasVal != null && periodDays > 0) ? (Number(citasVal) / periodDays) : null;
+    f2Boxes.push(_kpiCardHTML({
+      label: 'Citas agendadas · promedio diario',
+      valueHTML: citasAvg != null ? citasAvg.toFixed(1) : '—',
+      subHTML: 'por día (en el mes)'
+    }));
+
+    // Caja 3 — Proy. captaciones EOM (run-rate).
+    var captacVal = current.captaciones;
+    var captacEom = null;
+    if (isMtd && captacVal != null && periodDays > 0 && totalDays > 0) {
+      captacEom = Math.round((Number(captacVal) / periodDays) * totalDays);
+    }
+    f2Boxes.push(_kpiCardHTML({
+      label: 'Captaciones proyectadas fin de mes',
+      valueHTML: captacEom != null ? _fmtInt(captacEom) : '—',
+      subHTML: 'si mantiene ritmo'
+    }));
+
+    // Caja 4 — Proy. inversión EOM.
+    var invVal = current.inversion_meta_ads;
+    var invEom = null;
+    if (isMtd && invVal != null && periodDays > 0 && totalDays > 0) {
+      invEom = (Number(invVal) / periodDays) * totalDays;
+    }
+    f2Boxes.push(_kpiCardHTML({
+      label: 'Inversión proyectada fin de mes',
+      valueHTML: invEom != null ? _fmtCurrency(invEom) : '—',
+      subHTML: 'si mantiene ritmo'
+    }));
+
+    // ── FILA 3: CAC ──
+    // §22 2026-06-23: ambos CACs llevan badge "preliminar · junio en curso ·
+    // ancla mayo $X" SI estamos en mes en curso (mtd). Backend expone
+    // current.cac_captacion_last_month_anchor + current.cac_cita_last_month_anchor.
+    // Solo aparece en mtd; en last_month NO (ya es el mes cerrado en sí).
+    var f3Boxes = [];
+
+    function _preliminarSubLine(anchorAmt) {
+      if (!isMtd) return '';
+      if (anchorAmt == null) return 'preliminar · junio en curso';
+      return 'preliminar · junio en curso · ancla mayo ' + _fmtCurrency(anchorAmt);
+    }
+
+    // CAC Captación = spend_captacion / captac_leadtime (= $73,881 / 14 = $5,277)
+    var cacCaptac = current.cac;
+    var cacObj    = goals.cac_meta;
+    var cacStatus = _cacStatusVsObj(cacCaptac, cacObj);
+    var captacObjChip = _cacChipHTML(cacStatus, cacObj != null ? 'obj ' + _fmtCurrency(cacObj) : '');
+    var captacPreLine = _preliminarSubLine(current.cac_captacion_last_month_anchor);
+    f3Boxes.push(_kpiCardHTML({
+      label: 'CAC captación',
+      valueHTML: (cacCaptac == null) ? '—' : _fmtCurrency(cacCaptac),
+      chipHTML: captacObjChip,
+      subHTML: captacPreLine ? ('el que manda · ' + captacPreLine) : 'el que manda'
+    }));
+
+    // CAC Cita = spend_captacion ÷ citas_paid_total (= $73,881 / 30 = $2,463).
+    // Hero "Citas del mes" sigue siendo la única autoridad — el denominador
+    // del CAC usa ese mismo número (no hay 17 vs 29 contradicción).
+    var cacCita = current.cac_cita;
+    if (cacCita == null && invVal != null && citasVal != null && Number(citasVal) > 0) {
+      cacCita = Number(invVal) / Number(citasVal);
+    }
+    var cacCitaPreLine = _preliminarSubLine(current.cac_cita_last_month_anchor);
+    var cacCitaBaseSub = 'inversión de junio ÷ ' + _fmtInt(citasVal) + ' citas';
+    f3Boxes.push(_kpiCardHTML({
+      label: 'CAC cita agendada',
+      valueHTML: cacCita == null ? '—' : _fmtCurrency(cacCita),
+      subHTML: cacCitaPreLine ? (cacCitaBaseSub + ' · ' + cacCitaPreLine) : cacCitaBaseSub
+    }));
+
+    sec.innerHTML =
+      '<div class="kpi-strip-row">' + f2Boxes.join('') + '</div>' +
+      '<div class="kpi-strip-row kpi-strip-row--cac">' + f3Boxes.join('') + '</div>';
+  }
+  window.__renderKpiStrip = renderKpiStrip;
+
+  // ── PLAZA CARDS — 5 cards en grid 3-col ──────────────────────────────
+  //
+  // Layout per card:
+  //   Header: <h3>Plaza</h3> [badge?]
+  //   Body rows: Inversión → Mensajes → Llamadas → Citas → Asistencias ("—")
+  //   Footer:    "CAPTACIONES N · CAC $X"   +   "VENTA $"
+  //   Note (opt): microcopy bajo footer
+  //
+  // Variantes:
+  //   - Torreón / Gómez: badge "Fase 2", data del KV (split parcial).
+  //   - Nuevo León: badge "Próximamente", todo "—", nota "Plaza en arranque".
+  //   - Orgánicos: SIN badge, Inversión $0 fijo, demás —, nota "Tráfico no pagado".
+  //   - Sin atribución: SIN badge, opacity .65, todo —, nota "Sin actividad atribuible".
+
+  function _plazaRowHTML(label, valueHTML, cpaHTML) {
+    var cpaSpan = (cpaHTML != null && cpaHTML !== '')
+      ? '<span class="plaza-card__row-cpa">' + cpaHTML + '</span>'
+      : '<span class="plaza-card__row-cpa plaza-card__row-cpa--empty" aria-hidden="true"></span>';
+    return (
+      '<div class="plaza-card__row plaza-card__row--with-cpa">' +
+        '<span class="plaza-card__row-label">' + escapeHtml(label) + '</span>' +
+        cpaSpan +
+        '<span class="plaza-card__row-value">' + valueHTML + '</span>' +
+      '</div>'
+    );
+  }
+
+  function _plazaRowSimpleHTML(label, valueHTML) {
+    return (
+      '<div class="plaza-card__row plaza-card__row--simple">' +
+        '<span class="plaza-card__row-label">' + escapeHtml(label) + '</span>' +
+        '<span class="plaza-card__row-value">' + valueHTML + '</span>' +
+      '</div>'
+    );
+  }
+
+  function _plazaFooterHTML(captac, cacText, venta) {
+    // SPEC: Footer L1 "CAPTACIONES N · CAC" + Footer L2 "VENTA $".
+    // Color neutral (NO inherit del rojo de "Cancelados" de EnPagos).
+    return (
+      '<div class="plaza-card__footer">' +
+        '<span class="plaza-card__footer-label">CAPTACIONES</span>' +
+        '<span class="plaza-card__footer-value">' + _fmtInt(captac) + '</span>' +
+        '<span class="plaza-card__footer-sep">|</span>' +
+        '<span class="plaza-card__footer-label">CAC</span>' +
+        '<span class="plaza-card__footer-value">' + cacText + '</span>' +
+      '</div>' +
+      '<div class="plaza-card__footer-venta">' +
+        '<span class="plaza-card__footer-label">VENTA</span>' +
+        '<span class="plaza-card__footer-value">' + _fmtCurrency(venta) + '</span>' +
+      '</div>'
+    );
+  }
+
+  function _plazaCardHTML(opts) {
+    // opts: {plazaLabel, badgeHTML, rowsHTML, footerHTML, noteText, cardClass}
+    var cls = 'plaza-card';
+    if (opts.cardClass) cls += ' ' + opts.cardClass;
+    var note = opts.noteText
+      ? '<div class="plaza-card__note">' + escapeHtml(opts.noteText) + '</div>'
+      : '';
+    return (
+      '<div class="' + cls + '" data-plaza="' + escapeHtml(opts.plazaLabel) + '">' +
+        '<div class="plaza-card__header">' +
+          '<h3 class="plaza-card__title">' + escapeHtml(opts.plazaLabel) + (opts.badgeHTML || '') + '</h3>' +
+        '</div>' +
+        '<div class="plaza-card__body">' + opts.rowsHTML + opts.footerHTML + '</div>' +
+        note +
+      '</div>'
+    );
+  }
+
+  function _renderPlazaFase2(plazaLabel, plazaData) {
+    // Torreón/Gómez — datos del KV con caveat Fase 2.
+    var d = plazaData || {};
+    // Backend HOY solo expone: mensajes, venta, cierres, ticket_promedio, captaciones.
+    // Inversión / llamadas / citas / asistencias / cac per plaza NO existen en el split → "—".
+    var rows = ''
+      + _plazaRowHTML('Inversión',  '—')
+      + _plazaRowHTML('Mensajes',   _fmtInt(d.mensajes))
+      + _plazaRowHTML('Llamadas',   '—')
+      + _plazaRowHTML('Citas',      '—')
+      + _plazaRowHTML('Asistencias', '—');
+    var footer = _plazaFooterHTML(d.captaciones, '—', d.venta);
+    var badge = '<span class="plaza-card__badge plaza-card__badge--fase2">Fase 2</span>';
+    return _plazaCardHTML({
+      plazaLabel: plazaLabel,
+      badgeHTML: badge,
+      rowsHTML: rows,
+      footerHTML: footer,
+      noteText: 'Desglose por plaza incompleto — la atribución de inversión / funnel por plaza llega en Fase 2.'
+    });
+  }
+
+  function _renderPlazaProximamente(plazaLabel) {
+    // Nuevo León — placeholder, todo "—".
+    var rows = ''
+      + _plazaRowHTML('Inversión',   '—')
+      + _plazaRowHTML('Mensajes',    '—')
+      + _plazaRowHTML('Llamadas',    '—')
+      + _plazaRowHTML('Citas',       '—')
+      + _plazaRowHTML('Asistencias', '—');
+    var footer = _plazaFooterHTML(null, '—', null);
+    var badge = '<span class="plaza-card__badge plaza-card__badge--proximamente">Próximamente</span>';
+    return _plazaCardHTML({
+      plazaLabel: plazaLabel,
+      badgeHTML: badge,
+      rowsHTML: rows,
+      footerHTML: footer,
+      noteText: 'Plaza en arranque — sin datos todavía.'
+    });
+  }
+
+  function _renderPlazaOrganicos() {
+    // Orgánicos — Inversión $0 fijo, demás "—" (backend no expone organic split).
+    var rows = ''
+      + _plazaRowHTML('Inversión',   _fmtCurrency(0))
+      + _plazaRowHTML('Mensajes',    '—')
+      + _plazaRowHTML('Llamadas',    '—')
+      + _plazaRowHTML('Citas',       '—')
+      + _plazaRowHTML('Asistencias', '—');
+    var footer = _plazaFooterHTML(null, '—', null);
+    return _plazaCardHTML({
+      plazaLabel: 'Orgánicos',
+      badgeHTML: '',
+      rowsHTML: rows,
+      footerHTML: footer,
+      noteText: 'Tráfico no pagado — data de referencia.'
+    });
+  }
+
+  function _renderPlazaSinAtribucion() {
+    // Sin atribución — atenuada, todo "—".
+    var rows = ''
+      + _plazaRowHTML('Inversión',   '—')
+      + _plazaRowHTML('Mensajes',    '—')
+      + _plazaRowHTML('Llamadas',    '—')
+      + _plazaRowHTML('Citas',       '—')
+      + _plazaRowHTML('Asistencias', '—');
+    var footer = _plazaFooterHTML(null, '—', null);
+    return _plazaCardHTML({
+      plazaLabel: 'Sin atribución',
+      badgeHTML: '',
+      rowsHTML: rows,
+      footerHTML: footer,
+      noteText: 'Sin actividad atribuible en el periodo.',
+      cardClass: 'plaza-card--atenuada'
+    });
+  }
+
+  function renderPlazaCards(data) {
+    var sec = document.getElementById('plaza-cards-section');
+    if (!sec) return;
+    if (!data || typeof data !== 'object') { sec.innerHTML = ''; return; }
+
+    var byPlaza = data.by_plaza_actuals || {};
+    var torreon = byPlaza.torreon || {};
+    var gomez   = byPlaza.gomez   || {};
+
+    var cards = ''
+      + _renderPlazaFase2('Torreón', torreon)
+      + _renderPlazaFase2('Gómez',   gomez)
+      + _renderPlazaProximamente('Nuevo León')
+      + _renderPlazaOrganicos()
+      + _renderPlazaSinAtribucion();
+
+    sec.innerHTML = '<div class="plaza-cards-grid">' + cards + '</div>';
+  }
+  window.__renderPlazaCards = renderPlazaCards;
+
+  // ── FEED: Captaciones de hoy ─────────────────────────────────────────
+  // Backend HOY no produce array today_captaciones → empty state siempre.
+  // Flag: deuda backend conocida, no bug.
+  function renderTodayDetailFeed(data) {
+    var sec = document.getElementById('today-detail-section');
+    if (!sec) return;
+    if (!data || typeof data !== 'object') { sec.innerHTML = ''; return; }
+    var feed = data.totals && data.totals.today_captaciones;
+    if (!Array.isArray(feed) || feed.length === 0) {
+      sec.innerHTML =
+        '<div class="today-feed today-feed--empty">' +
+          '<div class="today-feed__title">Captaciones de hoy</div>' +
+          '<div class="today-feed__empty" role="status">' +
+            '<div class="today-feed__empty-icon" aria-hidden="true">⏳</div>' +
+            '<div class="today-feed__empty-title">Sin captaciones hoy</div>' +
+            '<div class="today-feed__empty-msg">Cuando llegue la primera captación del día aparece aquí.</div>' +
+          '</div>' +
+        '</div>';
+      return;
+    }
+    // Si en el futuro el backend produce el array: replica enpagos pattern.
+    var rowsHTML = '';
+    for (var i = 0; i < feed.length; i++) {
+      var item = feed[i];
+      var plaza = (item && item.plaza) != null ? String(item.plaza) : '—';
+      var prop  = (item && item.propiedad) != null ? String(item.propiedad) : '—';
+      var precio = (item && item.precio != null && !isNaN(item.precio)) ? _fmtCurrency(item.precio) : '—';
+      rowsHTML +=
+        '<div class="today-feed__row" role="row">' +
+          '<div class="today-feed__cell" role="cell" data-label="Plaza">' + escapeHtml(plaza) + '</div>' +
+          '<div class="today-feed__cell" role="cell" data-label="Propiedad">' + escapeHtml(prop) + '</div>' +
+          '<div class="today-feed__cell" role="cell" data-label="Precio">' + escapeHtml(precio) + '</div>' +
+        '</div>';
+    }
+    sec.innerHTML =
+      '<div class="today-feed" role="table" aria-label="Captaciones de hoy">' +
+        '<div class="today-feed__title">Captaciones de hoy</div>' +
+        '<div class="today-feed__grid">' +
+          '<div class="today-feed__header" role="row">' +
+            '<div class="today-feed__cell" role="columnheader">Plaza</div>' +
+            '<div class="today-feed__cell" role="columnheader">Propiedad</div>' +
+            '<div class="today-feed__cell" role="columnheader">Precio</div>' +
+          '</div>' +
+          rowsHTML +
+        '</div>' +
+      '</div>';
+  }
+  window.__renderTodayDetailFeed = renderTodayDetailFeed;
+
+  // ── Skeletons / banner ───────────────────────────────────────────────
+  function showSkeletons() {
+    for (var i = 0; i < SECTION_IDS.length; i++) {
+      var sec = document.getElementById(SECTION_IDS[i]);
+      if (!sec) continue;
+      sec.innerHTML = '<div class="skeleton-card"></div>';
+    }
+  }
+  function hideSkeletons() {
+    for (var i = 0; i < SECTION_IDS.length; i++) {
+      var sec = document.getElementById(SECTION_IDS[i]);
+      if (!sec) continue;
+      var skels = sec.querySelectorAll('.skeleton-card');
+      for (var j = 0; j < skels.length; j++) {
+        skels[j].parentNode.removeChild(skels[j]);
+      }
+    }
+  }
+  function showErrorBanner(period, err) {
+    var container = document.getElementById('banner-container');
+    if (!container) return;
+    var status = err && err.status ? ' (' + err.status + ')' : '';
+    container.innerHTML =
+      '<div class="banner banner--error" role="alert">' +
+        '<span class="banner__text">No se pudo cargar el periodo ' +
+          escapeHtml(period) + status + '.</span>' +
+        '<button type="button" class="banner__retry" data-period="' +
+          escapeHtml(period) + '">Reintentar</button>' +
+      '</div>';
+    var btn = container.querySelector('.banner__retry');
+    if (btn) {
+      btn.addEventListener('click', function () {
+        clearBanner();
+        currentPeriod = null;
+        switchPeriod(period);
       });
     }
   }
-
-  function renderHeroCard(o) {
-    const deltaClass = o.delta >= 0 ? 'positive' : 'negative';
-    const arrow = o.delta >= 0 ? '↗' : '↘';
-    return `
-      <div class="hero-card-delta ${deltaClass}">${arrow} ${o.deltaLabel}</div>
-      <div class="hero-card-label">${o.label}</div>
-      <div class="hero-card-main">
-        <div class="hero-card-value">${o.value}</div>
-        <div class="hero-card-unit">${o.unit}</div>
-      </div>
-      <div class="hero-card-bar-wrap">
-        <div class="hero-card-progress">
-          <div class="hero-card-progress-fill" style="width: ${o.progressPct}%"></div>
-          <div class="hero-card-progress-expected" style="left: ${o.expectedPct}%"></div>
-        </div>
-        <div class="hero-card-meta">
-          <div class="hero-card-expected">${o.expected}</div>
-          <div class="hero-card-expected-label">Esperado</div>
-        </div>
-        <div class="hero-card-goal">/ ${o.goal}</div>
-      </div>
-    `;
+  function clearBanner() {
+    var container = document.getElementById('banner-container');
+    if (container) container.innerHTML = '';
   }
 
-  // ──────────────────────────────────────────
-  // HERO RIGHT (Inversión)
-  // ──────────────────────────────────────────
-  function renderHeroRight() {
-    const d = state.data;
-    if (!d) return;
-    const card = document.getElementById('hero-right');
-    if (!card) return;
-
-    const scoped = scopeData(d, state.plaza);
-    const spend = get(scoped, 'current.inversion_meta_ads');
-    const hasSpend = spend !== null && spend !== undefined;
-
-    if (!hasSpend) {
-      card.innerHTML = `
-        <div class="hero-card-label">Inversión Meta Ads</div>
-        <div class="hero-card-main">
-          <div class="hero-card-value" style="color: var(--text-muted)">—</div>
-          <div class="hero-card-unit">pendiente</div>
-        </div>
-        <div class="hero-card-bar-wrap">
-          <div style="color: var(--text-muted); font-size: 12px;">
-            Atribución por canal en próxima iteración
-          </div>
-        </div>
-      `;
-      return;
-    }
-
-    const periodDays = get(d, 'meta.period.days') || 1;
-    const totalDays = daysInMonth(get(d, 'meta.period.to'));
-    const projected = projectEom(spend, periodDays, totalDays);
-    const monthProgressPct = Math.min((periodDays / totalDays) * 100, 100);
-
-    card.innerHTML = `
-      <div class="hero-card-label">Inversión del Mes</div>
-      <div class="hero-card-main">
-        <div class="hero-card-value">${fmtMxnShort(spend)}</div>
-        <div class="hero-card-unit">MXN</div>
-      </div>
-      <div class="hero-card-bar-wrap">
-        <div class="hero-card-progress">
-          <div class="hero-card-progress-fill" style="width: ${monthProgressPct}%"></div>
-        </div>
-        <div class="hero-card-meta">
-          <div class="hero-card-expected">${fmtMxnShort(projected)}</div>
-          <div class="hero-card-expected-label">Fin de Mes</div>
-        </div>
-      </div>
-    `;
+  // ── Init ─────────────────────────────────────────────────────────────
+  function init() {
+    var p = getInitialPeriod();
+    switchPeriod(p);
   }
-
-  // ──────────────────────────────────────────
-  // KPI ROW
-  // ──────────────────────────────────────────
-  function renderKpiRow() {
-    const d = state.data;
-    if (!d) return;
-    const scoped = scopeData(d, state.plaza);
-    const current = scoped.current || {};
-    const goals = scoped.goals || {};
-    const today = get(d, 'totals.today') || {};
-
-    const periodDays = get(d, 'meta.period.days') || 1;
-    const totalDays = daysInMonth(get(d, 'meta.period.to'));
-
-    // KPI 0 (cabeza del funnel): Mensajes (S87 Fase 1).
-    // Source backend: totals.current.mensajes = contactos Vambe NEW (created_at en
-    // periodo, pipeline Comarca+Torreón). NO usa Meta-paid (sobrecuenta).
-    // Mismo patrón que citas: count + avg/día + proyección fin de mes inline.
-    const mensajes = current.mensajes;
-    const mensajesNull = mensajes === null || mensajes === undefined;
-    const avgMensajes = mensajesNull ? 0 : mensajes / periodDays;
-    const eomMensajes = mensajesNull ? null : Math.round(avgMensajes * totalDays);
-    setHtml('kpi-mensajes',
-      `<div class="kpi-card-label">Mensajes del Mes</div>
-       <div class="kpi-card-main">
-         <div class="kpi-card-value ${mensajesNull ? 'null-state' : ''}">${mensajesNull ? '—' : fmtInt(mensajes)}</div>
-       </div>
-       <div class="kpi-card-sub muted">${mensajesNull ? 'cabeza del funnel' : `${avgMensajes.toFixed(1)}/día · proyec. ${eomMensajes}`}</div>
-       ${renderVsMesAnterior(d, 'mensajes')}`);
-
-    // KPI 1: Citas Hoy — LITE muestra placeholder
-    if (state.isLite || !get(d, 'totals.today')) {
-      setHtml('kpi-citas-today',
-        `<div class="kpi-card-label">Citas Hoy</div>
-         <div class="kpi-card-main">
-           <div class="kpi-card-value" style="color: var(--text-muted)">—</div>
-         </div>
-         <div class="kpi-card-sub muted">Próxima iteración</div>`);
-    } else {
-      setHtml('kpi-citas-today',
-        `<div class="kpi-card-label">Citas Agendadas Hoy</div>
-         <div class="kpi-card-main">
-           <div class="kpi-card-value">${fmtInt(today.citas_agendadas)}</div>
-         </div>
-         <div class="kpi-card-sub muted">Tiempo real</div>`);
-    }
-
-    // KPI 2: Citas Avg con comparativo vs mes anterior
-    const citasAgendadas = current.citas_agendadas || 0;
-    const avgCitas = citasAgendadas / periodDays;
-    setHtml('kpi-citas-avg',
-      `<div class="kpi-card-label">Citas Agendadas · Promedio Diario</div>
-       <div class="kpi-card-main">
-         <div class="kpi-card-value">${avgCitas.toFixed(1)}</div>
-       </div>
-       <div class="kpi-card-sub muted">por día (en el mes)</div>
-       ${renderVsMesAnterior(d, 'citas_agendadas')}`);
-
-    // KPI 3: Citas Proyectadas Fin de Mes (run-rate de la métrica citas_agendadas).
-    // NO confundir con KPI 4 que es Llamadas Agendadas (etapa distinta del funnel).
-    const eomCitas = Math.round(avgCitas * totalDays);
-    setHtml('kpi-citas-eom',
-      `<div class="kpi-card-label">Citas Proyectadas Fin de Mes</div>
-       <div class="kpi-card-main">
-         <div class="kpi-card-value">${eomCitas}</div>
-       </div>
-       <div class="kpi-card-sub muted">si mantiene ritmo</div>`);
-
-    // KPI 4: Llamadas Agendadas (S80 Fase-B item 1 — campo nuevo).
-    // Etapa #3 del funnel — captadora consiguió llamada con dueño. NO confundir
-    // con captaciones (etapa #6: dueño firma contrato).
-    const llamadasAgendadas = current.llamadas_agendadas;
-    const llamadasNull = llamadasAgendadas === null || llamadasAgendadas === undefined;
-    setHtml('kpi-llamadas',
-      `<div class="kpi-card-label">Llamadas Agendadas del Mes</div>
-       <div class="kpi-card-main">
-         <div class="kpi-card-value ${llamadasNull ? 'null-state' : ''}">${llamadasNull ? '—' : fmtInt(llamadasAgendadas)}</div>
-       </div>
-       <div class="kpi-card-sub muted">etapa del funnel</div>
-       ${renderVsMesAnterior(d, 'llamadas_agendadas')}`);
-
-    // KPI 4.5: Asistencias (S87 Fase 1) — placeholder fijo sin fuente automática.
-    // Sin Vambe stage "Llegó a la cita" ni equivalente en sheets, no hay
-    // conteo confiable hoy. Slot reservado para Fase 2 (manual o stage Vambe nuevo).
-    setHtml('kpi-asistencias',
-      `<div class="kpi-card-label">Asistencias del Mes</div>
-       <div class="kpi-card-main">
-         <div class="kpi-card-value null-state">—</div>
-       </div>
-       <div class="kpi-card-sub muted">sin fuente automática</div>`);
-
-    // KPI 5: Cierres del Mes con comparativo vs mes anterior (null-safe en mtd).
-    const vsGoalCierres = get(scoped, 'vs_goal.cierres_pct');
-    const cierresNull = current.cierres === null || current.cierres === undefined;
-    setHtml('kpi-cierres',
-      `<div class="kpi-card-label">Cierres del Mes</div>
-       <div class="kpi-card-main">
-         <div class="kpi-card-value ${cierresNull ? 'null-state' : ''}">${cierresNull ? '—' : fmtInt(current.cierres)}</div>
-         <div class="kpi-card-sub">/ ${fmtInt(goals.cierres_meta)} objetivo</div>
-       </div>
-       <div class="kpi-card-sub muted">${vsGoalCierres !== null && vsGoalCierres !== undefined ? vsGoalCierres.toFixed(1) : '0.0'}% del mes</div>
-       ${renderVsMesAnterior(d, 'cierres')}`);
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
   }
-
-  // ──────────────────────────────────────────
-  // CAC ROW
-  // ──────────────────────────────────────────
-  function renderCacRow() {
-    const d = state.data;
-    if (!d) return;
-    const scoped = scopeData(d, state.plaza);
-    const current = scoped.current || {};
-    const goals = scoped.goals || {};
-
-    const cacCaptacion = current.cac;
-    const captaciones = current.captaciones || 0;
-    const cacMeta = goals.cac_meta;
-    const inversion = current.inversion_meta_ads;
-    const citas = current.citas_agendadas || 0;
-
-    const c1 = document.getElementById('cac-captacion');
-    if (c1) {
-      const cacNull = cacCaptacion === null || cacCaptacion === undefined;
-      c1.innerHTML = `
-        <div class="cac-card-info">
-          <div class="cac-card-label">CAC Captación (blended)</div>
-          <div class="cac-card-meta">
-            ${fmtInt(captaciones)} captaciones${cacMeta ? ` · Objetivo ${fmtMxn(cacMeta)}` : ''}
-          </div>
-          ${renderVsMesAnterior(d, 'cac')}
-        </div>
-        <div class="cac-card-value ${cacNull ? 'null-state' : ''}">
-          ${cacNull ? '—' : fmtMxn(cacCaptacion)}
-        </div>
-      `;
-    }
-
-    const c2 = document.getElementById('cac-cita');
-    if (c2) {
-      const cacCita = (inversion === null || inversion === undefined || citas === 0)
-        ? null
-        : (inversion / citas);
-      const cacCitaNull = cacCita === null;
-      c2.innerHTML = `
-        <div class="cac-card-info">
-          <div class="cac-card-label">CAC Cita Agendada (blended)</div>
-          <div class="cac-card-meta">${fmtInt(citas)} citas agendadas del mes</div>
-        </div>
-        <div class="cac-card-value ${cacCitaNull ? 'null-state' : ''}">
-          ${cacCitaNull ? '—' : fmtMxn(cacCita)}
-        </div>
-      `;
-    }
-  }
-
-  // ──────────────────────────────────────────
-  // TODAY STRIP (solo si no LITE)
-  // ──────────────────────────────────────────
-  function renderTodayStrip() {
-    const d = state.data;
-    if (!d) return;
-    const today = get(d, 'totals.today') || {};
-    const strip = document.getElementById('today-strip');
-    if (!strip) return;
-
-    strip.classList.remove('placeholder');
-    strip.innerHTML = `
-      <div class="today-strip-title">Hoy</div>
-      <div id="today-stats" class="today-strip-stats">
-        <div class="today-strip-stat">
-          <div class="today-strip-stat-value">${fmtInt(today.captaciones)}</div>
-          <div class="today-strip-stat-label">Captaciones</div>
-        </div>
-        <div class="today-strip-stat">
-          <div class="today-strip-stat-value">${fmtInt(today.citas_agendadas)}</div>
-          <div class="today-strip-stat-label">Citas Agendadas</div>
-        </div>
-        <div class="today-strip-stat">
-          <div class="today-strip-stat-value">${fmtInt(today.cierres)}</div>
-          <div class="today-strip-stat-label">Cierres</div>
-        </div>
-      </div>
-    `;
-  }
-
-  // ──────────────────────────────────────────
-  // PLAZA ACTUALS CARDS (S80 Fase-B item 3 — shape by_plaza_actuals)
-  // ──────────────────────────────────────────
-  //
-  // Shape REAL del backend desde S80 turno 2:
-  //   by_plaza_actuals.torreon = { venta, cierres, ticket_promedio, captaciones }
-  //   by_plaza_actuals.gomez   = { venta, cierres, ticket_promedio, captaciones }
-  //
-  // Fila TOTAL agrega los 2 plazas — el backend ya garantiza que
-  // torreon.captaciones + gomez.captaciones === totals.current.captaciones
-  // (assert fail-loud en el pipeline). Cuando venta/cierres son null
-  // (period=mtd mes-en-curso por reglas Fase-A), el render muestra "—".
-  function renderPlazaActualsCards() {
-    const d = state.data;
-    const container = document.getElementById('plaza-grid');
-    if (!container) return;
-    container.style.display = '';
-    container.classList.remove('plaza-placeholder-wrap');
-
-    const by = d.by_plaza_actuals || {};
-    const plazas = ['torreon', 'gomez'];
-    // Total computado del backend (no del frontend) cuando viene el global.
-    const totalCaptaciones = get(d, 'totals.current.captaciones');
-    const totalVenta       = get(d, 'totals.current.venta');
-    const totalCierres     = get(d, 'totals.current.cierres');
-
-    const cards = plazas.map(key => renderPlazaActualsCard(key, by[key] || {})).join('');
-    const totalCard = renderPlazaActualsTotal({
-      captaciones: totalCaptaciones,
-      venta:       totalVenta,
-      cierres:     totalCierres,
-    });
-    container.innerHTML = cards + totalCard;
-  }
-
-  function renderPlazaActualsCard(key, plaza) {
-    const label = (PLAZA_LABELS && PLAZA_LABELS[key]) || key.toUpperCase();
-    const captaciones = plaza.captaciones;
-    const venta       = plaza.venta;
-    const cierres     = plaza.cierres;
-    const captNull = captaciones === null || captaciones === undefined;
-    const ventaNull   = venta === null || venta === undefined;
-    const cierresNull = cierres === null || cierres === undefined;
-
-    return `
-      <div class="plaza-card">
-        <div class="plaza-card-header">
-          <div class="plaza-card-title">${label}</div>
-        </div>
-        <div class="plaza-card-rows">
-          <div class="plaza-card-row highlight ${captNull ? 'null-state' : ''}">
-            <div class="plaza-card-row-label">Captaciones</div>
-            <div class="plaza-card-row-value">
-              <div class="plaza-card-row-value-main">${captNull ? '—' : fmtInt(captaciones)}</div>
-            </div>
-          </div>
-          <div class="plaza-card-row ${ventaNull ? 'null-state' : ''}">
-            <div class="plaza-card-row-label">Venta</div>
-            <div class="plaza-card-row-value">
-              <div class="plaza-card-row-value-main">${ventaNull ? '—' : fmtMxnShort(venta)}</div>
-            </div>
-          </div>
-          <div class="plaza-card-row ${cierresNull ? 'null-state' : ''}">
-            <div class="plaza-card-row-label">Cierres</div>
-            <div class="plaza-card-row-value">
-              <div class="plaza-card-row-value-main">${cierresNull ? '—' : fmtInt(cierres)}</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    `;
-  }
-
-  function renderPlazaActualsTotal(totals) {
-    const captNull = totals.captaciones === null || totals.captaciones === undefined;
-    const ventaNull   = totals.venta === null || totals.venta === undefined;
-    const cierresNull = totals.cierres === null || totals.cierres === undefined;
-    return `
-      <div class="plaza-card plaza-card-total">
-        <div class="plaza-card-header">
-          <div class="plaza-card-title">Total</div>
-        </div>
-        <div class="plaza-card-rows">
-          <div class="plaza-card-row highlight ${captNull ? 'null-state' : ''}">
-            <div class="plaza-card-row-label">Captaciones</div>
-            <div class="plaza-card-row-value">
-              <div class="plaza-card-row-value-main">${captNull ? '—' : fmtInt(totals.captaciones)}</div>
-            </div>
-          </div>
-          <div class="plaza-card-row ${ventaNull ? 'null-state' : ''}">
-            <div class="plaza-card-row-label">Venta</div>
-            <div class="plaza-card-row-value">
-              <div class="plaza-card-row-value-main">${ventaNull ? '—' : fmtMxnShort(totals.venta)}</div>
-            </div>
-          </div>
-          <div class="plaza-card-row ${cierresNull ? 'null-state' : ''}">
-            <div class="plaza-card-row-label">Cierres</div>
-            <div class="plaza-card-row-value">
-              <div class="plaza-card-row-value-main">${cierresNull ? '—' : fmtInt(totals.cierres)}</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    `;
-  }
-
-  // ──────────────────────────────────────────
-  // PLAZA CARDS (legacy shape by_plaza — pre-LITE-LITE)
-  // ──────────────────────────────────────────
-  function renderPlazaCards() {
-    const d = state.data;
-    if (!d || !d.by_plaza) return;
-    const container = document.getElementById('plaza-grid');
-    if (!container) return;
-
-    if (state.plaza !== 'all') {
-      container.style.display = 'none';
-      return;
-    }
-    container.style.display = '';
-
-    container.innerHTML = ['torreon', 'gomez'].map(key => {
-      const plaza = d.by_plaza[key];
-      if (!plaza) return '';
-      return renderPlazaCard(key, plaza);
-    }).join('');
-  }
-
-  function renderPlazaCard(key, plaza) {
-    const c = plaza.current || {};
-    const g = plaza.goals || {};
-    const vs = plaza.vs_goal || {};
-    const cacNull = c.cac === null || c.cac === undefined;
-    const inversionNull = c.inversion_meta_ads === null || c.inversion_meta_ads === undefined;
-
-    return `
-      <div class="plaza-card">
-        <div class="plaza-card-header">
-          <div class="plaza-card-title">${PLAZA_LABELS[key] || key.toUpperCase()}</div>
-          <div class="plaza-card-title-meta">META ${fmtMxnShort(g.venta_meta)}</div>
-        </div>
-        <div class="plaza-card-rows">
-          <div class="plaza-card-row ${inversionNull ? 'null-state' : ''}">
-            <div class="plaza-card-row-label">Inversión Meta</div>
-            <div class="plaza-card-row-value">
-              <div class="plaza-card-row-value-main">${inversionNull ? '—' : fmtMxnShort(c.inversion_meta_ads)}</div>
-            </div>
-          </div>
-          <div class="plaza-card-row">
-            <div class="plaza-card-row-label">Citas Agendadas</div>
-            <div class="plaza-card-row-value">
-              <div class="plaza-card-row-value-main">${fmtInt(c.citas_agendadas)}</div>
-            </div>
-          </div>
-          <div class="plaza-card-row highlight">
-            <div class="plaza-card-row-label">Captaciones</div>
-            <div class="plaza-card-row-value">
-              <div class="plaza-card-row-value-main">${fmtInt(c.captaciones)}</div>
-              <div class="plaza-card-row-value-meta">/ ${fmtInt(g.captaciones_meta)} (${fmtPct(vs.captaciones_pct)})</div>
-            </div>
-          </div>
-          <div class="plaza-card-row">
-            <div class="plaza-card-row-label">Cierres</div>
-            <div class="plaza-card-row-value">
-              <div class="plaza-card-row-value-main">${fmtInt(c.cierres)}</div>
-              <div class="plaza-card-row-value-meta">/ ${fmtInt(g.cierres_meta)} (${fmtPct(vs.cierres_pct)})</div>
-            </div>
-          </div>
-          <div class="plaza-card-row">
-            <div class="plaza-card-row-label">Venta</div>
-            <div class="plaza-card-row-value">
-              <div class="plaza-card-row-value-main">${fmtMxnShort(c.venta)}</div>
-              <div class="plaza-card-row-value-meta">/ ${fmtMxnShort(g.venta_meta)} (${fmtPct(vs.venta_pct)})</div>
-            </div>
-          </div>
-          <div class="plaza-card-row ${cacNull ? 'null-state' : ''}">
-            <div class="plaza-card-row-label">CAC</div>
-            <div class="plaza-card-row-value">
-              <div class="plaza-card-row-value-main">${cacNull ? '—' : fmtMxn(c.cac)}</div>
-              <div class="plaza-card-row-value-meta">${g.cac_meta ? 'target ' + fmtMxn(g.cac_meta) : ''}</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    `;
-  }
-
-  // ──────────────────────────────────────────
-  // FOOTER
-  // ──────────────────────────────────────────
-  function renderFooterMeta() {
-    const d = state.data;
-    if (!d) return;
-    setText('footer-period', formatPeriodLabel(get(d, 'meta.period')));
-    const src = d.goals_source === 'firestore' ? 'Firestore' :
-                d.goals_source === 'sheet' ? 'Sheet' : '—';
-    setText('footer-source', src);
-    setText('footer-updated', new Date().toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }));
-  }
-
-  // ──────────────────────────────────────────
-  // SCOPE BY PLAZA
-  // ──────────────────────────────────────────
-  function scopeData(d, plaza) {
-    // En LITE o sin by_plaza: siempre retorna totals
-    if (!d.by_plaza || plaza === 'all') {
-      return {
-        current: get(d, 'totals.current') || {},
-        goals: d.goals || {},
-        vs_goal: get(d, 'totals.vs_goal') || {}
-      };
-    }
-    const p = d.by_plaza[plaza];
-    if (!p) {
-      return {
-        current: get(d, 'totals.current') || {},
-        goals: d.goals || {},
-        vs_goal: get(d, 'totals.vs_goal') || {}
-      };
-    }
-    return {
-      current: p.current || {},
-      goals:   p.goals   || {},
-      vs_goal: p.vs_goal || {}
-    };
-  }
-
-  // ──────────────────────────────────────────
-  // FORMATTERS
-  // ──────────────────────────────────────────
-  function fmtInt(n) {
-    if (n === null || n === undefined || isNaN(n)) return '—';
-    return Math.round(n).toLocaleString('es-MX');
-  }
-
-  function fmtIntRound(n) {
-    if (n === null || n === undefined || isNaN(n)) return '—';
-    return Math.round(n).toLocaleString('es-MX');
-  }
-
-  function fmtMxn(n) {
-    if (n === null || n === undefined || isNaN(n)) return '—';
-    return '$' + Math.round(n).toLocaleString('es-MX');
-  }
-
-  function fmtMxnShort(n) {
-    if (n === null || n === undefined || isNaN(n)) return '—';
-    const abs = Math.abs(n);
-    if (abs >= 1_000_000) return '$' + (n / 1_000_000).toFixed(2) + 'M';
-    if (abs >= 1_000)     return '$' + (n / 1_000).toFixed(0) + 'K';
-    return '$' + Math.round(n).toLocaleString('es-MX');
-  }
-
-  function fmtPct(n) {
-    if (n === null || n === undefined || isNaN(n)) return '0%';
-    return n.toFixed(0) + '%';
-  }
-
-  function formatPeriodLabel(p) {
-    if (!p) return '';
-    const months = {
-      '01': 'Ene', '02': 'Feb', '03': 'Mar', '04': 'Abr',
-      '05': 'May', '06': 'Jun', '07': 'Jul', '08': 'Ago',
-      '09': 'Sep', '10': 'Oct', '11': 'Nov', '12': 'Dic'
-    };
-    const parts = (p.from || '').split('-');
-    if (parts.length !== 3) return PERIOD_LABELS[p.kind] || p.kind || '—';
-    const monthLabel = (months[parts[1]] || parts[1]) + ' ' + parts[0];
-    const kindLabel = PERIOD_LABELS[p.kind] || p.kind || '';
-    const days = p.days ? ` (${p.days} días)` : '';
-    return `${monthLabel} · ${kindLabel}${days}`;
-  }
-
-  function daysInMonth(dateStr) {
-    if (!dateStr) return 30;
-    const parts = dateStr.split('-');
-    if (parts.length < 2) return 30;
-    const year = parseInt(parts[0], 10);
-    const month = parseInt(parts[1], 10);
-    if (isNaN(year) || isNaN(month)) return 30;
-    return new Date(year, month, 0).getDate();
-  }
-
-  function projectEom(currentValue, daysElapsed, totalDays) {
-    if (!daysElapsed) return currentValue;
-    return (currentValue / daysElapsed) * totalDays;
-  }
-
-  // ──────────────────────────────────────────
-  // HELPERS — safe property access
-  // ──────────────────────────────────────────
-  function get(obj, path) {
-    if (!obj) return undefined;
-    return path.split('.').reduce((acc, key) => {
-      if (acc === null || acc === undefined) return undefined;
-      return acc[key];
-    }, obj);
-  }
-
-  function setText(id, txt) {
-    const el = document.getElementById(id);
-    if (el) el.textContent = txt;
-  }
-
-  function setHtml(id, html) {
-    const el = document.getElementById(id);
-    if (el) el.innerHTML = html;
-  }
-
-  // ──────────────────────────────────────────
-  // RETRY HOOK
-  // ──────────────────────────────────────────
-  window.__inmobiliRetry = function () {
-    hideError();
-    fetchAndRender();
-  };
-
 })();
