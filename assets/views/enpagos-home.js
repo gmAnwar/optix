@@ -411,12 +411,12 @@
           ? 'Meta ' + _fmtInt(cierresGoalMo)
           : '',
         footHTML: (function() {
-          var parts = [];
+          var lines = [];
           var tk = current.ticket_promedio;
-          if (tk != null && Number(tk) > 0) parts.push('Ticket prom. ' + _fmtCurrency(tk));
+          if (tk != null && Number(tk) > 0) lines.push('Ticket prom. ' + _fmtCurrency(tk));
           var tasa = current.tasa_cierre_preaut_positivo;
-          if (tasa != null && !isNaN(tasa) && Number(tasa) > 0) parts.push(_fmtPct(tasa) + ' cierre/preaut+');
-          return parts.join(' · ');
+          if (tasa != null && !isNaN(tasa) && Number(tasa) > 0) lines.push(_fmtPct(tasa) + ' cierre/preaut+');
+          return lines.join('<br>');
         }())
       });
     } else {
@@ -562,21 +562,13 @@
       // <div class="row1-box__foot"> con tipografía 12px gris #8a8a8a.
       var ventaFootHTML = '';
       var ticketVal = current.ticket_promedio;
-      // Sub-línea 2: proyección EOM
-      // preaut_avg_diario = preaut_positivos / dias_transcurridos
-      // dias_restantes = 30 - dias_transcurridos (cap a 0)
-      // cierres_proyectados = avg_diario * dias_restantes * 0.30 (tasa fija)
-      // venta_proyectada = venta_actual + cierres_proyectados * ticket_promedio
-      var metaPeriodDays = Number((data.meta && data.meta.period && data.meta.period.days) || 0);
-      var diasRest = Math.max(0, 30 - metaPeriodDays);
-      var preautTot = Number(current.preaut_positivos) || 0;
-      var ticketProy = Number(ticketVal) || 0;
-      if (metaPeriodDays > 0 && diasRest > 0 && preautTot > 0 && ticketProy > 0) {
-        var preautAvgDiario = preautTot / metaPeriodDays;
-        var cierresProy = preautAvgDiario * diasRest * 0.30;
-        var ventaTotalProy = Number(current.venta || 0) + (cierresProy * ticketProy);
+      // Sub-línea 2: proyección fin de mes = venta cerrada + venta de firmas programadas.
+      // Es lo COMPROMETIDO (cerrado + agendado), no proyección por ritmo.
+      var ventaFirmas = Number(current.venta_firmas_programadas) || 0;
+      if (Number(ventaVal) > 0 || ventaFirmas > 0) {
+        var ventaComprometida = Number(ventaVal || 0) + ventaFirmas;
         if (ventaFootHTML) ventaFootHTML += ' · ';
-        ventaFootHTML += 'Proy. fin de mes: <strong style="color:#1a1a1a;font-size:13px;">' + _fmtCurrency(Math.round(ventaTotalProy)) + '</strong>';
+        ventaFootHTML += 'Proy. fin de mes: <strong style="color:#1a1a1a;font-size:13px;">' + _fmtCurrency(Math.round(ventaComprometida)) + '</strong>';
       }
 
       ventaHTML = _row1BoxHTML({
@@ -898,18 +890,41 @@
         subHTML:   (bdp != null) ? bdp + ' días hábiles transcurridos' : ''
       }));
 
-      var projC = projection.projected_cierres_eom;
+      // Proy. Cierres EOM — modelo termostato:
+      //   piso = cierres + firmas_programadas (lo casi-seguro)
+      //   preaut_avg_habil = preaut+ / business_days_passed
+      //   preaut_futuros = preaut_avg_habil × business_days_restantes
+      //   cierres_futuros = preaut_futuros × 0.30 (tasa fija)
+      //   proy_cierres = piso + cierres_futuros  (entero)
+      //   proy_venta   = proy_cierres × ticket_promedio
+      // El piso ya materializó parte del 30%; el ritmo proyecta solo el flujo
+      // futuro de preaut+ → sin double-count.
       var cierresMo = goals.cierres_meta && goals.cierres_meta.valor;
+      var _curr = (data.totals && data.totals.current) || {};
+      var _proj = (data.totals && data.totals.projection) || {};
+      var _bdTotal  = Number(_proj.business_days_total)  || 0;
+      var _bdPassed = Number(_proj.business_days_passed) || 0;
+      var _bdRest   = Math.max(0, _bdTotal - _bdPassed);
+      var _cierres  = Number(_curr.cierres) || 0;
+      var _firmas   = Number(_curr.firmas_programadas) || 0;
+      var _preaut   = Number(_curr.preaut_positivos) || 0;
+      var _ticket   = Number(_curr.ticket_promedio) || 0;
+      var _proyCierresHTML = '—';
+      if (_bdPassed > 0 && _preaut > 0) {
+        var _avgHabil   = _preaut / _bdPassed;
+        var _preautFut  = _avgHabil * _bdRest;
+        var _cierresFut = _preautFut * 0.30;
+        var _piso       = _cierres + _firmas;
+        var _proyCierres = Math.round(_piso + _cierresFut);
+        var _proyVenta   = (_ticket > 0) ? (_proyCierres * _ticket) : 0;
+        _proyCierresHTML = _fmtInt(_proyCierres) + ' cierres'
+          + (cierresMo != null ? ' / meta ' + _fmtInt(cierresMo) : '')
+          + (_proyVenta > 0 ? ' <span style="color:#8a8a8a;">|</span> ' + _fmtCurrencyShort(_proyVenta) : '');
+      }
       f2Boxes.push(_kpiCardHTML({
         label: 'Proy. Cierres EOM',
-        valueHTML: (function() {
-          var pd = Number((data.meta && data.meta.period && data.meta.period.days) || 0);
-          var dr = Math.max(0, 30 - pd);
-          var pp = Number((data.totals && data.totals.current && data.totals.current.preaut_positivos) || 0);
-          if (pd <= 0 || dr <= 0 || pp <= 0) return '—';
-          return _fmtInt(Math.round((pp / pd) * dr * 0.30));
-        }()),
-        subHTML: (cierresMo != null) ? 'vs meta ' + _fmtInt(cierresMo) : ''
+        valueHTML: _proyCierresHTML,
+        subHTML: ''
       }));
 
       var projInv = projection.projected_inversion_eom;
@@ -1310,7 +1325,7 @@
     return items.map(function (it) { return _plazaSubRowHtml(it.label, it.n); }).join('');
   }
 
-  function _plazaFooterHtml(cierres, cacText, venta, ticketText) {
+  function _plazaFooterHtml(cierres, cacText, venta, ticketText, tasaText) {
     return (
       '<div class="plaza-card__footer">' +
         '<span class="plaza-card__footer-label">CIERRES</span>' +
@@ -1326,6 +1341,11 @@
           ? '<span class="plaza-card__footer-sep">|</span>' +
             '<span class="plaza-card__footer-label">TICKET</span>' +
             '<span class="plaza-card__footer-value">' + ticketText + '</span>'
+          : '') +
+        (tasaText
+          ? '<span class="plaza-card__footer-sep">|</span>' +
+            '<span class="plaza-card__footer-label">% CIERRE</span>' +
+            '<span class="plaza-card__footer-value">' + tasaText + '</span>'
           : '') +
       '</div>'
     );
@@ -1379,7 +1399,9 @@
       + _plazaMetricRowWithCpaHtml('Firmas Programadas', _fmtInt(current.firmas_programadas),  _cacProximoText(inv, current.cierres, current.firmas_programadas), firmasSubLabel)
       + _plazaFooterHtml(current.cierres, cacText, current.venta,
           (current.ticket_promedio != null && Number(current.ticket_promedio) > 0 && Number(current.cierres) > 0)
-            ? _fmtCurrency(current.ticket_promedio) : null);
+            ? _fmtCurrency(current.ticket_promedio) : null,
+          (current.tasa_cierre_preaut_positivo != null && !isNaN(current.tasa_cierre_preaut_positivo) && Number(current.tasa_cierre_preaut_positivo) > 0)
+            ? _fmtPct(current.tasa_cierre_preaut_positivo) : null);
 
     var footMsg = _plazaFootMessage(variant);
     var footMsgHtml = footMsg
