@@ -1,839 +1,95 @@
-/* ============================================
-   INMOBILI HOME — Dashboard Optix
-   v2 — Tier B LITE support (disabled states + placeholders)
-   ============================================ */
+/* Inmobili home — overrides sobre enpagos-home.css (§22 Paridad).
+   Solo agregar lo que difiere: branding logo, badges Fase 2 /
+   Próximamente, atenuación de "Sin atribución".
+*/
 
-:root {
-  /* Paleta Inmobili */
-  --inm-gold:        #c9a14a;
-  --inm-gold-light:  #d4af37;
-  --inm-gold-soft:   rgba(201, 161, 74, 0.15);
-  --inm-gold-border: rgba(201, 161, 74, 0.3);
-
-  /* Fondos */
-  --bg-base:         #0a0a0a;
-  --bg-card:         #141414;
-  --bg-card-hover:   #1a1a1a;
-  --bg-elevated:     #1f1f1f;
-
-  /* Texto */
-  --text-primary:    #f5f5f5;
-  --text-secondary:  #a3a3a3;
-  --text-muted:      #6b6b6b;
-  --text-disabled:   #404040;
-
-  /* Estado */
-  --green:           #10b981;
-  --green-soft:      rgba(16, 185, 129, 0.15);
-  --red:             #ef4444;
-  --red-soft:        rgba(239, 68, 68, 0.15);
-  --yellow:          #f59e0b;
-  --yellow-soft:     rgba(245, 158, 11, 0.15);
-
-  /* Bordes */
-  --border-subtle:   rgba(255, 255, 255, 0.06);
-  --border-default:  rgba(255, 255, 255, 0.1);
-  --border-strong:   rgba(255, 255, 255, 0.18);
-
-  /* Radius */
-  --r-sm: 6px;
-  --r-md: 10px;
-  --r-lg: 14px;
-
-  /* Spacing */
-  --s-1: 4px;
-  --s-2: 8px;
-  --s-3: 12px;
-  --s-4: 16px;
-  --s-5: 20px;
-  --s-6: 24px;
-  --s-8: 32px;
-}
-
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
-
-html, body {
-  background: var(--bg-base);
-  color: var(--text-primary);
-  font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', system-ui, sans-serif;
-  font-size: 14px;
-  line-height: 1.5;
-  -webkit-font-smoothing: antialiased;
-  min-height: 100vh;
-}
-
-.container {
-  max-width: 1400px;
-  margin: 0 auto;
-  padding: var(--s-6) var(--s-5);
-}
-
-/* ============================================
-   TOP BAR — Logo + Filtros
-   ============================================ */
-.top-bar {
+/* ── Brand header (replaza el #home-header de EnPagos visualmente) ── */
+.inmobili-header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: var(--s-6);
-  gap: var(--s-4);
+  gap: 16px;
+  padding: 16px 24px;
+  background: #fff;
+  border-bottom: 1px solid #e5e5e5;
   flex-wrap: wrap;
 }
-
-.brand {
+.inmobili-brand {
   display: flex;
   align-items: center;
-  gap: var(--s-3);
+  gap: 12px;
+  flex: 1 1 auto;
 }
-
-.brand-logo {
-  height: 48px;
+.inmobili-brand-logo {
+  height: 40px;
   width: auto;
-  filter: drop-shadow(0 2px 8px rgba(201, 161, 74, 0.2));
+  display: block;
 }
-
-.brand-text {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.brand-text-main {
-  font-size: 11px;
-  letter-spacing: 1.5px;
-  color: var(--inm-gold);
-  text-transform: uppercase;
-  font-weight: 600;
-}
-
-.brand-text-sub {
-  color: var(--text-muted);
-  font-weight: 400;
-  letter-spacing: 0.5px;
-  font-size: 10px;
-  text-transform: uppercase;
-}
-
-/* Tier badge — "Vista preliminar" */
-.tier-badge {
-  display: none;
-  align-items: center;
-  gap: 6px;
-  background: var(--inm-gold-soft);
-  border: 1px solid var(--inm-gold-border);
-  color: var(--inm-gold);
-  padding: 4px 10px;
-  border-radius: 999px;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.3px;
-  cursor: help;
-}
-
-.tier-badge::before {
-  content: '';
-  display: inline-block;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--inm-gold);
-  animation: pulse-gold 2s ease-in-out infinite;
-}
-
-@keyframes pulse-gold {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.5; transform: scale(0.8); }
-}
-
-.filters {
-  display: flex;
-  gap: var(--s-3);
-  align-items: center;
-  flex-wrap: wrap;
-}
-
-.toggle-group {
-  display: inline-flex;
-  background: var(--bg-card);
-  border: 1px solid var(--border-default);
-  border-radius: var(--r-md);
-  padding: 3px;
-}
-
-.toggle-group button {
-  background: transparent;
-  border: none;
-  color: var(--text-secondary);
-  padding: 8px 14px;
-  font-size: 13px;
-  font-weight: 500;
-  border-radius: var(--r-sm);
-  cursor: pointer;
-  transition: all 0.15s ease;
-  font-family: inherit;
-}
-
-.toggle-group button:hover {
-  color: var(--text-primary);
-}
-
-.toggle-group button.active {
-  background: var(--inm-gold);
-  color: var(--bg-base);
-  font-weight: 600;
-}
-
-.plaza-select {
-  background: var(--bg-card);
-  border: 1px solid var(--border-default);
-  border-radius: var(--r-md);
-  color: var(--text-primary);
-  padding: 9px 14px;
-  font-size: 13px;
-  font-family: inherit;
-  cursor: pointer;
-  font-weight: 500;
-}
-
-.plaza-select:hover:not(:disabled) {
-  border-color: var(--inm-gold-border);
-}
-
-.plaza-select:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-/* ============================================
-   GOALS BANNER
-   ============================================ */
-.goals-banner {
-  background: linear-gradient(135deg, var(--inm-gold-soft) 0%, transparent 60%);
-  border: 1px solid var(--inm-gold-border);
-  border-radius: var(--r-lg);
-  padding: var(--s-4) var(--s-5);
-  margin-bottom: var(--s-5);
-  display: flex;
-  align-items: center;
-  gap: var(--s-6);
-  flex-wrap: wrap;
-}
-
-.goals-banner-label {
-  font-size: 11px;
-  letter-spacing: 1.5px;
-  color: var(--inm-gold);
-  text-transform: uppercase;
+.inmobili-brand-main {
+  font-size: 18px;
   font-weight: 700;
-}
-
-.goals-banner-period {
-  font-size: 13px;
-  color: var(--text-secondary);
-}
-
-.goals-banner-period strong {
-  color: var(--text-primary);
-}
-
-.goals-banner-stats {
-  display: flex;
-  gap: var(--s-5);
-  flex-wrap: wrap;
-  margin-left: auto;
-}
-
-.goals-banner-stat {
-  font-size: 13px;
-  color: var(--text-secondary);
-}
-
-.goals-banner-stat strong {
-  color: var(--text-primary);
-  font-weight: 600;
-}
-
-/* ============================================
-   PERIOD SELECTOR (chips)
-   ============================================ */
-.period-selector {
-  display: flex;
-  gap: var(--s-2);
-  margin-bottom: var(--s-5);
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-
-.period-selector::-webkit-scrollbar { display: none; }
-
-.period-chip {
-  background: var(--bg-card);
-  border: 1px solid var(--border-default);
-  color: var(--text-secondary);
-  padding: 8px 16px;
-  font-size: 13px;
-  font-weight: 500;
-  border-radius: 999px;
-  cursor: pointer;
-  transition: all 0.15s ease;
-  font-family: inherit;
-  white-space: nowrap;
-}
-
-.period-chip:hover:not(.disabled):not(:disabled) {
-  color: var(--text-primary);
-  border-color: var(--border-strong);
-}
-
-.period-chip.active {
-  background: var(--inm-gold);
-  border-color: var(--inm-gold);
-  color: var(--bg-base);
-  font-weight: 600;
-}
-
-.period-chip.disabled,
-.period-chip:disabled {
-  opacity: 0.35;
-  cursor: not-allowed;
-  background: transparent;
-  border-color: var(--border-subtle);
-  color: var(--text-muted);
-}
-
-/* ============================================
-   HERO CARDS
-   ============================================ */
-.hero-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--s-4);
-  margin-bottom: var(--s-4);
-}
-
-.hero-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border-default);
-  border-radius: var(--r-lg);
-  padding: var(--s-5) var(--s-5);
-  position: relative;
-  min-height: 140px;
-}
-
-.hero-card-label {
-  font-size: 10px;
-  letter-spacing: 1.5px;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  font-weight: 600;
-  margin-bottom: var(--s-3);
-}
-
-.hero-card-main {
-  display: flex;
-  align-items: flex-end;
-  gap: var(--s-3);
-  margin-bottom: var(--s-3);
-}
-
-.hero-card-value {
-  font-size: 44px;
-  font-weight: 700;
-  color: var(--text-primary);
-  line-height: 1;
-  letter-spacing: -1px;
-}
-
-.hero-card-unit {
-  font-size: 14px;
-  color: var(--text-secondary);
-  padding-bottom: 8px;
-  font-weight: 500;
-}
-
-.hero-card-bar-wrap {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--s-3);
-  font-size: 12px;
-  color: var(--text-secondary);
-}
-
-.hero-card-progress {
-  flex: 1;
-  height: 6px;
-  background: var(--bg-elevated);
-  border-radius: 999px;
-  overflow: hidden;
-  position: relative;
-}
-
-.hero-card-progress-fill {
-  height: 100%;
-  background: linear-gradient(90deg, var(--inm-gold) 0%, var(--inm-gold-light) 100%);
-  border-radius: 999px;
-  transition: width 0.4s ease;
-}
-
-.hero-card-progress-expected {
-  position: absolute;
-  top: -4px;
-  bottom: -4px;
-  width: 2px;
-  background: var(--text-muted);
-  opacity: 0.6;
-}
-
-.hero-card-meta {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 2px;
-}
-
-.hero-card-expected {
-  font-size: 13px;
-  color: var(--text-primary);
-  font-weight: 600;
-}
-
-.hero-card-expected-label {
-  font-size: 9px;
-  letter-spacing: 1.5px;
-  color: var(--text-muted);
-  text-transform: uppercase;
-}
-
-.hero-card-goal {
-  font-size: 13px;
-  color: var(--text-secondary);
-}
-
-.hero-card-delta {
-  position: absolute;
-  top: var(--s-4);
-  right: var(--s-4);
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px 10px;
-  font-size: 12px;
-  font-weight: 600;
-  border-radius: 999px;
-}
-
-.hero-card-delta.negative { background: var(--red-soft); color: var(--red); }
-.hero-card-delta.positive { background: var(--green-soft); color: var(--green); }
-.hero-card-delta.neutral  { background: var(--bg-elevated); color: var(--text-secondary); }
-
-/* ============================================
-   MEDIUM KPI ROW
-   ============================================ */
-.kpi-row {
-  display: grid;
-  /* S80 Fase-B: 5 cards (citas hoy + avg + eom + llamadas + cierres). */
-  grid-template-columns: repeat(5, 1fr);
-  gap: var(--s-4);
-  margin-bottom: var(--s-4);
-}
-
-.kpi-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border-default);
-  border-radius: var(--r-lg);
-  padding: var(--s-4);
-}
-
-.kpi-card-label {
-  font-size: 10px;
-  letter-spacing: 1.5px;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  font-weight: 600;
-  margin-bottom: var(--s-2);
-}
-
-.kpi-card-main {
-  display: flex;
-  align-items: baseline;
-  gap: var(--s-2);
-}
-
-.kpi-card-value {
-  font-size: 26px;
-  font-weight: 700;
-  color: var(--text-primary);
+  color: #1a1a1a;
   line-height: 1.2;
 }
-
-.kpi-card-sub {
+.inmobili-brand-sub {
   font-size: 12px;
-  color: var(--text-secondary);
-  margin-top: 4px;
+  color: #6b6b6b;
+  margin-top: 2px;
 }
 
-.kpi-card-sub.negative { color: var(--red); }
-.kpi-card-sub.positive { color: var(--green); }
-.kpi-card-sub.muted    { color: var(--text-muted); }
-
-/* S80 Fase-B item 2 — comparativo vs mes anterior (capa nueva, NO confundir
-   con hero-card-delta que es vs-meta-prorrateada). */
-.kpi-card-vs-mes {
-  font-size: 11px;
-  margin-top: 6px;
-  font-weight: 500;
-  letter-spacing: 0.2px;
-}
-.kpi-card-vs-mes.positive { color: var(--green); }
-.kpi-card-vs-mes.negative { color: var(--red); }
-
-/* ============================================
-   CAC ROW
-   ============================================ */
-.cac-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--s-4);
-  margin-bottom: var(--s-5);
-}
-
-.cac-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border-default);
-  border-radius: var(--r-lg);
-  padding: var(--s-4) var(--s-5);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.cac-card-info {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.cac-card-label {
-  font-size: 10px;
-  letter-spacing: 1.5px;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  font-weight: 600;
-}
-
-.cac-card-meta {
-  font-size: 12px;
-  color: var(--text-secondary);
-}
-
-.cac-card-value {
-  font-size: 28px;
-  font-weight: 700;
-  color: var(--text-primary);
-  letter-spacing: -0.5px;
-}
-
-.cac-card-value.null-state {
-  color: var(--text-muted);
-  font-size: 24px;
-}
-
-/* ============================================
-   TODAY STRIP (incl. placeholder state)
-   ============================================ */
-.today-strip {
-  background: var(--bg-card);
-  border: 1px solid var(--border-default);
-  border-radius: var(--r-lg);
-  padding: var(--s-4) var(--s-5);
-  margin-bottom: var(--s-5);
-  display: flex;
-  align-items: center;
-  gap: var(--s-6);
-  flex-wrap: wrap;
-}
-
-.today-strip.placeholder {
-  border-style: dashed;
-  opacity: 0.85;
-}
-
-.today-strip-title {
-  font-size: 10px;
-  letter-spacing: 1.5px;
-  color: var(--inm-gold);
-  text-transform: uppercase;
-  font-weight: 700;
-}
-
-.today-strip-stats {
-  display: flex;
-  gap: var(--s-6);
-  flex-wrap: wrap;
-}
-
-.today-strip-stat {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.today-strip-stat-value {
-  font-size: 22px;
-  font-weight: 700;
-  color: var(--text-primary);
-  line-height: 1;
-}
-
-.today-strip-stat-label {
-  font-size: 11px;
-  color: var(--text-muted);
-  letter-spacing: 0.3px;
-}
-
-.today-strip-placeholder {
-  font-size: 13px;
-  color: var(--text-muted);
-  font-style: italic;
-}
-
-/* ============================================
-   PLAZA — Cards y Placeholder
-   ============================================ */
-.plaza-grid {
-  display: grid;
-  /* S80 Fase-B item 3: 2 plazas + columna total → 3 columnas. */
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: var(--s-4);
-  margin-bottom: var(--s-5);
-}
-
-.plaza-card {
-  background: var(--bg-card);
-  border: 1px solid var(--border-default);
-  border-radius: var(--r-lg);
-  padding: var(--s-5);
-  transition: border-color 0.15s ease;
-}
-
-.plaza-card:hover {
-  border-color: var(--inm-gold-border);
-}
-
-/* S80 Fase-B item 3 — la columna Total se diferencia con borde dorado y
-   fondo levemente acentuado, marcando la agregación. */
-.plaza-card.plaza-card-total {
-  border-color: var(--inm-gold-border);
-  background: var(--bg-card-accent, var(--bg-card));
-}
-.plaza-card.plaza-card-total .plaza-card-title {
-  color: var(--inm-gold, var(--text-primary));
-}
-
-.plaza-card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  margin-bottom: var(--s-4);
-  padding-bottom: var(--s-3);
-  border-bottom: 1px solid var(--border-subtle);
-}
-
-.plaza-card-title {
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--text-primary);
-  letter-spacing: 0.5px;
-}
-
-.plaza-card-title-meta {
-  font-size: 11px;
-  color: var(--text-muted);
-  letter-spacing: 1px;
-  text-transform: uppercase;
-}
-
-.plaza-card-rows {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s-3);
-}
-
-.plaza-card-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  padding: var(--s-2) 0;
-}
-
-.plaza-card-row-label {
-  font-size: 12px;
-  color: var(--text-secondary);
-  font-weight: 500;
-  letter-spacing: 0.3px;
-}
-
-.plaza-card-row-value {
-  display: flex;
-  align-items: baseline;
-  gap: var(--s-3);
-}
-
-.plaza-card-row-value-main {
-  font-size: 18px;
-  font-weight: 700;
-  color: var(--text-primary);
-  line-height: 1;
-}
-
-.plaza-card-row-value-meta {
-  font-size: 12px;
-  color: var(--text-muted);
-}
-
-.plaza-card-row-value-meta.positive { color: var(--green); }
-.plaza-card-row-value-meta.negative { color: var(--red); }
-
-.plaza-card-row.highlight {
-  background: var(--inm-gold-soft);
-  border-radius: var(--r-sm);
-  padding-left: var(--s-3);
-  padding-right: var(--s-3);
-  margin: 0 calc(-1 * var(--s-3));
-}
-
-.plaza-card-row.null-state .plaza-card-row-value-main {
-  color: var(--text-muted);
-  font-size: 16px;
-}
-
-/* Plaza placeholder — Tier LITE */
-.plaza-placeholder {
-  grid-column: 1 / -1;
-  background: var(--bg-card);
-  border: 1px dashed var(--inm-gold-border);
-  border-radius: var(--r-lg);
-  padding: var(--s-8) var(--s-5);
-  text-align: center;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--s-2);
-}
-
-.plaza-placeholder-tag {
-  background: var(--inm-gold-soft);
-  color: var(--inm-gold);
-  padding: 4px 12px;
-  border-radius: 999px;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 1.5px;
-  text-transform: uppercase;
-  margin-bottom: var(--s-2);
-}
-
-.plaza-placeholder-title {
-  font-size: 18px;
-  font-weight: 700;
-  color: var(--text-primary);
-  letter-spacing: 0.3px;
-}
-
-.plaza-placeholder-sub {
-  font-size: 13px;
-  color: var(--text-secondary);
-  max-width: 380px;
-}
-
-/* ============================================
-   STATES
-   ============================================ */
-.error-banner {
-  background: var(--red-soft);
-  border: 1px solid var(--red);
-  border-radius: var(--r-md);
-  padding: var(--s-3) var(--s-4);
-  color: var(--red);
-  font-size: 13px;
-  margin-bottom: var(--s-4);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: var(--s-3);
-}
-
-.error-banner button {
-  background: var(--red);
-  border: none;
-  color: white;
-  padding: 6px 14px;
-  border-radius: var(--r-sm);
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  font-family: inherit;
-  white-space: nowrap;
-}
-
-/* ============================================
-   FOOTER META
-   ============================================ */
-.footer-meta {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: var(--s-4) 0;
-  font-size: 11px;
-  color: var(--text-muted);
-  border-top: 1px solid var(--border-subtle);
-  margin-top: var(--s-4);
-  gap: var(--s-3);
-  flex-wrap: wrap;
-}
-
-.footer-meta-source {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.footer-meta-source::before {
-  content: '';
+/* ── Plaza card badges (Inmobili-specific, no existen en EnPagos) ── */
+.plaza-card__badge {
   display: inline-block;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--green);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  margin-left: 8px;
+  vertical-align: middle;
+}
+.plaza-card__badge--fase2 {
+  background: #fff4e5;
+  color: #b6661c;
+  border: 1px solid #f0c590;
+}
+.plaza-card__badge--proximamente {
+  background: #e8f0fa;
+  color: #1f5fa8;
+  border: 1px solid #b5cee8;
 }
 
-/* ============================================
-   RESPONSIVE
-   ============================================ */
-@media (max-width: 900px) {
-  .container { padding: var(--s-4) var(--s-3); }
-
-  .top-bar { flex-direction: column; align-items: stretch; }
-  .filters { justify-content: space-between; }
-
-  .goals-banner { gap: var(--s-3); }
-  .goals-banner-stats { margin-left: 0; width: 100%; }
-
-  .hero-row { grid-template-columns: 1fr; }
-  /* S80 Fase-B: 3 cols en tablet — con 5 cards da 3+2 (sin orphan que daría 2+2+1). */
-  .kpi-row { grid-template-columns: repeat(3, 1fr); }
-  .cac-row { grid-template-columns: 1fr; }
-  .plaza-grid { grid-template-columns: 1fr; }
-
-  .hero-card-value { font-size: 36px; }
+/* ── Card atenuada (Sin atribución) ── */
+.plaza-card--atenuada {
+  opacity: 0.65;
 }
 
-@media (max-width: 500px) {
-  .kpi-row { grid-template-columns: 1fr; }
-  .today-strip-stats { gap: var(--s-3); }
+/* ── Card note (microcopy bajo el footer) ── */
+.plaza-card__note {
+  font-size: 11px;
+  color: #8a8a8a;
+  font-style: italic;
+  padding: 8px 16px 12px;
+  text-align: center;
+  border-top: 1px dashed #eee;
+}
+
+/* ── Captaciones footer (verde, no rojo como Cancelados de EnPagos) ── */
+/* Sobrescribe styling default — el SPEC explícitamente pide que
+   Captaciones NO use color de mal-significado. La clase
+   .plaza-card__footer de EnPagos es neutral por default así que
+   solo aseguramos NO hereda nada rojo. */
+.plaza-card__footer-value {
+  color: #1a1a1a; /* explícito: neutral, NO error-red */
+}
+
+/* §22 — narrativa explicativa del control de fuentes del card Captaciones.
+   Línea adicional debajo del "fuentes: ..." en font más chico y gris para
+   que se explique sola cuando el cliente lee sin presentador presente. */
+.row1-box__foot-narrativa {
+  font-size: 11px;
+  color: #8a8a8a;
+  font-style: italic;
+  margin-top: 4px;
+  line-height: 1.35;
 }
