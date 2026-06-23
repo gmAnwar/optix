@@ -204,7 +204,7 @@ body {
    *   ≤999px → 1 col (4 apiladas)
    * El número 4 cabe simétricamente en 2x2; el 3 anterior requería saltarse
    * el 2-col (que daría 2+1). Anwar S89-venta: el invariante se actualizó. */
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   gap: 16px;
 }
 
@@ -824,6 +824,11 @@ body {
  * se saltaba el 2-col para evitar 2+1; con 4 cajas el 2-col es legítimo
  * y simétrico. No tocamos plaza-cards / row2-grid / row3-grid — ellos
  * mantienen sus transiciones 2-col propias. */
+@media (max-width: 1399px) and (min-width: 1200px) {
+  .row1-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
 @media (max-width: 1199px) {
   .row1-grid {
     grid-template-columns: repeat(2, 1fr);
