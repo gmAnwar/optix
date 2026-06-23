@@ -257,8 +257,14 @@
     var captacVal    = current.captaciones;
     var captacGoalMo = goals.captaciones_meta;
     var captacGoalP  = prorrated.captaciones_goal_periodo;
+    // §22 2026-06-23: control de FUENTES DE CAPTACIÓN (no etapas del embudo).
+    // 3 fuentes paralelas de "real propiedad captada":
+    //   Diario   = sheet R23 manual del cliente
+    //   Vambe    = stage "Promoción para venta" first-entry paid
+    //   Leadtime = Leadtime CRM rows con fecha de captación
+    // Avalúo se quitó por decisión Anwar (es etapa intermedia, no captación).
+    var captacSrcDiario    = current.captac_source_diario;
     var captacSrcVambeProm = current.captac_source_vambe_promocion;
-    var captacSrcVambeAval = current.captac_source_vambe_avaluo;
     var captacSrcLeadtime  = current.captac_source_leadtime;
     var showInternal = (function() {
       try {
@@ -268,10 +274,10 @@
     })();
     function _captacControlSub() {
       if (!showInternal) return '';
-      if (captacSrcVambeProm == null && captacSrcVambeAval == null && captacSrcLeadtime == null) return '';
+      if (captacSrcDiario == null && captacSrcVambeProm == null && captacSrcLeadtime == null) return '';
       var parts = [];
-      if (captacSrcVambeProm != null) parts.push('Vambe Promoción ' + _fmtInt(captacSrcVambeProm));
-      if (captacSrcVambeAval != null) parts.push('Avalúo ' + _fmtInt(captacSrcVambeAval));
+      if (captacSrcDiario    != null) parts.push('Diario ' + _fmtInt(captacSrcDiario));
+      if (captacSrcVambeProm != null) parts.push('Vambe ' + _fmtInt(captacSrcVambeProm));
       if (captacSrcLeadtime  != null) parts.push('Leadtime ' + _fmtInt(captacSrcLeadtime));
       return 'control: ' + parts.join(' · ');
     }
