@@ -478,15 +478,27 @@
       subHTML: 'el que manda'
     }));
 
-    // CAC Cita = inversión / citas. Peso completo (sin atenuar).
-    var cacCita = null;
-    if (invVal != null && citasVal != null && Number(citasVal) > 0) {
-      cacCita = Number(invVal) / Number(citasVal);
+    // CAC Cita: denominador COHERENTE con numerador.
+    // §22 fix-citas: numerador = spend de ads-en-junio ($76,854 v12.spend).
+    // Denominador correcto = citas PAID atribuibles a esos mismos ads
+    // (v12.funnel.cita.count = 17), NO el conteo total de citas del Home
+    // (34 paid+organic). Sino mezclamos universos y mentimos.
+    //
+    // Backend ahora expone current.cac_cita directo (= v12.funnel.cita.cost).
+    // Fallback: si no viene en el shape, derivamos de inv ÷ citas_paid_attribuibles.
+    var cacCita = current.cac_cita;
+    if (cacCita == null && current.citas_paid_attribuibles != null && invVal != null
+        && Number(current.citas_paid_attribuibles) > 0) {
+      cacCita = Number(invVal) / Number(current.citas_paid_attribuibles);
     }
+    var citasPaidDenom = current.citas_paid_attribuibles;
+    var cacCitaSub = (citasPaidDenom != null)
+      ? '÷ ' + _fmtInt(citasPaidDenom) + ' citas atribuidas a la pauta'
+      : 'denominador no disponible';
     f3Boxes.push(_kpiCardHTML({
       label: 'CAC cita agendada',
       valueHTML: cacCita == null ? '—' : _fmtCurrency(cacCita),
-      subHTML: 'diagnóstico del funnel'
+      subHTML: cacCitaSub
     }));
 
     sec.innerHTML =
