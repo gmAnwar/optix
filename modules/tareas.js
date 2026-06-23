@@ -1214,6 +1214,44 @@ export function tareasCliScopeMatch(objetivo, opts) {
   return true;
 }
 
+// S90 (SPEC F0BC6QGA7L3): eje de DUEÑO + privacidad asimétrica, ORTOGONAL a scope.
+// Manager = mismo predicado que _canDeleteClient (~L2916): 'all'/'direccion'/'owner'
+// por rol, o calendar_role === 'owner'.
+export function tareasCliIsManager() {
+  const profile = (typeof window !== 'undefined') ? window.currentUserProfile : null;
+  if (!profile) return false;
+  return ['all', 'direccion', 'owner'].indexOf(profile.rol) !== -1 || profile.calendar_role === 'owner';
+}
+
+// Clon de tareasCliScopeMatch para el eje dueño. Visible si:
+//  - objetivo.shared !== false (compartido, o legacy donde shared es undefined), O
+//  - opts.viewerUid === objetivo.owner_uid (es tu propio privado), O
+//  - opts.isManager (el manager ve todo).
+// Privacidad de UI, no de servidor (caveat aceptado en el SPEC).
+export function tareasCliOwnerVisible(objetivo, opts) {
+  opts = opts || {};
+  const o = objetivo || {};
+  if (o.shared !== false) return true;
+  if (opts.viewerUid && opts.viewerUid === o.owner_uid) return true;
+  return !!opts.isManager;
+}
+
+// S90: campos de dueño para un objetivo NUEVO. Single source — lo usan
+// tareasCliAddObjetivo y el path inline del Inbox (que no pasa por addObjetivo).
+// owner_label denormalizado al crear (no hay roster uid→nombre). sharedToggle =
+// valor del checkbox del manager (undefined si no aplica). Member → siempre
+// compartido; manager → toggle (default privado).
+export function tareasCliNewOwnerFields(sharedToggle) {
+  const _uid = (typeof currentUser !== 'undefined' && currentUser && currentUser.uid) || null;
+  const _profile = (typeof window !== 'undefined' && window.currentUserProfile) || {};
+  const _labelSrc = String(_profile.nombre || _profile.email || '').trim();
+  return {
+    owner_uid: _uid,
+    owner_label: _labelSrc ? _labelSrc.charAt(0).toUpperCase() : '',
+    shared: tareasCliIsManager() ? (sharedToggle === true) : true
+  };
+}
+
 // PR4: filter 'todos' | 'estrategicos' | 'operativos' per-uid (cross-view sync Tareas + Mi Semana).
 function _tareasCliFilterKey(uid) {
   return 'oa-tareas-cli-filter-' + (uid || '_anon');
@@ -1234,6 +1272,38 @@ export function tareasCliSetFilter(filter) {
   if (typeof window !== 'undefined' && typeof window.renderMiSemana === 'function') {
     try { window.renderMiSemana(); } catch (e) {}
   }
+}
+
+// S90 (SPEC F0BC6QGA7L3): filtro de VISTA por dueño 'mios' | 'todos', per-uid, ortogonal
+// al chip de scope. NO es regla de privacidad (eso es tareasCliOwnerVisible); solo enfoca
+// la vista en lo propio. Aplica en cards + panel Mi Semana.
+function _tareasCliOwnerFilterKey(uid) {
+  return 'oa-tareas-cli-owner-filter-' + (uid || '_anon');
+}
+export function tareasCliGetOwnerFilter(uid) {
+  if (uid == null) uid = (typeof currentUser !== 'undefined' && currentUser && currentUser.uid) || '_anon';
+  try {
+    const v = localStorage.getItem(_tareasCliOwnerFilterKey(uid));
+    if (v === 'mios' || v === 'todos') return v;
+    return 'todos';
+  } catch (e) { return 'todos'; }
+}
+export function tareasCliSetOwnerFilter(filter) {
+  if (filter !== 'todos' && filter !== 'mios') return;
+  const uid = (typeof currentUser !== 'undefined' && currentUser && currentUser.uid) || '_anon';
+  try { localStorage.setItem(_tareasCliOwnerFilterKey(uid), filter); } catch (e) {}
+  if (typeof renderTareasCli === 'function') { try { renderTareasCli(); } catch (e) {} }
+  if (typeof window !== 'undefined' && typeof window.renderMiSemana === 'function') {
+    try { window.renderMiSemana(); } catch (e) {}
+  }
+}
+
+// Helper: ¿el objetivo pasa el filtro de vista 'mios'/'todos'? 'mios' = soy el dueño.
+// 'todos' o legacy sin owner_uid → pasa siempre.
+export function tareasCliOwnerFilterMatch(objetivo, ownerFilter, viewerUid) {
+  if (ownerFilter !== 'mios') return true;
+  const o = objetivo || {};
+  return !!o.owner_uid && o.owner_uid === viewerUid;
 }
 
 const _tareasCliMemCache = {};
@@ -1528,6 +1598,7 @@ function renderTareasCli() {
   const _showFilterH = true || _isSeniorH || _canSeeEstrategicosH; // S90: filtro para todos
   const _curUidH = (typeof currentUser !== 'undefined' && currentUser && currentUser.uid) || '_anon';
   const _curFilterH = tareasCliGetFilter(_curUidH);
+  const _curOwnerFilterH = tareasCliGetOwnerFilter(_curUidH); // S90: vista 'mios'/'todos'
   const onlyMineToggle = _showFilterH ? (function() {
     const stylePill = function(active) {
       const bg = active ? 'var(--accent)' : 'transparent';
@@ -1536,11 +1607,19 @@ function renderTareasCli() {
       return 'background:' + bg + ';color:' + color + ';border:' + border + ';font-family:\'DM Mono\',monospace;font-size:10px;font-weight:700;letter-spacing:0.05em;padding:6px 12px;border-radius:6px;cursor:pointer;';
     };
     return ''
-      + '<div style="display:flex;justify-content:flex-end;gap:4px;">'
-      +   '<button onclick="tareasCliSetFilter(\'todos\')" style="' + stylePill(_curFilterH === 'todos') + '">TODOS</button>'
-      +   '<button onclick="tareasCliSetFilter(\'operativos\')" style="' + stylePill(_curFilterH === 'operativos') + '">OPERATIVOS</button>'
-      +   '<button onclick="tareasCliSetFilter(\'recurrentes\')" style="' + stylePill(_curFilterH === 'recurrentes') + '">RECURRENTES</button>'
-      +   '<button onclick="tareasCliSetFilter(\'estrategicos\')" style="' + stylePill(_curFilterH === 'estrategicos') + '">ESTRATÉGICOS</button>'
+      + '<div style="display:flex;justify-content:space-between;align-items:center;gap:4px;">'
+      // S90: toggle de vista por dueño (MÍOS/TODOS), izquierda. Para todos.
+      +   '<div style="display:flex;gap:4px;">'
+      +     '<button onclick="tareasCliSetOwnerFilter(\'mios\')" style="' + stylePill(_curOwnerFilterH === 'mios') + '">MÍOS</button>'
+      +     '<button onclick="tareasCliSetOwnerFilter(\'todos\')" style="' + stylePill(_curOwnerFilterH === 'todos') + '">TODOS</button>'
+      +   '</div>'
+      // Chips de scope, derecha.
+      +   '<div style="display:flex;gap:4px;">'
+      +     '<button onclick="tareasCliSetFilter(\'todos\')" style="' + stylePill(_curFilterH === 'todos') + '">TODOS</button>'
+      +     '<button onclick="tareasCliSetFilter(\'operativos\')" style="' + stylePill(_curFilterH === 'operativos') + '">OPERATIVOS</button>'
+      +     '<button onclick="tareasCliSetFilter(\'recurrentes\')" style="' + stylePill(_curFilterH === 'recurrentes') + '">RECURRENTES</button>'
+      +     '<button onclick="tareasCliSetFilter(\'estrategicos\')" style="' + stylePill(_curFilterH === 'estrategicos') + '">ESTRATÉGICOS</button>'
+      +   '</div>'
       + '</div>';
   })() : '';
 
@@ -1573,13 +1652,22 @@ function renderTareasCli() {
 }
 
 function tareasCliRenderCard(client, color, objetivos) {
-  const totalTareas = objetivos.reduce(function(s, o) { return s + ((o.tareas || []).length); }, 0);
-  const totalDone = objetivos.reduce(function(s, o) { return s + ((o.tareas || []).filter(function(t) { return t.completado; }).length); }, 0);
+  // S90 (SPEC Paso 3): contador desde el set visible-por-dueño, no el crudo (si no,
+  // Mario contaría privados de Anwar que no se le pintan). Eje dueño, no scope.
+  const _curUidCard = (typeof currentUser !== 'undefined' && currentUser && currentUser.uid) || '_anon';
+  const _cardIsManager = tareasCliIsManager();
+  const _cardOwnerFilter = tareasCliGetOwnerFilter(_curUidCard);
+  const _visObjetivos = (objetivos || []).filter(function(o) {
+    return tareasCliOwnerVisible(o, { viewerUid: _curUidCard, isManager: _cardIsManager })
+      && tareasCliOwnerFilterMatch(o, _cardOwnerFilter, _curUidCard);
+  });
+  const totalTareas = _visObjetivos.reduce(function(s, o) { return s + ((o.tareas || []).length); }, 0);
+  const totalDone = _visObjetivos.reduce(function(s, o) { return s + ((o.tareas || []).filter(function(t) { return t.completado; }).length); }, 0);
   // Soft limit visual: >3 objetivos = falta de foco (Fase 7).
-  const overLimit = objetivos.length > 3;
+  const overLimit = _visObjetivos.length > 3;
   const subtitleBase = totalTareas === 0
-    ? (objetivos.length === 0 ? 'Sin objetivos · agrega el primero' : objetivos.length + ' objetivo' + (objetivos.length === 1 ? '' : 's') + ' · sin tareas')
-    : objetivos.length + ' objetivo' + (objetivos.length === 1 ? '' : 's') + ' · ' + totalDone + '/' + totalTareas + ' completadas';
+    ? (_visObjetivos.length === 0 ? 'Sin objetivos · agrega el primero' : _visObjetivos.length + ' objetivo' + (_visObjetivos.length === 1 ? '' : 's') + ' · sin tareas')
+    : _visObjetivos.length + ' objetivo' + (_visObjetivos.length === 1 ? '' : 's') + ' · ' + totalDone + '/' + totalTareas + ' completadas';
   const subtitle = overLimit
     ? subtitleBase + ' · ⚠️ >3 obj, considera consolidar'
     : subtitleBase;
@@ -1653,8 +1741,13 @@ function tareasCliRenderObjetivosList(client, objetivos) {
   const _filter = tareasCliGetFilter(_curUid);
   const _isSenior = tareasCliIsSeniorRol(_curRol);
   const _showBadge = true || _isSenior || _canSeeEstrategicos; // S90: badges para todos
+  const _isManager = tareasCliIsManager(); // S90: eje dueño
+  const _ownerFilter = tareasCliGetOwnerFilter(_curUid); // S90: vista 'mios'/'todos'
   const _filtered = (objetivos || []).filter(function(o) {
-    return tareasCliScopeMatch(o, { userRol: _curRol, canSeeEstrategicos: _canSeeEstrategicos, filter: _filter });
+    // S90: componer scope AND owner-privacy AND owner-view-filter (no reemplazar scope).
+    return tareasCliScopeMatch(o, { userRol: _curRol, canSeeEstrategicos: _canSeeEstrategicos, filter: _filter })
+      && tareasCliOwnerVisible(o, { viewerUid: _curUid, isManager: _isManager })
+      && tareasCliOwnerFilterMatch(o, _ownerFilter, _curUid);
   });
   if (!_filtered.length) {
     return '<div style="padding:14px 0;color:var(--text3);font-size:12px;text-align:center;font-family:\'DM Mono\',monospace;">Sin objetivos creados</div>';
@@ -1766,6 +1859,17 @@ function tareasCliRenderObjetivosList(client, objetivos) {
             const _b = _badgeStyles[_sc] || _badgeStyles['compartido'];
             return '<span style="font-family:\'DM Mono\',monospace;font-size:9px;padding:2px 6px;border-radius:4px;text-transform:uppercase;letter-spacing:0.05em;margin-left:6px;background:' + _b.bg + ';color:' + _b.fg + ';flex-shrink:0;">' + _b.label + '</span>';
           })() : '')
+      +     // S90: badge de dueño (owner_label denormalizado). Legacy sin owner = sin badge.
+            ((o.owner_label) ? '<span title="Dueño" style="font-family:\'DM Mono\',monospace;font-size:9px;width:16px;height:16px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;background:var(--surface);border:1px solid var(--border);color:var(--text2);flex-shrink:0;margin-left:6px;">' + escapeHtml(o.owner_label) + '</span>' : '')
+      +     // S90: toggle candado/compartir — solo manager Y solo en objetivos propios.
+            ((_isManager && o.owner_uid && o.owner_uid === _curUid) ? (function() {
+              const _priv = (o.shared === false);
+              return '<button onclick="tareasCliToggleShared(\'' + cid + '\', \'' + oid + '\')" '
+                + 'title="' + (_priv ? 'Privado · clic para compartir con el equipo' : 'Compartido · clic para hacer privado') + '" '
+                + 'style="background:transparent;border:none;cursor:pointer;padding:0 2px;font-size:11px;flex-shrink:0;line-height:1;">'
+                + (_priv ? '🔒' : '🌐')
+                + '</button>';
+            })() : '')
       +     '<span style="font-family:\'DM Mono\',monospace;font-size:10px;color:var(--text3);flex-shrink:0;">' + done + '/' + allTareas.length + '</span>'
       +     '<button onclick="tareasCliConfirmDeleteObjetivo(\'' + cid + '\', \'' + oid + '\')" '
       +       'title="Eliminar objetivo" '
@@ -2287,8 +2391,12 @@ function tareasCliGetPendientesHoy(clientIdOrNombre) {
   const cached = _tareasCliMemCache[clientId] || tareasCliLoadCache(clientId);
   if (!cached || !Array.isArray(cached.objetivos)) return [];
   const hoy = (typeof tareasGetHoy === 'function') ? tareasGetHoy() : new Date().toISOString().slice(0, 10);
+  // S90: filtro por dueño (superficie 5/5 del leak test). Sin filtro de scope aquí (no lo había).
+  const _curUid = (typeof currentUser !== 'undefined' && currentUser && currentUser.uid) || '_anon';
+  const _isManager = tareasCliIsManager();
   const matches = [];
   cached.objetivos.forEach(function(o) {
+    if (!tareasCliOwnerVisible(o, { viewerUid: _curUid, isManager: _isManager })) return;
     (o.tareas || []).forEach(function(t) {
       if (t.completado) return;
       const fl = t.fechaLimite;
@@ -2462,7 +2570,7 @@ function tareasCliShowAtrasadasModal() {
 }
 
 // ── Actions CRUD (Fase 4) ──────────────────────────────────
-export async function tareasCliAddObjetivo(clientId, nombre, scope) {
+export async function tareasCliAddObjetivo(clientId, nombre, scope, sharedToggle) {
   const t = String(nombre || '').trim();
   if (!t) return null;
   // PR3: scope opcional. null/undefined → default por rol (estratégico senior / operativo junior).
@@ -2470,6 +2578,9 @@ export async function tareasCliAddObjetivo(clientId, nombre, scope) {
   let finalScope = scope;
   if (finalScope == null) finalScope = tareasCliDefaultScopeForRol(_tareasCliGetCurrentRol());
   if (TAREAS_CLI_SCOPES.indexOf(finalScope) === -1) finalScope = 'compartido'; // defensive
+  // S90 (SPEC F0BC6QGA7L3): estampar dueño centralizado. shared: manager → toggle UI
+  // (default privado); member (Mario) → siempre compartido (no crea privados).
+  const _owner = tareasCliNewOwnerFields(sharedToggle);
   const newId = 'obj-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
   await tareasCliSave(clientId, function(d) {
     if (!Array.isArray(d.objetivos)) d.objetivos = [];
@@ -2479,6 +2590,9 @@ export async function tareasCliAddObjetivo(clientId, nombre, scope) {
       collapsed: false,
       orden: d.objetivos.length,
       scope: finalScope,
+      owner_uid: _owner.owner_uid,
+      owner_label: _owner.owner_label,
+      shared: _owner.shared,
       tareas: []
     });
     return d;
@@ -2501,6 +2615,22 @@ async function tareasCliEditObjetivoNombre(clientId, objId, nombre) {
 async function tareasCliDeleteObjetivo(clientId, objId) {
   await tareasCliSave(clientId, function(d) {
     d.objetivos = (d.objetivos || []).filter(function(x) { return x.id !== objId; });
+    return d;
+  });
+  renderTareasCli();
+}
+
+// S90 (SPEC F0BC6QGA7L3): alternar privacidad de un objetivo propio. Guard de
+// seguridad: solo manager y solo sobre objetivos propios (la UI ya oculta el botón,
+// esto cubre llamadas directas). `shared` nuevo = !privadoActual.
+async function tareasCliToggleShared(clientId, objId) {
+  if (!tareasCliIsManager()) return;
+  const _uid = (typeof currentUser !== 'undefined' && currentUser && currentUser.uid) || null;
+  await tareasCliSave(clientId, function(d) {
+    const o = (d.objetivos || []).find(function(x) { return x.id === objId; });
+    if (!o) return d;
+    if (!o.owner_uid || o.owner_uid !== _uid) return d; // solo objetivos propios
+    o.shared = (o.shared === false); // privado→compartido, compartido/legacy→privado
     return d;
   });
   renderTareasCli();
@@ -2652,6 +2782,17 @@ function tareasCliShowAddObjetivoInput(clientId) {
     const sel = s === defaultScope ? ' selected' : '';
     return '<option value="' + s + '"' + sel + '>' + finalLabel + '</option>';
   }).join('');
+  // S90 (SPEC F0BC6QGA7L3): checkbox "Compartir con el equipo" solo para manager.
+  // Default desmarcado = privado (mínimo clic para el caso común, cero fugas por olvido).
+  // Member no ve el checkbox → su objetivo siempre nace compartido (forzado en addObjetivo).
+  const _shareCheckboxHtml = tareasCliIsManager()
+    ? '<label style="display:flex;align-items:center;gap:6px;font-family:\'DM Mono\',monospace;font-size:10px;color:var(--text3);cursor:pointer;user-select:none;">'
+      +   '<input id="tareas-cli-new-obj-share-' + clientId + '" type="checkbox" '
+      +     'onblur="tareasCliBlurObjInput(\'' + clientId + '\')" '
+      +     'style="cursor:pointer;margin:0;">'
+      +   'Compartir con el equipo'
+      + '</label>'
+    : '';
   cont.innerHTML = ''
     + '<div style="display:flex;flex-direction:column;gap:6px;margin-top:8px;">'
     +   '<input id="tareas-cli-new-obj-' + clientId + '" type="text" placeholder="Nombre del objetivo y Enter..." '
@@ -2663,6 +2804,7 @@ function tareasCliShowAddObjetivoInput(clientId) {
     +     'style="background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:\'DM Sans\',sans-serif;font-size:12px;padding:8px 10px;border-radius:6px;outline:none;cursor:pointer;">'
     +     scopeOptionsHtml
     +   '</select>'
+    +   _shareCheckboxHtml
     + '</div>';
   setTimeout(function() {
     const inp = document.getElementById('tareas-cli-new-obj-' + clientId);
@@ -2680,7 +2822,12 @@ function tareasCliHandleObjInputKey(e, clientId) {
     const scopeSel = document.getElementById('tareas-cli-new-obj-scope-' + clientId);
     const scopeVal = (scopeSel && scopeSel.value) || null;
     if (scopeSel) scopeSel.onblur = null;
-    if (t) tareasCliAddObjetivo(clientId, t, scopeVal);
+    // S90: leer checkbox de compartir (solo existe para manager; ausente → undefined
+    // → addObjetivo lo trata como privado si manager / compartido si member).
+    const shareChk = document.getElementById('tareas-cli-new-obj-share-' + clientId);
+    const sharedToggle = shareChk ? shareChk.checked : undefined;
+    if (shareChk) shareChk.onblur = null;
+    if (t) tareasCliAddObjetivo(clientId, t, scopeVal, sharedToggle);
     const cont = document.getElementById('tareas-cli-add-obj-container-' + clientId);
     if (cont) { cont.innerHTML = ''; cont.dataset.open = '0'; }
   } else if (e.key === 'Escape') {
@@ -3136,12 +3283,16 @@ function initTareas() {
   window.tareasCliEditTareaTextoInline = tareasCliEditTareaTextoInline;
   window.tareasCliConfirmDeleteObjetivo = tareasCliConfirmDeleteObjetivo;
   window.tareasCliConfirmDeleteTarea = tareasCliConfirmDeleteTarea;
+  // S90: toggle privacidad de objetivo propio (botón candado/compartir en card).
+  window.tareasCliToggleShared = tareasCliToggleShared;
   window.tareasCliShowDeleteClientModal = tareasCliShowDeleteClientModal;
   window.tareasCliToggleSubtaskCollapse = tareasCliToggleSubtaskCollapse;
   // PR2 #4: flecha colapsar/expandir card cliente entera.
   window.tareasCliToggleCollapsed = tareasCliToggleCollapsed;
   // PR4: filter 3-chips (todos | estrategicos | operativos), cross-view Tareas + Mi Semana.
   window.tareasCliSetFilter = tareasCliSetFilter;
+  // S90: toggle de vista por dueño (MÍOS/TODOS), cross-view Tareas + Mi Semana.
+  window.tareasCliSetOwnerFilter = tareasCliSetOwnerFilter;
   window.tareasCliCalPrevWeek = tareasCliCalPrevWeek;
   window.tareasCliCalNextWeek = tareasCliCalNextWeek;
   window.tareasCliCalToday = tareasCliCalToday;

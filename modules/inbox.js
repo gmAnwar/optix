@@ -26,7 +26,7 @@ import {
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
 import { auth, db, WORKSPACE } from './core.js';
-import { tareasCliAddObjetivo, tareasCliAddTarea, tareasCliSave } from './tareas.js';
+import { tareasCliAddObjetivo, tareasCliAddTarea, tareasCliSave, tareasCliOwnerVisible, tareasCliIsManager, tareasCliNewOwnerFields } from './tareas.js';
 import { escapeHtml } from './utils.js';
 
 // ─────────────────────────────────────────
@@ -186,6 +186,10 @@ async function inboxRoute(itemId, params) {
       const nowIso = new Date().toISOString();
       const nuevoNombre = params.objetivo_name_new;
       const tareaTexto = item.text;
+      // S90 (SPEC F0BC6QGA7L3): este path NO pasa por tareasCliAddObjetivo, así que
+      // estampa dueño aquí también (helper single-source). Sin checkbox en el Inbox →
+      // manager nace privado (default SPEC), member compartido. Toggle posterior en card.
+      const _owner = tareasCliNewOwnerFields(undefined);
       await tareasCliSave(clientId, function(d) {
         if (!Array.isArray(d.objetivos)) d.objetivos = [];
         if (d.objetivos.find(function(o) { return o.id === objId; })) return d; // idempotente
@@ -194,6 +198,9 @@ async function inboxRoute(itemId, params) {
           nombre: nuevoNombre,
           collapsed: false,
           orden: d.objetivos.length,
+          owner_uid: _owner.owner_uid,
+          owner_label: _owner.owner_label,
+          shared: _owner.shared,
           tareas: [{
             id: tareaId,
             texto: tareaTexto,
@@ -474,7 +481,14 @@ function _refreshStep3(ev, initialClientId, initialType, stickyObjId) {
   step3.style.display = '';
   const memCache = (typeof window !== 'undefined' && window._tareasCliMemCache) || {};
   const cached = memCache[clientId] || null;
-  const objetivos = (cached && Array.isArray(cached.objetivos)) ? cached.objetivos : [];
+  const objetivosRaw = (cached && Array.isArray(cached.objetivos)) ? cached.objetivos : [];
+  // S90 (SPEC F0BC6QGA7L3): filtro por dueño (superficie 4/5 — el dropdown de rutear).
+  // Sin esto Mario vería los privados de Anwar en la lista de objetivos a los que rutear.
+  const _ownerUid = (typeof window !== 'undefined' && window.currentUser && window.currentUser.uid) || '_anon';
+  const _ownerIsManager = tareasCliIsManager();
+  const objetivos = objetivosRaw.filter(function(o) {
+    return tareasCliOwnerVisible(o, { viewerUid: _ownerUid, isManager: _ownerIsManager });
+  });
 
   const objOptions = objetivos.map(function(o) {
     const sel = (stickyObjId && o.id === stickyObjId) ? ' selected' : '';
