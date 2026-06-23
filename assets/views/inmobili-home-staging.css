@@ -82,3 +82,14 @@
 .plaza-card__footer-value {
   color: #1a1a1a; /* explícito: neutral, NO error-red */
 }
+
+/* §22 — narrativa explicativa del control de fuentes del card Captaciones.
+   Línea adicional debajo del "fuentes: ..." en font más chico y gris para
+   que se explique sola cuando el cliente lee sin presentador presente. */
+.row1-box__foot-narrativa {
+  font-size: 11px;
+  color: #8a8a8a;
+  font-style: italic;
+  margin-top: 4px;
+  line-height: 1.35;
+}

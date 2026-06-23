@@ -257,29 +257,36 @@
     var captacVal    = current.captaciones;
     var captacGoalMo = goals.captaciones_meta;
     var captacGoalP  = prorrated.captaciones_goal_periodo;
-    // §22 2026-06-23: control de FUENTES DE CAPTACIÓN (no etapas del embudo).
+    // §22 2026-06-23: control de FUENTES DE CAPTACIÓN (transparencia growth-partner).
     // 3 fuentes paralelas de "real propiedad captada":
-    //   Diario   = sheet R23 manual del cliente
+    //   Leadtime = Leadtime CRM rows con fecha de captación  ← OFICIAL (gobierna hero+CAC)
     //   Vambe    = stage "Promoción para venta" first-entry paid
-    //   Leadtime = Leadtime CRM rows con fecha de captación
-    // Avalúo se quitó por decisión Anwar (es etapa intermedia, no captación).
+    //   Diario   = sheet "Análisis Mensual 2026 2.0" R23 manual del cliente
+    // Avalúo se quitó (es etapa intermedia, no captación consumada).
+    //
+    // FLAG ?internal=1 → OCULTA el bloque (vista limpia para casos específicos).
+    // DEFAULT (sin flag) → bloque VISIBLE para el cliente (transparencia).
+    // Lógica invertida vs versión anterior (donde flag = mostrar).
     var captacSrcDiario    = current.captac_source_diario;
     var captacSrcVambeProm = current.captac_source_vambe_promocion;
     var captacSrcLeadtime  = current.captac_source_leadtime;
-    var showInternal = (function() {
+    var hideControlBlock = (function() {
       try {
         var qs = (window.location.search || '').toLowerCase();
         return qs.indexOf('internal=1') !== -1;
       } catch (e) { return false; }
     })();
     function _captacControlSub() {
-      if (!showInternal) return '';
-      if (captacSrcDiario == null && captacSrcVambeProm == null && captacSrcLeadtime == null) return '';
+      if (hideControlBlock) return '';
+      if (captacSrcLeadtime == null && captacSrcVambeProm == null && captacSrcDiario == null) return '';
+      // Orden: oficial primero, luego Vambe, luego Diario.
       var parts = [];
-      if (captacSrcDiario    != null) parts.push('Diario ' + _fmtInt(captacSrcDiario));
+      if (captacSrcLeadtime  != null) parts.push('Leadtime ' + _fmtInt(captacSrcLeadtime) + ' (oficial)');
       if (captacSrcVambeProm != null) parts.push('Vambe ' + _fmtInt(captacSrcVambeProm));
-      if (captacSrcLeadtime  != null) parts.push('Leadtime ' + _fmtInt(captacSrcLeadtime));
-      return 'control: ' + parts.join(' · ');
+      if (captacSrcDiario    != null) parts.push('Diario ' + _fmtInt(captacSrcDiario));
+      var sourcesLine = 'fuentes: ' + parts.join(' · ');
+      var narrativaLine = '<div class="row1-box__foot-narrativa">Las diferencias reflejan el avance de registro de captaciones en cada sistema.</div>';
+      return sourcesLine + narrativaLine;
     }
     var captacHTML;
     if (isMtd) {
