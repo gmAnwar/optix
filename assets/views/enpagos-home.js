@@ -1328,10 +1328,12 @@
     // especiales aunque estén en cero — sus cards siguen apareciendo con
     // foot "Sin actividad en el periodo".
     var SPECIAL_PLAZAS = ['ORGANICOS', 'SIN-ATRIBUCION'];
-    var isSpecial = function (p) { return SPECIAL_PLAZAS.indexOf(p) !== -1; };
+    // S89-9b: VOLANTEO se emite como plaza canónica por el backend pero su
+    // info se renderiza en la footnote bajo las cards — excluir aquí.
+    var EXCLUDE_FROM_CARDS = ['ORGANICOS', 'SIN-ATRIBUCION', 'VOLANTEO'];
 
     var allPlazas = Object.keys(byCity);
-    var regulares = allPlazas.filter(function (p) { return !isSpecial(p); });
+    var regulares = allPlazas.filter(function (p) { return EXCLUDE_FROM_CARDS.indexOf(p) === -1; });
     var especiales = SPECIAL_PLAZAS.filter(function (p) {
       return Object.prototype.hasOwnProperty.call(byCity, p);
     });
