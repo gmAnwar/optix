@@ -255,7 +255,11 @@
   function _preautMesStatus(actual, expected) {
     if (actual == null || isNaN(actual)) return '';
     if (expected == null || isNaN(expected) || expected <= 0) return '';
-    return (Number(actual) >= Number(expected)) ? 'green' : 'red';
+    var diff = Number(expected) - Number(actual);
+    if (diff <= 0)  return 'green';   // al ritmo o adelantado
+    if (diff <= 5)  return 'green';   // 0-5 de diferencia → verde
+    if (diff <= 15) return 'amber';   // 6-15 de diferencia → ámbar
+    return 'red';                     // más de 15 → rojo
   }
 
   function _tierChipLabel(status, kind) {
@@ -407,6 +411,25 @@
       });
     }
 
+    // ── Firmas Programadas caja ──────────────────────────────────────
+    var firmasVal  = current.firmas_programadas;
+    var firmasVenta = current.venta_firmas_programadas;
+    var firmasHTML = '';
+    if (isMtd && firmasVal != null && Number(firmasVal) > 0) {
+      var firmasFootHTML = (firmasVenta != null && Number(firmasVenta) > 0)
+        ? 'Venta esperada: ' + _fmtCurrency(firmasVenta)
+        : '';
+      firmasHTML = _row1BoxHTML({
+        label: 'Firmas programadas',
+        bigHTML: _fmtInt(firmasVal),
+        chipHTML: '',
+        barHTML: '',
+        expectedHTML: '',
+        topeHTML: '',
+        footHTML: firmasFootHTML
+      });
+    }
+
     // ── Inversión caja ────────────────────────────────────────────────
     var invVal    = current.inversion_total_meta_ads;
     var invGoalMo = (goals.inversion_meta && goals.inversion_meta.valor) ||
@@ -541,8 +564,7 @@
         var cierresProy = preautAvgDiario * diasRest * 0.30;
         var ventaTotalProy = Number(current.venta || 0) + (cierresProy * ticketProy);
         if (ventaFootHTML) ventaFootHTML += ' · ';
-        ventaFootHTML += 'Proy. EOM ' + _fmtCurrency(Math.round(ventaTotalProy)) +
-          ' (' + _fmtFloat1(cierresProy) + ' cierres est.)';
+        ventaFootHTML += 'Proy. fin de mes: ' + _fmtCurrency(Math.round(ventaTotalProy));
       }
 
       ventaHTML = _row1BoxHTML({
@@ -569,8 +591,8 @@
     }
 
     sec.innerHTML =
-      '<div class="row1-grid" role="group" aria-label="Preaut+, cierres, venta e inversión vs meta">' +
-        preautHTML + cierresHTML + ventaHTML + invHTML +
+      '<div class="row1-grid" role="group" aria-label="Preaut+, cierres, firmas programadas, venta e inversión vs meta">' +
+        preautHTML + cierresHTML + firmasHTML + ventaHTML + invHTML +
       '</div>';
   }
 
@@ -1152,11 +1174,15 @@
   // rotación CSS al estado [open]. Cuando no hay sub-filas o N=0, se
   // emite una fila simple sin triángulo (no hay nada que desplegar).
 
-  function _plazaSubRowHtml(label, n) {
+  function _plazaSubRowHtml(label, n, extraHTML) {
+    // extraHTML opcional: si viene, se concatena al value con ' · ' (e.g.
+    // cierres por familia muestra "N · $venta"). Backward-compat con
+    // callers de 2 args (Rechazados, Cancelados, Preaut+ por familia).
+    var extra = extraHTML ? ' · ' + extraHTML : '';
     return (
       '<div class="plaza-card__subrow">' +
         '<span class="plaza-card__subrow-label">' + escapeHtml(label) + '</span>' +
-        '<span class="plaza-card__subrow-value">' + _fmtInt(n) + '</span>' +
+        '<span class="plaza-card__subrow-value">' + _fmtInt(n) + extra + '</span>' +
       '</div>'
     );
   }
@@ -1208,6 +1234,26 @@
     }
     items.sort(function (a, b) { return b.n - a.n; });
     return items.map(function (it) { return _plazaSubRowHtml(it.label, it.n); }).join('');
+  }
+
+  function _buildCierresPorFamiliaSubRows(byFamily) {
+    // Desglose de cierres por familia con venta. Solo familias con cierres > 0.
+    // byFamily shape: { FAM: { cierres: int, venta: number, ... } }
+    var bf = byFamily || {};
+    var CANON = { 'MAQUINA DE HIELO':1, 'CONGELADOR':1, 'ENFRIADOR':1, 'VITRINAS':1, 'PROCESAMIENTO':1 };
+    var items = [];
+    for (var fam in bf) {
+      if (!Object.prototype.hasOwnProperty.call(bf, fam)) continue;
+      if (!CANON[fam]) continue;
+      var n = Number((bf[fam] || {}).cierres) || 0;
+      var v = Number((bf[fam] || {}).venta)   || 0;
+      if (n > 0) items.push({ label: fam, n: n, venta: v });
+    }
+    items.sort(function(a, b) { return b.n - a.n; });
+    return items.map(function(it) {
+      var ventaStr = (it.venta && it.venta > 0) ? _fmtCurrency(it.venta) : null;
+      return _plazaSubRowHtml(it.label, it.n, ventaStr);
+    }).join('');
   }
 
   function _buildRechazadosSubRows(byRejectionReason) {
@@ -1289,6 +1335,7 @@
     // se construyen ANTES del template para mantener legible la composición.
     var rechazadosSubRows  = _buildRechazadosSubRows(city && city.by_rejection_reason);
     var canceladosSubRows  = _buildCanceladosSubRows(city && city.by_cancellation_reason, current.cancelados);
+    var cierresFamiliaSubRows = _buildCierresPorFamiliaSubRows(city && city.by_family);
     var preautFamiliaSubRows = _buildPreautPorFamiliaSubRows(city && city.by_family);
 
     // S89-9 — Microcopy de Firmas Programadas: "si cierra la 1 firma" /
@@ -1308,6 +1355,9 @@
       + _plazaCollapsibleRowHtml('Rechazados',           current.rechazados,                   rechazadosSubRows)
       + _plazaCollapsibleRowHtml('Preaut+',            current.preaut_positivos,            preautFamiliaSubRows, _cpaText(inv, current.preaut_positivos))
       + _plazaCollapsibleRowHtml('Cancelados',           current.cancelados,                   canceladosSubRows)
+      + (cierresFamiliaSubRows
+          ? _plazaCollapsibleRowHtml('Cierres', current.cierres, cierresFamiliaSubRows)
+          : _plazaMetricRowHtml('Cierres', _fmtInt(current.cierres)))
       + _plazaMetricRowWithCpaHtml('Firmas Programadas', _fmtInt(current.firmas_programadas),  _cacProximoText(inv, current.cierres, current.firmas_programadas), firmasSubLabel)
       + _plazaFooterHtml(current.cierres, cacText, current.venta);
 
