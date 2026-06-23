@@ -249,35 +249,20 @@
 
     // ── Captaciones del mes ──
     // §22 2026-06-23: hero = Leadtime FB (Jenny CRM = source de verdad).
-    // Sub-bloque "control de fuentes" (toggle ?internal=1) compara las 3
-    // métricas paralelas para detectar delay del CRM vs Vambe stages.
-    // Toggle:
-    //   ?internal=1 → muestra los 3 conteos.
-    //   sin flag (default cliente) → solo hero.
+    // Sub-bloque "control de fuentes" SIEMPRE VISIBLE — transparencia
+    // growth-partner total, sin modo oculto. Decisión cerrada Anwar.
     var captacVal    = current.captaciones;
     var captacGoalMo = goals.captaciones_meta;
     var captacGoalP  = prorrated.captaciones_goal_periodo;
-    // §22 2026-06-23: control de FUENTES DE CAPTACIÓN (transparencia growth-partner).
     // 3 fuentes paralelas de "real propiedad captada":
     //   Leadtime = Leadtime CRM rows con fecha de captación  ← OFICIAL (gobierna hero+CAC)
     //   Vambe    = stage "Promoción para venta" first-entry paid
     //   Diario   = sheet "Análisis Mensual 2026 2.0" R23 manual del cliente
     // Avalúo se quitó (es etapa intermedia, no captación consumada).
-    //
-    // FLAG ?internal=1 → OCULTA el bloque (vista limpia para casos específicos).
-    // DEFAULT (sin flag) → bloque VISIBLE para el cliente (transparencia).
-    // Lógica invertida vs versión anterior (donde flag = mostrar).
     var captacSrcDiario    = current.captac_source_diario;
     var captacSrcVambeProm = current.captac_source_vambe_promocion;
     var captacSrcLeadtime  = current.captac_source_leadtime;
-    var hideControlBlock = (function() {
-      try {
-        var qs = (window.location.search || '').toLowerCase();
-        return qs.indexOf('internal=1') !== -1;
-      } catch (e) { return false; }
-    })();
     function _captacControlSub() {
-      if (hideControlBlock) return '';
       if (captacSrcLeadtime == null && captacSrcVambeProm == null && captacSrcDiario == null) return '';
       // Orden: oficial primero, luego Vambe, luego Diario.
       var parts = [];
