@@ -248,9 +248,33 @@
     var isMtd     = (period === 'mtd');
 
     // ── Captaciones del mes ──
+    // §22 2026-06-23: hero = Leadtime FB (Jenny CRM = source de verdad).
+    // Sub-bloque "control de fuentes" (toggle ?internal=1) compara las 3
+    // métricas paralelas para detectar delay del CRM vs Vambe stages.
+    // Toggle:
+    //   ?internal=1 → muestra los 3 conteos.
+    //   sin flag (default cliente) → solo hero.
     var captacVal    = current.captaciones;
     var captacGoalMo = goals.captaciones_meta;
     var captacGoalP  = prorrated.captaciones_goal_periodo;
+    var captacSrcVambeProm = current.captac_source_vambe_promocion;
+    var captacSrcVambeAval = current.captac_source_vambe_avaluo;
+    var captacSrcLeadtime  = current.captac_source_leadtime;
+    var showInternal = (function() {
+      try {
+        var qs = (window.location.search || '').toLowerCase();
+        return qs.indexOf('internal=1') !== -1;
+      } catch (e) { return false; }
+    })();
+    function _captacControlSub() {
+      if (!showInternal) return '';
+      if (captacSrcVambeProm == null && captacSrcVambeAval == null && captacSrcLeadtime == null) return '';
+      var parts = [];
+      if (captacSrcVambeProm != null) parts.push('Vambe Promoción ' + _fmtInt(captacSrcVambeProm));
+      if (captacSrcVambeAval != null) parts.push('Avalúo ' + _fmtInt(captacSrcVambeAval));
+      if (captacSrcLeadtime  != null) parts.push('Leadtime ' + _fmtInt(captacSrcLeadtime));
+      return 'control: ' + parts.join(' · ');
+    }
     var captacHTML;
     if (isMtd) {
       var captacStatus = _ritmoStatus(captacVal, captacGoalP);
@@ -264,12 +288,14 @@
         chipHTML: _row1ChipHTML(captacStatus, _chipLabel(captacStatus, 'captac')),
         barHTML: _row1ProgressBarHTML({ fillPct: captacFill, expectedPct: captacExp, status: captacStatus }),
         expectedHTML: (captacGoalP != null) ? _fmtFloat1(captacGoalP) + ' esperadas' : '',
-        topeHTML: (captacGoalMo != null) ? 'Meta ' + _fmtInt(captacGoalMo) : ''
+        topeHTML: (captacGoalMo != null) ? 'Meta ' + _fmtInt(captacGoalMo) : '',
+        subHTML: _captacControlSub()
       });
     } else {
       captacHTML = _row1BoxHTML({
         label: 'Captaciones',
-        bigHTML: _fmtInt(captacVal)
+        bigHTML: _fmtInt(captacVal),
+        subHTML: _captacControlSub()
       });
     }
 
@@ -304,9 +330,26 @@
     }
 
     // ── Citas del mes ──
+    // §22 2026-06-23: sub-label expone breakdown del 29 (active 18 / previous 11)
+    // + orgánicas detectadas (7). El 29 es la única autoridad del hero (sin
+    // contradicciones con CAC-cita que usa el mismo 29 como denominador).
     var citasVal    = current.citas_agendadas;
     var citasGoalMo = goals.citas_meta;
     var citasGoalP  = prorrated.citas_goal_periodo;
+    var citasActiveCap = current.citas_paid_active_captac;
+    var citasPrevCap   = current.citas_paid_previous_captac;
+    var citasOrgDet    = current.citas_organic_detected;
+    function _citasSub() {
+      var parts = [];
+      if (citasActiveCap != null && citasPrevCap != null) {
+        parts.push(_fmtInt(citasActiveCap) + ' de campañas activas · ' +
+                   _fmtInt(citasPrevCap) + ' de campañas previas');
+      }
+      if (citasOrgDet != null && Number(citasOrgDet) > 0) {
+        parts.push('+' + _fmtInt(citasOrgDet) + ' orgánicas/no atribuidas detectadas');
+      }
+      return parts.join(' · ');
+    }
     var citasHTML;
     if (isMtd) {
       var citasStatus = _ritmoStatus(citasVal, citasGoalP);
@@ -321,13 +364,13 @@
         barHTML: _row1ProgressBarHTML({ fillPct: citasFill, expectedPct: citasExp, status: citasStatus }),
         expectedHTML: (citasGoalP != null) ? _fmtFloat1(citasGoalP) + ' esperadas' : '',
         topeHTML: (citasGoalMo != null) ? 'Meta ' + _fmtInt(citasGoalMo) : '',
-        subHTML: 'Asistidas: —'
+        subHTML: _citasSub() || 'Asistidas: —'
       });
     } else {
       citasHTML = _row1BoxHTML({
         label: 'Citas',
         bigHTML: _fmtInt(citasVal),
-        subHTML: 'Asistidas: —'
+        subHTML: _citasSub() || 'Asistidas: —'
       });
     }
 
@@ -464,51 +507,44 @@
     }));
 
     // ── FILA 3: CAC ──
+    // §22 2026-06-23: ambos CACs llevan badge "preliminar · junio en curso ·
+    // ancla mayo $X" SI estamos en mes en curso (mtd). Backend expone
+    // current.cac_captacion_last_month_anchor + current.cac_cita_last_month_anchor.
+    // Solo aparece en mtd; en last_month NO (ya es el mes cerrado en sí).
     var f3Boxes = [];
 
-    // CAC Captación (semáforo vs obj $4,500).
+    function _preliminarSubLine(anchorAmt) {
+      if (!isMtd) return '';
+      if (anchorAmt == null) return 'preliminar · junio en curso';
+      return 'preliminar · junio en curso · ancla mayo ' + _fmtCurrency(anchorAmt);
+    }
+
+    // CAC Captación = spend_captacion / captac_leadtime (= $73,881 / 14 = $5,277)
     var cacCaptac = current.cac;
     var cacObj    = goals.cac_meta;
     var cacStatus = _cacStatusVsObj(cacCaptac, cacObj);
+    var captacObjChip = _cacChipHTML(cacStatus, cacObj != null ? 'obj ' + _fmtCurrency(cacObj) : '');
+    var captacPreLine = _preliminarSubLine(current.cac_captacion_last_month_anchor);
     f3Boxes.push(_kpiCardHTML({
       label: 'CAC captación',
       valueHTML: (cacCaptac == null) ? '—' : _fmtCurrency(cacCaptac),
-      chipHTML: _cacChipHTML(cacStatus,
-        cacObj != null ? 'obj ' + _fmtCurrency(cacObj) : ''),
-      subHTML: 'el que manda'
+      chipHTML: captacObjChip,
+      subHTML: captacPreLine ? ('el que manda · ' + captacPreLine) : 'el que manda'
     }));
 
-    // CAC Cita — el PROTAGONISTA visual es el CAC ($4,621), NO el "17".
-    // El 17 baja a sub-label como componente del cálculo, con puente al
-    // hero (34) para que no se lea como contradicción ("¿son 17 o 34?").
-    // El hero "Citas del mes" sigue siendo la ÚNICA autoridad sobre cuántas
-    // citas hubo. El 17 es solo el divisor del CAC (citas que generó la
-    // pauta de junio), no un conteo competitivo.
-    //
-    // Backend expone current.cac_cita directo (= v12.funnel.cita.cost).
-    // Fallback: si no viene en shape, derivamos inv ÷ citas_paid_attribuibles.
+    // CAC Cita = spend_captacion ÷ citas_paid_total (= $73,881 / 30 = $2,463).
+    // Hero "Citas del mes" sigue siendo la única autoridad — el denominador
+    // del CAC usa ese mismo número (no hay 17 vs 29 contradicción).
     var cacCita = current.cac_cita;
-    if (cacCita == null && current.citas_paid_attribuibles != null && invVal != null
-        && Number(current.citas_paid_attribuibles) > 0) {
-      cacCita = Number(invVal) / Number(current.citas_paid_attribuibles);
+    if (cacCita == null && invVal != null && citasVal != null && Number(citasVal) > 0) {
+      cacCita = Number(invVal) / Number(citasVal);
     }
-    var citasPaidDenom = current.citas_paid_attribuibles;
-    var citasTotalDom  = current.citas_agendadas;
-    var cacCitaSub;
-    if (citasPaidDenom != null && citasTotalDom != null) {
-      cacCitaSub = 'inversión de junio ÷ ' + _fmtInt(citasPaidDenom) +
-                   ' citas generadas por campañas activas este mes (de ' +
-                   _fmtInt(citasTotalDom) + ' totales)';
-    } else if (citasPaidDenom != null) {
-      cacCitaSub = 'inversión de junio ÷ ' + _fmtInt(citasPaidDenom) +
-                   ' citas generadas por campañas activas este mes';
-    } else {
-      cacCitaSub = 'denominador no disponible';
-    }
+    var cacCitaPreLine = _preliminarSubLine(current.cac_cita_last_month_anchor);
+    var cacCitaBaseSub = 'inversión de junio ÷ ' + _fmtInt(citasVal) + ' citas';
     f3Boxes.push(_kpiCardHTML({
       label: 'CAC cita agendada',
       valueHTML: cacCita == null ? '—' : _fmtCurrency(cacCita),
-      subHTML: cacCitaSub
+      subHTML: cacCitaPreLine ? (cacCitaBaseSub + ' · ' + cacCitaPreLine) : cacCitaBaseSub
     }));
 
     sec.innerHTML =
