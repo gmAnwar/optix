@@ -478,23 +478,33 @@
       subHTML: 'el que manda'
     }));
 
-    // CAC Cita: denominador COHERENTE con numerador.
-    // §22 fix-citas: numerador = spend de ads-en-junio ($76,854 v12.spend).
-    // Denominador correcto = citas PAID atribuibles a esos mismos ads
-    // (v12.funnel.cita.count = 17), NO el conteo total de citas del Home
-    // (34 paid+organic). Sino mezclamos universos y mentimos.
+    // CAC Cita — el PROTAGONISTA visual es el CAC ($4,621), NO el "17".
+    // El 17 baja a sub-label como componente del cálculo, con puente al
+    // hero (34) para que no se lea como contradicción ("¿son 17 o 34?").
+    // El hero "Citas del mes" sigue siendo la ÚNICA autoridad sobre cuántas
+    // citas hubo. El 17 es solo el divisor del CAC (citas que generó la
+    // pauta de junio), no un conteo competitivo.
     //
-    // Backend ahora expone current.cac_cita directo (= v12.funnel.cita.cost).
-    // Fallback: si no viene en el shape, derivamos de inv ÷ citas_paid_attribuibles.
+    // Backend expone current.cac_cita directo (= v12.funnel.cita.cost).
+    // Fallback: si no viene en shape, derivamos inv ÷ citas_paid_attribuibles.
     var cacCita = current.cac_cita;
     if (cacCita == null && current.citas_paid_attribuibles != null && invVal != null
         && Number(current.citas_paid_attribuibles) > 0) {
       cacCita = Number(invVal) / Number(current.citas_paid_attribuibles);
     }
     var citasPaidDenom = current.citas_paid_attribuibles;
-    var cacCitaSub = (citasPaidDenom != null)
-      ? '÷ ' + _fmtInt(citasPaidDenom) + ' citas atribuidas a la pauta'
-      : 'denominador no disponible';
+    var citasTotalDom  = current.citas_agendadas;
+    var cacCitaSub;
+    if (citasPaidDenom != null && citasTotalDom != null) {
+      cacCitaSub = 'inversión de junio ÷ ' + _fmtInt(citasPaidDenom) +
+                   ' citas generadas por campañas activas este mes (de ' +
+                   _fmtInt(citasTotalDom) + ' totales)';
+    } else if (citasPaidDenom != null) {
+      cacCitaSub = 'inversión de junio ÷ ' + _fmtInt(citasPaidDenom) +
+                   ' citas generadas por campañas activas este mes';
+    } else {
+      cacCitaSub = 'denominador no disponible';
+    }
     f3Boxes.push(_kpiCardHTML({
       label: 'CAC cita agendada',
       valueHTML: cacCita == null ? '—' : _fmtCurrency(cacCita),
