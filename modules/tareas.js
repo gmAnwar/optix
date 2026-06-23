@@ -1172,6 +1172,14 @@ export const TAREAS_CLIENTE_COLORS = {
 // Lazy migration en read: objetivos sin field `scope` se tratan como 'compartido'.
 // Defensive fallback en _getCurrentRol: si profile no resolvió aún, asume 'junior' (más restrictivo).
 export const TAREAS_CLI_SCOPES = ['operativo', 'estrategico', 'recurrente', 'compartido'];
+// Estilos del badge de scope (bg/fg/label) — single source para el badge de la card
+// y el menú de edición de etiqueta (sug #19). HEX inline, sin CSS vars nuevas.
+const TAREAS_CLI_SCOPE_BADGES = {
+  'operativo':   { bg: 'rgba(59,130,246,0.18)',  fg: '#3b82f6',       label: 'OPERATIVO' },
+  'estrategico': { bg: 'rgba(168,85,247,0.18)',  fg: '#a855f7',       label: 'ESTRATÉGICO' },
+  'recurrente':  { bg: 'rgba(20,184,166,0.18)',  fg: '#2dd4bf',       label: 'RECURRENTE' },
+  'compartido':  { bg: 'rgba(148,163,184,0.18)', fg: 'var(--text3)',  label: 'COMPARTIDO' }
+};
 const TAREAS_CLI_SENIOR_ROLES = ['all', 'direccion', 'owner'];
 
 function _tareasCliGetCurrentRol() {
@@ -1848,16 +1856,12 @@ function tareasCliRenderObjetivosList(client, objetivos) {
       +       objNombreSafe
       +     '</span>'
       +     (_showBadge ? (function() {
-            // PR3 v4.1: badge solo para senior. HEX directo inline (sin CSS vars nuevas).
+            // PR3 v4.1: badge de scope. S90 sug #19: clickeable → menú para cambiar etiqueta.
             const _sc = (o.scope) || 'compartido';
-            const _badgeStyles = {
-              'operativo':   { bg: 'rgba(59,130,246,0.18)',  fg: '#3b82f6',          label: 'OPERATIVO' },
-              'estrategico': { bg: 'rgba(168,85,247,0.18)',  fg: '#a855f7',          label: 'ESTRATÉGICO' },
-              'recurrente':  { bg: 'rgba(20,184,166,0.18)',  fg: '#2dd4bf',          label: 'RECURRENTE' },
-              'compartido':  { bg: 'rgba(148,163,184,0.18)', fg: 'var(--text3)',    label: 'COMPARTIDO' }
-            };
-            const _b = _badgeStyles[_sc] || _badgeStyles['compartido'];
-            return '<span style="font-family:\'DM Mono\',monospace;font-size:9px;padding:2px 6px;border-radius:4px;text-transform:uppercase;letter-spacing:0.05em;margin-left:6px;background:' + _b.bg + ';color:' + _b.fg + ';flex-shrink:0;">' + _b.label + '</span>';
+            const _b = TAREAS_CLI_SCOPE_BADGES[_sc] || TAREAS_CLI_SCOPE_BADGES['compartido'];
+            return '<span onclick="tareasCliShowScopeMenu(event, \'' + cid + '\', \'' + oid + '\', \'' + _sc + '\')" '
+              + 'title="Cambiar etiqueta" '
+              + 'style="font-family:\'DM Mono\',monospace;font-size:9px;padding:2px 6px;border-radius:4px;text-transform:uppercase;letter-spacing:0.05em;margin-left:6px;background:' + _b.bg + ';color:' + _b.fg + ';flex-shrink:0;cursor:pointer;">' + _b.label + '</span>';
           })() : '')
       +     // S90: badge de dueño (owner_label denormalizado). Legacy sin owner = sin badge.
             ((o.owner_label) ? '<span title="Dueño" style="font-family:\'DM Mono\',monospace;font-size:9px;width:16px;height:16px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;background:var(--surface);border:1px solid var(--border);color:var(--text2);flex-shrink:0;margin-left:6px;">' + escapeHtml(o.owner_label) + '</span>' : '')
@@ -2636,6 +2640,59 @@ async function tareasCliToggleShared(clientId, objId) {
   renderTareasCli();
 }
 
+// S90 (sug #19 Mario): editar la ETIQUETA (scope) de un objetivo ya creado.
+// Clon de tareasCliToggleShared pero SIN guard de rol — las etiquetas son para
+// todos (consistente con el `true ||` del recurrente). Eje scope, ortogonal a
+// dueño/privacidad (no toca owner_uid/owner_label/shared).
+async function tareasCliSetScope(clientId, objId, nuevoScope) {
+  if (TAREAS_CLI_SCOPES.indexOf(nuevoScope) === -1) return; // scope inválido
+  await tareasCliSave(clientId, function(d) {
+    const o = (d.objetivos || []).find(function(x) { return x.id === objId; });
+    if (!o) return d;
+    o.scope = nuevoScope;
+    return d;
+  });
+  renderTareasCli();
+}
+
+// S90 (sug #19): menú flotante para cambiar la etiqueta desde el badge de la card.
+function tareasCliCloseScopeMenu() {
+  const m = document.getElementById('tareas-cli-scope-menu');
+  if (m) m.remove();
+}
+function tareasCliShowScopeMenu(e, clientId, objId, currentScope) {
+  e.stopPropagation();
+  tareasCliCloseScopeMenu(); // cierra cualquier menú previo
+  const rect = e.currentTarget.getBoundingClientRect();
+  const menu = document.createElement('div');
+  menu.id = 'tareas-cli-scope-menu';
+  menu.style.cssText = 'position:fixed;z-index:9999;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:4px;box-shadow:0 6px 20px rgba(0,0,0,0.35);display:flex;flex-direction:column;gap:2px;min-width:150px;';
+  menu.style.top = (rect.bottom + 4) + 'px';
+  menu.style.left = rect.left + 'px';
+  TAREAS_CLI_SCOPES.forEach(function(s) {
+    const b = TAREAS_CLI_SCOPE_BADGES[s] || TAREAS_CLI_SCOPE_BADGES['compartido'];
+    const isCur = (s === currentScope);
+    const opt = document.createElement('button');
+    opt.type = 'button';
+    opt.style.cssText = 'display:flex;align-items:center;gap:6px;background:' + (isCur ? 'var(--surface2)' : 'transparent') + ';border:none;border-radius:5px;padding:6px 8px;cursor:pointer;text-align:left;font-family:\'DM Mono\',monospace;font-size:10px;letter-spacing:0.05em;color:var(--text);';
+    opt.innerHTML = '<span style="width:8px;height:8px;border-radius:50%;background:' + b.fg + ';flex-shrink:0;"></span>'
+      + '<span style="flex:1;">' + b.label + '</span>'
+      + (isCur ? '<span style="color:var(--text3);">✓</span>' : '');
+    opt.onmouseover = function() { opt.style.background = 'var(--surface2)'; };
+    opt.onmouseout = function() { opt.style.background = isCur ? 'var(--surface2)' : 'transparent'; };
+    opt.onclick = function() {
+      tareasCliCloseScopeMenu();
+      if (s !== currentScope) tareasCliSetScope(clientId, objId, s);
+    };
+    menu.appendChild(opt);
+  });
+  document.body.appendChild(menu);
+  // Cierra al click-fuera. Defer un tick para no capturar el click que abrió el menú.
+  setTimeout(function() {
+    document.addEventListener('click', tareasCliCloseScopeMenu, { once: true });
+  }, 0);
+}
+
 export async function tareasCliAddTarea(clientId, objId, texto) {
   const t = String(texto || '').trim();
   if (!t) return;
@@ -3285,6 +3342,9 @@ function initTareas() {
   window.tareasCliConfirmDeleteTarea = tareasCliConfirmDeleteTarea;
   // S90: toggle privacidad de objetivo propio (botón candado/compartir en card).
   window.tareasCliToggleShared = tareasCliToggleShared;
+  // S90 (sug #19): editar etiqueta/scope de objetivo ya creado (menú en el badge).
+  window.tareasCliSetScope = tareasCliSetScope;
+  window.tareasCliShowScopeMenu = tareasCliShowScopeMenu;
   window.tareasCliShowDeleteClientModal = tareasCliShowDeleteClientModal;
   window.tareasCliToggleSubtaskCollapse = tareasCliToggleSubtaskCollapse;
   // PR2 #4: flecha colapsar/expandir card cliente entera.
