@@ -335,7 +335,7 @@
         '<div class="row1-box__meta">' +
           (opts.expectedHTML
             ? '<span class="row1-box__expected">' + opts.expectedHTML + '</span>'
-            : '') +
+            : '<span class="row1-box__expected" aria-hidden="true"></span>') +
           (opts.topeHTML
             ? '<span class="row1-box__tope">' + opts.topeHTML + '</span>'
             : '') +
@@ -414,8 +414,10 @@
           var lines = [];
           var tk = current.ticket_promedio;
           if (tk != null && Number(tk) > 0) lines.push('Ticket prom. ' + _fmtCurrency(tk));
-          var tasa = current.tasa_cierre_preaut_positivo;
-          if (tasa != null && !isNaN(tasa) && Number(tasa) > 0) lines.push(_fmtPct(tasa) + ' cierre/preaut+');
+          var _ccG = Number(current.cierres) || 0;
+          var _fcG = Number(current.firmas_programadas) || 0;
+          var _ppG = Number(current.preaut_positivos) || 0;
+          if (_ppG > 0) lines.push(_fmtPct((_ccG + _fcG) / _ppG) + ' cierre/preaut+');
           return lines.join('<br>');
         }())
       });
@@ -568,7 +570,7 @@
       if (Number(ventaVal) > 0 || ventaFirmas > 0) {
         var ventaComprometida = Number(ventaVal || 0) + ventaFirmas;
         if (ventaFootHTML) ventaFootHTML += ' · ';
-        ventaFootHTML += 'Proy. fin de mes: <strong style="color:#1a1a1a;font-size:13px;">' + _fmtCurrency(Math.round(ventaComprometida)) + '</strong>';
+        ventaFootHTML += 'Cerrado + firmas programadas: <strong style="color:#1a1a1a;font-size:13px;">' + _fmtCurrency(Math.round(ventaComprometida)) + '</strong>';
       }
 
       ventaHTML = _row1BoxHTML({
@@ -909,7 +911,8 @@
       var _firmas   = Number(_curr.firmas_programadas) || 0;
       var _preaut   = Number(_curr.preaut_positivos) || 0;
       var _ticket   = Number(_curr.ticket_promedio) || 0;
-      var _proyCierresHTML = '—';
+      var _proyCierresBig = '—';
+      var _proyCierresSub = '';
       if (_bdPassed > 0 && _preaut > 0) {
         var _avgHabil   = _preaut / _bdPassed;
         var _preautFut  = _avgHabil * _bdRest;
@@ -917,14 +920,16 @@
         var _piso       = _cierres + _firmas;
         var _proyCierres = Math.round(_piso + _cierresFut);
         var _proyVenta   = (_ticket > 0) ? (_proyCierres * _ticket) : 0;
-        _proyCierresHTML = _fmtInt(_proyCierres) + ' cierres'
-          + (cierresMo != null ? ' / meta ' + _fmtInt(cierresMo) : '')
-          + (_proyVenta > 0 ? ' <span style="color:#8a8a8a;">|</span> ' + _fmtCurrencyShort(_proyVenta) : '');
+        _proyCierresBig = _fmtInt(_proyCierres);
+        var _subParts = [];
+        if (cierresMo != null) _subParts.push('meta ' + _fmtInt(cierresMo));
+        if (_proyVenta > 0) _subParts.push(_fmtCurrency(Math.round(_proyVenta)) + ' venta proy.');
+        _proyCierresSub = _subParts.join(' · ');
       }
       f2Boxes.push(_kpiCardHTML({
         label: 'Proy. Cierres EOM',
-        valueHTML: _proyCierresHTML,
-        subHTML: ''
+        valueHTML: _proyCierresBig,
+        subHTML: _proyCierresSub
       }));
 
       var projInv = projection.projected_inversion_eom;
@@ -1393,9 +1398,17 @@
       + _plazaCollapsibleRowHtml('Rechazados',           current.rechazados,                   rechazadosSubRows)
       + _plazaCollapsibleRowHtml('Preaut+',            current.preaut_positivos,            preautFamiliaSubRows, _cpaText(inv, current.preaut_positivos))
       + _plazaCollapsibleRowHtml('Cancelados',           current.cancelados,                   canceladosSubRows)
-      + (cierresFamiliaSubRows
-          ? _plazaCollapsibleRowHtml('Cierres', current.cierres, cierresFamiliaSubRows)
-          : _plazaMetricRowHtml('Cierres', _fmtInt(current.cierres)))
+      + (function() {
+          // % cierre = (cierres + firmas) / preaut+ por plaza. Si no hay firmas
+          // por plaza, usa solo cierres (decidido en gate PASO 0).
+          var _pc = Number(current.preaut_positivos) || 0;
+          var _cc = Number(current.cierres) || 0;
+          var _fc = Number(current.firmas_programadas) || 0;
+          var _pctTxt = (_pc > 0) ? _fmtPct((_cc + _fc) / _pc) : null;
+          return cierresFamiliaSubRows
+            ? _plazaCollapsibleRowHtml('Cierres', current.cierres, cierresFamiliaSubRows, _pctTxt)
+            : _plazaCollapsibleRowHtml('Cierres', current.cierres, null, _pctTxt);
+        }())
       + _plazaMetricRowWithCpaHtml('Firmas Programadas', _fmtInt(current.firmas_programadas),  _cacProximoText(inv, current.cierres, current.firmas_programadas), firmasSubLabel)
       + _plazaFooterHtml(current.cierres, cacText, current.venta,
           (current.ticket_promedio != null && Number(current.ticket_promedio) > 0 && Number(current.cierres) > 0)
