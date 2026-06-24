@@ -753,6 +753,19 @@
   // Status CAC: actual <= objetivo → green; objetivo < actual <= limite →
   // yellow; actual > limite → red. Sin limite, fallback green/red contra
   // objetivo. Cuando actual o objetivo son null → '', neutral.
+  function _plazaCostoPreautStatus(costo, objetivo) {
+    // Badge de plaza basado en costo/preaut+ (señal temprana, estable).
+    // Umbrales relativos al objetivo: verde ≤ obj×1.15, amarillo ≤ obj×1.55, rojo arriba.
+    // Relativo (no fijo) para que al cambiar el objetivo los cortes se muevan solos.
+    if (costo == null || isNaN(costo) || Number(costo) <= 0) return '';
+    if (objetivo == null || isNaN(objetivo) || Number(objetivo) <= 0) return '';
+    var c = Number(costo);
+    var o = Number(objetivo);
+    if (c <= o * 1.15) return 'green';
+    if (c <= o * 1.55) return 'yellow';
+    return 'red';
+  }
+
   function _cacStatus(actual, objetivo, limite) {
     if (actual == null || isNaN(actual)) return '';
     if (objetivo == null || isNaN(objetivo)) return '';
@@ -1356,13 +1369,19 @@
     );
   }
 
-  function _plazaCardHtml(plaza, city) {
+  function _plazaCardHtml(plaza, city, objCostoPreaut) {
     var current = (city && city.current) || {};
     var vsGoal  = (city && city.vs_goal) || {};
     var variant = _plazaVariant(current);
 
     // Chip header (solo cuando hay cierres → CAC tiene denominador).
-    var chip = (current.cierres > 0) ? _plazaChipForStatus(vsGoal.cac_status) : null;
+    // Badge por costo/preaut+ (no CAC): aparece desde el primer preaut+, sin
+    // esperar cierres. El CAC se ve injustamente rojo a inicio de mes porque
+    // los cierres llegan tarde — costo/preaut+ es señal temprana y estable.
+    var _costoPreautPlaza = current.costo_preaut_positivo;
+    var _objCostoPreaut = objCostoPreaut;
+    var _badgeStatus = _plazaCostoPreautStatus(_costoPreautPlaza, _objCostoPreaut);
+    var chip = _badgeStatus ? _plazaChipForStatus(_badgeStatus) : null;
     var chipHtml = chip
       ? '<span class="plaza-card__chip ' + chip.className + '">' + escapeHtml(chip.label) + '</span>'
       : '';
@@ -1474,9 +1493,11 @@
       return invB - invA;
     });
 
+    var _objCostoPreautGlobal = (data.goals && data.goals.costo_preaut_positivo_objetivo &&
+                                 data.goals.costo_preaut_positivo_objetivo.valor) || null;
     var ordered = regulares.concat(especiales);
     var cardsHtml = ordered.map(function (plaza) {
-      return _plazaCardHtml(plaza, byCity[plaza] || {});
+      return _plazaCardHtml(plaza, byCity[plaza] || {}, _objCostoPreautGlobal);
     }).join('');
 
     sec.innerHTML = '<div class="plaza-cards-grid">' + cardsHtml + '</div>';
