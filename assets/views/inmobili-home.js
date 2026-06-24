@@ -169,11 +169,28 @@
     return 'green';
   }
 
+  // PROVISIONAL umbrales relativos — pend. validación Anwar (S91, 24-jun).
+  // Semáforo 3 estados Citas vs goal prorrateado: ≥0.95 verde, ≥0.80 ámbar, sino rojo.
+  function _citasMesStatus(actual, expected) {
+    if (actual == null || isNaN(actual)) return '';
+    if (expected == null || isNaN(expected) || Number(expected) <= 0) return '';
+    var ratio = Number(actual) / Number(expected);
+    if (ratio >= 0.95) return 'green';
+    if (ratio >= 0.80) return 'yellow';
+    return 'red';
+  }
+
   function _chipLabel(status, kind) {
     // kind: 'captac' | 'inversion' | 'citas'
-    if (kind === 'captac' || kind === 'citas') {
+    if (kind === 'captac') {
       if (status === 'green') return 'AL RITMO';
       if (status === 'red')   return 'BAJO META';
+      return '';
+    }
+    if (kind === 'citas') {
+      if (status === 'green')  return 'AL RITMO';
+      if (status === 'yellow') return 'CERCA DE META';
+      if (status === 'red')    return 'BAJO META';
       return '';
     }
     if (kind === 'inversion') {
@@ -208,6 +225,58 @@
   function _row1ChipHTML(status, label) {
     if (!status || !label) return '';
     return '<span class="row1-chip row1-chip--' + status + '">' + escapeHtml(label) + '</span>';
+  }
+
+  // Funnel % strip — 4 tramos (mensajes → llamadas → citas → captac → cierres).
+  // Sub-strip dentro de #goals-section, debajo de row1-grid. SPEC sec 22.1
+  // ("% conversión del funnel"). Si una key viene null/ausente, omite ESE
+  // tramo (no lo pinta 0% ni NaN), nunca todo el funnel. citas_asistidas
+  // queda fuera (Vambe sin stage "visita realizada", muerto).
+  function _funnelStripHTML(current) {
+    if (!current) return '';
+    var steps = [
+      { key: 'mensajes',           label: 'Mensajes' },
+      { key: 'llamadas_agendadas', label: 'Llamadas' },
+      { key: 'citas_agendadas',    label: 'Citas' },
+      { key: 'captaciones',        label: 'Captaciones' },
+      { key: 'cierres',            label: 'Cierres' }
+    ];
+    // Solo render si al menos 2 etapas tienen valor numérico — sin eso no hay tramo.
+    var presentCount = 0;
+    for (var i = 0; i < steps.length; i++) {
+      var v = current[steps[i].key];
+      if (v != null && !isNaN(v)) presentCount++;
+    }
+    if (presentCount < 2) return '';
+    var parts = [];
+    var rendered = 0;
+    for (var j = 0; j < steps.length; j++) {
+      var step = steps[j];
+      var val  = current[step.key];
+      if (val == null || isNaN(val)) continue;
+      // Conversión vs etapa previa DISPONIBLE (puede saltear ausentes intermedias).
+      var pctHTML = '';
+      for (var k = j - 1; k >= 0; k--) {
+        var prevVal = current[steps[k].key];
+        if (prevVal == null || isNaN(prevVal) || Number(prevVal) <= 0) continue;
+        var pct = Math.round((Number(val) / Number(prevVal)) * 100);
+        pctHTML = ' <span class="funnel-strip__pct">(' + pct + '%)</span>';
+        break;
+      }
+      var nodeHTML = '<span class="funnel-strip__step">' +
+                       '<span class="funnel-strip__label">' + escapeHtml(step.label) + '</span> ' +
+                       '<span class="funnel-strip__value">' + _fmtInt(val) + '</span>' +
+                       pctHTML +
+                     '</span>';
+      if (rendered > 0) {
+        parts.push('<span class="funnel-strip__arrow" aria-hidden="true">→</span>');
+      }
+      parts.push(nodeHTML);
+      rendered++;
+    }
+    return '<div class="funnel-strip" role="group" aria-label="Conversión del funnel">' +
+             parts.join('') +
+           '</div>';
   }
 
   function _row1BoxHTML(opts) {
@@ -263,6 +332,11 @@
     var captacSrcVambeProm = current.captac_source_vambe_promocion;
     var captacSrcLeadtime  = current.captac_source_leadtime;
     function _captacControlSub() {
+      // S91 degradación B_lite: en last_month las 3 fuentes vienen ausentes —
+      // render explícito "no disp. mes cerrado" en gris en vez de silencio.
+      if (!isMtd) {
+        return '<span class="row1-box__foot-graceful">fuentes: no disp. mes cerrado</span>';
+      }
       if (captacSrcLeadtime == null && captacSrcVambeProm == null && captacSrcDiario == null) return '';
       // Orden: oficial primero, luego Vambe, luego Diario.
       var parts = [];
@@ -339,9 +413,17 @@
     var citasOrgDet    = current.citas_organic_detected;
     function _citasSub() {
       var parts = [];
-      if (citasActiveCap != null && citasPrevCap != null) {
-        parts.push(_fmtInt(citasActiveCap) + ' de campañas activas · ' +
-                   _fmtInt(citasPrevCap) + ' de campañas previas');
+      // S91 degradación B_lite: en last_month el split paid (active/previous)
+      // viene ausente — render explícito "no disp." en gris para esa porción.
+      // El conteo de orgánicas (citas_organic_detected) SÍ existe en last_month;
+      // si está presente sigue mostrándose.
+      if (isMtd) {
+        if (citasActiveCap != null && citasPrevCap != null) {
+          parts.push(_fmtInt(citasActiveCap) + ' de campañas activas · ' +
+                     _fmtInt(citasPrevCap) + ' de campañas previas');
+        }
+      } else {
+        parts.push('<span class="row1-box__foot-graceful">split paid: no disp. mes cerrado</span>');
       }
       if (citasOrgDet != null && Number(citasOrgDet) > 0) {
         parts.push('+' + _fmtInt(citasOrgDet) + ' orgánicas/no atribuidas detectadas');
@@ -350,7 +432,7 @@
     }
     var citasHTML;
     if (isMtd) {
-      var citasStatus = _ritmoStatus(citasVal, citasGoalP);
+      var citasStatus = _citasMesStatus(citasVal, citasGoalP);
       var citasFill   = (citasGoalMo != null && citasGoalMo > 0 && citasVal != null)
         ? (Number(citasVal) / Number(citasGoalMo)) : 0;
       var citasExp    = (citasGoalMo != null && citasGoalMo > 0 && citasGoalP != null)
@@ -403,10 +485,41 @@
       });
     }
 
+    // ── Tintero (5º hero — snapshot, mismo valor en mtd y last_month) ──
+    // SPEC sec 22.2: big = fresco_30d (vivas, ≤30d), secundario = total - fresco
+    // (incluye viejas-con-rastro + 15 sin-registro punto-ciego pre-webhook).
+    // NO publicar bruto: mezclaría observables con punto ciego. Snapshot: el
+    // backend produce el mismo valor en ambos periods (estado vivo CRM, no
+    // métrica del mes) — NO se condiciona a isMtd.
+    var tinteroFresco = current.a_espera_aceptacion_fresco_30d;
+    var tinteroTotal  = current.a_espera_aceptacion;
+    var tinteroHTML = '';
+    if (tinteroFresco != null && tinteroTotal != null) {
+      var tinteroViejo = Number(tinteroTotal) - Number(tinteroFresco);
+      if (tinteroViejo < 0) tinteroViejo = 0;
+      var tinteroSubHTML = (tinteroViejo > 0)
+        ? '+ ' + _fmtInt(tinteroViejo) + ' de +1 mes'
+        : '';
+      tinteroHTML = _row1BoxHTML({
+        label: 'Tintero (A espera de aceptación)',
+        bigHTML: _fmtInt(tinteroFresco) +
+                 '<span class="row1-box__big-aux"> frescas ≤30d</span>',
+        subHTML: tinteroSubHTML
+      });
+    } else {
+      tinteroHTML = _row1BoxHTML({
+        label: 'Tintero (A espera de aceptación)',
+        bigHTML: '—',
+        subHTML: '',
+        gracefulCls: 'row1-box--graceful'
+      });
+    }
+
     sec.innerHTML =
-      '<div class="row1-grid" role="group" aria-label="Captaciones, inversión, citas y venta del mes">' +
-        captacHTML + invHTML + citasHTML + ventaHTML +
-      '</div>';
+      '<div class="row1-grid" role="group" aria-label="Captaciones, inversión, citas, venta y tintero">' +
+        captacHTML + invHTML + citasHTML + ventaHTML + tinteroHTML +
+      '</div>' +
+      _funnelStripHTML(current);
   }
   window.__renderGoals = renderGoals;
 
@@ -480,7 +593,28 @@
       subHTML: 'por día (en el mes)'
     }));
 
-    // Caja 3 — Proy. captaciones EOM (run-rate).
+    // Caja 3 — Proy. citas EOM (run-rate calendario, NO piso+ritmo —
+    // payload Inmobili no expone projection.business_days_*). Termostato
+    // visual usa _citasMesStatus contra goals.citas_meta.
+    var citasMeta = goals.citas_meta;
+    var citasEom = null;
+    if (isMtd && citasVal != null && periodDays > 0 && totalDays > 0) {
+      citasEom = Math.round((Number(citasVal) / periodDays) * totalDays);
+    }
+    var citasEomStatus = _citasMesStatus(citasEom, citasMeta);
+    var citasEomChip = citasEomStatus
+      ? '<span class="kpi-chip kpi-chip--' + citasEomStatus + '">' +
+          escapeHtml(_chipLabel(citasEomStatus, 'citas')) +
+        '</span>'
+      : '';
+    f2Boxes.push(_kpiCardHTML({
+      label: 'Citas proyectadas fin de mes',
+      valueHTML: citasEom != null ? _fmtInt(citasEom) : '—',
+      subHTML: (citasMeta != null) ? 'meta ' + _fmtInt(citasMeta) + ' · si mantiene ritmo' : 'si mantiene ritmo',
+      chipHTML: citasEomChip
+    }));
+
+    // Caja 4 — Proy. captaciones EOM (run-rate).
     var captacVal = current.captaciones;
     var captacEom = null;
     if (isMtd && captacVal != null && periodDays > 0 && totalDays > 0) {
@@ -492,7 +626,7 @@
       subHTML: 'si mantiene ritmo'
     }));
 
-    // Caja 4 — Proy. inversión EOM.
+    // Caja 5 — Proy. inversión EOM.
     var invVal = current.inversion_meta_ads;
     var invEom = null;
     if (isMtd && invVal != null && periodDays > 0 && totalDays > 0) {
