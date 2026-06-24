@@ -1397,7 +1397,14 @@
       + _plazaMetricRowWithCpaHtml('Preautorizados',     _fmtInt(current.leads_brutos),        _cpaText(inv, current.leads_brutos))
       + _plazaCollapsibleRowHtml('Rechazados',           current.rechazados,                   rechazadosSubRows)
       + _plazaCollapsibleRowHtml('Preaut+',            current.preaut_positivos,            preautFamiliaSubRows, _cpaText(inv, current.preaut_positivos))
-      + _plazaCollapsibleRowHtml('Cancelados',           current.cancelados,                   canceladosSubRows)
+      + (function() {
+          // % cancelados = cancelados / preaut+ por plaza. Mismo patrón que la
+          // fila Cierres: el porcentaje va en la columna CPA (4º arg).
+          var _pcC = Number(current.preaut_positivos) || 0;
+          var _caC = Number(current.cancelados) || 0;
+          var _pctCanc = (_pcC > 0 && _caC > 0) ? _fmtPct(_caC / _pcC) : null;
+          return _plazaCollapsibleRowHtml('Cancelados', current.cancelados, canceladosSubRows, _pctCanc);
+        }())
       + (function() {
           // % cierre = (cierres + firmas) / preaut+ por plaza. Si no hay firmas
           // por plaza, usa solo cierres (decidido en gate PASO 0).
