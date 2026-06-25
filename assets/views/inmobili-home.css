@@ -93,3 +93,74 @@
   margin-top: 4px;
   line-height: 1.35;
 }
+
+/* ── S91 — degradación B_lite explícita en sub-líneas que dependen de
+   campos ausentes en last_month (split paid de citas, fuentes de captación).
+   En vez de hide silencioso, render del placeholder en gris atenuado para
+   que el lector sepa que el dato EXISTE pero no está disponible en mes
+   cerrado. */
+.row1-box__foot-graceful {
+  color: #b0b0b0;
+  font-style: italic;
+}
+
+/* ── S91 — Tintero (5º hero Fila 1).
+   Big number = fresco_30d (vivas ≤30d). Aux inline (label "frescas ≤30d")
+   en gris pequeño junto al número grande para clarificar la unidad.
+   Sub-línea = "+N de +1 mes" (las viejas-con-rastro + punto-ciego). */
+.row1-box__big-aux {
+  font-size: 12px;
+  font-weight: 400;
+  color: #8a8a8a;
+  letter-spacing: 0.2px;
+  margin-left: 8px;
+  vertical-align: middle;
+}
+
+/* ── S91 — Funnel strip: tira compacta debajo de row1-grid en
+   #goals-section. Muestra mensajes → llamadas → citas → captac → cierres
+   con el % de conversión entre cada par disponible. Una sola línea en
+   desktop; en mobile permite wrap. */
+.funnel-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+  padding: 12px 16px;
+  margin-top: 12px;
+  background: #fafafa;
+  border: 1px solid #ececec;
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.funnel-strip__step {
+  white-space: nowrap;
+  color: #1a1a1a;
+}
+.funnel-strip__label {
+  color: #6b6b6b;
+  font-weight: 500;
+}
+.funnel-strip__value {
+  font-weight: 700;
+  color: #1a1a1a;
+}
+.funnel-strip__pct {
+  font-size: 12px;
+  color: #1f5fa8;
+  font-weight: 600;
+  margin-left: 2px;
+}
+.funnel-strip__arrow {
+  color: #b0b0b0;
+  font-weight: 400;
+}
+
+@media (max-width: 767px) {
+  .funnel-strip {
+    font-size: 12px;
+    padding: 10px 12px;
+    gap: 6px;
+  }
+}
