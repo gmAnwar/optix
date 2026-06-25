@@ -36,6 +36,17 @@
   margin-top: 2px;
 }
 
+/* ── S91-selector — Period-selector bar entre header y main.
+   Mirror del patrón EnPagos (donde el selector hereda padding 16px del
+   #home-header): aquí el wrapper le da los mismos 16px horizontales que
+   #home-main, así los chips quedan al MISMO eje X que las cards.
+   Background blanco + border-bottom unifica visualmente con el header. */
+.inmobili-period-bar {
+  background: #fff;
+  border-bottom: 1px solid #e5e5e5;
+  padding: 0 16px 8px;
+}
+
 /* ── Plaza card badges (Inmobili-specific, no existen en EnPagos) ── */
 .plaza-card__badge {
   display: inline-block;
