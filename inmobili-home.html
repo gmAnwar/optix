@@ -23,9 +23,15 @@
       <div id="home-subtitle" class="inmobili-brand-sub">Dashboard Operativo</div>
     </div>
   </div>
-  <nav id="period-selector"></nav>
   <div id="live-pill"></div>
 </header>
+<!-- S91-selector — period-selector vive en su propio bar entre header y
+     main; left edge a 16px (mismo padding-left que #home-main) para
+     alinear con el eje X de las cards. Mirror del patrón EnPagos donde
+     el selector hereda el padding 16px del #home-header. -->
+<div class="inmobili-period-bar">
+  <nav id="period-selector"></nav>
+</div>
 <main id="home-main">
   <section id="goals-section"></section>
   <section id="kpi-strip-section"></section>
