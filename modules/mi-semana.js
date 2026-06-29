@@ -666,10 +666,29 @@ function _msRenderPanelTareas(uid) {
   }
 
   // Set de tarea_ids ya con bloque del usuario (en cualquier semana, simplificación).
+  // Para tareas NO recurrentes mantiene el comportamiento histórico (agnóstico de semana).
   const calCache = _calendarSemanaMemCache[uid] || {};
   const conBloque = new Set();
   Object.values(calCache).forEach(function(b) {
     if (b && b.tarea_id) conBloque.add(b.tarea_id);
+  });
+
+  // S91 (sug #23): set de tarea_ids con bloque en la SEMANA VISIBLE, solo para recurrentes.
+  // Reutiliza el MISMO ancla de semana que el grid (_msGetMondayOfWeek + offset global) →
+  // invariante B (una sola definición de semana) e invariante C (TZ idéntica a la del grid:
+  // límites en hora local del browser, igual que como el grid bucketea inicio_ts). Rango
+  // [lunes 00:00, lunes+7 00:00) = semana Lun→Dom completa (el grid pinta Lun–Vie, pero un
+  // bloque de sáb/dom igual cuenta como "agendado esta semana"). Comparación por instante
+  // absoluto contra esos límites locales → un bloque del domingo 11pm cae en su semana.
+  const _msWeekStart = _msGetMondayOfWeek(_calendarSemanaWeekOffset);
+  const _msWeekEnd = new Date(_msWeekStart);
+  _msWeekEnd.setDate(_msWeekStart.getDate() + 7);
+  const conBloqueEstaSemana = new Set();
+  Object.values(calCache).forEach(function(b) {
+    if (!b || !b.tarea_id) return;
+    const ts = _msToDate(b.inicio_ts);
+    if (!ts) return;
+    if (ts >= _msWeekStart && ts < _msWeekEnd) conBloqueEstaSemana.add(b.tarea_id);
   });
 
   const wsId = currentAgencia || 'optimizads';
@@ -717,10 +736,19 @@ function _msRenderPanelTareas(uid) {
       // S90: filtro de vista 'mios'/'todos' (mismo eje, aplica en panel + cards).
       if (!tareasCliOwnerFilterMatch(o, _ownerFilter, _curUid)) return;
       (o.tareas || []).forEach(function(t) {
-        if (t.completado) return;
-        if (conBloque.has(t.id)) return;
         // PR4 hotfix #2: filter por scope mapped (tarea hereda del objetivo padre).
         const taskScope = scopeByTaskId[t.id] || (o.scope || 'compartido');
+        // S91 (sug #23): las recurrentes son rutina semanal. TODO lo nuevo va gateado aquí.
+        if (taskScope === 'recurrente') {
+          // Reaparece cada semana: se oculta SOLO si ya tiene bloque en la semana visible.
+          // Compleción vía bloque (b.completado, por-semana) → NO miramos t.completado.
+          if (conBloqueEstaSemana.has(t.id)) return;
+        } else {
+          // Comportamiento histórico intacto (invariante A): oculta si completada (flag
+          // global) o si tiene bloque en cualquier semana.
+          if (t.completado) return;
+          if (conBloque.has(t.id)) return;
+        }
         if (!tareasCliScopeMatch({ scope: taskScope }, { userRol: _curRol, canSeeEstrategicos: _canSeeEstrategicos, filter: _filter })) return;
         items.push({ tarea: t, objetivoNombre: o.nombre || '', objetivoId: o.id });
       });
