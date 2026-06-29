@@ -262,7 +262,10 @@
         <option>Chihuahua</option><option>Querétaro</option><option>Bajío</option><option>Torreón</option>
       </select><i class="ti ti-chevron-down caret"></i></div>
     <div class="selectwrap"><span class="gdot"></span>
-      <select class="sel" id="period" onchange="render()"><option>Junio 2026</option><option>Mayo 2026</option><option>Abril 2026</option></select>
+      <select class="sel" id="period" onchange="onPeriodChange()">
+        <option value="mtd">Mes actual (MTD)</option>
+        <option value="last_month">Mes pasado</option>
+      </select>
       <i class="ti ti-chevron-down caret"></i></div>
     <div class="iconbtn" title="Exportar imagen" onclick="toast('Exportando imagen del funnel…')"><i class="ti ti-share-2"></i></div>
     <div class="avatar">AS</div>
@@ -338,13 +341,16 @@ const JUN = {
   "Torreón":    {inv:3904, msgs:159, buro:5, comite:0,cap:0,cierre:1, firma:0,cartera:0, cancel:0}
 };
 function scaleMonth(base,f){const o={};for(const p in base){const d=base[p];o[p]={inv:Math.round(d.inv*f),msgs:Math.round(d.msgs*f),buro:Math.round(d.buro*f),comite:Math.round(d.comite*f),cap:Math.round(d.cap*f),cierre:Math.round(d.cierre*f),firma:Math.round(d.firma*f),cartera:Math.round(d.cartera*f),cancel:Math.round(d.cancel*f)};}return o;}
-const MONTHS={"Junio 2026":JUN,"Mayo 2026":scaleMonth(JUN,0.92),"Abril 2026":scaleMonth(JUN,0.78)};
+// MONTHS keyed por backend period ('mtd' / 'last_month'). Valores iniciales = hardcoded fallback;
+// fetchLiveData() los sobrescribe con datos reales del endpoint /client_data_public.
+const MONTHS={"mtd":JUN,"last_month":scaleMonth(JUN,0.92)};
 const PLAZAS=["Nuevo León","Saltillo","Guadalajara","Chihuahua","Querétaro","Bajío","Torreón"];
 const PCOLORS={"Nuevo León":"#6c5ce7","Saltillo":"#1aa9c9","Guadalajara":"#22a06b","Chihuahua":"#e8902a","Querétaro":"#e2483d","Bajío":"#0e9f9f","Torreón":"#4f5bd5"};
 const CARTERA_SUB={"VoBo":5,"Autorizado":4,"Pendiente documentación":3,"Visita programada":2,"Pendiente aval":2,"Sin respuesta":1};
 const CANCEL_SUB={"Sin especificar":18,"No responde llamadas/mensajes":5,"No consiguió aval":3};
 const CAMPANAS=[["Volanteo · Prospecting",0.40],["Retargeting WhatsApp",0.27],["Lookalike alto valor",0.20],["Remarketing",0.13]];
-const OBJ_CAC=2500, META_CIERRES=30, META_VENTA=2000000, TICKET_REAL=62000;
+// OBJ_CAC, META_*: hardcoded fallback; el fetch live los sobrescribe desde data.goals cuando hay match.
+let OBJ_CAC=2500, META_CIERRES=30, META_VENTA=2000000, TICKET_REAL=62000;
 const CAC_RED=3500;          // umbral de alarma CAC: rojo arriba de esto (objetivo sigue 2500 para el delta)
 const OBJ_PREAUTP_COST=1250;  // objetivo $/preaut+: rojo si lo pasa
 const AVG_BURO=46.6;          // promedio buró global (fila Todas) — umbral de alarma
@@ -1029,7 +1035,7 @@ function salesCard(r,p){const v=ventaOf(r),vp=ventaProyOf(r),meta=metaVentaOf(p)
 }
 function inspOverview(r,p){const cac=r.cierre?r.inv/r.cierre:0;
   return `<div class="insp-head"><div class="insp-eyebrow"><i class="ti ti-aperture"></i> Vista general</div>
-    <div class="insp-title">Journey EnPagos</div><div class="insp-sub">${p} · ${r.preaut} leads · ${document.getElementById('period').value}</div></div>
+    <div class="insp-title">Journey EnPagos</div><div class="insp-sub">${p} · ${r.preaut} leads · ${currentPeriodLabel()}</div></div>
     ${salesCard(r,p)}
     <div class="card"><h4><i class="ti ti-target"></i> Cierres vs objetivo</h4>${stackBarHTML(r.cierre,r.firma,META_CIERRES)}
       ${progressHTML('CAC vs objetivo',Math.min(OBJ_CAC,cac),cac||1,cac<=OBJ_CAC?'var(--green)':'var(--red)',`${r.cierre?money(cac):'—'} / ${money(OBJ_CAC)}`)}</div>
@@ -1255,7 +1261,7 @@ function inspSim(r,real){
   const vReal=ventaOf(real),vSim=ventaOf(r),vSimProy=ventaProyOf(r);
   const invMin=Math.round(real.inv*0.3),invMax=Math.round(real.inv*3);
   return `<div class="insp-head"><div class="insp-eyebrow"><i class="ti ti-adjustments-bolt"></i> Simulador</div>
-    <div class="insp-title">Modelar escenario</div><div class="insp-sub">Ajusta las palancas · base: ${document.getElementById('period').value} real</div></div>
+    <div class="insp-title">Modelar escenario</div><div class="insp-sub">Ajusta las palancas · base: ${currentPeriodLabel()} real</div></div>
     <div class="card"><div class="bigstat"><div class="n violet">${r.cierre}</div><div class="c">cierres ${dC>0?`(+${dC})`:dC<0?`(${dC})`:''} · ${proj} con ${r.firma} firmas</div></div></div>
     <div class="card sales"><h4><i class="ti ti-cash"></i> Venta proyectada</h4>
       <div class="srow"><span class="sk">Venta simulada</span><span class="sv green">${money(vSim)}</span></div>
@@ -1514,7 +1520,154 @@ cv.addEventListener('click',e=>{if(e.target.id==='canvas'||e.target.id==='stage'
 let toastT=null;
 function toast(m){const t=document.getElementById('toast');t.innerHTML=m;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),2400);}
 
-render();window.addEventListener('load',()=>zoomFit());
+// ── Live data fetch ──────────────────────────────────────────────────
+// Conecta la vista Desempeño con el endpoint live de EnPagos (S92).
+// El loop:
+//   1) Al bootstrap, fetch en paralelo los 2 periodos válidos (mtd + last_month).
+//   2) Cada respuesta llena MONTHS[period] con el shape JUN-compatible.
+//   3) Si el fetch falla, se queda el hardcoded inicial como fallback.
+//
+// La vista Operación (VENDEDORES_POR_PLAZA) sigue HARDCODED — su backend
+// (by_status_by_seller) no existe todavía.
+var LIVE_ENDPOINT = 'https://optix-proxy.anwarhsg.workers.dev/client_data_public';
+var LIVE_PERIODS = ['mtd', 'last_month'];
+var __liveCache = {}; // period → raw payload (para refetch lazy si hace falta)
+
+// Frontend plaza name → backend canonical key(s). Bajío suma 3 sub-plazas.
+var PLAZA_LIVE_MAP = {
+  'Nuevo León':  ['NUEVO LEON'],
+  'Saltillo':    ['SALTILLO'],
+  'Guadalajara': ['GUADALAJARA'],
+  'Chihuahua':   ['CHIHUAHUA'],
+  'Querétaro':   ['QUERETARO'],
+  'Bajío':       ['BAJIO-AGUASCALIENTES','BAJIO-GUANAJUATO','BAJIO-SLP'],
+  'Torreón':     ['TORREON']
+};
+
+function currentPeriodLabel() {
+  var sel = document.getElementById('period');
+  if (!sel) return '';
+  var opt = sel.options[sel.selectedIndex];
+  return opt ? opt.text : '';
+}
+
+function fetchLiveData(period) {
+  var url = LIVE_ENDPOINT + '?client=enpagos&view=home&period=' + period;
+  return fetch(url, { headers: { 'Origin': 'https://app.optix.com.mx' } })
+    .then(function(r){ if(!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
+    .then(function(d){ __liveCache[period] = d; return d; });
+}
+
+// Mapea un payload de /client_data_public al shape JUN-compatible y lo escribe
+// en MONTHS[period]. Sobrescribe in-place — render() leerá los nuevos valores.
+function applyLiveData(period, data) {
+  if (!data) return;
+  var tot = data.totals || {};
+  var bs = tot.by_status || {};
+  var bsg = tot.by_status_groups || {};
+  var cur = tot.current || {};
+  var goals = data.goals || {};
+
+  // Fila "Todas" — directo de totals
+  var totalsRow = {
+    inv:     Math.round(cur.inversion_atribuida || 0),
+    msgs:    cur.mensajes || 0,
+    buro:    bs['RECHAZADO POR BURO'] || 0,
+    comite:  bs['RECHAZADO POR COMITE'] || 0,
+    cap:     bs['RECHAZADO POR CAPACIDAD'] || 0,
+    cierre:  bs['FIRMADO'] || 0,
+    firma:   bs['FIRMA PROGRAMADA'] || 0,
+    cartera: bsg.cartera_abierta_total || 0,
+    cancel:  bs['CANCELADO'] || 0
+  };
+
+  var bucket = { 'Todas': totalsRow };
+  var byCity = data.by_city || {};
+  for (var frontendName in PLAZA_LIVE_MAP) {
+    if (!Object.prototype.hasOwnProperty.call(PLAZA_LIVE_MAP, frontendName)) continue;
+    var backendKeys = PLAZA_LIVE_MAP[frontendName];
+    var agg = {inv:0, msgs:0, buro:0, comite:0, cap:0, cierre:0, firma:0, cartera:0, cancel:0};
+    for (var i = 0; i < backendKeys.length; i++) {
+      var p = byCity[backendKeys[i]];
+      if (!p) continue;
+      var pcur = p.current || {};
+      var pbs = p.by_status || {};
+      var pbsg = p.by_status_groups || {};
+      agg.inv     += Math.round(pcur.inversion_atribuida || 0);
+      agg.buro    += pbs['RECHAZADO POR BURO'] || 0;
+      agg.comite  += pbs['RECHAZADO POR COMITE'] || 0;
+      agg.cap     += pbs['RECHAZADO POR CAPACIDAD'] || 0;
+      agg.cierre  += pbs['FIRMADO'] || 0;
+      agg.firma   += pbs['FIRMA PROGRAMADA'] || 0;
+      agg.cartera += pbsg.cartera_abierta_total || 0;
+      agg.cancel  += pbs['CANCELADO'] || 0;
+    }
+    // msgs no viene per plaza desde el endpoint (es account-level). Split proporcional
+    // al share de inversión de la plaza vs total (visualización aproximada).
+    if (totalsRow.inv > 0 && totalsRow.msgs > 0 && agg.inv > 0) {
+      agg.msgs = Math.round(totalsRow.msgs * (agg.inv / totalsRow.inv));
+    }
+    bucket[frontendName] = agg;
+  }
+
+  MONTHS[period] = bucket;
+
+  // Goals → override de constantes META_*
+  if (goals.venta_meta && typeof goals.venta_meta.valor === 'number') {
+    META_VENTA = goals.venta_meta.valor;
+  }
+  if (goals.cierres_meta && typeof goals.cierres_meta.valor === 'number') {
+    META_CIERRES = goals.cierres_meta.valor;
+  }
+  if (goals.cac_objetivo && typeof goals.cac_objetivo.valor === 'number') {
+    OBJ_CAC = goals.cac_objetivo.valor;
+  }
+  // Ticket promedio real desde el endpoint (no hardcodeado por el agente).
+  if (cur.ticket_promedio && cur.ticket_promedio > 0) {
+    TICKET_REAL = cur.ticket_promedio;
+  }
+
+  // Live-pill freshness
+  updateLivePill(data);
+}
+
+function updateLivePill(data) {
+  var pill = document.getElementById('live-pill');
+  if (!pill || !data || !data.meta || !data.meta.generated_at) return;
+  var genMs = Date.parse(data.meta.generated_at);
+  if (isNaN(genMs)) return;
+  var diffSec = Math.max(0, Math.round((Date.now() - genMs) / 1000));
+  if (diffSec < 60) pill.textContent = 'Actualizado hace unos segundos';
+  else if (diffSec < 3600) pill.textContent = 'Actualizado hace ' + Math.floor(diffSec/60) + 'm';
+  else pill.textContent = 'Actualizado hace ' + Math.floor(diffSec/3600) + 'h';
+}
+
+function onPeriodChange() {
+  var sel = document.getElementById('period');
+  var period = sel ? sel.value : 'mtd';
+  // Si ya está cacheado, render inmediato; si no, fetch + render.
+  if (__liveCache[period]) {
+    applyLiveData(period, __liveCache[period]);
+    render();
+  } else {
+    fetchLiveData(period)
+      .then(function(d){ applyLiveData(period, d); render(); })
+      .catch(function(e){ console.warn('[flowmap] fetch ' + period + ' falló, usando hardcoded:', e); render(); });
+  }
+}
+
+// Bootstrap: fetch ambos periodos en paralelo, render con datos live (o fallback).
+Promise.all(LIVE_PERIODS.map(function(p){
+  return fetchLiveData(p).then(function(d){ applyLiveData(p, d); return p; })
+    .catch(function(e){ console.warn('[flowmap] fetch ' + p + ' falló, hardcoded para ese periodo:', e); return null; });
+})).then(function(){
+  render();
+  zoomFit();
+});
+
+// Expose new handlers para Optix IIFE compat (mismo patrón S92).
+window.onPeriodChange = onPeriodChange;
+window.currentPeriodLabel = currentPeriodLabel;
 
 // ── Expose handlers to window scope (Optix IIFE compatibility) ──────
 window.closeComment = closeComment;
