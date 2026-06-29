@@ -26,7 +26,7 @@ import {
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
 import { auth, db, WORKSPACE } from './core.js';
-import { tareasCliAddObjetivo, tareasCliAddTarea, tareasCliSave, tareasCliOwnerVisible, tareasCliIsManager, tareasCliNewOwnerFields } from './tareas.js';
+import { tareasCliAddObjetivo, tareasCliAddTarea, tareasCliSave, tareasCliOwnerVisible, tareasCliIsManager, tareasCliNewOwnerFields, tareasCliAdoptPayload } from './tareas.js';
 import { escapeHtml } from './utils.js';
 
 // ─────────────────────────────────────────
@@ -34,8 +34,11 @@ import { escapeHtml } from './utils.js';
 // ─────────────────────────────────────────
 
 let __inboxInitialized = false;
-let _inboxUnsub = null;        // onSnapshot unsub fn
-let _inboxItems = [];          // ordenado por created_at desc (cache local del snapshot)
+let _inboxUnsub = null;        // onSnapshot unsub fn — items propios (owner_uid==uid)
+let _inboxRoleUnsub = null;    // S91 handoff: onSnapshot items dirigidos al rol manager (to_role)
+let _inboxItemsOwn = [];       // snapshot listener 1 (propios)
+let _inboxItemsRole = [];      // snapshot listener 2 (to_role:'manager', solo si soy manager)
+let _inboxItems = [];          // merge deduplicado de ambos, ordenado por created_at desc
 let _modalOpen = null;         // itemId del modal abierto, null si cerrado
 const _LS_KEY_PREFIX = 'inbox_route_last_';
 const _MAX_TEXT = 500;
@@ -124,6 +127,32 @@ async function inboxAdd(text) {
   return id;
 }
 
+// S91 Frente 1 (handoff): crea un item de Inbox dirigido al ROL manager (no a un uid).
+// owner_uid:null + to_role:'manager' → solo lo ve un usuario cuyo rol resuelto sea manager
+// (ver _ensureRoleSubscription). Lleva el payload de la tarea + subtareas y el origen.
+// Lo invoca tareas.js vía window.__inboxCreateHandoff (reverse coupling, sin import circular).
+export async function inboxCreateHandoff(opts) {
+  opts = opts || {};
+  const sender = auth && auth.currentUser;
+  if (!sender || !sender.uid) throw new Error('No auth');
+  const id = _genInboxId();
+  await setDoc(_inboxDocRef(id), {
+    id: id,
+    text: _clampText(opts.text || '(tarea)'),
+    owner_uid: null,             // NO dirigido a una persona
+    to_role: 'manager',          // dirigido al rol manager
+    status: 'pending',
+    payload: opts.payload || null,
+    passed_by_uid: opts.passed_by_uid || null,
+    passed_by_label: opts.passed_by_label || 'M',
+    created_at: serverTimestamp(),
+    updated_at: serverTimestamp(),
+    routed_at: null,
+    routed_to: null
+  });
+  return id;
+}
+
 async function inboxEditText(itemId, newText) {
   const t = _clampText(newText).trim();
   if (!t) return;
@@ -173,27 +202,31 @@ async function inboxRoute(itemId, params) {
     finalObjetivoNameNew = item.text;
   } else {
     // type === 'tarea'
+    // S91 handoff: si el item trae payload (tarea + subtareas empaquetadas), se adopta
+    // deserializando con ids nuevos (tareasCliAdoptPayload). Si no, comportamiento histórico
+    // (item de texto → una tarea raíz). El payload es opcional → cero regresión en texto.
+    const _hasPayload = !!(item.payload && Array.isArray(item.payload.tareas) && item.payload.tareas.length);
     if (params.objetivo_id) {
-      // Objetivo existente → solo agregar tarea raíz nivel 2.
-      await tareasCliAddTarea(clientId, params.objetivo_id, item.text);
+      // Objetivo existente.
+      if (_hasPayload) {
+        await tareasCliAdoptPayload(clientId, params.objetivo_id, item.payload);
+      } else {
+        await tareasCliAddTarea(clientId, params.objetivo_id, item.text);
+      }
       finalObjetivoId = params.objetivo_id;
     } else if (params.objetivo_name_new) {
-      // D4 + D-H.1: crear objetivo + tarea atómico via mutator combinado.
-      // IDs generados FUERA del mutator (closure capture). Early-return
-      // si retry re-ejecuta encuentra objetivo ya pushed.
+      // D4 + D-H.1: crear objetivo (idempotente). IDs generados FUERA del mutator.
       const objId = _genObjId();
       const tareaId = _genTareaId();
       const nowIso = new Date().toISOString();
       const nuevoNombre = params.objetivo_name_new;
       const tareaTexto = item.text;
-      // S90 (SPEC F0BC6QGA7L3): este path NO pasa por tareasCliAddObjetivo, así que
-      // estampa dueño aquí también (helper single-source). Sin checkbox en el Inbox →
-      // manager nace privado (default SPEC), member compartido. Toggle posterior en card.
+      // S90: estampa dueño aquí también (no pasa por tareasCliAddObjetivo). Manager → privado.
       const _owner = tareasCliNewOwnerFields(undefined);
       await tareasCliSave(clientId, function(d) {
         if (!Array.isArray(d.objetivos)) d.objetivos = [];
         if (d.objetivos.find(function(o) { return o.id === objId; })) return d; // idempotente
-        d.objetivos.push({
+        const nuevoObj = {
           id: objId,
           nombre: nuevoNombre,
           collapsed: false,
@@ -201,7 +234,12 @@ async function inboxRoute(itemId, params) {
           owner_uid: _owner.owner_uid,
           owner_label: _owner.owner_label,
           shared: _owner.shared,
-          tareas: [{
+          tareas: []
+        };
+        // Con payload, el objetivo nace vacío y se llena vía tareasCliAdoptPayload abajo
+        // (preserva árbol padre-subtareas). Sin payload, una tarea de texto inline.
+        if (!_hasPayload) {
+          nuevoObj.tareas.push({
             id: tareaId,
             texto: tareaTexto,
             completado: false,
@@ -212,10 +250,14 @@ async function inboxRoute(itemId, params) {
             orden: 0,
             createdAt: nowIso,
             updatedAt: nowIso
-          }]
-        });
+          });
+        }
+        d.objetivos.push(nuevoObj);
         return d;
       });
+      if (_hasPayload) {
+        await tareasCliAdoptPayload(clientId, objId, item.payload);
+      }
       finalObjetivoId = objId;
       finalObjetivoNameNew = nuevoNombre;
     } else {
@@ -251,22 +293,65 @@ async function inboxRoute(itemId, params) {
 // LISTENER FIRESTORE — guard al nivel del unsub (lección S74 J47)
 // ─────────────────────────────────────────
 
-function _subscribe() {
-  if (_inboxUnsub) return; // multi-init blindaje
-  const user = auth && auth.currentUser;
-  if (!user || !user.uid) return;
-  const q = query(
+// Merge deduplicado de los dos listeners (propios + rol), orden created_at desc.
+// Los items de handoff tienen owner_uid:null → nunca aparecen en el listener propio;
+// los de texto no tienen to_role → nunca en el de rol. El dedupe por id es defensivo.
+function _recombineInbox() {
+  const byId = {};
+  _inboxItemsOwn.forEach(function(i) { if (i && i.id) byId[i.id] = i; });
+  _inboxItemsRole.forEach(function(i) { if (i && i.id) byId[i.id] = i; });
+  _inboxItems = Object.keys(byId).map(function(k) { return byId[k]; }).sort(function(a, b) {
+    const sa = (a.created_at && a.created_at.seconds) || 0;
+    const sb = (b.created_at && b.created_at.seconds) || 0;
+    return sb - sa;
+  });
+}
+
+// INVARIANTE CRÍTICO de privacidad: solo un usuario cuyo rol resuelto sea manager
+// (tareasCliIsManager — derivado de currentUserProfile.rol, asignado por email en login)
+// crea el listener de to_role:'manager'. Un no-manager (Mario) NUNCA lo consulta, así que
+// nunca ve items de handoff — ni siquiera los que él mismo originó (van con owner_uid:null,
+// que tampoco matchea su listener propio). Idempotente: se llama desde _subscribe y
+// renderInbox para enganchar aunque el perfil cargue después del init.
+function _ensureRoleSubscription() {
+  if (_inboxRoleUnsub) return;
+  if (!tareasCliIsManager()) return;
+  const qRole = query(
     _inboxColRef(),
-    where('owner_uid', '==', user.uid),
+    where('to_role', '==', 'manager'),
     where('status', '==', 'pending'),
     orderBy('created_at', 'desc')
   );
-  _inboxUnsub = onSnapshot(q, function(snap) {
-    _inboxItems = snap.docs.map(function(d) { return d.data(); });
+  _inboxRoleUnsub = onSnapshot(qRole, function(snap) {
+    _inboxItemsRole = snap.docs.map(function(d) { return d.data(); });
+    _recombineInbox();
     renderInbox();
   }, function(err) {
-    console.error('[inbox.js] onSnapshot error:', err);
+    console.error('[inbox.js] onSnapshot(role) error:', err);
   });
+}
+
+function _subscribe() {
+  const user = auth && auth.currentUser;
+  if (!user || !user.uid) return;
+  // Listener 1: items propios (todos los usuarios) — comportamiento histórico intacto.
+  if (!_inboxUnsub) {
+    const qOwn = query(
+      _inboxColRef(),
+      where('owner_uid', '==', user.uid),
+      where('status', '==', 'pending'),
+      orderBy('created_at', 'desc')
+    );
+    _inboxUnsub = onSnapshot(qOwn, function(snap) {
+      _inboxItemsOwn = snap.docs.map(function(d) { return d.data(); });
+      _recombineInbox();
+      renderInbox();
+    }, function(err) {
+      console.error('[inbox.js] onSnapshot error:', err);
+    });
+  }
+  // Listener 2: items del rol manager — SOLO si soy manager.
+  _ensureRoleSubscription();
 }
 
 // ─────────────────────────────────────────
@@ -281,15 +366,23 @@ function renderInbox() {
     container.innerHTML = '<div style="padding:14px;color:var(--text3);font-size:12px;">Sesión no iniciada.</div>';
     return;
   }
+  // S91: engancha el listener de rol manager si el perfil ya cargó (idempotente).
+  _ensureRoleSubscription();
 
   const itemsHtml = _inboxItems.length === 0
     ? '<div style="padding:18px 14px;text-align:center;color:var(--text3);font-size:11px;font-family:\'DM Mono\',monospace;line-height:1.4;">Sin pendientes.<br>Captura algo arriba ↑</div>'
     : _inboxItems.map(function(item) {
         const idSafe = escapeHtml(item.id);
         const textSafe = escapeHtml(item.text || '');
+        // S91 handoff: badge de origen "📤 M" + nº de subtareas si vino empaquetada.
+        const _subCount = (item.payload && Array.isArray(item.payload.tareas)) ? (item.payload.tareas.length - 1) : 0;
+        const _passedBadge = item.passed_by_label
+          ? '<span title="Pasada por ' + escapeHtml(item.passed_by_label) + '" style="font-family:\'DM Mono\',monospace;font-size:9px;background:rgba(0,229,160,0.15);color:var(--accent);border-radius:4px;padding:1px 6px;flex-shrink:0;">📤 ' + escapeHtml(item.passed_by_label) + (_subCount > 0 ? ' · +' + _subCount + ' sub' : '') + '</span>'
+          : '';
         return ''
           + '<div data-inbox-id="' + idSafe + '" '
           +   'style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:8px;display:flex;flex-direction:column;gap:8px;">'
+          +   (_passedBadge ? '<div style="display:flex;">' + _passedBadge + '</div>' : '')
           +   '<div style="font-size:13px;color:var(--text);line-height:1.4;word-wrap:break-word;white-space:pre-wrap;">' + textSafe + '</div>'
           +   '<div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">'
           +     '<button onclick="window.__inboxOpenRouteModal(\'' + idSafe + '\')" '
@@ -612,6 +705,8 @@ export function init() {
   // con tareas.js renderTareasCli (que llama window.renderInbox tras innerHTML reset).
   window.renderInbox = renderInbox;
   window.__inboxAdd = inboxAdd;
+  // S91 handoff: tareas.js (botón "pasar a Anwar") crea el item vía esta función.
+  window.__inboxCreateHandoff = inboxCreateHandoff;
   window.__inboxOpenRouteModal = _showRouteModal;
   window.__inboxEditPrompt = _handleEditPrompt;
   window.__inboxConfirmDelete = _handleConfirmDelete;
