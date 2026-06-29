@@ -140,7 +140,8 @@
           ['renderPreautFamilia',   function () { renderPreautFamilia(data); }],
           ['renderPlazaCards',      function () { renderPlazaCards(data); }],
           ['renderVolanteoFootnote',function () { renderVolanteoFootnote(data); }],
-          ['renderTodayDetailFeed', function () { renderTodayDetailFeed(data); }]
+          ['renderTodayDetailFeed', function () { renderTodayDetailFeed(data); }],
+          ['renderLivePill',        function () { renderLivePill(data); }]
         ];
         for (var i = 0; i < sections.length; i++) {
           try {
@@ -1670,6 +1671,32 @@
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#39;');
+  }
+
+  // ── Live pill ("Actualizado hace Xm") ────────────────────────────────
+  // Mirrors enpagos-daily.js:updateFreshness — reads data.meta.generated_at,
+  // writes to #live-pill in enpagos-home.html's <header id="home-header">.
+  // Stale threshold: >=60 min paints amber so pipeline lag is visible.
+  function renderLivePill(data) {
+    var slot = document.getElementById('live-pill');
+    if (!slot) return;
+    var iso = data && data.meta && data.meta.generated_at;
+    if (!iso) { slot.textContent = ''; slot.removeAttribute('data-stale'); return; }
+    var genMs = Date.parse(iso);
+    if (isNaN(genMs)) { slot.textContent = ''; slot.removeAttribute('data-stale'); return; }
+    var diffSec = Math.max(0, Math.round((Date.now() - genMs) / 1000));
+    var text, stale = false;
+    if (diffSec < 60) {
+      text = 'Actualizado hace unos segundos';
+    } else if (diffSec < 3600) {
+      text = 'Actualizado hace ' + Math.floor(diffSec / 60) + 'm';
+    } else {
+      var hours = Math.floor(diffSec / 3600);
+      text = 'Actualizado hace ' + hours + 'h (revisar pipeline)';
+      stale = true;
+    }
+    slot.textContent = text;
+    if (stale) { slot.setAttribute('data-stale', ''); } else { slot.removeAttribute('data-stale'); }
   }
 
   function init() {
