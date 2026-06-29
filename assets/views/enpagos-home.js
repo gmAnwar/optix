@@ -52,34 +52,66 @@
     return DEFAULT_PERIOD;
   }
 
+  // S92 — period dropdown (estilo ads-manager). Reemplaza los chips horizontales.
+  // El markup vive estático en enpagos-home.html (#period-dd + #period-menu);
+  // aquí solo wireamos open/close + sync del label + click handlers.
+  var __periodDropdownWired = false;
+
   function renderPeriodSelector(active) {
-    var nav = document.getElementById('period-selector');
-    if (!nav) return;
-    var html = '';
-    for (var i = 0; i < HOME_VALID_PERIODS.length; i++) {
-      var p = HOME_VALID_PERIODS[i];
-      var cls = 'period-chip' + (p === active ? ' active' : '');
-      html += '<button type="button" class="' + cls + '" data-period="' + p + '">' +
-              PERIOD_LABELS[p] + '</button>';
+    var dd = document.getElementById('period-dd');
+    var menu = document.getElementById('period-menu');
+    var label = document.getElementById('period-label');
+    if (!dd || !menu || !label) return;
+
+    // Sync label + active opt cada vez que cambia el periodo (incl. via deeplink).
+    var opts = menu.querySelectorAll('.period-opt');
+    for (var i = 0; i < opts.length; i++) {
+      var p = opts[i].getAttribute('data-period');
+      if (p === active) {
+        label.textContent = opts[i].textContent.trim();
+        opts[i].classList.add('active');
+      } else {
+        opts[i].classList.remove('active');
+      }
     }
-    nav.innerHTML = html;
-    nav.classList.add('loading');
-    var chips = nav.querySelectorAll('.period-chip');
-    for (var j = 0; j < chips.length; j++) {
-      chips[j].addEventListener('click', onChipClick);
-    }
+
+    // Solo wirear listeners una vez (dropdown estático en HTML).
+    if (__periodDropdownWired) return;
+    __periodDropdownWired = true;
+
+    function closeMenu() { menu.hidden = true; dd.classList.remove('open'); }
+
+    dd.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var willOpen = menu.hidden;
+      menu.hidden = !willOpen;
+      dd.classList.toggle('open', willOpen);
+    });
+
+    menu.addEventListener('click', function (e) {
+      var opt = e.target.closest('.period-opt');
+      if (!opt) return;
+      e.stopPropagation();
+      closeMenu();
+      var period = opt.getAttribute('data-period');
+      switchPeriod(period);
+    });
+
+    document.addEventListener('click', function (e) {
+      if (menu.hidden) return;
+      if (!dd.contains(e.target) && !menu.contains(e.target)) closeMenu();
+    });
+
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && !menu.hidden) closeMenu();
+    });
   }
 
   function setSelectorLoading(loading) {
-    var nav = document.getElementById('period-selector');
-    if (!nav) return;
-    if (loading) nav.classList.add('loading');
-    else nav.classList.remove('loading');
-  }
-
-  function onChipClick(evt) {
-    var period = evt.currentTarget.getAttribute('data-period');
-    switchPeriod(period);
+    var dd = document.getElementById('period-dd');
+    if (!dd) return;
+    if (loading) dd.classList.add('loading');
+    else dd.classList.remove('loading');
   }
 
   function switchPeriod(newPeriod) {

@@ -85,6 +85,61 @@ body {
 
 #live-pill:empty { display: none; }
 
+/* S92 — period dropdown estilo ads-manager (sin Tabler Icons, inline SVG) */
+.period-wrap { position: relative; }
+
+.period-dd {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #fff;
+  border: 0.5px solid #c8ccd1;
+  border-radius: 8px;
+  padding: 7px 12px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #1c1e21;
+  cursor: pointer;
+  user-select: none;
+  transition: border-color 0.12s;
+}
+
+.period-dd:hover { border-color: #1877f2; }
+.period-dd svg { flex-shrink: 0; color: #65676b; }
+.period-dd svg:last-child { transition: transform 0.12s; }
+.period-dd.open svg:last-child { transform: rotate(180deg); }
+
+.period-menu {
+  position: absolute;
+  left: 0;
+  top: 36px;
+  min-width: 200px;
+  background: #fff;
+  border: 0.5px solid #c8ccd1;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  padding: 4px;
+  z-index: 20;
+}
+
+.period-menu[hidden] { display: none; }
+
+.period-opt {
+  padding: 8px 12px;
+  font-size: 12.5px;
+  cursor: pointer;
+  border-radius: 6px;
+  color: #1c1e21;
+}
+
+.period-opt:hover { background: #f0f2f5; }
+
+.period-opt.active {
+  background: #e7f0fe;
+  color: #1877f2;
+  font-weight: 500;
+}
+
 #period-selector {
   display: flex;
   gap: 8px;
