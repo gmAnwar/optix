@@ -236,6 +236,12 @@ async function inboxRoute(itemId, params) {
           shared: _owner.shared,
           tareas: []
         };
+        // S91 (Opción 1): si el handoff trae scope de origen, el objetivo NUEVO nace con él
+        // (la tarea adoptada se ve con su etiqueta al instante). Ausente → sin scope (default
+        // 'compartido' vía readers). Scope sigue siendo propiedad del objetivo, no de la tarea.
+        if (_hasPayload && item.payload.scope) {
+          nuevoObj.scope = item.payload.scope;
+        }
         // Con payload, el objetivo nace vacío y se llena vía tareasCliAdoptPayload abajo
         // (preserva árbol padre-subtareas). Sin payload, una tarea de texto inline.
         if (!_hasPayload) {

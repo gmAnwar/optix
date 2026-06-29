@@ -2686,7 +2686,10 @@ function _tareasCliPackTarea(objetivo, tareaId) {
   }
   const entries = [ser(parent, 'p', null)];
   subs.forEach(function(s, i) { entries.push(ser(s, 's' + i, 'p')); });
-  return { v: 1, tareas: entries, parentTexto: parent.texto || '' };
+  // S91 (Opción 1): el scope vive en el OBJETIVO, no en la tarea. Guardamos el scope de
+  // ORIGEN (del objetivo de Mario) en el payload — para trazabilidad y para que, al adoptar
+  // en un objetivo NUEVO, ese objetivo nazca con él. NO es un scope por-tarea.
+  return { v: 1, tareas: entries, parentTexto: parent.texto || '', scope: (objetivo && objetivo.scope) || null };
 }
 
 // ENVÍO: Mario pasa una tarea a Anwar. (1) empaqueta, (2) crea item de Inbox dirigido
