@@ -53,8 +53,11 @@
   }
 
   // S92 — period dropdown (estilo ads-manager). Reemplaza los chips horizontales.
-  // El markup vive estático en enpagos-home.html (#period-dd + #period-menu);
-  // aquí solo wireamos open/close + sync del label + click handlers.
+  // S93 (regresión 3a76790) — las .period-opt ahora se GENERAN desde
+  // HOME_VALID_PERIODS + PERIOD_LABELS (antes solo se sincronizaban contra
+  // markup estático que tenía 2 opciones hardcodeadas). Esto vuelve a
+  // exponer los 6 periodos que el motor siempre soportó.
+  var __periodMenuBuilt = false;
   var __periodDropdownWired = false;
 
   function renderPeriodSelector(active) {
@@ -62,6 +65,17 @@
     var menu = document.getElementById('period-menu');
     var label = document.getElementById('period-label');
     if (!dd || !menu || !label) return;
+
+    // Construir innerHTML del menú desde el array UNA SOLA VEZ.
+    if (!__periodMenuBuilt) {
+      var menuHTML = '';
+      for (var k = 0; k < HOME_VALID_PERIODS.length; k++) {
+        var pp = HOME_VALID_PERIODS[k];
+        menuHTML += '<div class="period-opt" data-period="' + pp + '" role="option">' + PERIOD_LABELS[pp] + '</div>';
+      }
+      menu.innerHTML = menuHTML;
+      __periodMenuBuilt = true;
+    }
 
     // Sync label + active opt cada vez que cambia el periodo (incl. via deeplink).
     var opts = menu.querySelectorAll('.period-opt');
@@ -75,7 +89,8 @@
       }
     }
 
-    // Solo wirear listeners una vez (dropdown estático en HTML).
+    // Solo wirear listeners una vez (delegación en #period-menu sirve para
+    // cualquier número de .period-opt, así que sigue funcionando con los 6).
     if (__periodDropdownWired) return;
     __periodDropdownWired = true;
 
