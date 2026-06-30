@@ -15,6 +15,9 @@
 <link rel="stylesheet" href="assets/views/enpagos-daily.css">
 
 <style>
+  /* S93 — sidebar collapsable width. Override via JS .sidebar-mock.collapsed → 48px. */
+  :root { --sidebar-w: 240px; }
+
   body { margin: 0; padding: 0; }
   .app-redesign { min-height: 100vh; }
 
@@ -22,10 +25,12 @@
   .app-redesign .sidebar-mock {
     position: fixed;
     left: 0; top: 0;
-    width: 240px; height: 100vh;
+    width: var(--sidebar-w); height: 100vh;
     background: var(--color-surface);
     border-right: 1px solid var(--color-border);
     padding: var(--space-5) var(--space-4);
+    transition: width 0.2s ease;
+    overflow: hidden;
     display: flex;
     flex-direction: column;
     gap: var(--space-3);
@@ -111,9 +116,30 @@
 
   /* --- Main area --- */
   .page-main {
-    margin-left: 240px;
+    margin-left: var(--sidebar-w);
     padding: var(--space-5) var(--space-6);
+    transition: margin-left 0.2s ease;
   }
+
+  /* S93 — sidebar collapsed state + toggle button */
+  .sidebar-mock.collapsed { width: 48px; }
+  .sidebar-mock__toggle {
+    position: absolute; right: -11px; top: 18px;
+    width: 22px; height: 22px; border-radius: 50%;
+    background: var(--color-surface); border: 1px solid var(--color-border);
+    color: var(--color-text-secondary); cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; line-height: 1; z-index: 101;
+    transition: transform 0.2s ease;
+  }
+  .sidebar-mock.collapsed .sidebar-mock__toggle { transform: scaleX(-1); }
+  .sidebar-mock.collapsed .sidebar-mock__view span { display: none; }
+  .sidebar-mock.collapsed .sidebar-mock__view { justify-content: center; padding-left: 0; }
+  .sidebar-mock.collapsed .sidebar-mock__switcher,
+  .sidebar-mock.collapsed .sidebar-mock__brand,
+  .sidebar-mock.collapsed .sidebar-mock__user,
+  .sidebar-mock.collapsed .sidebar-mock__footer,
+  .sidebar-mock.collapsed .sidebar-mock__sep { display: none; }
   .page-header {
     display: flex;
     align-items: center;
@@ -153,6 +179,7 @@
 <div class="app-redesign app-redesign--daily">
 
   <aside class="sidebar-mock" aria-label="Navegación">
+    <button type="button" class="sidebar-mock__toggle" aria-label="Colapsar menú">◀</button>
     <div class="sidebar-mock__brand">Optix</div>
     <button type="button" class="sidebar-mock__switcher" aria-haspopup="listbox" aria-expanded="false">
       <span>EnPagos</span>
@@ -163,10 +190,6 @@
       <a class="sidebar-mock__view" href="/enpagos-home.html">
         <svg class="sidebar-mock__view-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
         <span>Home</span>
-      </a>
-      <a class="sidebar-mock__view" href="/enpagos-overview.html">
-        <svg class="sidebar-mock__view-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-        <span>Overview</span>
       </a>
       <a class="sidebar-mock__view sidebar-mock__view--active" aria-current="page">
         <svg class="sidebar-mock__view-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
@@ -221,6 +244,25 @@
   document.addEventListener('DOMContentLoaded', function () {
     window.EnPagosDaily.mount(document.getElementById('enpagos-daily-root'));
   });
+</script>
+
+<script>
+/* OPTIX-S93-SIDEBAR-TOGGLE */
+(function () {
+  var KEY = 'optix_sidebar_collapsed';
+  var aside = document.querySelector('.sidebar-mock');
+  if (!aside) return;
+  function setWidth(collapsed) {
+    document.documentElement.style.setProperty('--sidebar-w', collapsed ? '48px' : '240px');
+  }
+  if (localStorage.getItem(KEY) === '1') { aside.classList.add('collapsed'); setWidth(true); }
+  var btn = aside.querySelector('.sidebar-mock__toggle');
+  if (btn) btn.addEventListener('click', function () {
+    var collapsed = aside.classList.toggle('collapsed');
+    setWidth(collapsed);
+    localStorage.setItem(KEY, collapsed ? '1' : '0');
+  });
+})();
 </script>
 
 </body>
