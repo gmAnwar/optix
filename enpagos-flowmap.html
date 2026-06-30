@@ -331,6 +331,13 @@
   .sidebar-mock__user { font-size: var(--font-size-sm); color: var(--color-text-secondary); font-weight: var(--font-weight-medium); }
   .sidebar-mock__signout { font-size: var(--font-size-xs); color: var(--color-text-tertiary); cursor: pointer; }
 
+  /* S93 — override del `.app-redesign a { color: var(--color-accent) }` de base.css.
+     Sin estos overrides los <a> del sidebar saldrían en color acento por la
+     mayor especificidad de la regla genérica de base.css (0,1,1 > 0,1,0). */
+  .app-redesign .sidebar-mock__view { color: var(--color-text-secondary); }
+  .app-redesign .sidebar-mock__view--active { color: var(--color-text-primary); }
+  .app-redesign .sidebar-mock__view--soon { color: var(--color-text-secondary); }
+
   /* FlowMap content shifted right to make room for fixed sidebar */
   .flowmap-shell { margin-left: var(--sidebar-w); height: 100vh; overflow: hidden; }
 
@@ -355,7 +362,7 @@
   .sidebar-mock.collapsed .sidebar-mock__sep { display: none; }
 </style>
 
-<aside class="sidebar-mock" aria-label="Navegación">
+<aside class="app-redesign sidebar-mock" aria-label="Navegación">
   <button type="button" class="sidebar-mock__toggle" aria-label="Colapsar menú">◀</button>
   <div class="sidebar-mock__brand">Optix</div>
   <button type="button" class="sidebar-mock__switcher" aria-haspopup="listbox" aria-expanded="false">
