@@ -339,7 +339,8 @@
   .app-redesign .sidebar-mock__view--soon { color: var(--color-text-secondary); }
 
   .app-redesign .sidebar-mock__subviews { display: flex; flex-direction: column; gap: 2px; margin: 2px 0 2px var(--space-5); padding-left: var(--space-2); border-left: 1px solid var(--color-border); }
-  .app-redesign .sidebar-mock__subview { display: block; width: 100%; text-align: left; background: none; border: none; cursor: pointer; font-family: inherit; font-size: var(--font-size-xs); color: var(--color-text-tertiary); padding: var(--space-1) var(--space-3); border-radius: var(--radius-sm); transition: background var(--transition-fast), color var(--transition-fast); }
+  .app-redesign .sidebar-mock__subview { display: flex; align-items: center; gap: var(--space-2); width: 100%; text-align: left; background: none; border: none; cursor: pointer; font-family: inherit; font-size: var(--font-size-xs); color: var(--color-text-tertiary); padding: var(--space-1) var(--space-3); border-radius: var(--radius-sm); transition: background var(--transition-fast), color var(--transition-fast); }
+  .app-redesign .sidebar-mock__subview .ti { font-size: 14px; flex-shrink: 0; }
   .app-redesign .sidebar-mock__subview:hover { background: var(--color-surface-raised); color: var(--color-text-primary); }
   .app-redesign .sidebar-mock__subview--active { color: var(--color-text-primary); background: var(--color-surface-raised); font-weight: var(--font-weight-medium); }
   .sidebar-mock.collapsed .sidebar-mock__subviews { display: none; }
@@ -387,10 +388,10 @@
       <span>FlowMap</span>
     </a>
     <div class="sidebar-mock__subviews" id="flowmap-subviews">
-      <button type="button" class="sidebar-mock__subview sidebar-mock__subview--active" data-view="desempeno" onclick="setView('desempeno')">Desempeño</button>
-      <button type="button" class="sidebar-mock__subview" data-view="operacion" onclick="setView('operacion')">Operación</button>
-      <button type="button" class="sidebar-mock__subview" data-view="comparar" onclick="setView('comparar')">Comparar</button>
-      <button type="button" class="sidebar-mock__subview" data-view="taller" onclick="setView('taller')">Taller</button>
+      <button type="button" class="sidebar-mock__subview sidebar-mock__subview--active" data-view="desempeno" onclick="setView('desempeno')"><i class="ti ti-sitemap"></i>Desempeño</button>
+      <button type="button" class="sidebar-mock__subview" data-view="operacion" onclick="setView('operacion')"><i class="ti ti-users-group"></i>Operación</button>
+      <button type="button" class="sidebar-mock__subview" data-view="comparar" onclick="setView('comparar')"><i class="ti ti-columns-3"></i>Comparar</button>
+      <button type="button" class="sidebar-mock__subview" data-view="taller" onclick="setView('taller')"><i class="ti ti-pencil"></i>Taller</button>
     </div>
     <a class="sidebar-mock__view sidebar-mock__view--soon" aria-disabled="true">
       <svg class="sidebar-mock__view-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01M16 18h.01"/></svg>
