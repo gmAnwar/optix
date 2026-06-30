@@ -1707,8 +1707,10 @@ function toast(m){const t=document.getElementById('toast');t.innerHTML=m;t.class
 //   2) Cada respuesta llena MONTHS[period] con el shape JUN-compatible.
 //   3) Si el fetch falla, se queda el hardcoded inicial como fallback.
 //
-// La vista Operación (VENDEDORES_POR_PLAZA) sigue HARDCODED — su backend
-// (by_status_by_seller) no existe todavía.
+// [S94] Vista Operación + tabla Comparar asesores ahora leen LIVE:
+// applyLiveData(mtd) puebla VENDEDORES_POR_PLAZA desde data.by_seller_by_city,
+// excluyendo ORGANICOS/VOLANTEO (PLAZA_LIVE_MAP funciona como allowlist).
+// El hardcode inicial (~L543) queda como fallback si el fetch falla.
 var LIVE_ENDPOINT = 'https://optix-proxy.anwarhsg.workers.dev/client_data_public';
 var LIVE_PERIODS = ['mtd', 'last_month'];
 var __liveCache = {}; // period → raw payload (para refetch lazy si hace falta)
@@ -1736,6 +1738,36 @@ function fetchLiveData(period) {
   return fetch(url, { headers: { 'Origin': 'https://app.optix.com.mx' } })
     .then(function(r){ if(!r.ok) throw new Error('HTTP ' + r.status); return r.json(); })
     .then(function(d){ __liveCache[period] = d; return d; });
+}
+
+// [S94] by_status_groups → shape consumido por VENDEDORES_POR_PLAZA.
+function groupsToEntry(g) {
+  g = g || {};
+  var cierres = g.cierres_total || 0,
+      firma   = g.firmas_programadas_total || 0,
+      cartera = g.cartera_abierta_total || 0,
+      cancel  = g.cancelados_total || 0,
+      rech    = g.rechazados_total || 0;
+  var preautp = cierres + firma + cartera + cancel;
+  return {
+    preaut: preautp + rech, preautp: preautp, rech: rech,
+    cierres: cierres, firma: firma, cartera: cartera, cancel: cancel
+  };
+}
+
+// [S94] Suma campo a campo, undefined → 0. Devuelve objeto nuevo (no muta a).
+function addEntries(a, b) {
+  a = a || {};
+  b = b || {};
+  return {
+    preaut:  (a.preaut||0)  + (b.preaut||0),
+    preautp: (a.preautp||0) + (b.preautp||0),
+    rech:    (a.rech||0)    + (b.rech||0),
+    cierres: (a.cierres||0) + (b.cierres||0),
+    firma:   (a.firma||0)   + (b.firma||0),
+    cartera: (a.cartera||0) + (b.cartera||0),
+    cancel:  (a.cancel||0)  + (b.cancel||0)
+  };
 }
 
 // Mapea un payload de /client_data_public al shape JUN-compatible y lo escribe
@@ -1791,6 +1823,32 @@ function applyLiveData(period, data) {
   }
 
   MONTHS[period] = bucket;
+
+  // [S94] Comparar asesores + Operación: poblar VENDEDORES_POR_PLAZA desde
+  // by_seller_by_city del payload. Solo period==='mtd' (la tabla vive en mtd;
+  // last_month no debe pisar). Excluye ORGANICOS/VOLANTEO usando PLAZA_LIVE_MAP
+  // como allowlist (las 7 plazas de venta). "Todas" = suma de las 7 (no usa el
+  // by_seller global del endpoint, que incluye orgánico/volanteo).
+  if (period === 'mtd') {
+    var bsc = data.by_seller_by_city || {};
+    var todasAcc = {};
+    for (var selName in PLAZA_LIVE_MAP) {
+      if (!Object.prototype.hasOwnProperty.call(PLAZA_LIVE_MAP, selName)) continue;
+      var bk = PLAZA_LIVE_MAP[selName];
+      var plazaAcc = {};
+      for (var bi = 0; bi < bk.length; bi++) {
+        var sellersInCity = bsc[bk[bi]] || {};
+        for (var vName in sellersInCity) {
+          if (!Object.prototype.hasOwnProperty.call(sellersInCity, vName)) continue;
+          var e = groupsToEntry(sellersInCity[vName].by_status_groups);
+          plazaAcc[vName] = addEntries(plazaAcc[vName], e);
+          todasAcc[vName] = addEntries(todasAcc[vName], e);
+        }
+      }
+      VENDEDORES_POR_PLAZA[PLAZA_MAP[selName]] = plazaAcc;
+    }
+    VENDEDORES_POR_PLAZA['Todas'] = todasAcc;
+  }
 
   // Goals → override de constantes META_*
   if (goals.venta_meta && typeof goals.venta_meta.valor === 'number') {
