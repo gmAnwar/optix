@@ -1829,6 +1829,16 @@ function tareasCliRenderObjetivosList(client, objetivos) {
                   + 'onmouseover="this.style.color=\'var(--accent)\'" onmouseout="this.style.color=\'var(--text3)\'">'
                   + '＋ Sub'
                   + '</button>')
+        +   // S91 handoff: "pasar a Anwar" solo en tareas top-level y solo para NO-manager
+            // (Mario). Mueve la tarea + subtareas al buzón del rol manager. Anwar no lo ve.
+            ((!isSubtask && !_isManager)
+              ? '<button onclick="tareasCliConfirmPasarAAnwar(\'' + cid + '\', \'' + oid + '\', \'' + tid + '\')" '
+                  + 'title="Pasar esta tarea (y sus subtareas) a Anwar" '
+                  + 'style="background:transparent;border:none;color:var(--text3);cursor:pointer;padding:0 4px;font-size:10px;flex-shrink:0;line-height:1;font-family:\'DM Sans\',sans-serif;" '
+                  + 'onmouseover="this.style.color=\'var(--accent)\'" onmouseout="this.style.color=\'var(--text3)\'">'
+                  + '📤 Anwar'
+                  + '</button>'
+              : '')
         +   '<button onclick="tareasCliConfirmDeleteTarea(\'' + cid + '\', \'' + oid + '\', \'' + tid + '\')" '
         +     'title="Eliminar tarea" '
         +     'style="background:transparent;border:none;color:var(--text3);cursor:pointer;padding:0 4px;font-size:11px;flex-shrink:0;line-height:1;" '
@@ -2650,6 +2660,125 @@ async function tareasCliToggleShared(clientId, objId) {
   renderTareasCli();
 }
 
+// ── S91 Frente 1: Handoff de tareas Mario→Anwar (SPEC F0BCRRXV1PT) ──────────
+// Modelo MOVER: la tarea sale del mundo de Mario y entra al buzón del rol manager.
+// Empaqueta tarea + subtareas (parent_task_id === tareaId) a un payload con localId
+// (desacopla de ids reales; la adopción regenera ids). El scope NO viaja: vive en el
+// OBJETIVO, no en la tarea — la adoptada hereda el objetivo destino de Anwar.
+function _tareasCliPackTarea(objetivo, tareaId) {
+  const tareas = Array.isArray(objetivo.tareas) ? objetivo.tareas : [];
+  const parent = tareas.find(function(t) { return t.id === tareaId; });
+  if (!parent) return null;
+  const subs = tareas.filter(function(t) { return t.parent_task_id === tareaId; });
+  function ser(t, localId, parentLocalId) {
+    return {
+      localId: localId,
+      parentLocalId: parentLocalId,
+      texto: t.texto || '',
+      completado: !!t.completado,
+      completadoAt: t.completadoAt || null,
+      fechaIdeal: t.fechaIdeal || null,
+      fechaLimite: t.fechaLimite || null,
+      notas: t.notas || '',
+      responsibleUsers: Array.isArray(t.responsibleUsers) ? t.responsibleUsers : [],
+      orden: typeof t.orden === 'number' ? t.orden : 0
+    };
+  }
+  const entries = [ser(parent, 'p', null)];
+  subs.forEach(function(s, i) { entries.push(ser(s, 's' + i, 'p')); });
+  // S91 (Opción 1): el scope vive en el OBJETIVO, no en la tarea. Guardamos el scope de
+  // ORIGEN (del objetivo de Mario) en el payload — para trazabilidad y para que, al adoptar
+  // en un objetivo NUEVO, ese objetivo nazca con él. NO es un scope por-tarea.
+  return { v: 1, tareas: entries, parentTexto: parent.texto || '', scope: (objetivo && objetivo.scope) || null };
+}
+
+// ENVÍO: Mario pasa una tarea a Anwar. (1) empaqueta, (2) crea item de Inbox dirigido
+// al rol manager (vía reverse-coupling window.__inboxCreateHandoff), (3) borra la tarea
+// y sus subtareas del objetivo de Mario. Orden create-then-delete: si el create falla,
+// no se borra nada (sin pérdida); peor caso = duplicado recuperable, nunca pérdida.
+async function tareasCliPasarAAnwar(clientId, objId, tareaId) {
+  const cached = _tareasCliMemCache[clientId] || tareasCliLoadCache(clientId);
+  const obj = cached && (cached.objetivos || []).find(function(o) { return o.id === objId; });
+  if (!obj) return;
+  const payload = _tareasCliPackTarea(obj, tareaId);
+  if (!payload) return;
+  if (typeof window === 'undefined' || typeof window.__inboxCreateHandoff !== 'function') {
+    if (typeof showToast === 'function') showToast('Inbox no disponible', '⚠️');
+    return;
+  }
+  const _profile = (typeof window !== 'undefined' && window.currentUserProfile) || {};
+  const _labelSrc = String(_profile.nombre || _profile.email || '').trim();
+  const passed_by_label = _labelSrc ? _labelSrc.charAt(0).toUpperCase() : 'M';
+  const passed_by_uid = (typeof currentUser !== 'undefined' && currentUser && currentUser.uid) || null;
+  try {
+    await window.__inboxCreateHandoff({
+      text: payload.parentTexto,
+      payload: payload,
+      passed_by_uid: passed_by_uid,
+      passed_by_label: passed_by_label
+    });
+  } catch (e) {
+    console.error('[handoff] crear item falló', e);
+    if (typeof showToast === 'function') showToast('No se pudo pasar a Anwar', '⚠️');
+    return; // NO borrar si el envío falló
+  }
+  // Borrar tarea + subtareas del objetivo de Mario (no quedan huérfanas).
+  await tareasCliSave(clientId, function(d) {
+    const o = (d.objetivos || []).find(function(x) { return x.id === objId; });
+    if (!o || !Array.isArray(o.tareas)) return d;
+    o.tareas = o.tareas.filter(function(t) { return t.id !== tareaId && t.parent_task_id !== tareaId; });
+    return d;
+  });
+  renderTareasCli();
+  if (typeof showToast === 'function') showToast('Pasada a Anwar ✓', '📤');
+}
+
+function tareasCliConfirmPasarAAnwar(clientId, objId, tareaId) {
+  if (typeof window !== 'undefined' && typeof window.confirm === 'function'
+      && !window.confirm('¿Pasar esta tarea (y sus subtareas) a Anwar? Saldrá de tu lista.')) return;
+  tareasCliPasarAAnwar(clientId, objId, tareaId).catch(function(e) {
+    console.error('[handoff] pasarAAnwar error', e);
+  });
+}
+
+// ADOPCIÓN: deserializa un payload (tarea + subtareas) en un objetivo destino,
+// regenerando ids y re-mapeando parent_task_id al NUEVO id del padre (no al viejo).
+// Exportado para que inbox.js (inboxRoute) lo invoque al adoptar un item con payload.
+export async function tareasCliAdoptPayload(clientId, objId, payload) {
+  if (!payload || !Array.isArray(payload.tareas) || !payload.tareas.length) return;
+  await tareasCliSave(clientId, function(d) {
+    const o = (d.objetivos || []).find(function(x) { return x.id === objId; });
+    if (!o) return d;
+    if (!Array.isArray(o.tareas)) o.tareas = [];
+    const nowIso = new Date().toISOString();
+    const stamp = Date.now();
+    const idMap = {};
+    // Primer pase: nuevo id por localId (index garantiza unicidad dentro del batch).
+    payload.tareas.forEach(function(e, i) {
+      idMap[e.localId] = 'tarea-' + stamp + '-' + i + '-' + Math.floor(Math.random() * 1e6);
+    });
+    const base = o.tareas.length;
+    payload.tareas.forEach(function(e, i) {
+      o.tareas.push({
+        id: idMap[e.localId],
+        texto: e.texto || '',
+        completado: !!e.completado,
+        completadoAt: e.completadoAt || null,
+        fechaIdeal: e.fechaIdeal || null,
+        fechaLimite: e.fechaLimite || null,
+        notas: e.notas || '',
+        responsibleUsers: Array.isArray(e.responsibleUsers) ? e.responsibleUsers : [],
+        parent_task_id: e.parentLocalId ? (idMap[e.parentLocalId] || null) : null,
+        orden: base + i,
+        createdAt: nowIso,
+        updatedAt: nowIso
+      });
+    });
+    return d;
+  });
+  renderTareasCli();
+}
+
 // S90 (sug #19 Mario): editar la ETIQUETA (scope) de un objetivo ya creado.
 // Clon de tareasCliToggleShared pero SIN guard de rol — las etiquetas son para
 // todos (consistente con el `true ||` del recurrente). Eje scope, ortogonal a
@@ -3358,6 +3487,8 @@ function initTareas() {
   window.tareasCliConfirmDeleteTarea = tareasCliConfirmDeleteTarea;
   // S90: toggle privacidad de objetivo propio (botón candado/compartir en card).
   window.tareasCliToggleShared = tareasCliToggleShared;
+  // S91 handoff: botón "pasar a Anwar" en la tarea (solo Mario lo ve).
+  window.tareasCliConfirmPasarAAnwar = tareasCliConfirmPasarAAnwar;
   // S90 (sug #19): editar etiqueta/scope de objetivo ya creado (menú en el badge).
   window.tareasCliSetScope = tareasCliSetScope;
   window.tareasCliShowScopeMenu = tareasCliShowScopeMenu;
