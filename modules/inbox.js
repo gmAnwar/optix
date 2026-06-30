@@ -193,13 +193,30 @@ async function inboxRoute(itemId, params) {
   let finalObjetivoNameNew = null;
 
   if (type === 'objetivo') {
-    // El texto del inbox ES el nombre del objetivo nuevo.
-    // tareasCliAddObjetivo retorna newId; ya tiene id-generation interno
-    // (no podemos hacerlo idempotente desde afuera). En la práctica solo
-    // crearíamos duplicado si la red falla entre create y status flip,
-    // riesgo aceptable (objetivo en card es eliminable por user).
-    finalObjetivoId = await tareasCliAddObjetivo(clientId, item.text);
-    finalObjetivoNameNew = item.text;
+    // S91 Frente 2: handoff a nivel objetivo (payload v2). El item trae el objetivo
+    // empaquetado (nombre + scope + árbol completo de tareas/subtareas). Creamos
+    // objetivo nuevo con esa metadata + adoptPayload carga el árbol regenerando ids.
+    // Para v1 (handoff de tarea) o item de texto, comportamiento histórico:
+    // el texto del inbox ES el nombre del objetivo nuevo (objetivo vacío).
+    const _isV2Obj = !!(item.payload && item.payload.v === 2 && item.payload.objetivo);
+    if (_isV2Obj) {
+      const _objMeta = item.payload.objetivo;
+      const _nombre = (_objMeta.nombre && _objMeta.nombre.trim()) || item.text || '(objetivo)';
+      const _scope = _objMeta.scope || null;
+      finalObjetivoId = await tareasCliAddObjetivo(clientId, _nombre, _scope);
+      finalObjetivoNameNew = _nombre;
+      // Cargar tareas+subtareas (si las hay). adoptPayload ya regen ids y remapea parent_task_id.
+      if (Array.isArray(item.payload.tareas) && item.payload.tareas.length) {
+        await tareasCliAdoptPayload(clientId, finalObjetivoId, item.payload);
+      }
+    } else {
+      // tareasCliAddObjetivo retorna newId; ya tiene id-generation interno
+      // (no podemos hacerlo idempotente desde afuera). En la práctica solo
+      // crearíamos duplicado si la red falla entre create y status flip,
+      // riesgo aceptable (objetivo en card es eliminable por user).
+      finalObjetivoId = await tareasCliAddObjetivo(clientId, item.text);
+      finalObjetivoNameNew = item.text;
+    }
   } else {
     // type === 'tarea'
     // S91 handoff: si el item trae payload (tarea + subtareas empaquetadas), se adopta

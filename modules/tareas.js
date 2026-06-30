@@ -1895,6 +1895,16 @@ function tareasCliRenderObjetivosList(client, objetivos) {
                 + '</button>';
             })() : '')
       +     '<span style="font-family:\'DM Mono\',monospace;font-size:10px;color:var(--text3);flex-shrink:0;">' + done + '/' + allTareas.length + '</span>'
+      +     // S91 Frente 2: pasar OBJETIVO entero a Anwar. Solo NO-manager (Mario).
+      //  Mismo gate y patrón que el 📤 de tarea, aplicado al header del objetivo.
+      ((!_isManager)
+        ? '<button onclick="tareasCliConfirmPasarObjetivoAAnwar(\'' + cid + '\', \'' + oid + '\')" '
+            + 'title="Pasar este objetivo (con todas sus tareas) a Anwar" '
+            + 'style="background:transparent;border:none;color:var(--text3);cursor:pointer;padding:0 4px;font-size:11px;flex-shrink:0;line-height:1;" '
+            + 'onmouseover="this.style.color=\'var(--accent)\'" onmouseout="this.style.color=\'var(--text3)\'">'
+            + '📤'
+            + '</button>'
+        : '')
       +     '<button onclick="tareasCliConfirmDeleteObjetivo(\'' + cid + '\', \'' + oid + '\')" '
       +       'title="Eliminar objetivo" '
       +       'style="background:transparent;border:none;color:var(--text3);cursor:pointer;padding:0 4px;font-size:11px;flex-shrink:0;line-height:1;" '
@@ -2692,6 +2702,40 @@ function _tareasCliPackTarea(objetivo, tareaId) {
   return { v: 1, tareas: entries, parentTexto: parent.texto || '', scope: (objetivo && objetivo.scope) || null };
 }
 
+// S91 Frente 2: handoff a nivel OBJETIVO. Empaqueta el objetivo entero (metadata +
+// TODAS sus tareas y subtareas) en un payload v2. `objetivo.tareas[]` ya contiene
+// parents y subs como peers (vinculados por parent_task_id) — un solo pase captura
+// todo el árbol. Genera localId estable a partir del id real (mapeo determinista)
+// y remapea parent_task_id → parentLocalId. La adopción regenera ids nuevos.
+function _tareasCliPackObjetivo(objetivo) {
+  if (!objetivo) return null;
+  const tareas = Array.isArray(objetivo.tareas) ? objetivo.tareas : [];
+  const localIdMap = {};
+  tareas.forEach(function(t, i) { localIdMap[t.id] = 't' + i; });
+  const entries = tareas.map(function(t, i) {
+    return {
+      localId: localIdMap[t.id],
+      parentLocalId: t.parent_task_id ? (localIdMap[t.parent_task_id] || null) : null,
+      texto: t.texto || '',
+      completado: !!t.completado,
+      completadoAt: t.completadoAt || null,
+      fechaIdeal: t.fechaIdeal || null,
+      fechaLimite: t.fechaLimite || null,
+      notas: t.notas || '',
+      responsibleUsers: Array.isArray(t.responsibleUsers) ? t.responsibleUsers : [],
+      orden: typeof t.orden === 'number' ? t.orden : i
+    };
+  });
+  return {
+    v: 2,
+    objetivo: {
+      nombre: objetivo.nombre || '',
+      scope: objetivo.scope || null
+    },
+    tareas: entries
+  };
+}
+
 // ENVÍO: Mario pasa una tarea a Anwar. (1) empaqueta, (2) crea item de Inbox dirigido
 // al rol manager (vía reverse-coupling window.__inboxCreateHandoff), (3) borra la tarea
 // y sus subtareas del objetivo de Mario. Orden create-then-delete: si el create falla,
@@ -2738,6 +2782,52 @@ function tareasCliConfirmPasarAAnwar(clientId, objId, tareaId) {
       && !window.confirm('¿Pasar esta tarea (y sus subtareas) a Anwar? Saldrá de tu lista.')) return;
   tareasCliPasarAAnwar(clientId, objId, tareaId).catch(function(e) {
     console.error('[handoff] pasarAAnwar error', e);
+  });
+}
+
+// S91 Frente 2: ENVÍO objetivo entero. (1) empaqueta objetivo + todas sus tareas/subs
+// como payload v2, (2) crea inbox item con to_role:'manager', (3) borra el objetivo
+// completo del mundo de Mario. Orden create-then-delete: si el create falla, no se
+// borra nada (sin pérdida). El text del inbox = nombre del objetivo (Anwar lo verá ahí).
+async function tareasCliPasarObjetivoAAnwar(clientId, objId) {
+  const cached = _tareasCliMemCache[clientId] || tareasCliLoadCache(clientId);
+  const obj = cached && (cached.objetivos || []).find(function(o) { return o.id === objId; });
+  if (!obj) return;
+  const payload = _tareasCliPackObjetivo(obj);
+  if (!payload) return;
+  if (typeof window === 'undefined' || typeof window.__inboxCreateHandoff !== 'function') {
+    if (typeof showToast === 'function') showToast('Inbox no disponible', '⚠️');
+    return;
+  }
+  const _profile = (typeof window !== 'undefined' && window.currentUserProfile) || {};
+  const _labelSrc = String(_profile.nombre || _profile.email || '').trim();
+  const passed_by_label = _labelSrc ? _labelSrc.charAt(0).toUpperCase() : 'M';
+  const passed_by_uid = (typeof currentUser !== 'undefined' && currentUser && currentUser.uid) || null;
+  try {
+    await window.__inboxCreateHandoff({
+      text: payload.objetivo.nombre || '(objetivo)',
+      payload: payload,
+      passed_by_uid: passed_by_uid,
+      passed_by_label: passed_by_label
+    });
+  } catch (e) {
+    console.error('[handoff-obj] crear item falló', e);
+    if (typeof showToast === 'function') showToast('No se pudo pasar a Anwar', '⚠️');
+    return; // NO borrar si el envío falló
+  }
+  await tareasCliSave(clientId, function(d) {
+    d.objetivos = (d.objetivos || []).filter(function(x) { return x.id !== objId; });
+    return d;
+  });
+  renderTareasCli();
+  if (typeof showToast === 'function') showToast('Objetivo pasado a Anwar ✓', '📤');
+}
+
+function tareasCliConfirmPasarObjetivoAAnwar(clientId, objId) {
+  if (typeof window !== 'undefined' && typeof window.confirm === 'function'
+      && !window.confirm('¿Pasar este objetivo COMPLETO (con todas sus tareas y subtareas) a Anwar? Saldrá de tu lista.')) return;
+  tareasCliPasarObjetivoAAnwar(clientId, objId).catch(function(e) {
+    console.error('[handoff-obj] pasarObjetivoAAnwar error', e);
   });
 }
 
@@ -3489,6 +3579,8 @@ function initTareas() {
   window.tareasCliToggleShared = tareasCliToggleShared;
   // S91 handoff: botón "pasar a Anwar" en la tarea (solo Mario lo ve).
   window.tareasCliConfirmPasarAAnwar = tareasCliConfirmPasarAAnwar;
+  // S91 Frente 2: botón "pasar objetivo a Anwar" en header del objetivo (solo Mario).
+  window.tareasCliConfirmPasarObjetivoAAnwar = tareasCliConfirmPasarObjetivoAAnwar;
   // S90 (sug #19): editar etiqueta/scope de objetivo ya creado (menú en el badge).
   window.tareasCliSetScope = tareasCliSetScope;
   window.tareasCliShowScopeMenu = tareasCliShowScopeMenu;
