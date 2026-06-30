@@ -1287,6 +1287,32 @@ export function tareasCliSetFilter(filter) {
   }
 }
 
+// S91 [FILTRO-AREA]: filtro MULTI-selección de cliente/división en la vista Clientes.
+// Array de clientIds en localStorage, KEY PROPIA (no pisa el de scope). Vacío = ver TODOS.
+// Eje independiente del scope: componen (AND) — el área elige QUÉ cards se ven, el scope
+// filtra los objetivos dentro de cada card. SOLO vista Clientes (no toca Mi Semana).
+function _tareasCliAreaFilterKey(uid) {
+  return 'oa-tareas-cli-area-filter-' + (uid || '_anon');
+}
+export function tareasCliGetAreaFilter(uid) {
+  if (uid == null) uid = (typeof currentUser !== 'undefined' && currentUser && currentUser.uid) || '_anon';
+  try {
+    const raw = localStorage.getItem(_tareasCliAreaFilterKey(uid));
+    const arr = raw ? JSON.parse(raw) : [];
+    return Array.isArray(arr) ? arr.filter(function(x) { return typeof x === 'string'; }) : [];
+  } catch (e) { return []; }
+}
+export function tareasCliToggleAreaFilter(clientId) {
+  if (!clientId) return;
+  const uid = (typeof currentUser !== 'undefined' && currentUser && currentUser.uid) || '_anon';
+  const cur = tareasCliGetAreaFilter(uid);
+  const idx = cur.indexOf(clientId);
+  if (idx === -1) cur.push(clientId); else cur.splice(idx, 1); // toggle add/remove
+  try { localStorage.setItem(_tareasCliAreaFilterKey(uid), JSON.stringify(cur)); } catch (e) {}
+  if (typeof renderTareasCli === 'function') { try { renderTareasCli(); } catch (e) {} }
+  // Eje SOLO de la vista Clientes → NO re-renderiza Mi Semana (invariante 5).
+}
+
 // S90 (SPEC F0BC6QGA7L3): filtro de VISTA por dueño 'mios' | 'todos', per-uid, ortogonal
 // al chip de scope. NO es regla de privacidad (eso es tareasCliOwnerVisible); solo enfoca
 // la vista en lo propio. Aplica en cards + panel Mi Semana.
@@ -1595,13 +1621,42 @@ function renderTareasCli() {
     }
   });
 
-  const cards = catalog.map(function(c) {
+  // S91 [FILTRO-AREA]: filtro multi de cliente/división. Vacío = TODOS (default intacto).
+  // Selecciona QUÉ cards se renderizan; el scope filtra objetivos dentro (ejes AND).
+  // Los listeners Firestore se inicializan para TODO el catalog arriba (data fresca);
+  // aquí solo se restringe la VISTA.
+  const _curUidArea = (typeof currentUser !== 'undefined' && currentUser && currentUser.uid) || '_anon';
+  const _areaFilter = tareasCliGetAreaFilter(_curUidArea);
+  const _visibleCatalog = (_areaFilter.length === 0)
+    ? catalog
+    : catalog.filter(function(c) { return _areaFilter.indexOf(c.id) !== -1; });
+
+  const cards = _visibleCatalog.map(function(c) {
     // S67 Bloque C: cliente rápido puede traer campo `color` propio; fallback a paleta keyed by id.
     const color = c.color || TAREAS_CLIENTE_COLORS[c.id] || TAREAS_CLIENTE_COLORS._fallback;
     const cached = _tareasCliMemCache[c.id] || tareasCliLoadCache(c.id);
     const objetivos = (cached && Array.isArray(cached.objetivos)) ? cached.objetivos : [];
     return tareasCliRenderCard(c, color, objetivos);
   }).join('');
+
+  // Chips multi-toggle, uno por entrada del catalog real (cliente o división, sin distinguir
+  // tipo — invariante 3: derivado del catalog, no hardcodeado). Activo = en el array de filtro.
+  const areaFilterChips = (function() {
+    const styleChip = function(active) {
+      const bg = active ? 'var(--accent)' : 'transparent';
+      const color = active ? 'var(--bg)' : 'var(--text2)';
+      const border = active ? '1px solid var(--accent)' : '1px solid var(--border)';
+      return 'background:' + bg + ';color:' + color + ';border:' + border + ';font-family:\'DM Mono\',monospace;font-size:10px;font-weight:700;letter-spacing:0.03em;padding:5px 11px;border-radius:6px;cursor:pointer;';
+    };
+    return ''
+      + '<div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;">'
+      +   '<span style="font-family:\'DM Mono\',monospace;font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-right:4px;">Filtrar área</span>'
+      +   catalog.map(function(c) {
+            const active = _areaFilter.indexOf(c.id) !== -1;
+            return '<button onclick="tareasCliToggleAreaFilter(\'' + escapeHtml(c.id) + '\')" style="' + styleChip(active) + '">' + escapeHtml(c.nombre || c.id) + '</button>';
+          }).join('')
+      + '</div>';
+  })();
 
   // PR4: pill 3-chips (TODOS · OPERATIVOS · ESTRATÉGICOS). Visible si senior O
   // canSeeEstrategicos=true. Junior puro NO renderiza container. Cross-view sync.
@@ -1642,6 +1697,7 @@ function renderTareasCli() {
   container.innerHTML = ''
     + '<div style="display:flex;flex-direction:column;gap:14px;">'
     +   '<div>' + renderTareasCliCalendar({ orientation: 'horizontal' }) + '</div>'
+    +   areaFilterChips
     +   onlyMineToggle
     +   '<div style="display:grid;grid-template-columns:280px 1fr;gap:20px;align-items:start;">'
     +     '<div id="inbox-container" style="min-height:200px;"></div>'
@@ -3590,6 +3646,8 @@ function initTareas() {
   window.tareasCliToggleCollapsed = tareasCliToggleCollapsed;
   // PR4: filter 3-chips (todos | estrategicos | operativos), cross-view Tareas + Mi Semana.
   window.tareasCliSetFilter = tareasCliSetFilter;
+  // S91 [FILTRO-AREA]: toggle multi-selección de cliente/división (vista Clientes).
+  window.tareasCliToggleAreaFilter = tareasCliToggleAreaFilter;
   // S90: toggle de vista por dueño (MÍOS/TODOS), cross-view Tareas + Mi Semana.
   window.tareasCliSetOwnerFilter = tareasCliSetOwnerFilter;
   window.tareasCliCalPrevWeek = tareasCliCalPrevWeek;
