@@ -202,7 +202,11 @@ async function inboxRoute(itemId, params) {
     if (_isV2Obj) {
       const _objMeta = item.payload.objetivo;
       const _nombre = (_objMeta.nombre && _objMeta.nombre.trim()) || item.text || '(objetivo)';
-      const _scope = _objMeta.scope || null;
+      // S91 (Opción 1 — no inventar scope): preserva el scope de origen. Si el objetivo de
+      // Mario era sin-etiqueta (scope null), cae a 'compartido' (sin-etiqueta, válido) — NO
+      // a null, porque tareasCliAddObjetivo trataría null como "default por rol" e inventaría
+      // 'estrategico' para Anwar (senior). 'compartido' mantiene el objetivo sin-etiqueta.
+      const _scope = _objMeta.scope || 'compartido';
       finalObjetivoId = await tareasCliAddObjetivo(clientId, _nombre, _scope);
       finalObjetivoNameNew = _nombre;
       // Cargar tareas+subtareas (si las hay). adoptPayload ya regen ids y remapea parent_task_id.
