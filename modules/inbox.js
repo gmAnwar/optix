@@ -193,13 +193,34 @@ async function inboxRoute(itemId, params) {
   let finalObjetivoNameNew = null;
 
   if (type === 'objetivo') {
-    // El texto del inbox ES el nombre del objetivo nuevo.
-    // tareasCliAddObjetivo retorna newId; ya tiene id-generation interno
-    // (no podemos hacerlo idempotente desde afuera). En la práctica solo
-    // crearíamos duplicado si la red falla entre create y status flip,
-    // riesgo aceptable (objetivo en card es eliminable por user).
-    finalObjetivoId = await tareasCliAddObjetivo(clientId, item.text);
-    finalObjetivoNameNew = item.text;
+    // S91 Frente 2: handoff a nivel objetivo (payload v2). El item trae el objetivo
+    // empaquetado (nombre + scope + árbol completo de tareas/subtareas). Creamos
+    // objetivo nuevo con esa metadata + adoptPayload carga el árbol regenerando ids.
+    // Para v1 (handoff de tarea) o item de texto, comportamiento histórico:
+    // el texto del inbox ES el nombre del objetivo nuevo (objetivo vacío).
+    const _isV2Obj = !!(item.payload && item.payload.v === 2 && item.payload.objetivo);
+    if (_isV2Obj) {
+      const _objMeta = item.payload.objetivo;
+      const _nombre = (_objMeta.nombre && _objMeta.nombre.trim()) || item.text || '(objetivo)';
+      // S91 (Opción 1 — no inventar scope): preserva el scope de origen. Si el objetivo de
+      // Mario era sin-etiqueta (scope null), cae a 'compartido' (sin-etiqueta, válido) — NO
+      // a null, porque tareasCliAddObjetivo trataría null como "default por rol" e inventaría
+      // 'estrategico' para Anwar (senior). 'compartido' mantiene el objetivo sin-etiqueta.
+      const _scope = _objMeta.scope || 'compartido';
+      finalObjetivoId = await tareasCliAddObjetivo(clientId, _nombre, _scope);
+      finalObjetivoNameNew = _nombre;
+      // Cargar tareas+subtareas (si las hay). adoptPayload ya regen ids y remapea parent_task_id.
+      if (Array.isArray(item.payload.tareas) && item.payload.tareas.length) {
+        await tareasCliAdoptPayload(clientId, finalObjetivoId, item.payload);
+      }
+    } else {
+      // tareasCliAddObjetivo retorna newId; ya tiene id-generation interno
+      // (no podemos hacerlo idempotente desde afuera). En la práctica solo
+      // crearíamos duplicado si la red falla entre create y status flip,
+      // riesgo aceptable (objetivo en card es eliminable por user).
+      finalObjetivoId = await tareasCliAddObjetivo(clientId, item.text);
+      finalObjetivoNameNew = item.text;
+    }
   } else {
     // type === 'tarea'
     // S91 handoff: si el item trae payload (tarea + subtareas empaquetadas), se adopta
@@ -485,7 +506,11 @@ function _showRouteModal(itemId) {
 
   const sticky = _stickyLoad();
   const initialClientId = (sticky && sticky.client_id) || (catalog[0] && catalog[0].id) || '';
-  const initialType = (sticky && sticky.type) || 'tarea';
+  // S91 Frente 2: un item v2 (objetivo empaquetado) DEBE adoptarse como 'objetivo' — si se
+  // adopta como 'tarea' se pierde nombre/scope del objetivo. Forzamos default 'objetivo' y
+  // bloqueamos 'tarea' para estos items. v1/texto: comportamiento histórico (sticky||'tarea').
+  const _isV2Obj = !!(item.payload && item.payload.v === 2 && item.payload.objetivo);
+  const initialType = _isV2Obj ? 'objetivo' : ((sticky && sticky.type) || 'tarea');
 
   const modalId = 'inbox-route-modal';
   let el = document.getElementById(modalId);
@@ -516,11 +541,12 @@ function _showRouteModal(itemId) {
     +         '<input type="radio" name="inbox-route-type" value="objetivo"' + (initialType === 'objetivo' ? ' checked' : '') + ' onchange="window.__inboxRouteTypeChange()" style="margin:0;cursor:pointer;">'
     +         'Objetivo'
     +       '</label>'
-    +       '<label style="flex:1;display:flex;align-items:center;gap:6px;padding:7px 10px;border:1px solid var(--border);border-radius:6px;cursor:pointer;font-size:12px;color:var(--text);">'
-    +         '<input type="radio" name="inbox-route-type" value="tarea"' + (initialType !== 'objetivo' ? ' checked' : '') + ' onchange="window.__inboxRouteTypeChange()" style="margin:0;cursor:pointer;">'
+    +       '<label style="flex:1;display:flex;align-items:center;gap:6px;padding:7px 10px;border:1px solid var(--border);border-radius:6px;font-size:12px;color:var(--text);' + (_isV2Obj ? 'opacity:0.45;cursor:not-allowed;' : 'cursor:pointer;') + '">'
+    +         '<input type="radio" name="inbox-route-type" value="tarea"' + (initialType !== 'objetivo' ? ' checked' : '') + (_isV2Obj ? ' disabled' : '') + ' onchange="window.__inboxRouteTypeChange()" style="margin:0;cursor:' + (_isV2Obj ? 'not-allowed' : 'pointer') + ';">'
     +         'Tarea'
     +       '</label>'
     +     '</div>'
+    +     (_isV2Obj ? '<div style="font-family:\'DM Mono\',monospace;font-size:9px;color:var(--text3);margin-top:4px;">📦 Paquete de objetivo — se adopta como objetivo completo (nombre + etiqueta + tareas).</div>' : '')
     +   '</div>'
 
     +   '<div id="inbox-route-step3" style="margin-bottom:14px;">'
@@ -634,7 +660,15 @@ async function _submitRoute(itemId, closeFn) {
   const clientSelect = document.getElementById('inbox-route-client');
   const clientId = clientSelect && clientSelect.value;
   const typeEl = document.querySelector('input[name="inbox-route-type"]:checked');
-  const type = typeEl && typeEl.value;
+  let type = typeEl && typeEl.value;
+
+  // S91 Frente 2: guard defensivo — un item v2 (objetivo empaquetado) SIEMPRE se rutea
+  // como 'objetivo', pase lo que pase con el DOM (el radio 'tarea' ya está disabled, esto
+  // cubre cualquier bypass). Adoptar v2 como 'tarea' perdería nombre/scope del objetivo.
+  const _item = _inboxItems.find(function(x) { return x.id === itemId; });
+  if (_item && _item.payload && _item.payload.v === 2 && _item.payload.objetivo) {
+    type = 'objetivo';
+  }
 
   if (!clientId) { showErr('Selecciona un cliente'); return; }
   if (!type) { showErr('Selecciona tipo'); return; }
