@@ -338,11 +338,18 @@
   .app-redesign .sidebar-mock__view--active { color: var(--color-text-primary); }
   .app-redesign .sidebar-mock__view--soon { color: var(--color-text-secondary); }
 
+  .app-redesign .sidebar-mock__subviews { display: flex; flex-direction: column; gap: 2px; margin: 2px 0 2px var(--space-5); padding-left: var(--space-2); border-left: 1px solid var(--color-border); }
+  .app-redesign .sidebar-mock__subview { display: block; width: 100%; text-align: left; background: none; border: none; cursor: pointer; font-family: inherit; font-size: var(--font-size-xs); color: var(--color-text-tertiary); padding: var(--space-1) var(--space-3); border-radius: var(--radius-sm); transition: background var(--transition-fast), color var(--transition-fast); }
+  .app-redesign .sidebar-mock__subview:hover { background: var(--color-surface-raised); color: var(--color-text-primary); }
+  .app-redesign .sidebar-mock__subview--active { color: var(--color-text-primary); background: var(--color-surface-raised); font-weight: var(--font-weight-medium); }
+  .sidebar-mock.collapsed .sidebar-mock__subviews { display: none; }
+
   /* FlowMap content shifted right to make room for fixed sidebar */
   .flowmap-shell { margin-left: var(--sidebar-w); height: 100vh; overflow: hidden; }
 
   /* S93 — sidebar collapsed state + toggle button (no .app-redesign prefix en flowmap) */
-  .sidebar-mock.collapsed { width: 48px; }
+  .sidebar-mock.collapsed { width: 48px; padding-left: 0; padding-right: 0; }
+  .sidebar-mock.collapsed .sidebar-mock__views { padding: 0 var(--space-2); }
   .sidebar-mock__toggle {
     position: absolute; right: -11px; top: 18px;
     width: 22px; height: 22px; border-radius: 50%;
@@ -354,7 +361,7 @@
   }
   .sidebar-mock.collapsed .sidebar-mock__toggle { transform: scaleX(-1); }
   .sidebar-mock.collapsed .sidebar-mock__view span { display: none; }
-  .sidebar-mock.collapsed .sidebar-mock__view { justify-content: center; padding-left: 0; }
+  .sidebar-mock.collapsed .sidebar-mock__view { justify-content: center; padding-left: 0; padding-right: 0; border-left-color: transparent; }
   .sidebar-mock.collapsed .sidebar-mock__switcher,
   .sidebar-mock.collapsed .sidebar-mock__brand,
   .sidebar-mock.collapsed .sidebar-mock__user,
@@ -379,6 +386,12 @@
       <svg class="sidebar-mock__view-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h16v2.172a2 2 0 0 1-.586 1.414l-4.878 4.878A2 2 0 0 0 14 13.828V19l-4 2v-7.172a2 2 0 0 0-.586-1.414L4.536 7.536A2 2 0 0 1 4 6.172V4z"/></svg>
       <span>FlowMap</span>
     </a>
+    <div class="sidebar-mock__subviews" id="flowmap-subviews">
+      <button type="button" class="sidebar-mock__subview sidebar-mock__subview--active" data-view="desempeno" onclick="setView('desempeno')">Desempeño</button>
+      <button type="button" class="sidebar-mock__subview" data-view="operacion" onclick="setView('operacion')">Operación</button>
+      <button type="button" class="sidebar-mock__subview" data-view="comparar" onclick="setView('comparar')">Comparar</button>
+      <button type="button" class="sidebar-mock__subview" data-view="taller" onclick="setView('taller')">Taller</button>
+    </div>
     <a class="sidebar-mock__view sidebar-mock__view--soon" aria-disabled="true">
       <svg class="sidebar-mock__view-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01M16 18h.01"/></svg>
       <span>Semanal</span>
@@ -760,6 +773,11 @@ function setView(v){
   ['tabDes','tabOp','tabCmp','tabTal'].forEach(id=>{const el=document.getElementById(id);if(el)el.classList.remove('active');});
   const tabMap={desempeno:'tabDes',operacion:'tabOp',comparar:'tabCmp',taller:'tabTal'};
   if(tabMap[v]){const el=document.getElementById(tabMap[v]);if(el)el.classList.add('active');}
+  // Sync sidebar sub-items
+  var subs = document.querySelectorAll('.sidebar-mock__subview');
+  for (var si = 0; si < subs.length; si++) {
+    subs[si].classList.toggle('sidebar-mock__subview--active', subs[si].getAttribute('data-view') === v);
+  }
   document.getElementById('compare').classList.toggle('hidden',v!=='comparar');
   document.getElementById('taller').classList.toggle('hidden',v!=='taller');
   // El inspector derecho solo aplica a Desempeño/Operación. En Comparar/Taller estorba.
