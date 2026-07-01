@@ -149,6 +149,25 @@
       .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
 
+  // Nombres de mes computados de period.from del payload (la verdad del dato),
+  // NUNCA hardcodeados ni de new Date() a secas (hora local del cliente).
+  var MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio',
+               'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+  // El T12:00:00 evita el off-by-one de timezone (ISO a medianoche se parsea
+  // UTC y cae en el día anterior en CST).
+  function _mesDe(iso) {
+    if (!iso) return '';
+    var d = new Date(String(iso) + 'T12:00:00');
+    if (isNaN(d.getTime())) return '';
+    return MESES[d.getMonth()];
+  }
+  function _mesAnteriorDe(iso) {
+    if (!iso) return '';
+    var d = new Date(String(iso) + 'T12:00:00');
+    if (isNaN(d.getTime())) return '';
+    return MESES[(d.getMonth() + 11) % 12];
+  }
+
   // ── FILA 1 helpers (clone de enpagos-home.js, ajustados) ─────────────
 
   // Status simple 2-estados (al ritmo / bajo meta) — usado para
@@ -459,6 +478,16 @@
     var ventaVal    = current.venta;
     var ventaGoalMo = goals.venta_meta;
     var ventaGoalP  = prorrated.venta_goal_periodo;
+    // SPEC 20.2: $0 solo es legítimo si ambas plazas reportan número real;
+    // si Gómez o Torreón traen venta null (RESULTADO REAL vacío en el
+    // Forecast), el 0 del agregado es incompleto → graceful "—" (mismo
+    // patrón que el Tintero).
+    var byPlazaV     = data.by_plaza_actuals || {};
+    var gomezVenta   = byPlazaV.gomez   ? byPlazaV.gomez.venta   : null;
+    var torreonVenta = byPlazaV.torreon ? byPlazaV.torreon.venta : null;
+    var ventaDown = (ventaVal == null) ||
+      (Number(ventaVal) === 0 && (gomezVenta == null || torreonVenta == null));
+    var mesPeriodo = _mesDe(data.meta && data.meta.period && data.meta.period.from);
     var ventaHTML;
     if (isMtd) {
       // Venta NO usa chip (decisión SPEC: ratio venta del mes vs captaciones
@@ -470,17 +499,18 @@
         ? (Number(ventaGoalP) / Number(ventaGoalMo)) : null;
       ventaHTML = _row1BoxHTML({
         label: 'Venta del mes',
-        bigHTML: _fmtCurrency(ventaVal),
+        bigHTML: ventaDown ? '—' : _fmtCurrency(ventaVal),
         chipHTML: '',
-        barHTML: _row1ProgressBarHTML({ fillPct: ventaFill, expectedPct: ventaExp, status: '' }),
+        barHTML: _row1ProgressBarHTML({ fillPct: ventaFill, expectedPct: ventaExp, status: '', graceful: ventaDown }),
         expectedHTML: (ventaGoalP != null) ? _fmtCurrency(ventaGoalP) + ' esperada' : '',
         topeHTML: (ventaGoalMo != null) ? 'Plan ' + _fmtCurrency(ventaGoalMo) : '',
-        subHTML: 'cierres-venta del mes, no de las captaciones de junio'
+        subHTML: 'cierres-venta del mes, no de las captaciones de ' + (mesPeriodo || 'este mes'),
+        gracefulCls: ventaDown ? 'row1-box--graceful' : ''
       });
     } else {
       ventaHTML = _row1BoxHTML({
         label: 'Venta',
-        bigHTML: _fmtCurrency(ventaVal),
+        bigHTML: ventaDown ? '—' : _fmtCurrency(ventaVal),
         subHTML: 'cierres-venta del periodo'
       });
     }
@@ -639,16 +669,21 @@
     }));
 
     // ── FILA 3: CAC ──
-    // §22 2026-06-23: ambos CACs llevan badge "preliminar · junio en curso ·
-    // ancla mayo $X" SI estamos en mes en curso (mtd). Backend expone
+    // §22 2026-06-23: ambos CACs llevan badge "preliminar · <mes> en curso ·
+    // ancla <mes anterior> $X" SI estamos en mes en curso (mtd). Backend expone
     // current.cac_captacion_last_month_anchor + current.cac_cita_last_month_anchor.
     // Solo aparece en mtd; en last_month NO (ya es el mes cerrado en sí).
+    // Meses computados de period.from → rollover automático al cambiar de mes.
     var f3Boxes = [];
+
+    var mesPeriodo  = _mesDe(meta.period && meta.period.from);
+    var mesAnterior = _mesAnteriorDe(meta.period && meta.period.from);
 
     function _preliminarSubLine(anchorAmt) {
       if (!isMtd) return '';
-      if (anchorAmt == null) return 'preliminar · junio en curso';
-      return 'preliminar · junio en curso · ancla mayo ' + _fmtCurrency(anchorAmt);
+      var base = 'preliminar · ' + (mesPeriodo || 'mes') + ' en curso';
+      if (anchorAmt == null) return base;
+      return base + ' · ancla ' + (mesAnterior || 'mes anterior') + ' ' + _fmtCurrency(anchorAmt);
     }
 
     // CAC Captación = spend_captacion / captac_leadtime (= $73,881 / 14 = $5,277)
@@ -672,7 +707,7 @@
       cacCita = Number(invVal) / Number(citasVal);
     }
     var cacCitaPreLine = _preliminarSubLine(current.cac_cita_last_month_anchor);
-    var cacCitaBaseSub = 'inversión de junio ÷ ' + _fmtInt(citasVal) + ' citas';
+    var cacCitaBaseSub = 'inversión de ' + (mesPeriodo || 'este mes') + ' ÷ ' + _fmtInt(citasVal) + ' citas';
     f3Boxes.push(_kpiCardHTML({
       label: 'CAC cita agendada',
       valueHTML: cacCita == null ? '—' : _fmtCurrency(cacCita),
