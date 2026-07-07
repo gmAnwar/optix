@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Optix</title>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500&family=Montserrat:wght@400;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./modules/promocion-inmobili.css">
 <!-- ════════════════════════════════════════════════════════
      FIREBASE AUTH (compat) — Sesión: Auth + Login (Commit 1)
      ════════════════════════════════════════════════════════ -->
@@ -17,6 +18,7 @@
      (TAREAS_CLIENTE_COLORS importada). -->
 <script type="module" src="./modules/utils.js"></script>
 <script type="module" src="./modules/tareas.js"></script>
+<script type="module" src="./modules/promocion-inmobili.js"></script>
 <!-- F2a (S73): Mi Semana extraída a módulo. init() expone window.* funcs
      (calendarSemana, _msCascadeNullifyByTareaId, miSemana{Prev,Next,Today},
      etc.) que HTML inline + tareas.js esperan. -->
@@ -3335,6 +3337,9 @@
         <span>✅</span><span>Tareas</span>
         <span class="tab-badge" id="tab-tareas-badge"></span>
       </div>
+      <div class="client-tab" id="tab-promocion" onclick="window.enterPromocion && window.enterPromocion()" style="display:none;">
+        <span>📣</span><span>Promoción</span>
+      </div>
     </nav>
 
     <div class="sidebar-footer">
@@ -4343,6 +4348,8 @@
 <!-- Nivel global: Área → Proyecto → Tarea     -->
 <!-- Solo OptimizAds · sin seleccionar cliente -->
 <!-- ══════════════════════════════════════════ -->
+<div id="screen-promocion" class="screen" style="flex-direction:column; background:var(--bg); min-height:100vh;"></div>
+
 <div id="screen-tareas" class="screen" style="flex-direction:column; background:var(--bg); min-height:100vh;">
 
   <!-- Header -->
@@ -6031,6 +6038,9 @@ function openClient(id) {
   // Tab Tareas solo para optimizads (no depende del cliente, depende del workspace)
   const tabTareas = document.getElementById('tab-tareas');
   if (tabTareas) tabTareas.style.display = (currentAgencia === 'optimizads' || !currentAgencia) ? '' : 'none';
+  // Tab Promoción (Inmobili interno) — mismo gate de workspace que Tareas.
+  const tabPromocion = document.getElementById('tab-promocion');
+  if (tabPromocion) tabPromocion.style.display = (currentAgencia === 'optimizads' || !currentAgencia) ? '' : 'none';
   tareasUpdateBadge();
   navigate('dashboard');
   loadAllFields();
