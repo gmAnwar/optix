@@ -540,7 +540,9 @@ function cacOf(r){ const adq=(r.cierre||0)+(r.firma||0); return adq ? r.inv/adq 
 // En PROD el backend emitirá by_status_by_seller desde la misma fuente y el descuadre desaparece.
 // Cruce real VENDEDOR × PLAZA × ESTATUS — sheet RESULTADO VENTAS ENPAGOS JUNIO26
 // Fuente: CC workflow discovery 26-jun, 145 filas procesadas, cuadra exacto.
-const VENDEDORES_POR_PLAZA = {
+// [S98] Renombrado a SELLER_SEED: es el FALLBACK demo si el fetch live falla. Los
+// datos live por-asesor viven en VENDEDORES_POR_PLAZA_BY_PERIOD (resolver vppActive).
+const SELLER_SEED = {
   "Todas": {
     "Fernando Badillo":  {preaut:45, preautp:20, rech:25, cierres:10, firma:1, cartera:6,  cancel:3},
     "Enrique Alejo":     {preaut:37, preautp:19, rech:18, cierres:3,  firma:2, cartera:4,  cancel:10},
@@ -598,7 +600,24 @@ const VENDEDORES_POR_PLAZA = {
   }
 };
 
-// Mapeo selector de plaza → key en VENDEDORES_POR_PLAZA
+// [S98] Datos por-asesor POR PERIODO — fix flowmap: "Mes pasado" mostraba data de mtd.
+// Antes un único global se poblaba SOLO con mtd (guard en applyLiveData), así que al
+// cambiar a last_month la tabla "Comparar asesores" y Operación seguían en mtd. Ahora
+// cada period escribe su propio bucket y los lectores resuelven el del period ACTIVO.
+const VENDEDORES_POR_PLAZA_BY_PERIOD = {}; // period -> { plazaKey -> { asesor -> entry } }
+
+// Period seleccionado en el UI (fallback 'mtd' antes de montar el <select id="period">).
+function activePeriod() {
+  var sel = document.getElementById('period');
+  return (sel && sel.value) || 'mtd';
+}
+// Bucket por-asesor del period ACTIVO. Si su data live aún no cargó, usa SELLER_SEED
+// (fallback demo compartido) — JAMÁS el bucket de otro period (bug S98, robustez 3b).
+function vppActive() {
+  return VENDEDORES_POR_PLAZA_BY_PERIOD[activePeriod()] || SELLER_SEED;
+}
+
+// Mapeo selector de plaza → key en el bucket por-asesor
 const PLAZA_MAP = {
   "Todas":"Todas","Nuevo León":"NUEVO LEON","Saltillo":"SALTILLO",
   "Guadalajara":"GUADALAJARA","Chihuahua":"CHIHUAHUA",
@@ -625,7 +644,8 @@ const VENDEDORES = [
 function vendedorData(name) {
   const p = document.getElementById('plaza')?.value || 'Todas';
   const key = PLAZA_MAP[p] || 'Todas';
-  const plazaData = VENDEDORES_POR_PLAZA[key] || VENDEDORES_POR_PLAZA['Todas'];
+  const vpp = vppActive();
+  const plazaData = vpp[key] || vpp['Todas'] || {};
   return plazaData[name] || null;
 }
 
@@ -633,7 +653,7 @@ function vendedorData(name) {
 function vendedoresActivos() {
   const p = document.getElementById('plaza')?.value || 'Todas';
   const key = PLAZA_MAP[p] || 'Todas';
-  const plazaData = VENDEDORES_POR_PLAZA[key] || {};
+  const plazaData = vppActive()[key] || {};
   return VENDEDORES.filter(v => plazaData[v.name]);
 }
 
@@ -642,7 +662,7 @@ function getOpTotals() {
   const vds = vendedoresActivos();
   const p = document.getElementById('plaza')?.value || 'Todas';
   const key = PLAZA_MAP[p] || 'Todas';
-  const plazaData = VENDEDORES_POR_PLAZA[key] || {};
+  const plazaData = vppActive()[key] || {};
   const sum = (field) => vds.reduce((s,v) => s + (plazaData[v.name]?.[field] || 0), 0);
   return {
     pre:   sum('preaut'),
@@ -1515,7 +1535,7 @@ function renderCompare(){
   const body=data.map(d=>rowHTML(d.pl,d.r,false)).join('');
   // — Tabla comparativa de vendedores —
   // Construye filas con todas las métricas pre-calculadas (incluye preaut+), permite ordenar por cualquier columna.
-  const totalsTodas = VENDEDORES_POR_PLAZA['Todas'];
+  const totalsTodas = vppActive()['Todas'] || {};
   const sellerRows = VENDEDORES.filter(v => totalsTodas[v.name]).map(v => {
     const d = totalsTodas[v.name];
     const tasa = d.preautp ? Math.round((d.cierres+d.firma)/d.preautp*100) : 0;
@@ -1707,10 +1727,10 @@ function toast(m){const t=document.getElementById('toast');t.innerHTML=m;t.class
 //   2) Cada respuesta llena MONTHS[period] con el shape JUN-compatible.
 //   3) Si el fetch falla, se queda el hardcoded inicial como fallback.
 //
-// [S94] Vista Operación + tabla Comparar asesores ahora leen LIVE:
-// applyLiveData(mtd) puebla VENDEDORES_POR_PLAZA desde data.by_seller_by_city,
-// excluyendo ORGANICOS/VOLANTEO (PLAZA_LIVE_MAP funciona como allowlist).
-// El hardcode inicial (~L543) queda como fallback si el fetch falla.
+// [S94/S98] Vista Operación + tabla Comparar asesores leen LIVE POR-PERIODO:
+// applyLiveData(period) puebla VENDEDORES_POR_PLAZA_BY_PERIOD[period] desde
+// data.by_seller_by_city, excluyendo ORGANICOS/VOLANTEO (PLAZA_LIVE_MAP = allowlist).
+// SELLER_SEED (~L545) queda como fallback si el fetch falla.
 var LIVE_ENDPOINT = 'https://optix-proxy.anwarhsg.workers.dev/client_data_public';
 var LIVE_PERIODS = ['mtd', 'last_month'];
 var __liveCache = {}; // period → raw payload (para refetch lazy si hace falta)
@@ -1740,7 +1760,7 @@ function fetchLiveData(period) {
     .then(function(d){ __liveCache[period] = d; return d; });
 }
 
-// [S94] by_status_groups → shape consumido por VENDEDORES_POR_PLAZA.
+// [S94] by_status_groups → shape consumido por VENDEDORES_POR_PLAZA_BY_PERIOD.
 function groupsToEntry(g) {
   g = g || {};
   var cierres = g.cierres_total || 0,
@@ -1824,31 +1844,33 @@ function applyLiveData(period, data) {
 
   MONTHS[period] = bucket;
 
-  // [S94] Comparar asesores + Operación: poblar VENDEDORES_POR_PLAZA desde
-  // by_seller_by_city del payload. Solo period==='mtd' (la tabla vive en mtd;
-  // last_month no debe pisar). Excluye ORGANICOS/VOLANTEO usando PLAZA_LIVE_MAP
-  // como allowlist (las 7 plazas de venta). "Todas" = suma de las 7 (no usa el
-  // by_seller global del endpoint, que incluye orgánico/volanteo).
-  if (period === 'mtd') {
-    var bsc = data.by_seller_by_city || {};
-    var todasAcc = {};
-    for (var selName in PLAZA_LIVE_MAP) {
-      if (!Object.prototype.hasOwnProperty.call(PLAZA_LIVE_MAP, selName)) continue;
-      var bk = PLAZA_LIVE_MAP[selName];
-      var plazaAcc = {};
-      for (var bi = 0; bi < bk.length; bi++) {
-        var sellersInCity = bsc[bk[bi]] || {};
-        for (var vName in sellersInCity) {
-          if (!Object.prototype.hasOwnProperty.call(sellersInCity, vName)) continue;
-          var e = groupsToEntry(sellersInCity[vName].by_status_groups);
-          plazaAcc[vName] = addEntries(plazaAcc[vName], e);
-          todasAcc[vName] = addEntries(todasAcc[vName], e);
-        }
+  // [S98] Comparar asesores + Operación: poblar el bucket de ESTE period desde
+  // by_seller_by_city. (Antes: guard `if (period==='mtd')` con "last_month no debe
+  // pisar" → last_month nunca se poblaba y "Mes pasado" mostraba data de mtd, sug #25.)
+  // Cada period escribe su PROPIO bucket → sin last-writer-wins entre los fetch
+  // paralelos del bootstrap. Excluye ORGANICOS/VOLANTEO usando PLAZA_LIVE_MAP como
+  // allowlist (las 7 plazas de venta). "Todas" = suma de las 7 (no usa el by_seller
+  // global del endpoint, que incluye orgánico/volanteo).
+  var bsc = data.by_seller_by_city || {};
+  var sellerBucket = {};   // plazaKey -> { asesor -> entry }, aislado a este period
+  var todasAcc = {};
+  for (var selName in PLAZA_LIVE_MAP) {
+    if (!Object.prototype.hasOwnProperty.call(PLAZA_LIVE_MAP, selName)) continue;
+    var bk = PLAZA_LIVE_MAP[selName];
+    var plazaAcc = {};
+    for (var bi = 0; bi < bk.length; bi++) {
+      var sellersInCity = bsc[bk[bi]] || {};
+      for (var vName in sellersInCity) {
+        if (!Object.prototype.hasOwnProperty.call(sellersInCity, vName)) continue;
+        var e = groupsToEntry(sellersInCity[vName].by_status_groups);
+        plazaAcc[vName] = addEntries(plazaAcc[vName], e);
+        todasAcc[vName] = addEntries(todasAcc[vName], e);
       }
-      VENDEDORES_POR_PLAZA[PLAZA_MAP[selName]] = plazaAcc;
     }
-    VENDEDORES_POR_PLAZA['Todas'] = todasAcc;
+    sellerBucket[PLAZA_MAP[selName]] = plazaAcc;
   }
+  sellerBucket['Todas'] = todasAcc;
+  VENDEDORES_POR_PLAZA_BY_PERIOD[period] = sellerBucket;
 
   // Goals → override de constantes META_*
   if (goals.venta_meta && typeof goals.venta_meta.valor === 'number') {
@@ -1883,15 +1905,24 @@ function updateLivePill(data) {
 function onPeriodChange() {
   var sel = document.getElementById('period');
   var period = sel ? sel.value : 'mtd';
-  // Si ya está cacheado, render inmediato; si no, fetch + render.
+  // Bootstrap precarga mtd+last_month, así que normalmente ya está en cache.
   if (__liveCache[period]) {
     applyLiveData(period, __liveCache[period]);
     render();
-  } else {
-    fetchLiveData(period)
-      .then(function(d){ applyLiveData(period, d); render(); })
-      .catch(function(e){ console.warn('[flowmap] fetch ' + period + ' falló, usando hardcoded:', e); render(); });
+    return;
   }
+  // [S98-3b] Period no cacheado → fetch on-demand con estado de carga visible.
+  // NO se renderiza con data de otro period: mientras carga, el bucket de este
+  // period aún no existe, así que vppActive() cae a SELLER_SEED (fallback demo
+  // compartido), nunca al bucket de mtd/otro period.
+  toast('Cargando ' + currentPeriodLabel() + '…');
+  fetchLiveData(period)
+    .then(function(d){ applyLiveData(period, d); render(); })
+    .catch(function(e){
+      console.warn('[flowmap] fetch ' + period + ' falló, usando fallback:', e);
+      toast('No se pudo cargar ' + currentPeriodLabel() + ', mostrando datos de respaldo.');
+      render();
+    });
 }
 
 // Bootstrap: fetch ambos periodos en paralelo, render con datos live (o fallback).
