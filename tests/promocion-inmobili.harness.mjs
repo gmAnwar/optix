@@ -12,6 +12,7 @@ import {
   derivarCubeta, derivarFalta, mergeItems, contarCubetas, docIdDe, copyLleno,
   fmtPrecio, fmtFecha, fmtDias, fmtHace, diasDesde, aDate, plazaLabel,
   promesaDot, adsManagerUrl, enRango, exportWhatsApp, ADS_ACCOUNT,
+  restaurarCampos,
 } from '../modules/promocion-inmobili.js';
 
 let pass = 0;
@@ -197,6 +198,74 @@ caso('copyLleno null → false', copyLleno(null) === false);
 caso('copyLleno "x" → true', copyLleno('x') === true);
 caso('aDate ISO datetime', aDate('2026-07-03T22:08:42+00:00') instanceof Date);
 caso('aDate basura → null', aDate('no-fecha') === null);
+
+// ── [V71] restaurarCampos: base del Deshacer universal ─────────────────────
+
+{
+  // Apagar una vendida: previo capturado ANTES tenía apagada=false (o ausente).
+  const previoActiva = { subida: true, apagada: false, apagada_at: null, fuente_venta: null, adset_id: 'AD1' };
+  const restore = restaurarCampos(previoActiva, ['apagada', 'apagada_at', 'fuente_venta']);
+  caso('restaurarCampos: apagada→false, ts/fuente→null',
+    restore.apagada === false && restore.apagada_at === null && restore.fuente_venta === null,
+    JSON.stringify(restore));
+  caso('restaurarCampos NO toca campos fuera de la lista (adset_id intacto)',
+    !('adset_id' in restore) && !('subida' in restore));
+}
+
+{
+  // Reactivar: previo tenía apagada=true + apagada_at + fuente. El Deshacer de
+  // Reactivar debe restaurar EXACTAMENTE ese estado pre-reactivación.
+  const previoApagada = { subida: true, apagada: true, apagada_at: '2026-07-08T01:00:00+00:00', fuente_venta: 'pauta' };
+  const undo = restaurarCampos(previoApagada, ['apagada', 'apagada_at', 'fuente_venta']);
+  caso('reactivar undo restaura apagada=true + ts + fuente exactos',
+    undo.apagada === true && undo.apagada_at === '2026-07-08T01:00:00+00:00' && undo.fuente_venta === 'pauta',
+    JSON.stringify(undo));
+}
+
+{
+  // Recordar: previo sin recordado_at (campo ausente) → undo lo restaura a null.
+  const previoSinRec = { subida: false };
+  const undo = restaurarCampos(previoSinRec, ['recordado_at']);
+  caso('recordar undo: campo ausente → null (no undefined)', undo.recordado_at === null);
+  // Previo CON recordado_at → undo restaura ese valor.
+  const previoConRec = { recordado_at: '2026-07-01T00:00:00+00:00' };
+  caso('recordar undo: restaura recordado_at previo',
+    restaurarCampos(previoConRec, ['recordado_at']).recordado_at === '2026-07-01T00:00:00+00:00');
+}
+
+// ── [V71] Transición de Reactivar (vía derivarCubeta) ──────────────────────
+
+{
+  // Apagada → Reactivar (apagada:false). La derivación la regresa sola:
+  // vendida+subida → 'apagar'; activa+subida → 'activas'.
+  const vendida = prop({ estado: 'vendida' });
+  caso('reactivar vendida pautada → apagar',
+    derivarCubeta(vendida, { subida: true, apagada: false }) === 'apagar');
+  const activa = prop({ estado: 'activa' });
+  caso('reactivar activa pautada → activas',
+    derivarCubeta(activa, { subida: true, apagada: false }) === 'activas');
+  caso('antes de reactivar (apagada:true) → apagadas',
+    derivarCubeta(vendida, { subida: true, apagada: true }) === 'apagadas');
+}
+
+// ── [V71] mergeItems expone nota + trazabilidad ────────────────────────────
+
+{
+  const kv = [prop({ id: 1, material: true, copy: 'C' })];
+  const fs = new Map([['gomez_1', {
+    subida: true, adset_id: 'AD9', nota: 'llamar al dueño',
+    updated_by: 'uid-abc123', updated_by_name: 'Mario', updated_at: '2026-07-08T10:00:00+00:00',
+  }]]);
+  const it = mergeItems(kv, fs)[0];
+  caso('mergeItems: nota expuesta', it.nota === 'llamar al dueño');
+  caso('mergeItems: updated_by_name expuesto', it.updated_by_name === 'Mario');
+  caso('mergeItems: updated_by expuesto', it.updated_by === 'uid-abc123');
+  caso('mergeItems: updated_at expuesto', it.updated_at === '2026-07-08T10:00:00+00:00');
+  // Doc viejo sin estos campos → null (no rompe).
+  const viejo = mergeItems([prop({ id: 2 })], new Map([['gomez_2', { subida: false }]]))[0];
+  caso('mergeItems: doc viejo sin nota/traza → null',
+    viejo.nota === null && viejo.updated_by_name === null && viejo.updated_at === null);
+}
 
 // ── Reporte ────────────────────────────────────────────────────────────────
 for (const r of resultados) console.log(r);
