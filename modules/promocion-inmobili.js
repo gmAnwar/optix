@@ -27,6 +27,14 @@
 export const PROMO_ENDPOINT =
   'https://optix-proxy.anwarhsg.workers.dev/client_data_public?client=inmobili&view=promocion';
 
+// [V71] Worker base para el post de apagado a Slack (action=slack_dm acepta
+// channel id — confirmado: el SPA ya lo llama así en index.html). Destino =
+// canal de alertas de promoción (mismo que el pipeline).
+export const PROMO_WORKER = 'https://optix-proxy.anwarhsg.workers.dev';
+export const PROMO_ALERT_CHANNEL = 'C0BEZSXMA0N';
+// Ventana de Deshacer (ms) — el post a Slack se agenda a este mismo plazo.
+export const TOAST_MS = 5000;
+
 // Cuenta de Meta Ads de Inmobili — verificada por Anwar (Checkpoint 1,
 // 2026-07-07). Misma de clients/inmobili/ads_manager_config.py en optix-loops.
 export const ADS_ACCOUNT = 'act_936995767352512';
@@ -97,8 +105,25 @@ export function mergeItems(kvProps, fsMap) {
       apagada_at: fs ? fs.apagada_at || null : null,
       fuente_venta: fs ? fs.fuente_venta || null : null,
       recordado_at: fs ? fs.recordado_at || null : null,
+      // [V71] trazabilidad + nota (docs viejos sin estos campos → null).
+      nota: fs ? fs.nota || null : null,
+      updated_by: fs ? fs.updated_by || null : null,
+      updated_by_name: fs ? fs.updated_by_name || null : null,
+      updated_at: fs ? fs.updated_at || null : null,
     };
   });
+}
+
+/**
+ * [V71] Construye el patch que restaura `campos` a sus valores previos (null
+ * si el campo no existía en el doc previo). Es la base del Deshacer universal:
+ * captura el doc ANTES del write optimista y restaura los campos exactos.
+ * Pura (node-testeable).
+ */
+export function restaurarCampos(previo, campos) {
+  const patch = {};
+  for (const k of campos) patch[k] = (previo && previo[k] != null) ? previo[k] : null;
+  return patch;
 }
 
 export function contarCubetas(items) {
@@ -243,6 +268,8 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
     seleccionCubeta: null,
     fuenteSel: new Map(),   // docId → 'pauta'|'organico' (transitorio pre-apagar)
     noticesCerrados: new Set(),
+    editandoAdset: null,    // [V71] docId con el adset en modo edición (Activas)
+    notaAbierta: new Set(), // [V71] docIds con la nota expandida
     cargando: false,
     error: null,
   };
@@ -258,6 +285,46 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
     return window.firebaseDb
       .collection('workspaces').doc(wsId())
       .collection('promocion-inmobili');
+  }
+
+  // [V71] Nombre legible del usuario actual (para updated_by_name / tooltip).
+  function nombreUsuario() {
+    const u = window.currentUser;
+    if (!u) return null;
+    return u.displayName || (u.email || '').split('@')[0] || null;
+  }
+
+  // [V71] Snapshot del doc previo (para Deshacer universal: capturar ANTES
+  // del write optimista).
+  function snapshotPrevio(docId) {
+    const d = S.fsMap.get(docId);
+    return d ? { ...d } : null;
+  }
+
+  // [V71] Modal de confirmación scoped pv- (gemelo del de la casa,
+  // tareasCliShowConfirmModal, con label configurable). Cierra en backdrop/Esc.
+  function pvConfirm(mensaje, labelOk, onConfirm) {
+    const prev = document.getElementById('pv-confirm-modal');
+    if (prev) prev.remove();
+    const el = document.createElement('div');
+    el.id = 'pv-confirm-modal';
+    el.className = 'pv-modal-overlay';
+    el.innerHTML = `<div class="pv-modal-card">
+      <div class="pv-modal-title">Confirmar</div>
+      <div class="pv-modal-msg"></div>
+      <div class="pv-modal-actions">
+        <button class="pv-modal-cancel">Cancelar</button>
+        <button class="pv-modal-ok">${escapeHtml(labelOk || 'Confirmar')}</button>
+      </div></div>`;
+    document.body.appendChild(el);
+    el.querySelector('.pv-modal-msg').textContent = mensaje;
+    const close = () => { try { el.remove(); } catch (e) {} };
+    el.querySelector('.pv-modal-cancel').onclick = close;
+    el.querySelector('.pv-modal-ok').onclick = () => { close(); try { onConfirm(); } catch (e) { console.error(e); } };
+    el.onclick = (ev) => { if (ev.target === el) close(); };
+    document.addEventListener('keydown', function esc(ev) {
+      if (ev.key === 'Escape') { document.removeEventListener('keydown', esc); close(); }
+    });
   }
 
   // ── Carga: KV + colección Firestore en paralelo ──
@@ -313,6 +380,7 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
       if (wire[k] === '__SERVER_TS__') wire[k] = fv ? fv.serverTimestamp() : new Date();
     }
     wire.updated_by = window.currentUser ? window.currentUser.uid : null;
+    wire.updated_by_name = nombreUsuario();   // [V71] tooltip quién-y-cuándo
     wire.updated_at = fv ? fv.serverTimestamp() : new Date();
     try {
       await col.doc(docId).set(wire, { merge: true });
@@ -366,26 +434,89 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
       toast('Elige cómo se vendió antes de apagar', null);
       return;
     }
+    const previo = snapshotPrevio(docId);   // [V71] captura ANTES del write
     const patch = { apagada: true, apagada_at: '__SERVER_TS__' };
     if (it.p.estado === 'vendida') patch.fuente_venta = fuente;
     const ok = await escribir(docId, patch);
     if (ok) {
       S.fuenteSel.delete(docId);
+      // [V71 req7] Mensaje de apagado a Slack SOLO para VENDIDA, agendado para
+      // DESPUÉS de la ventana de Deshacer (5s). Si el usuario deshace, se
+      // cancela → nunca un mensaje mentiroso. Timer propio (desacoplado del
+      // toast) para que un toast posterior no lo cancele.
+      let slackTimer = null;
+      if (it.p.estado === 'vendida') {
+        slackTimer = setTimeout(() => { slackTimer = null; postApagadoVendida(it); }, TOAST_MS);
+      }
       toast(
         'Campaña apagada' + (fuente ? ` — vendida por ${fuente === 'pauta' ? 'pauta' : 'orgánico'}` : ''),
-        () => escribir(docId, { apagada: false, apagada_at: null, fuente_venta: null })
+        () => {
+          if (slackTimer) { clearTimeout(slackTimer); slackTimer = null; }
+          escribir(docId, restaurarCampos(previo, ['apagada', 'apagada_at', 'fuente_venta']));
+        }
+      );
+    }
+  }
+
+  // [V71 req2] Reactivar desde Apagadas: restaura el estado pre-apagado. La
+  // derivación existente la regresa sola a 'apagar' o 'activas'.
+  async function accionReactivar(docId) {
+    const previo = snapshotPrevio(docId);
+    const ok = await escribir(docId, { apagada: false, apagada_at: null, fuente_venta: null });
+    if (ok) {
+      toast('Campaña reactivada', () =>
+        escribir(docId, restaurarCampos(previo, ['apagada', 'apagada_at', 'fuente_venta']))
       );
     }
   }
 
   async function accionRecordar(docId) {
-    await escribir(docId, { recordado_at: '__SERVER_TS__' });
+    const previo = snapshotPrevio(docId);   // [V71] Deshacer restaura recordado_at previo
+    const it = S.items.find((x) => x.docId === docId);
+    const ok = await escribir(docId, { recordado_at: '__SERVER_TS__' });
+    if (ok) {
+      toast(`Recordatorio registrado — ${it ? it.p.propiedad : docId}`, () =>
+        escribir(docId, restaurarCampos(previo, ['recordado_at']))
+      );
+    }
+  }
+
+  // [V71 req6] Nota por propiedad: se guarda en blur (no tiene Deshacer — las
+  // notas se editan, no se deshacen). '' → null.
+  async function accionNota(docId, valor) {
+    const v = (valor || '').trim();
+    const it = S.items.find((x) => x.docId === docId);
+    if (it && (it.nota || '') === v) return; // sin cambio
+    await escribir(docId, { nota: v || null });
+  }
+
+  // [V71 req7] Post de cortesía a Slack tras apagar una vendida. Fallo → toast
+  // de aviso, NO revierte el apagado (el apagado es la verdad; esto es cortesía).
+  async function postApagadoVendida(it) {
+    const prop = it.p.propiedad;
+    const id = it.p.id;
+    const texto =
+      `✅ Apagada la pauta de ${prop} (${id}) — 📋 copia y pega a Jenny: ` +
+      `"Hola Jenny, ya bajamos la pauta de ${prop} que se vendió 🎉 ¡Felicidades por el cierre!"`;
+    try {
+      const resp = await fetch(PROMO_WORKER, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'slack_dm', user_id: PROMO_ALERT_CHANNEL, text: texto }),
+      });
+      if (!resp.ok) throw new Error('worker HTTP ' + resp.status);
+    } catch (e) {
+      console.error('[promocion] post apagado a Slack falló', e);
+      toast('Apagado guardado; el aviso a Slack no salió (reintenta manual)', null);
+    }
   }
 
   async function accionAdset(docId, valor) {
-    const v = (valor || '').trim();
+    // [V71] Validación suave: solo dígitos (los adset_id de Meta son numéricos).
+    const v = (valor || '').replace(/\D/g, '');
     const it = S.items.find((x) => x.docId === docId);
-    if (it && (it.adset_id || null) === (v || null)) return; // sin cambio
+    S.editandoAdset = null;   // salir de modo edición (Activas)
+    if (it && (it.adset_id || null) === (v || null)) { render(); return; }
     await escribir(docId, { adset_id: v || null });
   }
 
@@ -407,6 +538,13 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
   // ── Bulk ──
   function itemsSeleccionados() {
     return S.items.filter((x) => S.seleccion.has(x.docId));
+  }
+
+  // [V71 req3] ≥3 seleccionadas → confirmación modal antes de ejecutar.
+  function conConfirmacionBulk(labelAccion, fn) {
+    const n = S.seleccion.size;
+    if (n >= 3) pvConfirm(`¿${labelAccion} ${n} propiedades?`, labelAccion, fn);
+    else fn();
   }
 
   async function bulkMarcarSubidas() {
@@ -486,11 +624,11 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
     bar.style.transition = 'none';
     bar.style.width = '100%';
     requestAnimationFrame(() => {
-      bar.style.transition = 'width 5s linear';
+      bar.style.transition = `width ${TOAST_MS / 1000}s linear`;
       bar.style.width = '0%';
     });
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => el.classList.remove('show'), 5000);
+    toastTimer = setTimeout(() => el.classList.remove('show'), TOAST_MS);
   }
 
   // ── Render ──────────────────────────────────────────────────────────────
@@ -555,6 +693,15 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
     root.querySelectorAll('.pv-adset-in').forEach((inp) => {
       inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') e.target.blur(); });
       inp.addEventListener('blur', (e) => accionAdset(e.target.dataset.docid, e.target.value));
+    });
+    // [V71] Foco al input de adset recién abierto en Activas.
+    if (S.editandoAdset) {
+      const ed = root.querySelector(`.pv-adset-in[data-docid="${S.editandoAdset}"]`);
+      if (ed) { ed.focus(); ed.select(); }
+    }
+    // [V71] Nota: guardar en blur (sin Deshacer — las notas se editan).
+    root.querySelectorAll('.pv-nota-in').forEach((ta) => {
+      ta.addEventListener('blur', (e) => accionNota(e.target.dataset.docid, e.target.value));
     });
   }
 
@@ -632,12 +779,36 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
       : '';
   }
 
+  // [V71 req5] Traza discreta "por {nombre|uid corto} · {fecha}" (tooltip).
+  function celTrace(it) {
+    if (!it.updated_at && !it.updated_by && !it.updated_by_name) return '';
+    const quien = it.updated_by_name || (it.updated_by ? String(it.updated_by).slice(0, 6) : '—');
+    const cuando = it.updated_at ? fmtFecha(it.updated_at, new Date()) : '';
+    const tip = `por ${quien}${cuando ? ' · ' + cuando : ''}`;
+    return ` <span class="pv-trace" title="${escapeHtml(tip)}">ⓘ</span>`;
+  }
+
+  // [V71 req6] Botón de nota (📝 relleno si hay nota) — toggle expand.
+  function celNotaBtn(it) {
+    const tip = it.nota ? escapeHtml(it.nota) : 'Agregar nota';
+    return `<button class="pv-nota-btn${it.nota ? ' has' : ''}" data-action="toggle-nota" data-docid="${escapeHtml(it.docId)}" title="${tip}">📝</button>`;
+  }
+
   function celName(it) {
     const sub = fmtPrecio(it.p.precio);
     return `<td class="pv-c-name"><div class="pv-name">
-      <span class="pv-idtag">${escapeHtml(String(it.p.id))}</span>${escapeHtml(it.p.propiedad)}${chipMissing(it)}
+      <span class="pv-idtag">${escapeHtml(String(it.p.id))}</span>${escapeHtml(it.p.propiedad)}${chipMissing(it)}${celTrace(it)}${celNotaBtn(it)}
       ${sub ? `<span class="pv-sub">${escapeHtml(sub)}</span>` : ''}
     </div></td>`;
+  }
+
+  // [V71 req6] Fila expandida con la nota editable (colspan). '' si cerrada.
+  function notaRowSiAbierta(it) {
+    if (!S.notaAbierta.has(it.docId)) return '';
+    return `<tr class="pv-nota-row"><td colspan="10">
+      <textarea class="pv-nota-in" data-docid="${escapeHtml(it.docId)}" rows="2"
+        placeholder="Nota interna (se guarda al salir del campo)…">${escapeHtml(it.nota || '')}</textarea>
+    </td></tr>`;
   }
 
   function celChk(it) {
@@ -657,7 +828,7 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
       if (S.tab !== 'todas' && S.tab !== cubeta) return '';
       const items = porCubeta[cubeta];
       if (S.tab === 'todas' && items.length === 0) return '';
-      const filas = items.map((it) => filaDe(cubeta, it, hoy)).join('');
+      const filas = items.map((it) => filaDe(cubeta, it, hoy) + notaRowSiAbierta(it)).join('');
       const vacia = `<tr><td colspan="10" class="pv-empty">Nada en esta cubeta.</td></tr>`;
       return `<div class="pv-section">
         <div class="pv-section-bar"><span class="pv-sdot" style="background:${color}"></span>
@@ -678,7 +849,7 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
       lista: `<tr>${chk}<th class="pv-c-sw">Subir</th><th class="pv-c-name">Propiedad</th><th>Plaza</th><th class="pv-num">Captada</th><th class="pv-num">Promesa</th><th class="pv-num">En estado</th><th>Material</th><th>Copy</th><th>Adset</th></tr>`,
       esperando: `<tr>${chk}<th class="pv-c-sw"></th><th class="pv-c-name">Propiedad</th><th>Plaza</th><th class="pv-num">Promesa</th><th class="pv-num">En estado</th><th>Falta</th><th>Material</th><th>Copy</th><th>Recordatorio</th></tr>`,
       activas: `<tr>${chk}<th class="pv-c-sw">Estado</th><th class="pv-c-name">Propiedad</th><th>Plaza</th><th class="pv-num">Subida</th><th>Adset</th><th>Material</th><th class="pv-num">Acción</th></tr>`,
-      apagadas: `<tr><th class="pv-c-chk"></th><th class="pv-c-sw"></th><th class="pv-c-name">Propiedad</th><th>Plaza</th><th>Adset</th><th class="pv-num">Apagada</th><th>Se vendió por</th></tr>`,
+      apagadas: `<tr><th class="pv-c-chk"></th><th class="pv-c-sw"></th><th class="pv-c-name">Propiedad</th><th>Plaza</th><th>Adset</th><th class="pv-num">Apagada</th><th>Se vendió por</th><th class="pv-num">Acción</th></tr>`,
     };
     return `<thead>${H[cubeta]}</thead>`;
   }
@@ -745,11 +916,16 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
       </tr>`;
     }
     if (cubeta === 'activas') {
+      // [V71 req4] Adset editable: chip clickeable → input inline (persiste
+      // en blur/enter, mismo write que Lista).
+      const adsetEditable = S.editandoAdset === it.docId
+        ? `<input class="pv-adset-in" placeholder="adset…" value="${escapeHtml(it.adset_id || '')}" data-docid="${escapeHtml(it.docId)}" autofocus>`
+        : `<span class="pv-adset-edit" data-action="edit-adset" data-docid="${escapeHtml(it.docId)}" title="Click para editar">${adsetCell}</span>`;
       return `<tr class="${S.seleccion.has(it.docId) ? 'pv-sel' : ''}">${celChk(it)}
         <td class="pv-c-sw"><label class="pv-switch"><input type="checkbox" checked data-action="revertir" data-docid="${escapeHtml(it.docId)}"><span class="pv-track"></span></label></td>
         ${celName(it)}${plaza}
         <td class="pv-num" data-l="Subida"><span class="pv-big">${escapeHtml(fmtFecha(it.subida_at, hoy))}</span></td>
-        <td data-l="Adset">${adsetCell}</td>
+        <td data-l="Adset">${adsetEditable}</td>
         ${material}
         <td class="pv-num" data-l="Acción"><a class="pv-lnk" href="${adsManagerUrl(it.adset_id)}" target="_blank" rel="noopener">Ver en Ads Manager ↗</a></td>
       </tr>`;
@@ -765,6 +941,7 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
       <td data-l="Adset">${adsetCell}</td>
       <td class="pv-num" data-l="Apagada"><span class="pv-big">${escapeHtml(fmtFecha(it.apagada_at, hoy))}</span></td>
       <td data-l="Fuente">${pill}</td>
+      <td class="pv-num" data-l="Acción"><button class="pv-mini" data-action="reactivar" data-docid="${escapeHtml(it.docId)}">Reactivar</button></td>
     </tr>`;
   }
 
@@ -810,14 +987,22 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
     if (action === 'refrescar') { cargar(); return; }
     if (action === 'copiar') { accionCopiarCopy(docId); return; }
     if (action === 'recordar') { accionRecordar(docId); return; }
+    if (action === 'reactivar') { accionReactivar(docId); return; }
+    if (action === 'edit-adset') { S.editandoAdset = docId; render(); return; }
+    if (action === 'toggle-nota') {
+      if (S.notaAbierta.has(docId)) S.notaAbierta.delete(docId);
+      else S.notaAbierta.add(docId);
+      render();
+      return;
+    }
     if (action === 'fuente') { S.fuenteSel.set(docId, t.dataset.fuente); render(); return; }
     if (action === 'bulk-clear') { limpiarSeleccion(); return; }
-    if (action === 'bulk-subidas') { bulkMarcarSubidas(); return; }
+    if (action === 'bulk-subidas') { conConfirmacionBulk('Marcar subidas', bulkMarcarSubidas); return; }
     if (action === 'bulk-copies') { bulkCopiarCopies(); return; }
-    if (action === 'bulk-recordar') { bulkRecordar(); return; }
+    if (action === 'bulk-recordar') { conConfirmacionBulk('Recordar a todas', bulkRecordar); return; }
     if (action === 'bulk-whatsapp') { bulkExportWhatsApp(); return; }
-    if (action === 'bulk-apagar') { bulkApagar(); return; }
-    if (action === 'bulk-revertir') { bulkRevertir(); return; }
+    if (action === 'bulk-apagar') { conConfirmacionBulk('Apagar', bulkApagar); return; }
+    if (action === 'bulk-revertir') { conConfirmacionBulk('Revertir', bulkRevertir); return; }
   }
 
   function renderPreservandoBusqueda() {

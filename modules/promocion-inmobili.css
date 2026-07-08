@@ -278,3 +278,53 @@
   #screen-promocion .pv-adset-in { width: auto; flex: 1; max-width: 170px; }
   #screen-promocion .pv-table tfoot { display: none; }
 }
+
+/* ═══ [OPTIX-PROMO-V71] blindaje de operabilidad ═══════════════════════════ */
+
+/* Modal de confirmación scoped (gemelo del de la casa) */
+.pv-modal-overlay {
+  position: fixed; inset: 0; z-index: 99999; background: rgba(0, 0, 0, .5);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--pv-font);
+}
+.pv-modal-card {
+  background: #fff; border: 1px solid var(--pv-line); border-radius: 12px;
+  padding: 22px; min-width: 300px; max-width: 420px; box-shadow: 0 12px 32px rgba(0, 0, 0, .3);
+}
+.pv-modal-title { font-size: 15px; font-weight: 700; color: var(--pv-txt); margin-bottom: 8px; }
+.pv-modal-msg { font-size: 13px; color: var(--pv-txt-2); line-height: 1.5; margin-bottom: 18px; }
+.pv-modal-actions { display: flex; gap: 8px; justify-content: flex-end; }
+.pv-modal-actions button {
+  padding: 8px 14px; border-radius: 8px; font-size: 12.5px; font-weight: 600;
+  cursor: pointer; font-family: var(--pv-font); border: 1px solid var(--pv-line);
+}
+.pv-modal-cancel { background: #fff; color: var(--pv-txt-2); }
+.pv-modal-cancel:hover { background: var(--pv-header-bg); }
+.pv-modal-ok { background: var(--pv-blue-track); border-color: var(--pv-blue-track); color: #fff; }
+.pv-modal-ok:hover { filter: brightness(.95); }
+
+/* Traza discreta "por X · fecha" */
+#screen-promocion .pv-trace {
+  font-size: 10px; color: var(--pv-txt-3); cursor: help; margin-left: 5px;
+  vertical-align: middle; user-select: none;
+}
+#screen-promocion .pv-trace:hover { color: var(--pv-blue); }
+
+/* Botón de nota */
+#screen-promocion .pv-nota-btn {
+  border: none; background: none; cursor: pointer; font-size: 12px; opacity: .4;
+  margin-left: 4px; padding: 0 2px; filter: grayscale(1);
+}
+#screen-promocion .pv-nota-btn:hover { opacity: .9; filter: grayscale(0); }
+#screen-promocion .pv-nota-btn.has { opacity: 1; filter: grayscale(0); }
+#screen-promocion .pv-nota-row td { background: #fffdf5; padding: 8px 12px !important; }
+#screen-promocion .pv-nota-in {
+  width: 100%; border: 1px solid var(--pv-line); border-radius: 6px; padding: 6px 9px;
+  font-size: 12.5px; font-family: var(--pv-font); color: var(--pv-txt);
+  background: #fff; resize: vertical; box-sizing: border-box;
+}
+#screen-promocion .pv-nota-in:focus { outline: none; border-color: var(--pv-blue); }
+
+/* Adset editable (chip clickeable en Activas) */
+#screen-promocion .pv-adset-edit { cursor: pointer; border-bottom: 1px dashed var(--pv-line); }
+#screen-promocion .pv-adset-edit:hover { background: var(--pv-blue-soft); border-radius: 4px; }
