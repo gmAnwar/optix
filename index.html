@@ -6038,9 +6038,13 @@ function openClient(id) {
   // Tab Tareas solo para optimizads (no depende del cliente, depende del workspace)
   const tabTareas = document.getElementById('tab-tareas');
   if (tabTareas) tabTareas.style.display = (currentAgencia === 'optimizads' || !currentAgencia) ? '' : 'none';
-  // Tab Promoción (Inmobili interno) — mismo gate de workspace que Tareas.
+  // Tab Promoción — EXCLUSIVO de Inmobili (la vista y su fetch al Worker están
+  // pineados a client=inmobili). Gate por CLIENTE (patrón canónico, igual que
+  // tab-campanas), NO por workspace: antes usaba el gate de Tareas y se colaba
+  // en todos los clientes de optimizads (enpagos/divisas/…) mostrando data de
+  // Inmobili — fuga cruzada [OPTIX-PROMO-TABFIX].
   const tabPromocion = document.getElementById('tab-promocion');
-  if (tabPromocion) tabPromocion.style.display = (currentAgencia === 'optimizads' || !currentAgencia) ? '' : 'none';
+  if (tabPromocion) tabPromocion.style.display = client.id === 'inmobili' ? '' : 'none';
   tareasUpdateBadge();
   navigate('dashboard');
   loadAllFields();
