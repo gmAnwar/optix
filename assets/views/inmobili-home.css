@@ -47,6 +47,41 @@
   padding: 0 16px 8px;
 }
 
+/* ── [OPTIX-INMOBILI-SELECTOR-CHIPS] — re-vestir los 2 chips de período con el
+   look del selector VIVO de EnPagos (el pill `.period-dd`, enpagos-home.css:91).
+   Override PROPIO scoped a `.inmobili-period-bar` — NO se toca enpagos-home.css
+   ni el `.period-chip` legacy (otro dashboard podría heredarlo). Solo piel:
+   labels ("Este Mes" / "Mes Pasado") y lógica (fetch/switchPeriod) intactos, y
+   siguen siendo 2 botones visibles (sin dropdown). Se CONSERVA min-height 44px
+   (touch-target WCAG AA, decisión Anwar PR #73): el skin del pill (padding/border/
+   radio/colores) se mantiene, solo el alto sube de ~31px a 44px con el texto
+   centrado (align-items:center heredado). Responsive: hereda el overflow-x del #period-selector
+   (enpagos-home.css:917); con 2 pills nunca desborda. */
+.inmobili-period-bar .period-chip {
+  border: 0.5px solid #c8ccd1;
+  background: #fff;
+  color: #1c1e21;
+  padding: 7px 12px;
+  border-radius: 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+  min-height: 44px;
+  min-width: 0;
+  transition: border-color 0.12s, background 0.12s, color 0.12s;
+}
+.inmobili-period-bar .period-chip:hover {
+  border-color: #1877f2;
+  background: #fff;
+}
+.inmobili-period-bar .period-chip.active,
+.inmobili-period-bar .period-chip.active:hover {
+  background: #e7f0fe;
+  color: #1877f2;
+  border-color: #c8ccd1;
+  font-weight: 600;
+  text-decoration: none;
+}
+
 /* ── Plaza card badges (Inmobili-specific, no existen en EnPagos) ── */
 .plaza-card__badge {
   display: inline-block;
