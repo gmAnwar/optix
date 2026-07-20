@@ -1,0 +1,50 @@
+{
+  "version": "0.1.0-seed",
+  "updated_at": "2026-07-20",
+  "_nota": "SEED / PLACEHOLDER (F1). Reemplazar con la taxonomia real de Anwar. Los ad_id son reales (tomados de los thumbnails en /assets/ads-manager), pero los valores nc/angulo/tipo/formato/talento son ilustrativos para validar el andamio+join. El 4to ad omite 'talento' a proposito (prueba el render de campo faltante). Almacenamiento estatico F1-F3; migra a Firestore en F4.",
+  "ads": {
+    "120243031112680053": {
+      "nc": "Consciente del problema",
+      "angulo": "Dolor / urgencia",
+      "tipo": "Testimonial",
+      "formato": "UGC vertical",
+      "talento": "Asesor",
+      "linea": "captacion",
+      "fase": "escala",
+      "confianza": "alta",
+      "fuente_tag": "seed-placeholder"
+    },
+    "120238570383350053": {
+      "nc": "Consciente de la solucion",
+      "angulo": "Beneficio / aspiracional",
+      "tipo": "Demostracion",
+      "formato": "Reel editado",
+      "talento": "Cliente",
+      "linea": "captacion",
+      "fase": "prueba",
+      "confianza": "media",
+      "fuente_tag": "seed-placeholder"
+    },
+    "120241353761680053": {
+      "nc": "No consciente",
+      "angulo": "Curiosidad / hook",
+      "tipo": "Face-to-camera",
+      "formato": "Historia",
+      "talento": "Vocero",
+      "linea": "captacion",
+      "fase": "prueba",
+      "confianza": "baja",
+      "fuente_tag": "seed-placeholder"
+    },
+    "120241353924300053": {
+      "nc": "Mas consciente",
+      "angulo": "Oferta directa",
+      "tipo": "Carrusel",
+      "formato": "Estatico",
+      "linea": "captacion",
+      "fase": "escala",
+      "confianza": "alta",
+      "fuente_tag": "seed-placeholder"
+    }
+  }
+}
