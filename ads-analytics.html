@@ -518,16 +518,19 @@ function lineaFor(row) {
   if (t && t.linea) return t.linea;
   return CAMPAIGN_LINEA[row && row.campaign_id] || "otro";
 }
-// Celda de tag (pill). Sin tag → "Sin clasificar" (rojo) SOLO en Ángulo, "—" en
-// las otras 4. Campo faltante → "—". Filas no-ad (rollups) → "—" (no tienen tag).
+// Un valor de tag "vacío" = null / "" / "—" / "-". La taxonomía real usa el
+// literal "—" como "ninguno" (p.ej. talento en 805/922 ads); hay que tratarlo
+// como vacío, no meterlo en un pill.
+function isEmptyTag(v) { return v == null || v === "" || v === "—" || v === "-"; }
+// Celda de tag (pill). Ángulo vacío (sin tag O con angulo null/"—") → "Sin
+// clasificar" (rojo). Cualquier otra dimensión vacía → "—". Filas no-ad → "—".
 function tagCell(row, dim) {
   if (row.level !== "ad") return '<span class="tag-empty">—</span>';
   const t = tagFor(row);
-  if (!t) return dim === "angulo"
+  const v = t ? t[dim] : null;
+  if (isEmptyTag(v)) return dim === "angulo"
     ? '<span class="pill pill-none">Sin clasificar</span>'
     : '<span class="tag-empty">—</span>';
-  const v = t[dim];
-  if (v == null || v === "") return '<span class="tag-empty">—</span>';
   return '<span class="pill pill-' + dim + '" title="' + escAttr(v) + '">' + escHtml(v) + '</span>';
 }
 // Punto de confianza (antes del nombre). alta=verde, media=ámbar, baja=círculo
