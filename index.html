@@ -7801,6 +7801,23 @@ async function loadAnalisis() {
       <div style="color:var(--text3); font-size:18px;">→</div>
     </div>
 
+    ${client.id === 'inmobili' ? `
+    <!-- Ads Analytics (F1) — lente de creativos, hermana de Ads Manager. Inmobili-only
+         en F1: la taxonomía de tags (assets/ads-analytics/ads-taxonomy.json) es de Inmobili.
+         Reusa el MISMO doc de métricas ads-manager-v2; sólo agrega columnas de creativo. -->
+    <div onclick="window.location.href='/ads-analytics.html?client=inmobili'"
+         style="background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:16px; margin-bottom:20px; cursor:pointer; transition:border-color 0.15s; display:flex; align-items:center; gap:14px;"
+         onmouseover="this.style.borderColor='var(--accent)'"
+         onmouseout="this.style.borderColor='var(--border)'">
+      <div style="font-size:24px;">🎨</div>
+      <div style="flex:1;">
+        <div style="font-family:'DM Sans',sans-serif; font-weight:600; font-size:14px; color:var(--text1);">Ads Analytics</div>
+        <div style="font-size:11px; color:var(--text3); font-family:'DM Mono',monospace; margin-top:2px;">creativos por anuncio · nivel de consciencia · ángulo · formato · talento</div>
+      </div>
+      <div style="color:var(--text3); font-size:18px;">→</div>
+    </div>
+    ` : ''}
+
     ${hasData ? `
     <!-- MÓDULOS -->
     <div style="background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:16px; margin-bottom:20px;">
