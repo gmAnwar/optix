@@ -99,6 +99,9 @@
   .lag-badge { font-size:10px; color:#b15a36; background:#f7e9e3; padding:1px 6px; border-radius:4px; white-space:nowrap; }
   .lag-banner { display:none; background:#fff7e6; color:#b15a36; border:0.5px solid #f7e9e3; border-radius:6px; padding:6px 10px; font-size:11.5px; margin:8px 0; }
   .lag-banner.show { display:inline-block; }
+  /* Nota del CAC cuando hay una plaza seleccionada: el CAC sigue siendo GLOBAL. */
+  .cac-plaza-note { display:none; font-size:11px; color:#8a8d91; margin-top:3px; max-width:520px; }
+  .cac-plaza-note.show { display:block; }
   /* S87 MEJORA 1: leyenda visible de status. Una sola línea, justo
      antes de la tabla — usuario la ve sin scroll. */
   .status-legend { display:flex; flex-wrap:wrap; gap:18px; padding:8px 24px 12px; font-size:11px; color:#65676b; align-items:center; border-bottom:0.5px solid #e9ebee; }
@@ -204,6 +207,11 @@
   .pct-sub { font-size:9.5px; margin-top:2px; }
   .pct-good { color:#1d9e75; } .pct-mid { color:#a0936a; } .pct-hi { color:#c4502a; }
   .muted { color:#a8abb0; font-size:9.5px; }
+  /* Estado degradado: la atribución per-ad colapsó en esta ventana. Gris +
+     cursor de ayuda; NO es un cero, es un "no se puede saber". */
+  .nodata { color:#a8abb0; font-style:italic; cursor:help; border-bottom:1px dotted #c8ccd1; }
+  /* El desglose por plaza no suma al count → bug de datos, tiene que verse. */
+  .plaza-mismatch { color:#b15a36; cursor:help; }
   .conv { color:#8a8d91; font-size:9px; margin-top:1px; display:block; }
   .conv-low { color:#c4502a; font-size:9px; margin-top:1px; display:block; }
   .total-row { border-top:1px solid #d0d3d8 !important; background:#f7f8fa; }
@@ -317,21 +325,25 @@
         <div class="acct-sel">
           <div class="acct-badge">I</div><div class="acct-divider"></div>
           <i class="ti ti-id-badge-2 acct-ico"></i>
-          <span class="acct-name" id="acct-name">Inmobili · act_9369…2512</span>
+          <span class="acct-name" id="acct-name" title="Torreón y Gómez comparten act_936995767352512; Monterrey usa act_2078817302701861">Inmobili · 2 cuentas</span>
           <i class="ti ti-chevron-down chev"></i>
         </div>
       </div>
       <div class="period-wrap">
         <div class="date-dd" id="period-dd"><i class="ti ti-calendar cal"></i><span id="period-label">— periodo —</span><i class="ti ti-chevron-down chev"></i></div>
-        <!-- S87: 7 períodos preset. ≤14d traen badge de lag. -->
+        <!-- S87: 7 períodos preset. El badge "⚠ sin atribución" YA NO está
+             hardcodeado en 3d/7d/14d: lo pinta renderPeriodBadges() con la misma
+             regla que pone en gris las celdas, así badge y tabla nunca se
+             contradicen. Solo aparece en periodos cuyo doc ya se cargó — no
+             afirmamos nada de lo que no hemos leído. -->
         <div class="period-menu" id="period-menu" hidden>
-          <div class="period-opt" data-period="3d">Últimos 3 días <span class="lag-badge">⚠ parcial</span></div>
-          <div class="period-opt" data-period="7d">Últimos 7 días <span class="lag-badge">⚠ parcial</span></div>
-          <div class="period-opt" data-period="14d">Últimos 14 días <span class="lag-badge">⚠ parcial</span></div>
-          <div class="period-opt" data-period="30d">Últimos 30 días</div>
-          <div class="period-opt" data-period="45d">Últimos 45 días</div>
-          <div class="period-opt" data-period="mtd">Mes actual (MTD)</div>
-          <div class="period-opt" data-period="last_month">Mes pasado</div>
+          <div class="period-opt" data-period="3d">Últimos 3 días <span class="lag-badge" hidden></span></div>
+          <div class="period-opt" data-period="7d">Últimos 7 días <span class="lag-badge" hidden></span></div>
+          <div class="period-opt" data-period="14d">Últimos 14 días <span class="lag-badge" hidden></span></div>
+          <div class="period-opt" data-period="30d">Últimos 30 días <span class="lag-badge" hidden></span></div>
+          <div class="period-opt" data-period="45d">Últimos 45 días <span class="lag-badge" hidden></span></div>
+          <div class="period-opt" data-period="mtd">Mes actual (MTD) <span class="lag-badge" hidden></span></div>
+          <div class="period-opt" data-period="last_month">Mes pasado <span class="lag-badge" hidden></span></div>
         </div>
         <div class="corte" id="corte">Datos al corte: —</div>
       </div>
@@ -357,7 +369,14 @@
           <span class="axis-first"><b id="cov-first-pct">—%</b> al que <b>ENGANCHÓ</b></span>
         </div>
         <div class="blended-sub" id="cac-sub">cac_paid_blended (ads productivos) <b id="cac-paid">—</b></div>
-        <div class="lag-banner" id="lag-banner">⚠ Captación parcial — el Leadtime de Jenny llega con semanas de lag; el CAC sale inflado en ventanas cortas.</div>
+        <!-- Texto inyectado por renderHeaderPanel según el estado del dato.
+             El copy anterior afirmaba "semanas de lag" del Leadtime: medido el
+             29-jul era Gómez 4 días, Monterrey 2, Torreón 12. Era falso. -->
+        <!-- Se muestra solo con una plaza seleccionada. El CAC del header NUNCA
+             se filtra por plaza: Gómez y Torreón comparten una sola cuenta de
+             ads, así que un CAC por plaza para ellas sería inventado. -->
+        <div class="cac-plaza-note" id="cac-plaza-note"></div>
+        <div class="lag-banner" id="lag-banner"></div>
       </div>
       <div class="blended-ctx" id="blended-ctx">ROAS <b id="ctx-roas">—</b> · <b id="ctx-captac">—</b> captaciones · CAC venta <b id="ctx-cac-venta">—</b> · spend sin captación <b id="ctx-spend-sin">—</b></div>
     </div>
@@ -381,11 +400,9 @@
         <div class="col-toggle on" id="tg-ret"><i class="ti ti-coin"></i>Retorno</div>
         <!-- S87 MEJORA 2: sort prendidos-primero (status priority + spend desc). -->
         <div class="col-toggle on" id="tg-activos-first" title="Activos arriba, desempate por inversión"><i class="ti ti-arrow-up"></i>Activos 1°</div>
-        <div class="plaza-seg" id="plaza-seg">
-          <div class="active" data-plaza="all">Todas</div>
-          <div data-plaza="trc">Torreón</div>
-          <div data-plaza="gmz">Gómez</div>
-        </div>
+        <!-- Segmentos derivados de PLAZAS en el boot (buildPlazaSegments) —
+             agregar una oficina NO requiere tocar este markup. -->
+        <div class="plaza-seg" id="plaza-seg"></div>
       </div>
     </div>
 
@@ -421,7 +438,9 @@
         <div class="layer-hint" id="lvl4-hint">CC / LL / KK · adsets existen pero amount_spent="Not available" en el periodo</div>
         <div class="table-wrap" style="padding:0; overflow-x:auto;">
           <table class="cclkk-table">
-            <thead><tr><th>Adset</th><th>Adset ID</th><th class="r">TRC</th><th class="r">GMZ</th><th class="r">Tot</th><th class="r">Spend</th><th class="r">CAC</th></tr></thead>
+            <!-- Columnas de plaza inyectadas en el boot desde PLAZAS
+                 (buildCapa4Header) — no hardcodear TRC/GMZ acá. -->
+            <thead><tr id="cclkk-head"><th>Adset</th><th>Adset ID</th><th class="r">Tot</th><th class="r">Spend</th><th class="r">CAC</th></tr></thead>
             <tbody id="cclkk"></tbody>
           </table>
         </div>
@@ -469,7 +488,7 @@ const DEFAULT_PERIOD = "since_feb";
 let docsByPeriod = {};      // { period: <doc Firestore> }
 let period = DEFAULT_PERIOD; // periodo activo
 let attribution = "close";   // "close" (default) | "first"
-let plazaFilter = "all";    // "all" | "trc" | "gmz"
+let plazaFilter = "all";    // "all" | cualquier llave de PLAZAS
 let tabLevel = "ad";        // "ad" | "adset" | "campaign"
 let showFunnel = true, showRet = true;
 // S87 BUG 1+2: semántica flippada. Default = todo COLAPSADO (children
@@ -488,12 +507,37 @@ let searchQuery = "";
 let taxonomy = { version: null, ads: {} };
 const TAXONOMY_URL = "/assets/ads-analytics/ads-taxonomy.json";
 
+// ═══ PLAZAS — ÚNICA fuente de verdad de las oficinas ═══
+// Cada oficina lleva su propio libro de Leadtime; la plaza sale del ARCHIVO,
+// nunca de la columna Ciudad (doctrina del pipeline). El doc v2 emite una llave
+// por plaza dentro de los objetos `captacion*`, hermanas de `count`/`other`.
+//
+// AGREGAR LA CUARTA OFICINA = AGREGAR UNA LÍNEA ACÁ. Nada más. Los segmentos
+// del filtro, el desglose del pill, los rollups, la Capa 2 y las columnas de la
+// Capa 4 se derivan de este objeto — si algún render vuelve a nombrar "trc" o
+// "gmz" a mano, es un bug esperando a la cuarta plaza.
+const PLAZAS = { trc: "Torreón", gmz: "Gómez", mty: "Monterrey" };
+const PLAZA_KEYS = Object.keys(PLAZAS);
+// Inicial para el pill compacto del desglose (T·G·M). Si dos plazas empiezan
+// con la misma letra habrá que pasar a 2 letras; hoy no colisionan.
+const plazaInitial = k => (PLAZAS[k] || k).charAt(0).toUpperCase();
+
+// NOTA: `other` = captaciones cuya plaza el pipeline no pudo resolver. NO se
+// esconde. El invariante real es sum(plazas) + other === count; quien lo verifica
+// y lo hace visible cuando falla es plazaBreakdownHtml.
+
 // Selector de LÍNEA (default Captación). Un ad pertenece a una línea por su
 // tag.linea; si no tiene tag, se deriva del campaign_id con este mapa — así no
 // contaminamos Captación con promo/vacantes sin clasificar. campaign_id fuera
 // del mapa (o "reconocimiento") → "otro" (no aparece en ninguna de las 3 vistas).
+//
+// OJO: este mapa es un GATE DE VISIBILIDAD, no una etiqueta cosmética. Una
+// campaña que no esté acá cae a "otro" y desaparece de las tres vistas. Cuando
+// se abre una cuenta nueva hay que agregar sus campañas o su gasto queda
+// invisible (fue justo lo que pasó con Monterrey).
 let lineaFilter = "captacion";
 const CAMPAIGN_LINEA = {
+  // ── act_936995767352512 · Torreón + Gómez ──
   "120232281266000053": "captacion",
   "120249608917810053": "captacion",
   "120214624885210053": "promo_inventario",
@@ -501,6 +545,23 @@ const CAMPAIGN_LINEA = {
   "120241163203350053": "vacantes",
   "120247788677590053": "vacantes",
   "120241819818390053": "otro",   // reconocimiento — excluir de las 3 vistas
+  // ── act_2078817302701861 · Monterrey ──
+  // Ningún ad de Monterrey tiene tag en ads-taxonomy.json (se generó solo con
+  // la cuenta vieja), así que acá el campaign_id es la ÚNICA señal de línea.
+  // Los ads van a salir con pill rojo "Sin clasificar": correcto, no están
+  // clasificados. Ver la nota del PR.
+  "120253441913040054": "captacion",      // OA1 - TF - MSJ - Monterrey - Captación
+  "120254009359270054": "vacantes",       // OA2  - Vacantes - WP
+  //
+  // FUERA DEL MAPA A PROPÓSITO — la línea "Asesores" (reclutar asesores
+  // inmobiliarios, o publicidad dirigida a asesores; el nombre no alcanza para
+  // decidir). Existe en las DOS cuentas y suma ~$1,576 desde febrero:
+  //   120254056172260054  'OA3 - TF - MSJ - Monterrey - Asesores'        $789.81
+  //   120250181230340053  'OA16 - CP - Landing - Asesores Monterrey'     $786.36
+  // Las dos caen a "otro" y quedan invisibles en las tres vistas. Es
+  // deliberado: mejor invisible a propósito que mal clasificada. Cuando Anwar
+  // decida si es Vacantes o una cuarta línea, se agregan acá.
+  // (La segunda ya caía a "otro" antes de este PR — no es una regresión nueva.)
 };
 
 // Escapes para meter valores de tag (texto libre) en HTML/atributos sin romper.
@@ -595,8 +656,10 @@ function calcRow(r) {
   // Eje activo dicta qué captación se muestra como "Captación" y qué CAC.
   const cap = attribution === "close" ? (r.captacion_close || r.captacion || {}) : (r.captacion_first_touch || r.captacion || {});
   const captac_count = cap.count || 0;
-  const captac_trc = cap.trc || 0;
-  const captac_gmz = cap.gmz || 0;
+  // Desglose por plaza derivado de PLAZAS (no llaves a mano) + `other`.
+  const captac_plaza = {};
+  PLAZA_KEYS.forEach(k => { captac_plaza[k] = cap[k] || 0; });
+  const captac_other = cap.other || 0;
   // CAC del eje activo.
   const cac = attribution === "close" ? r.cac_captacion_close : (r.cac_captacion_first_touch || r.cac_captacion);
   const spend = r.spend || 0;
@@ -611,12 +674,77 @@ function calcRow(r) {
     cita: cita.count || 0, costo_cita: cita.cost,
     a_espera: a_espera.count || 0, costo_esp: a_espera.cost,
     llamada_conv: llamada.conv_pct, cita_conv: cita.conv_pct, a_espera_conv: a_espera.conv_pct,
-    captac: captac_count, captac_trc, captac_gmz,
+    captac: captac_count, captac_plaza, captac_other,
     cac, cac_venta: r.cac_venta, roas: r.roas,
     // pct vs target del eje activo
     pct_vs_target: cac && CAC_TARGET ? ((cac / CAC_TARGET - 1) * 100) : null,
   };
 }
+
+// Pill compacto del desglose por plaza: "T4·G11·M4" (+ "·?2" si hay captaciones
+// sin plaza resuelta). Muestra TODAS las plazas de PLAZAS, no un par fijo.
+//
+// Por qué no es cosmético: un ad de Monterrey pintaba "T0·G0" al lado de una
+// columna CAPTACIÓN que decía 3 — un número contradiciéndose a sí mismo en la
+// misma fila, peor que no mostrar nada.
+//
+// Si el desglose NO suma al count, es un bug de DATOS y tiene que verse: se
+// marca con "⚠" y tooltip, nunca un throw y nunca en silencio (así es como se
+// pierden captaciones sin que nadie se entere).
+function plazaBreakdownHtml(c) {
+  const parts = PLAZA_KEYS.map(k => plazaInitial(k) + c.captac_plaza[k]);
+  if (c.captac_other > 0) parts.push("?" + c.captac_other);
+  const suma = PLAZA_KEYS.reduce((s, k) => s + c.captac_plaza[k], 0) + c.captac_other;
+  const desglose = parts.join("·");
+  if (suma === c.captac) return '<span class="muted">' + desglose + "</span>";
+  const detalle = PLAZA_KEYS.map(k => PLAZAS[k] + " " + c.captac_plaza[k]).join(" · ")
+    + (c.captac_other ? " · sin plaza " + c.captac_other : "");
+  return '<span class="muted plaza-mismatch" title="El desglose por plaza suma '
+    + suma + " pero la columna dice " + c.captac
+    + ". Falta una plaza en el tablero o el dato viene incompleto del pipeline. Desglose recibido: "
+    + escAttr(detalle) + '">' + desglose + " ⚠</span>";
+}
+
+// ═══ Colapso de atribución per-ad — DERIVADO DEL DATO, no de una lista ═══
+// Un badge que depende de una lista de periodos hardcodeada miente el día que el
+// dato cambia (y 30d puede colapsar igual que 7d).
+//
+// REGLA, evaluada por periodo contra el doc cargado:
+//   suma per-ad de captación del EJE ACTIVO === 0  Y  leadtime_total > 0
+//     → la atribución colapsó en esta ventana.
+// Con leadtime_total === 0 no hay nada que degradar: son ceros honestos.
+//
+// DISTINCIÓN QUE IMPORTA: el TOTAL del header (captac_blended, sale del
+// Leadtime) es CONFIABLE — son captaciones reales y NO se toca nunca. Lo que
+// está roto es la atribución PER-AD; ahí va el gris.
+//
+// Se evalúa sobre TODOS los ads del periodo, no sobre las filas visibles: así el
+// estado no cambia al mover el filtro de plaza o de línea.
+function perAdCaptacSum(p) {
+  const key = attribution === "close" ? "captacion_close" : "captacion_first_touch";
+  return (p.campaigns || []).reduce((s, a) => {
+    const cap = a[key] || a.captacion || {};
+    return s + (cap.count || 0);
+  }, 0);
+}
+
+function attributionCollapsedFor(p) {
+  if (!p) return false;
+  const leadtime = (p.totals || {}).captac_blended || 0;
+  if (leadtime <= 0) return false;   // ceros honestos, nada que degradar
+  return perAdCaptacSum(p) === 0;
+}
+
+function attributionCollapsed() {
+  return attributionCollapsedFor(currentPeriod());
+}
+
+// Celda del estado degradado. Describe lo OBSERVABLE, sin mecanismo: el
+// mecanismo puede cambiar y el texto quedaría mintiendo.
+const NODATA_TIP = "En esta ventana ninguna captación pudo asignarse a un anuncio. "
+  + "El total de arriba sí es real. Para decidir pauta usa una ventana más larga.";
+const nodataCell = () =>
+  '<span class="nodata" title="' + escAttr(NODATA_TIP) + '">sin datos suf.</span>';
 
 function cacClass(v) {
   if (v == null) return "";
@@ -675,9 +803,15 @@ function rollup(node) {
   if (node.level === "ad") return node;
   const kids = (node.children || []).map(rollup);
   const sum = (key, sub) => kids.reduce((s, k) => s + ((sub ? (k[key] || {})[sub] : k[key]) || 0), 0);
-  const captacion = { count: sum("captacion", "count"), trc: sum("captacion", "trc"), gmz: sum("captacion", "gmz") };
-  const captacion_close = { count: sum("captacion_close", "count"), trc: sum("captacion_close", "trc"), gmz: sum("captacion_close", "gmz") };
-  const captacion_first_touch = { count: sum("captacion_first_touch", "count"), trc: sum("captacion_first_touch", "trc"), gmz: sum("captacion_first_touch", "gmz") };
+  // Desglose derivado de PLAZAS (+ other) — nunca llaves de plaza a mano.
+  const sumPlazas = field => {
+    const o = { count: sum(field, "count"), other: sum(field, "other") };
+    PLAZA_KEYS.forEach(k => { o[k] = sum(field, k); });
+    return o;
+  };
+  const captacion = sumPlazas("captacion");
+  const captacion_close = sumPlazas("captacion_close");
+  const captacion_first_touch = sumPlazas("captacion_first_touch");
   const spend = sum("spend"), mensajes = sum("mensajes");
   return {
     ...node,
@@ -737,6 +871,13 @@ function rollupV2(node) {
   const kids = (node.children || []).map(rollupV2);
   const sumKey = k => kids.reduce((s, x) => s + (x[k] || 0), 0);
   const sumCaptac = (field, sub) => kids.reduce((s, x) => s + ((x[field] || {})[sub] || 0), 0);
+  // count + una llave por plaza + other, derivado de PLAZAS. Agregar la cuarta
+  // oficina no requiere tocar esto.
+  const sumCaptacPlazas = field => {
+    const o = { count: sumCaptac(field, "count"), other: sumCaptac(field, "other") };
+    PLAZA_KEYS.forEach(k => { o[k] = sumCaptac(field, k); });
+    return o;
+  };
   const sumFunnel = stage => kids.reduce((s, x) => s + (((x.funnel || {})[stage] || {}).count || 0), 0);
   const spend = sumKey("spend"), mensajes = sumKey("mensajes");
   const ll = sumFunnel("llamada"), ci = sumFunnel("cita"), ae = sumFunnel("a_espera");
@@ -753,9 +894,9 @@ function rollupV2(node) {
       cita:    { count: ci, conv_pct: safediv(ci, ll) * 100,       cost: safediv(spend, ci) },
       a_espera:{ count: ae, conv_pct: safediv(ae, ci) * 100,       cost: safediv(spend, ae) },
     },
-    captacion:             { count: sumCaptac("captacion", "count"), trc: sumCaptac("captacion", "trc"), gmz: sumCaptac("captacion", "gmz") },
-    captacion_close:       { count: sumCaptac("captacion_close", "count"), trc: sumCaptac("captacion_close", "trc"), gmz: sumCaptac("captacion_close", "gmz") },
-    captacion_first_touch: { count: sumCaptac("captacion_first_touch", "count"), trc: sumCaptac("captacion_first_touch", "trc"), gmz: sumCaptac("captacion_first_touch", "gmz") },
+    captacion:             sumCaptacPlazas("captacion"),
+    captacion_close:       sumCaptacPlazas("captacion_close"),
+    captacion_first_touch: sumCaptacPlazas("captacion_first_touch"),
     ventas_ok: sumKey("ventas_ok"),
     cac_captacion: safediv(spend, sumCaptac("captacion", "count")),
     cac_captacion_close: safediv(spend, sumCaptac("captacion_close", "count")),
@@ -798,10 +939,19 @@ function renderHeader() {
 }
 
 // ═══ Render table rows ═══
+// Filtro de plaza. Generalizado a lookup por llave: el ternario binario de
+// antes (trc ? … : gmz) dejaba a Monterrey FUERA DE LAS DOS RAMAS.
+//
+// ⚠ `|| c.captac === 0` ES LOAD-BEARING, NO la borres. Es lo único que mantiene
+// visibles los ads sin captación cuando hay una plaza seleccionada. En ventanas
+// cortas TODOS los ads tienen captación 0 (la atribución per-ad colapsa), así
+// que sin esa cláusula la tabla queda VACÍA con cualquier plaza puesta.
+// El harness tiene un caso que falla si se pierde.
 function passesPlazaFilter(r) {
   if (plazaFilter === "all") return true;
   const c = calcRow(r);
-  return (plazaFilter === "trc" ? c.captac_trc : c.captac_gmz) > 0 || (c.captac === 0); // ads sin captac no se filtran out
+  if (c.captac === 0) return true;              // ← load-bearing, ver arriba
+  return (c.captac_plaza[plazaFilter] || 0) > 0;
 }
 
 function passesSearch(r) {
@@ -915,6 +1065,8 @@ function renderRows() {
     // la línea ya se filtró en currentTree(); aquí sólo búsqueda + plaza.
     return passesSearch(r) && passesPlazaFilter(r);
   });
+  // Estado degradado del periodo (una vez por render, no por fila).
+  const collapsed = attributionCollapsed();
   visible.forEach(row => {
     const c = calcRow(row);
     const tr = document.createElement("tr");
@@ -965,11 +1117,18 @@ function renderRows() {
       } else if (TAG_DIMS.includes(col.key)) {
         td.innerHTML = tagCell(row, col.key);
       } else if (col.key === "captac") {
-        if (!c.captac) td.innerHTML = '<span class="muted">—</span>';
+        // Degradado (solo filas de ad): "sin datos suf." ≠ "cero captaciones".
+        if (collapsed && row.level === "ad") td.innerHTML = nodataCell();
+        else if (!c.captac) td.innerHTML = '<span class="muted">—</span>';
         else {
-          const breakdown = row.level === "ad" ? '<span class="muted">T' + c.captac_trc + "·G" + c.captac_gmz + "</span>" : "";
+          const breakdown = row.level === "ad" ? plazaBreakdownHtml(c) : "";
           td.innerHTML = "<b>" + c.captac + "</b> " + breakdown;
         }
+      } else if (collapsed && row.level === "ad"
+                 && (col.key === "cac" || col.key === "cac_venta" || col.key === "roas")) {
+        // CAC captación / CAC venta / ROAS cuelgan de la captación per-ad: si
+        // esa colapsó, estos números no significan nada en esta ventana.
+        td.innerHTML = nodataCell();
       } else if (col.key === "cac") {
         const cls = cacClass(c.cac);
         const pct = c.pct_vs_target;
@@ -1071,11 +1230,46 @@ function renderHeaderPanel() {
   document.getElementById("cov-close-pct").textContent = cov.close_pct != null ? cov.close_pct + "%" : "—%";
   document.getElementById("cov-first-pct").textContent = cov.first_pct != null ? cov.first_pct + "%" : "—%";
 
-  // S87: lag warning banner — el pipeline marca lag_warning=true en
-  // períodos ≤14d donde el Leadtime aún no registró todas las
-  // captaciones recientes → CAC inflado por captación parcial.
+  // Nota del CAC por plaza. REGLA DE NEGOCIO (decisión cerrada, no reabrir):
+  // las captaciones se separan por ARCHIVO (una oficina, un libro), EL GASTO NO.
+  // Gómez + Torreón comparten act_936995767352512 → su spend no se puede dividir
+  // entre esas dos plazas, así que un CAC por plaza para ellas sería INVENTADO.
+  // Monterrey tiene cuenta propia y técnicamente sí se podría, pero con 4
+  // captaciones no se habilita: eso se prende con volumen.
+  //
+  // Esto explica el hueco #8 de S88 ("el filtro de plaza no filtra la vista"):
+  // NO es un bug. El filtro SÍ filtra filas y conteos de captación; el CAC del
+  // header se queda global a propósito, y acá se dice por qué.
+  const plazaNote = document.getElementById("cac-plaza-note");
+  if (plazaNote) {
+    const on = plazaFilter !== "all";
+    if (on) {
+      plazaNote.textContent = "CAC global — el gasto de Gómez y Torreón vive en una "
+        + "sola cuenta y no se puede separar por plaza. El filtro de abajo sí filtra "
+        + "los anuncios y sus captaciones.";
+    }
+    plazaNote.classList.toggle("show", on);
+  }
+
+  // Banner de honestidad. DOS estados distintos, ninguno con mecanismo:
+  //  1. La atribución per-ad colapsó (derivado del dato) → mensaje fuerte, el
+  //     mismo que explican las celdas grises. Badge y gris nunca se contradicen.
+  //  2. El pipeline marcó la ventana como reciente (lag_warning) pero la
+  //     atribución NO colapsó → nota más suave. Se conserva porque es una señal
+  //     real y distinta: la ventana es corta, no que no se pueda atribuir.
   const lagBanner = document.getElementById("lag-banner");
-  if (lagBanner) lagBanner.classList.toggle("show", !!M.lag_warning);
+  if (lagBanner) {
+    const collapsed = attributionCollapsed();
+    if (collapsed) {
+      lagBanner.textContent = "⚠ Atribución por anuncio no disponible en esta ventana — "
+        + "ninguna captación pudo asignarse a un anuncio. El total de captaciones de "
+        + "arriba sí es real. Para decidir pauta usa una ventana más larga.";
+    } else if (M.lag_warning) {
+      lagBanner.textContent = "⚠ Ventana reciente — las captaciones de los últimos días "
+        + "se siguen registrando, así que el conteo puede subir y el CAC bajar.";
+    }
+    lagBanner.classList.toggle("show", collapsed || !!M.lag_warning);
+  }
 
   // cac_paid_blended (sub)
   document.getElementById("cac-paid").textContent = fmtMoney(T.cac_paid_blended);
@@ -1117,7 +1311,7 @@ function renderCapa2() {
     const div = document.createElement("div"); div.className = "fam-card";
     div.innerHTML = '<div class="fam-letter">LETRA ' + f.letter + "</div>" +
                     '<div class="fam-num">' + f.captac + "</div>" +
-                    '<div class="fam-split">TRC ' + f.trc + " · GMZ " + f.gmz + "</div>" +
+                    '<div class="fam-split">' + PLAZA_KEYS.map(k => PLAZAS[k] + " " + (f[k] || 0)).join(" · ") + "</div>" +
                     '<div class="fam-note">overlap ' + (f.overlap || 0) + " · none_active " + (f.none_active || 0) + "</div>";
     g.appendChild(div);
   });
@@ -1148,8 +1342,7 @@ function renderCapa4() {
     const tr = document.createElement("tr");
     tr.innerHTML = '<td><b>' + r.code + "</b> · " + (r.name || "—") + "</td>" +
                    '<td><code style="font-size:11px;color:#8a8d91">' + (r.adset_id || "—") + "</code></td>" +
-                   '<td class="r">' + (r.trc || 0) + "</td>" +
-                   '<td class="r">' + (r.gmz || 0) + "</td>" +
+                   PLAZA_KEYS.map(k => '<td class="r">' + (r[k] || 0) + "</td>").join("") +
                    '<td class="r"><b>' + (r.captac || 0) + "</b></td>" +
                    '<td class="r muted">' + (r.spend ? fmtMoney(r.spend) : "sin spend") + "</td>" +
                    '<td class="r muted">' + (r.captac && r.spend ? fmtMoney(r.spend / r.captac) : "—") + "</td>";
@@ -1322,6 +1515,46 @@ firebase.auth().onAuthStateChanged(user => {
   else showAuthEmpty("auth");
 });
 
+// Badges del menú de periodos, con la MISMA regla que pone las celdas en gris.
+// Solo se pinta el badge de los periodos cuyo doc ya está en cache: afirmar
+// "sin atribución" sobre un doc que no leímos sería inventar. El periodo activo
+// siempre tiene doc, que es el caso que importa (es el que estás viendo).
+function renderPeriodBadges() {
+  const menu = document.getElementById("period-menu");
+  if (!menu) return;
+  menu.querySelectorAll(".period-opt").forEach(opt => {
+    const badge = opt.querySelector(".lag-badge");
+    if (!badge) return;
+    const pk = opt.dataset.period;
+    const raw = docsByPeriod[pk];
+    if (!raw) { badge.hidden = true; badge.textContent = ""; return; }
+    const p = raw.data || raw;
+    const bad = attributionCollapsedFor(p);
+    badge.hidden = !bad;
+    badge.textContent = bad ? "⚠ sin atribución" : "";
+    if (bad) badge.title = NODATA_TIP;
+  });
+}
+
+// ═══ Markup derivado de PLAZAS ═══
+// Se construye ANTES de wireTopbar() porque el wire hace querySelectorAll
+// sobre los divs — si no existen todavía, el filtro queda muerto.
+function buildPlazaSegments() {
+  const seg = document.getElementById("plaza-seg");
+  if (!seg) return;
+  seg.innerHTML = '<div class="active" data-plaza="all">Todas</div>' +
+    PLAZA_KEYS.map(k => '<div data-plaza="' + k + '">' + escHtml(PLAZAS[k]) + "</div>").join("");
+}
+
+function buildCapa4Header() {
+  const tr = document.getElementById("cclkk-head");
+  if (!tr) return;
+  tr.innerHTML = "<th>Adset</th><th>Adset ID</th>" +
+    PLAZA_KEYS.map(k => '<th class="r" title="' + escAttr(PLAZAS[k]) + '">'
+      + escHtml(PLAZAS[k].slice(0, 3).toUpperCase()) + "</th>").join("") +
+    '<th class="r">Tot</th><th class="r">Spend</th><th class="r">CAC</th>';
+}
+
 // ═══ Wire toggles + segs + search ═══
 function wireTopbar() {
   // Attribution toggle — event delegation en el container.
@@ -1393,6 +1626,7 @@ function wireTopbar() {
       pMenu.querySelectorAll(".period-opt").forEach(o => {
         o.classList.toggle("active", o.dataset.period === period);
       });
+      renderPeriodBadges();
     }
   });
   pMenu.addEventListener("click", (e) => {
@@ -1410,6 +1644,8 @@ function wireTopbar() {
   document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !pMenu.hidden) closeMenu(); });
 }
 
+buildPlazaSegments();
+buildCapa4Header();
 wireTopbar();
 </script>
 
