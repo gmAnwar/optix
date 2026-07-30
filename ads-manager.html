@@ -566,29 +566,55 @@ function plazaBreakdownHtml(c) {
 // Un badge que depende de una lista de periodos hardcodeada miente el día que el
 // dato cambia (y 30d puede colapsar igual que 7d).
 //
-// REGLA, evaluada por periodo contra el doc cargado:
-//   suma per-ad de captación del EJE ACTIVO === 0  Y  leadtime_total > 0
-//     → la atribución colapsó en esta ventana.
-// Con leadtime_total === 0 no hay nada que degradar: son ceros honestos.
+// REGLA, evaluada sobre el SUBCONJUNTO VISIBLE:
+//   suma per-ad de captación del subconjunto === 0  Y  captaciones REALES del
+//   subconjunto > 0   → estado degradado.
+//
+// EL SUBCONJUNTO ES: periodo + filtro de PLAZA + eje. NADA MÁS.
+// Para plaza existe un denominador real (las filas de Leadtime de esa plaza, en
+// _meta.coverage.plaza_distribution). Regla general: sin denominador confiable NO
+// se degrada — los números se dejan como están.
+//
+// Por qué el subconjunto y no el periodo completo: con eje Cierre + plaza
+// Monterrey, sus captaciones no resuelven a un ad (nomenclatura de los ads), pero
+// Gómez y Torreón sí. Mirando el periodo completo la suma no es cero y no se
+// degradaba → la vista de Monterrey mostraba gasto con 0 captaciones, que se lee
+// como "quema dinero sin resultados". Es falso: tiene captaciones, solo que no
+// asignables a un anuncio.
 //
 // DISTINCIÓN QUE IMPORTA: el TOTAL del header (captac_blended, sale del
 // Leadtime) es CONFIABLE — son captaciones reales y NO se toca nunca. Lo que
 // está roto es la atribución PER-AD; ahí va el gris.
-//
-// Se evalúa sobre TODOS los ads del periodo, no sobre las filas visibles: así el
-// estado no cambia al mover el filtro de plaza.
+// (Espejo de ads-analytics.html — si cambia acá, cambia allá.)
+
+// Captaciones REALES del subconjunto (periodo + plaza). null = sin denominador
+// confiable (y entonces no se degrada nada).
+function realCaptacForSubset(p) {
+  if (!p) return null;
+  if (plazaFilter === "all") {
+    const v = (p.totals || {}).captac_blended;
+    return typeof v === "number" ? v : null;
+  }
+  const dist = ((p._meta || {}).coverage || {}).plaza_distribution;
+  if (!dist || typeof dist[plazaFilter] !== "number") return null;
+  return dist[plazaFilter];
+}
+
+// Suma per-ad de captación del subconjunto: eje activo × plaza activa.
 function perAdCaptacSum(p) {
+  if (!p) return 0;
   const key = attribution === "close" ? "captacion_close" : "captacion_first_touch";
+  const field = plazaFilter === "all" ? "count" : plazaFilter;
   return (p.campaigns || []).reduce((s, a) => {
     const cap = a[key] || a.captacion || {};
-    return s + (cap.count || 0);
+    return s + (cap[field] || 0);
   }, 0);
 }
 
 function attributionCollapsedFor(p) {
   if (!p) return false;
-  const leadtime = (p.totals || {}).captac_blended || 0;
-  if (leadtime <= 0) return false;   // ceros honestos, nada que degradar
+  const real = realCaptacForSubset(p);
+  if (real === null || real <= 0) return false;  // sin denominador o ceros honestos
   return perAdCaptacSum(p) === 0;
 }
 
@@ -598,8 +624,9 @@ function attributionCollapsed() {
 
 // Celda del estado degradado. Describe lo OBSERVABLE, sin mecanismo: el
 // mecanismo puede cambiar y el texto quedaría mintiendo.
-const NODATA_TIP = "En esta ventana ninguna captación pudo asignarse a un anuncio. "
-  + "El total de arriba sí es real. Para decidir pauta usa una ventana más larga.";
+const NODATA_TIP = "Ninguna captación de esta vista pudo asignarse a un anuncio. "
+  + "Las captaciones existen y el total de arriba es real; lo que no se puede es "
+  + "repartirlas entre anuncios acá. Probá otro eje de atribución u otra ventana.";
 const nodataCell = () =>
   '<span class="nodata" title="' + escAttr(NODATA_TIP) + '">sin datos suf.</span>';
 
@@ -655,39 +682,6 @@ function buildTree(campaigns) {
   return out;
 }
 
-// ═══ Aggregate roll-ups (campaign/adset rows sum its children) ═══
-function rollup(node) {
-  if (node.level === "ad") return node;
-  const kids = (node.children || []).map(rollup);
-  const sum = (key, sub) => kids.reduce((s, k) => s + ((sub ? (k[key] || {})[sub] : k[key]) || 0), 0);
-  // Desglose derivado de PLAZAS (+ other) — nunca llaves de plaza a mano.
-  const sumPlazas = field => {
-    const o = { count: sum(field, "count"), other: sum(field, "other") };
-    PLAZA_KEYS.forEach(k => { o[k] = sum(field, k); });
-    return o;
-  };
-  const captacion = sumPlazas("captacion");
-  const captacion_close = sumPlazas("captacion_close");
-  const captacion_first_touch = sumPlazas("captacion_first_touch");
-  const spend = sum("spend"), mensajes = sum("mensajes");
-  return {
-    ...node,
-    spend, mensajes,
-    funnel: {
-      llamada: { count: sum("funnel", "llamada"), conv_pct: null, cost: null },
-      cita: { count: sum("funnel", "cita"), conv_pct: null, cost: null },
-      a_espera: { count: sum("funnel", "a_espera"), conv_pct: null, cost: null },
-    },
-    captacion, captacion_close, captacion_first_touch,
-    cac_captacion: captacion.count ? spend / captacion.count : null,
-    cac_captacion_close: captacion_close.count ? spend / captacion_close.count : null,
-    cac_captacion_first_touch: captacion_first_touch.count ? spend / captacion_first_touch.count : null,
-    children: kids,
-  };
-}
-
-// Funnel sums need to come from raw counts inside each ad's funnel.{stage}.count.
-// Re-do rollup to handle funnel correctly.
 // S87 MEJORA 3: deriva el status agregado del nodo padre desde los ads
 // descendientes (Anwar: VERDE si AL MENOS UN hijo es ACTIVE puro).
 // effective_status del ad ya propaga el estado del padre — Meta marca
@@ -1112,9 +1106,9 @@ function renderHeaderPanel() {
   if (lagBanner) {
     const collapsed = attributionCollapsed();
     if (collapsed) {
-      lagBanner.textContent = "⚠ Atribución por anuncio no disponible en esta ventana — "
+      lagBanner.textContent = "⚠ Atribución por anuncio no disponible en esta vista — "
         + "ninguna captación pudo asignarse a un anuncio. El total de captaciones de "
-        + "arriba sí es real. Para decidir pauta usa una ventana más larga.";
+        + "arriba sí es real. Probá otro eje de atribución u otra ventana.";
     } else if (M.lag_warning) {
       lagBanner.textContent = "⚠ Ventana reciente — las captaciones de los últimos días "
         + "se siguen registrando, así que el conteo puede subir y el CAC bajar.";

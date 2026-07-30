@@ -52,11 +52,40 @@ const FIXTURE = {
     ],
   },
 };
+// mtd: réplica del PROD del 29-jul. Monterrey resuelve en ENGANCHE pero da 0 en
+// CIERRE (nomenclatura de sus ads). `plaza_distribution` = conteo REAL de filas de
+// Leadtime por plaza → es el denominador que permite degradar por plaza.
+const FIXTURE_MTD = {
+  _meta: { generated_at: "2026-07-29T23:25:32Z" },
+  data: {
+    _meta: { period_from: "2026-07-01", period_to: "2026-07-29",
+             coverage_attribution: { close_pct: 53.8, first_pct: 84.6 },
+             coverage: { plaza_distribution: { trc: 6, gmz: 16, mty: 4 } } },
+    totals: { spend: 121221, mensajes: 200, costo_msg: 606, cac_blended_total: 4662,
+              captac_blended: 26, cac_paid_blended: 6380, roas: null, cac_venta: null,
+              spend_sin_captacion: 40000,
+              funnel: { llamada: { count: 20, cost: 6061 }, cita: { count: 10, cost: 12122 }, a_espera: { count: 4, cost: 30305 } },
+              captacion: cap({ count: 19, trc: 4, gmz: 11, mty: 4 }) },
+    familia: [], buckets: [], cclkk: [],
+    campaigns: [
+      { ...ad("AD_GMZ_MTD", CAP1, "gmz-mtd", cap({ count: 11, gmz: 11 })),
+        captacion_close: cap({ count: 8, gmz: 8 }), captacion_first_touch: cap({ count: 11, gmz: 11 }) },
+      { ...ad("AD_TRC_MTD", CAP1, "trc-mtd", cap({ count: 4, trc: 4 })),
+        captacion_close: cap({ count: 6, trc: 6 }), captacion_first_touch: cap({ count: 4, trc: 4 }) },
+      // Monterrey: Enganche 4, CIERRE 0 ← el caso real.
+      { ...ad("AD_MTY_MTD", CAP_MTY, "mty-mtd", cap({ count: 4, mty: 4 })),
+        captacion_close: cap({ count: 0 }), captacion_first_touch: cap({ count: 4, mty: 4 }) },
+    ],
+  },
+};
+
 // Ventana donde la atribución per-ad colapsó (14d real del 29-jul).
 const FIXTURE_14D = {
   _meta: { generated_at: "2026-07-29T10:00:00Z" },
   data: {
-    _meta: { period_from: "2026-07-16", period_to: "2026-07-29", lag_warning: true, coverage_attribution: { close_pct: 0, first_pct: 0 } },
+    _meta: { period_from: "2026-07-16", period_to: "2026-07-29", lag_warning: true,
+             coverage_attribution: { close_pct: 0, first_pct: 0 },
+             coverage: { plaza_distribution: { trc: 2, gmz: 7, mty: 3 } } },
     totals: { spend: 45301, mensajes: 60, costo_msg: 755, cac_blended_total: 5033, captac_blended: 9,
               cac_paid_blended: null, roas: null, cac_venta: null, spend_sin_captacion: 45301,
               funnel: { llamada: { count: 6, cost: 7550 }, cita: { count: 2, cost: 22650 }, a_espera: { count: 0, cost: null } },
@@ -65,7 +94,7 @@ const FIXTURE_14D = {
     campaigns: [ad("AD_TRC", CAP1, "trc-14d", cap({})), ad("AD_MTY", CAP_MTY, "mty-14d", cap({}))],
   },
 };
-const DOCS = { since_feb: FIXTURE, "14d": FIXTURE_14D };
+const DOCS = { since_feb: FIXTURE, "14d": FIXTURE_14D, mtd: FIXTURE_MTD };
 
 // ── Fake DOM ──
 const noop = () => {};
@@ -169,10 +198,42 @@ const shared = [
   "if (c.captac === 0) return true;              // ← load-bearing, ver arriba",
   "return (c.captac_plaza[plazaFilter] || 0) > 0;",
   "function attributionCollapsedFor(p) {",
-  "const NODATA_TIP = \"En esta ventana ninguna captación pudo asignarse a un anuncio. \"",
+  "function realCaptacForSubset(p) {",
+  "  const field = plazaFilter === \"all\" ? \"count\" : plazaFilter;",
+  "const NODATA_TIP = \"Ninguna captación de esta vista pudo asignarse a un anuncio. \"",
 ];
 shared.forEach(frag => ok(analytics.includes(frag) && html.includes(frag),
   "paridad gemelos: " + frag.slice(0, 46).trim()));
+
+// ── C4: estado degradado sobre el SUBCONJUNTO (periodo + plaza + eje) ──
+await vm.runInContext('switchPeriod("mtd")', ctx);
+const setView = (plaza, eje) => {
+  call(`plazaFilter = ${JSON.stringify(plaza)}`);
+  call(`attribution = ${JSON.stringify(eje)}`);
+  call("render()");
+};
+setView("all", "close");
+ok(call("attributionCollapsed()") === false, "mtd/all/cierre: NO degrada");
+// (iv) el caso real: Monterrey + Cierre.
+setView("mty", "close");
+ok(call("perAdCaptacSum(currentPeriod())") === 0, "(iv) mty/cierre: suma per-ad = 0");
+ok(call("realCaptacForSubset(currentPeriod())") === 4, "(iv) mty/cierre: denominador real = 4");
+ok(call("attributionCollapsed()") === true, "(iv) mty/cierre → DEGRADA");
+ok(serialize(elements["tbody"]).includes("sin datos suf."), "(iv) mty/cierre: celdas en gris");
+ok(elements["ctx-captac"].textContent === "26", "(iv) header captaciones INTACTO");
+ok(elements["cac-big"].textContent === "$4,662", "(iv) header CAC INTACTO");
+setView("mty", "first");
+ok(call("attributionCollapsed()") === false, "mty/enganche → NO degrada");
+// (v) sin denominador confiable → NO degrada.
+await vm.runInContext('switchPeriod("since_feb")', ctx);
+setView("mty", "close");
+ok(call("realCaptacForSubset(currentPeriod())") === null, "(v) sin plaza_distribution → null");
+ok(call("attributionCollapsed()") === false, "(v) sin denominador → NO degrada");
+await vm.runInContext('switchPeriod("mtd")', ctx);
+setView("zzz", "close");
+ok(call("attributionCollapsed()") === false, "(v) plaza desconocida → NO degrada");
+setView("all", "close");
+ok(!call("NODATA_TIP").includes("ventana más larga"), "mensaje sin causa afirmada");
 
 console.log(`\n${fail === 0 ? "✅ ALL PASS" : "❌ FAILURES"}: ${pass} passed, ${fail} failed`);
 process.exit(fail === 0 ? 0 : 1);

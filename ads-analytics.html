@@ -140,7 +140,7 @@
   .search { flex:1; max-width:260px; background:#f0f2f5; border:0.5px solid #dadde1; border-radius:8px; padding:8px 12px; font-size:12.5px; color:#1c1e21; display:flex; align-items:center; gap:8px; }
   .search input { flex:1; border:none; background:transparent; outline:none; font-size:12.5px; color:#1c1e21; }
   .search input::placeholder { color:#8a8d91; }
-  .toolbar-right { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .toolbar-right { display:flex; align-items:center; gap:8px; flex-wrap:wrap; min-width:0; }
   .col-toggle { display:flex; align-items:center; gap:7px; background:#fff; border:0.5px solid #c8ccd1; border-radius:8px; padding:7px 11px; font-size:12px; color:#1c1e21; cursor:pointer; user-select:none; white-space:nowrap; }
   .col-toggle i { font-size:14px; color:#65676b; }
   .col-toggle.on { background:#e7f0fe; border-color:#cfe0fc; color:#1877f2; }
@@ -267,7 +267,11 @@
   .modal .meta-line a { color:#1877f2; }
 
   /* ─ Ads Analytics (F1): selector de línea + pills de tags + punto de confianza ─ */
-  .linea-seg { display:flex; background:#f0f2f5; border:0.5px solid #dadde1; border-radius:8px; overflow:hidden; }
+  /* flex-wrap + max-width: con 5 segmentos (Captación · Promo · Vacantes ·
+     Asesores · Sin clasificar) la barra desbordaría en ventana angosta.
+     Así envuelve a una segunda fila dentro del pill en vez de romper el
+     layout ni forzar scroll horizontal. */
+  .linea-seg { display:flex; flex-wrap:wrap; max-width:100%; background:#f0f2f5; border:0.5px solid #dadde1; border-radius:8px; overflow:hidden; }
   .linea-seg div { padding:7px 13px; font-size:12px; color:#65676b; cursor:pointer; user-select:none; white-space:nowrap; }
   .linea-seg div.active { background:#fff; color:#1c1e21; font-weight:600; box-shadow:0 0 0 0.5px #dadde1; }
   /* Pill de tag: un color por dimensión creativa. Valor truncado si es largo. */
@@ -387,11 +391,10 @@
         <!-- F1: selector de LÍNEA de negocio. tag.linea manda; si el ad no tiene
              tag, la línea se deriva del campaign_id (mapa CAMPAIGN_LINEA en el JS)
              para no contaminar Captación con promo/vacantes sin clasificar. -->
-        <div class="linea-seg" id="linea-seg" title="Línea de negocio">
-          <div class="active" data-linea="captacion">Captación</div>
-          <div data-linea="promo_inventario">Promoción inventario</div>
-          <div data-linea="vacantes">Vacantes</div>
-        </div>
+        <!-- Segmentos derivados de LINEAS por renderLineaSegments() en cada
+             render (la visibilidad de "Sin clasificar" depende del doc cargado).
+             Agregar una línea NO requiere tocar este markup. -->
+        <div class="linea-seg" id="linea-seg" title="Línea de negocio"></div>
         <div class="attr-seg" id="attr-seg">
           <div data-attr="close" class="active" title="Atribución last-touch — qué ad cerró"><i class="ti ti-checkbox"></i>Cierre</div>
           <div data-attr="first" title="Atribución first-touch — qué ad enganchó"><i class="ti ti-flame"></i>Enganche</div>
@@ -526,15 +529,39 @@ const plazaInitial = k => (PLAZAS[k] || k).charAt(0).toUpperCase();
 // esconde. El invariante real es sum(plazas) + other === count; quien lo verifica
 // y lo hace visible cuando falla es plazaBreakdownHtml.
 
-// Selector de LÍNEA (default Captación). Un ad pertenece a una línea por su
-// tag.linea; si no tiene tag, se deriva del campaign_id con este mapa — así no
-// contaminamos Captación con promo/vacantes sin clasificar. campaign_id fuera
-// del mapa (o "reconocimiento") → "otro" (no aparece en ninguna de las 3 vistas).
+// ═══ LÍNEAS de negocio — ÚNICA fuente del selector ═══
+// Orden del objeto = orden de los segmentos. Agregar una línea = una línea acá.
+// `asesores` (decisión de negocio de Anwar): es el LADO DE VENTA — pauta para
+// reclutar asesores EXTERNOS que vendan por comisión el inventario ya captado.
+// No entran a Inmobili como empleados, así que NO es `vacantes`. Y es línea
+// PROPIA, no sub-línea de `promo_inventario`: promo gana cuando pregunta un
+// comprador, asesores gana cuando un asesor se registra y luego vende — fundirlas
+// produciría un costo promedio sin significado. Su gasto queda FUERA de
+// cualquier agregado de captación (nunca estuvo dentro).
+const LINEAS = {
+  captacion:        "Captación",
+  promo_inventario: "Promo inventario",
+  vacantes:         "Vacantes",
+  asesores:         "Asesores",
+};
+const LINEA_KEYS = Object.keys(LINEAS);
+// Etiqueta larga para el tooltip cuando la del segmento va abreviada.
+const LINEA_TITLES = {
+  promo_inventario: "Promoción de inventario",
+  asesores: "Asesores externos que venden por comisión el inventario captado",
+};
+
+// Un ad pertenece a una línea por su tag.linea; si no tiene tag, se deriva del
+// campaign_id con este mapa.
 //
-// OJO: este mapa es un GATE DE VISIBILIDAD, no una etiqueta cosmética. Una
-// campaña que no esté acá cae a "otro" y desaparece de las tres vistas. Cuando
-// se abre una cuenta nueva hay que agregar sus campañas o su gasto queda
-// invisible (fue justo lo que pasó con Monterrey).
+// OJO: este mapa es un GATE DE VISIBILIDAD, no una etiqueta cosmética. Estar o
+// no estar acá decide si el gasto de una campaña se ve. Cuando se abre una
+// cuenta nueva hay que agregar sus campañas (fue justo lo que pasó con
+// Monterrey). Las que NO están caen a "sin clasificar" y se exponen en su propio
+// segmento — ver LINEA_SIN_CLASIFICAR.
+//
+// El valor "otro" es DISTINTO de estar ausente: significa
+// "escondida a propósito". Ver LINEA_OCULTA.
 let lineaFilter = "captacion";
 const CAMPAIGN_LINEA = {
   // ── act_936995767352512 · Torreón + Gómez ──
@@ -544,24 +571,16 @@ const CAMPAIGN_LINEA = {
   "120225742406730053": "vacantes",
   "120241163203350053": "vacantes",
   "120247788677590053": "vacantes",
-  "120241819818390053": "otro",   // reconocimiento — excluir de las 3 vistas
+  "120241819818390053": "otro",   // reconocimiento — escondida A PROPÓSITO
+  "120250181230340053": "asesores",  // OA16 - CP - Landing - Asesores Monterrey
   // ── act_2078817302701861 · Monterrey ──
   // Ningún ad de Monterrey tiene tag en ads-taxonomy.json (se generó solo con
   // la cuenta vieja), así que acá el campaign_id es la ÚNICA señal de línea.
-  // Los ads van a salir con pill rojo "Sin clasificar": correcto, no están
-  // clasificados. Ver la nota del PR.
+  // Los ads van a salir con pill rojo "Sin clasificar" en la columna Ángulo:
+  // correcto, no están clasificados. Ver la nota del PR.
   "120253441913040054": "captacion",      // OA1 - TF - MSJ - Monterrey - Captación
   "120254009359270054": "vacantes",       // OA2  - Vacantes - WP
-  //
-  // FUERA DEL MAPA A PROPÓSITO — la línea "Asesores" (reclutar asesores
-  // inmobiliarios, o publicidad dirigida a asesores; el nombre no alcanza para
-  // decidir). Existe en las DOS cuentas y suma ~$1,576 desde febrero:
-  //   120254056172260054  'OA3 - TF - MSJ - Monterrey - Asesores'        $789.81
-  //   120250181230340053  'OA16 - CP - Landing - Asesores Monterrey'     $786.36
-  // Las dos caen a "otro" y quedan invisibles en las tres vistas. Es
-  // deliberado: mejor invisible a propósito que mal clasificada. Cuando Anwar
-  // decida si es Vacantes o una cuarta línea, se agregan acá.
-  // (La segunda ya caía a "otro" antes de este PR — no es una regresión nueva.)
+  "120254056172260054": "asesores",       // OA3 - TF - MSJ - Monterrey - Asesores
 };
 
 // Escapes para meter valores de tag (texto libre) en HTML/atributos sin romper.
@@ -573,11 +592,76 @@ function tagFor(row) {
   if (!row || row.level !== "ad" || !row.ad_id) return null;
   return (taxonomy.ads && taxonomy.ads[row.ad_id]) || null;
 }
-// línea del ad: tag.linea manda; si no, deriva del campaign_id; default "otro".
+// ═══ "otro" significaba DOS cosas. Ahora están separadas ═══
+//
+//  (a) DELIBERADA  → el campaign_id ESTÁ en CAMPAIGN_LINEA con valor "otro".
+//      Alguien la escondió queriendo (caso real: la campaña de reconocimiento).
+//      Sigue escondida: LINEA_OCULTA nunca es un segmento, así que no hay forma
+//      de seleccionarla y sus ads no aparecen en ninguna vista.
+//
+//  (b) SIN CLASIFICAR → el campaign_id NO está en el mapa. Antes caía a "otro"
+//      por el `|| "otro"` y era indistinguible de (a); por eso una campaña llevaba
+//      desde el 21-jul gastando sin que nadie la viera. Ahora cae a
+//      LINEA_SIN_CLASIFICAR y tiene su propio segmento (que se oculta si no hay
+//      ninguna con gasto).
+//
+// Sin clasificar ≠ captación: NUNCA se mete a captación por default.
+const LINEA_OCULTA = "otro";
+const LINEA_SIN_CLASIFICAR = "sin_clasificar";
+const LINEA_SIN_CLASIFICAR_LABEL = "Sin clasificar";
+
+// línea del ad: tag.linea manda; si no, deriva del campaign_id. Ausente del mapa
+// → LINEA_SIN_CLASIFICAR (≠ "otro", que es exclusión deliberada).
 function lineaFor(row) {
   const t = tagFor(row);
   if (t && t.linea) return t.linea;
-  return CAMPAIGN_LINEA[row && row.campaign_id] || "otro";
+  const cid = row && row.campaign_id;
+  if (cid != null && Object.prototype.hasOwnProperty.call(CAMPAIGN_LINEA, String(cid))) {
+    return CAMPAIGN_LINEA[String(cid)];
+  }
+  return LINEA_SIN_CLASIFICAR;
+}
+
+// Ads sin clasificar (caso b) del periodo cargado.
+function sinClasificarAds() {
+  const p = currentPeriod();
+  if (!p) return [];
+  return (p.campaigns || []).filter(
+    a => lineaFor({ ...a, level: "ad" }) === LINEA_SIN_CLASIFICAR);
+}
+
+// El segmento "Sin clasificar" solo existe si hay al menos una con GASTO > 0.
+// Sin gasto no hay nada que vigilar y un tab vacío permanente es ruido.
+function hasSinClasificar() {
+  return sinClasificarAds().some(a => (a.spend || 0) > 0);
+}
+
+// Si el segmento desapareció (cambió el periodo) y estaba seleccionado, volver a
+// Captación — si no, la tabla quedaría vacía sin explicación.
+function reconcileLineaFilter() {
+  if (lineaFilter === LINEA_SIN_CLASIFICAR && !hasSinClasificar()) {
+    lineaFilter = "captacion";
+  }
+}
+
+// Segmentos del selector, derivados de LINEAS + el condicional Sin clasificar.
+function renderLineaSegments() {
+  const seg = document.getElementById("linea-seg");
+  if (!seg) return;
+  const items = LINEA_KEYS.map(k => ({ key: k, label: LINEAS[k], title: LINEA_TITLES[k] || LINEAS[k] }));
+  if (hasSinClasificar()) {
+    const n = sinClasificarAds().filter(a => (a.spend || 0) > 0).length;
+    items.push({
+      key: LINEA_SIN_CLASIFICAR,
+      label: LINEA_SIN_CLASIFICAR_LABEL,
+      title: n + " anuncio(s) con gasto cuya campaña no está en el mapa de líneas. "
+           + "No se asumen de captación: hay que clasificarlas.",
+    });
+  }
+  seg.innerHTML = items.map(it =>
+    '<div' + (it.key === lineaFilter ? ' class="active"' : "")
+    + ' data-linea="' + escAttr(it.key) + '" title="' + escAttr(it.title) + '">'
+    + escHtml(it.label) + "</div>").join("");
 }
 // Un valor de tag "vacío" = null / "" / "—" / "-". La taxonomía real usa el
 // literal "—" como "ninguno" (p.ej. talento en 805/922 ads); hay que tratarlo
@@ -709,29 +793,59 @@ function plazaBreakdownHtml(c) {
 // Un badge que depende de una lista de periodos hardcodeada miente el día que el
 // dato cambia (y 30d puede colapsar igual que 7d).
 //
-// REGLA, evaluada por periodo contra el doc cargado:
-//   suma per-ad de captación del EJE ACTIVO === 0  Y  leadtime_total > 0
-//     → la atribución colapsó en esta ventana.
-// Con leadtime_total === 0 no hay nada que degradar: son ceros honestos.
+// REGLA, evaluada sobre el SUBCONJUNTO VISIBLE:
+//   suma per-ad de captación del subconjunto === 0  Y  captaciones REALES del
+//   subconjunto > 0   → estado degradado.
+//
+// EL SUBCONJUNTO ES: periodo + filtro de PLAZA + eje. NADA MÁS.
+// Deliberadamente NO incluye el filtro de LÍNEA: para plaza existe un
+// denominador real (las filas de Leadtime de esa plaza, en
+// _meta.coverage.plaza_distribution); para línea NO existe ningún conteo real de
+// captaciones, así que degradar ahí obligaría a inventar un denominador.
+// Regla general: sin denominador confiable NO se degrada — los números se dejan
+// como están.
+//
+// Por qué el subconjunto y no el periodo completo: con eje Cierre + plaza
+// Monterrey, sus captaciones no resuelven a un ad (nomenclatura de los ads), pero
+// Gómez y Torreón sí. Mirando el periodo completo la suma no es cero y no se
+// degradaba → la vista de Monterrey mostraba gasto con 0 captaciones, que se lee
+// como "quema dinero sin resultados". Es falso: tiene captaciones, solo que no
+// asignables a un anuncio.
 //
 // DISTINCIÓN QUE IMPORTA: el TOTAL del header (captac_blended, sale del
 // Leadtime) es CONFIABLE — son captaciones reales y NO se toca nunca. Lo que
 // está roto es la atribución PER-AD; ahí va el gris.
-//
-// Se evalúa sobre TODOS los ads del periodo, no sobre las filas visibles: así el
-// estado no cambia al mover el filtro de plaza o de línea.
+
+// Captaciones REALES del subconjunto (periodo + plaza). null = sin denominador
+// confiable (y entonces no se degrada nada).
+function realCaptacForSubset(p) {
+  if (!p) return null;
+  if (plazaFilter === "all") {
+    const v = (p.totals || {}).captac_blended;
+    return typeof v === "number" ? v : null;
+  }
+  // Por plaza: filas de Leadtime de esa plaza. Es el conteo real, NO la suma
+  // per-ad. Si el doc es viejo y no lo trae, no inventamos: null.
+  const dist = ((p._meta || {}).coverage || {}).plaza_distribution;
+  if (!dist || typeof dist[plazaFilter] !== "number") return null;
+  return dist[plazaFilter];
+}
+
+// Suma per-ad de captación del subconjunto: eje activo × plaza activa.
 function perAdCaptacSum(p) {
+  if (!p) return 0;
   const key = attribution === "close" ? "captacion_close" : "captacion_first_touch";
+  const field = plazaFilter === "all" ? "count" : plazaFilter;
   return (p.campaigns || []).reduce((s, a) => {
     const cap = a[key] || a.captacion || {};
-    return s + (cap.count || 0);
+    return s + (cap[field] || 0);
   }, 0);
 }
 
 function attributionCollapsedFor(p) {
   if (!p) return false;
-  const leadtime = (p.totals || {}).captac_blended || 0;
-  if (leadtime <= 0) return false;   // ceros honestos, nada que degradar
+  const real = realCaptacForSubset(p);
+  if (real === null || real <= 0) return false;  // sin denominador o ceros honestos
   return perAdCaptacSum(p) === 0;
 }
 
@@ -741,8 +855,9 @@ function attributionCollapsed() {
 
 // Celda del estado degradado. Describe lo OBSERVABLE, sin mecanismo: el
 // mecanismo puede cambiar y el texto quedaría mintiendo.
-const NODATA_TIP = "En esta ventana ninguna captación pudo asignarse a un anuncio. "
-  + "El total de arriba sí es real. Para decidir pauta usa una ventana más larga.";
+const NODATA_TIP = "Ninguna captación de esta vista pudo asignarse a un anuncio. "
+  + "Las captaciones existen y el total de arriba es real; lo que no se puede es "
+  + "repartirlas entre anuncios acá. Probá otro eje de atribución u otra ventana.";
 const nodataCell = () =>
   '<span class="nodata" title="' + escAttr(NODATA_TIP) + '">sin datos suf.</span>';
 
@@ -798,39 +913,6 @@ function buildTree(campaigns) {
   return out;
 }
 
-// ═══ Aggregate roll-ups (campaign/adset rows sum its children) ═══
-function rollup(node) {
-  if (node.level === "ad") return node;
-  const kids = (node.children || []).map(rollup);
-  const sum = (key, sub) => kids.reduce((s, k) => s + ((sub ? (k[key] || {})[sub] : k[key]) || 0), 0);
-  // Desglose derivado de PLAZAS (+ other) — nunca llaves de plaza a mano.
-  const sumPlazas = field => {
-    const o = { count: sum(field, "count"), other: sum(field, "other") };
-    PLAZA_KEYS.forEach(k => { o[k] = sum(field, k); });
-    return o;
-  };
-  const captacion = sumPlazas("captacion");
-  const captacion_close = sumPlazas("captacion_close");
-  const captacion_first_touch = sumPlazas("captacion_first_touch");
-  const spend = sum("spend"), mensajes = sum("mensajes");
-  return {
-    ...node,
-    spend, mensajes,
-    funnel: {
-      llamada: { count: sum("funnel", "llamada"), conv_pct: null, cost: null },
-      cita: { count: sum("funnel", "cita"), conv_pct: null, cost: null },
-      a_espera: { count: sum("funnel", "a_espera"), conv_pct: null, cost: null },
-    },
-    captacion, captacion_close, captacion_first_touch,
-    cac_captacion: captacion.count ? spend / captacion.count : null,
-    cac_captacion_close: captacion_close.count ? spend / captacion_close.count : null,
-    cac_captacion_first_touch: captacion_first_touch.count ? spend / captacion_first_touch.count : null,
-    children: kids,
-  };
-}
-
-// Funnel sums need to come from raw counts inside each ad's funnel.{stage}.count.
-// Re-do rollup to handle funnel correctly.
 // S87 MEJORA 3: deriva el status agregado del nodo padre desde los ads
 // descendientes (Anwar: VERDE si AL MENOS UN hijo es ACTIVE puro).
 // effective_status del ad ya propaga el estado del padre — Meta marca
@@ -1261,9 +1343,9 @@ function renderHeaderPanel() {
   if (lagBanner) {
     const collapsed = attributionCollapsed();
     if (collapsed) {
-      lagBanner.textContent = "⚠ Atribución por anuncio no disponible en esta ventana — "
+      lagBanner.textContent = "⚠ Atribución por anuncio no disponible en esta vista — "
         + "ninguna captación pudo asignarse a un anuncio. El total de captaciones de "
-        + "arriba sí es real. Para decidir pauta usa una ventana más larga.";
+        + "arriba sí es real. Probá otro eje de atribución u otra ventana.";
     } else if (M.lag_warning) {
       lagBanner.textContent = "⚠ Ventana reciente — las captaciones de los últimos días "
         + "se siguen registrando, así que el conteo puede subir y el CAC bajar.";
@@ -1395,6 +1477,10 @@ document.addEventListener("keydown", e => { if (e.key === "Escape") closeModal()
 
 // ═══ Master render ═══
 function render() {
+  // El selector de línea puede cambiar de forma según el doc (segmento
+  // condicional), así que se reconcilia y repinta ANTES de armar las filas.
+  reconcileLineaFilter();
+  renderLineaSegments();
   renderHeader();
   renderRows();
   renderHeaderPanel();
@@ -1574,13 +1660,18 @@ function wireTopbar() {
     });
   }
   // F1: Línea toggle — filtra la tabla por línea de negocio.
-  document.querySelectorAll("#linea-seg div").forEach(d => {
-    d.addEventListener("click", () => {
-      lineaFilter = d.dataset.linea;
-      document.querySelectorAll("#linea-seg div").forEach(x => x.classList.toggle("active", x === d));
+  // Delegación en el contenedor: renderLineaSegments() re-crea los divs en cada
+  // render (el segmento "Sin clasificar" aparece/desaparece según el doc), así
+  // que listeners por-div se perderían al primer repintado.
+  const lineaSeg = document.getElementById("linea-seg");
+  if (lineaSeg) {
+    lineaSeg.addEventListener("click", (e) => {
+      const target = e.target.closest("div[data-linea]");
+      if (!target) return;
+      lineaFilter = target.dataset.linea;
       render();
     });
-  });
+  }
   // Plaza toggle
   document.querySelectorAll("#plaza-seg div").forEach(d => {
     d.addEventListener("click", () => {
