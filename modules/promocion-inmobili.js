@@ -41,7 +41,7 @@ export const ADS_ACCOUNT = 'act_936995767352512';
 
 export const CUBETAS = ['apagar', 'lista', 'esperando', 'activas', 'apagadas'];
 
-const PLAZA_LABELS = { gomez: 'Gómez Palacio', torreon: 'Torreón' };
+const PLAZA_LABELS = { gomez: 'Gómez Palacio', torreon: 'Torreón', monterrey: 'Monterrey' };
 
 // ── Funciones puras (node-safe, testeadas en el harness) ──────────────────
 
