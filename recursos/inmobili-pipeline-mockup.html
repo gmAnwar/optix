@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Inmobili · Pipeline — mockup</title>
+<style>
+:root{
+  --bg:#f0f2f5;--surface:#fff;--border:#dadde1;--border-soft:#e9ebee;
+  --text:#1c1e21;--text-2:#65676b;--text-3:#8a8d91;
+  --accent:#1877f2;--accent-soft:#e7f0fe;
+  --green:#31a24c;--amber:#c47f00;--coral:#e41e3f;
+  --warn-bg:#fff6e5;--warn-bd:#f0c674;
+  --ghost-bg:#f7f8fa;--ghost-bd:#c9ccd1;
+  --mono:ui-monospace,SFMono-Regular,Menlo,monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);
+  font:14px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+.tnum{font-variant-numeric:tabular-nums}
+.wrap{max-width:1420px;margin:0 auto;padding:0 16px 64px}
+.spacer{flex:1}
+.mockbar{background:#1c1e21;color:#fff;font-size:12px;padding:7px 16px;text-align:center}
+.mockbar b{color:#ffd54a}
+
+.topbar{background:var(--surface);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:40}
+.topbar-in{max-width:1420px;margin:0 auto;padding:9px 16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.brand{font-size:17px;font-weight:700;letter-spacing:-.01em}
+.pill{background:var(--accent-soft);color:var(--accent);border-radius:999px;padding:3px 10px;font-size:12px;font-weight:600}
+select.ctl{appearance:none;background:var(--surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%2365676b'/%3E%3C/svg%3E") no-repeat right 9px center;
+  border:1px solid var(--border);border-radius:6px;padding:6px 26px 6px 10px;font-size:13px;color:var(--text);cursor:pointer;font-family:inherit}
+.lens{display:flex;border:1px solid var(--border);border-radius:7px;overflow:hidden}
+.lens button{border:0;background:var(--surface);padding:5px 11px;font-size:12.5px;font-weight:600;color:var(--text-2);
+  cursor:pointer;font-family:inherit;border-right:1px solid var(--border);text-align:left}
+.lens button:last-child{border-right:0}
+.lens button.on{background:var(--accent);color:#fff}
+.lens .who{font-size:10px;display:block;font-weight:400;opacity:.75}
+.stamp{font-size:11px;color:var(--text-3);font-family:var(--mono);display:flex;align-items:center;gap:6px}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--green);display:inline-block}
+
+/* embudo switch */
+.funnels{display:flex;gap:8px;margin:16px 0 0}
+.fbtn{flex:1;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:11px 14px;
+  cursor:pointer;text-align:left;font-family:inherit;display:flex;gap:12px;align-items:center}
+.fbtn.on{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent);background:var(--accent-soft)}
+.fbtn .t{font-size:14px;font-weight:700}
+.fbtn .s{font-size:11.5px;color:var(--text-2);margin-top:2px}
+.fbtn.on .s{color:#3b6fb5}
+.fbtn .big{font-size:26px;font-weight:700;letter-spacing:-.02em;line-height:1}
+.fbtn .big small{font-size:11px;font-weight:600;color:var(--text-2);display:block;letter-spacing:0}
+
+.kpis{display:grid;background:var(--surface);border:1px solid var(--border);border-radius:8px;margin:16px 0;overflow:hidden}
+.kpi{padding:11px 13px;border-right:1px solid var(--border-soft)}
+.kpi:last-child{border-right:0}
+.kpi .l{font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--text-2);font-weight:700}
+.kpi .v{font-size:21px;font-weight:700;letter-spacing:-.02em;margin-top:3px}
+.kpi .d{font-size:11px;color:var(--text-3);margin-top:1px}
+.kpi .v.g{color:var(--green)}.kpi .v.r{color:var(--coral)}.kpi .v.a{color:var(--amber)}
+.kpi .v.ghost{color:var(--ghost-bd)}
+
+.card{background:var(--surface);border:1px solid var(--border);border-radius:8px;margin-bottom:16px}
+.card-h{padding:10px 14px;border-bottom:1px solid var(--border-soft);display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.card-h h2{margin:0;font-size:14px;font-weight:700}
+.card-h .sub{font-size:12px;color:var(--text-2)}
+
+/* matriz */
+.mtx-scroll{overflow-x:auto}
+table.mtx{border-collapse:collapse;width:100%;min-width:820px;font-size:13px}
+.mtx th,.mtx td{border-bottom:1px solid var(--border-soft);padding:0}
+.mtx thead th{font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:var(--text-2);font-weight:700;
+  padding:8px 6px;text-align:center;background:#fafbfc;vertical-align:bottom}
+.mtx thead th.rowhead{background:#fafbfc;text-align:left}
+.mtx th.rowhead,.mtx td.rowhead{text-align:left;padding:9px 12px;border-right:1px solid var(--border);min-width:230px;background:var(--surface)}
+.mtx td.rowhead .nm{font-weight:600;font-size:13px;display:flex;align-items:center;gap:7px}
+.mtx td.rowhead .sm{font-size:11px;color:var(--text-3);margin-top:1px}
+.step{width:20px;height:20px;border-radius:5px;background:#eceff1;color:var(--text-2);font-size:10px;font-weight:700;
+  display:inline-grid;place-items:center;font-family:var(--mono);flex:none}
+tr.ghost td{background:var(--ghost-bg)}
+tr.ghost .nm{color:var(--text-3)}
+tr.ghost .step{background:transparent;border:1px dashed var(--ghost-bd);color:var(--ghost-bd)}
+.badge{font-size:9px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;border-radius:3px;padding:1px 5px;border:1px solid}
+.badge.no{background:#fff;color:#8a8d91;border-color:var(--ghost-bd)}
+.badge.orf{background:var(--warn-bg);color:#8a5a00;border-color:var(--warn-bd)}
+.cell{width:100%;min-height:44px;border:0;background:none;font-family:inherit;display:grid;place-items:center;
+  cursor:pointer;padding:8px 4px;font-size:14px;font-variant-numeric:tabular-nums;color:var(--text);font-weight:600}
+.cell:hover{background:var(--accent-soft);box-shadow:inset 0 0 0 2px var(--accent)}
+.cell.zero{color:#c9ccd1;font-weight:400;cursor:default}
+.cell.zero:hover{background:none;box-shadow:none}
+.cell.on{background:var(--accent);color:#fff}
+.cell.warm{background:#fff8ec}.cell.hot{background:#fdeef0;color:var(--coral);font-weight:700}
+.cell.on.warm,.cell.on.hot{background:var(--accent);color:#fff}
+.mtx td.tot,.mtx th.tot{background:#fafbfc;border-left:1px solid var(--border);font-weight:700;text-align:center;padding:9px 10px;font-variant-numeric:tabular-nums}
+.mtx td.conv{text-align:center;font-size:12px;color:var(--text-2);font-variant-numeric:tabular-nums;padding:9px 8px;border-left:1px solid var(--border-soft)}
+.mtx td.conv b{color:var(--text);font-size:13px}
+.mtx tr.totrow td{background:#fafbfc;font-weight:700;text-align:center;padding:9px 5px;border-top:1px solid var(--border);font-variant-numeric:tabular-nums}
+.mtx tr.totrow td.rowhead{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--text-2)}
+
+.filters{padding:10px 14px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;border-bottom:1px solid var(--border-soft);min-height:48px}
+.filters .lbl{font-size:12px;color:var(--text-2);font-weight:600}
+.chip{display:inline-flex;align-items:center;gap:6px;background:var(--accent-soft);color:var(--accent);
+  border:1px solid #cfe0fd;border-radius:6px;padding:4px 8px;font-size:12px;font-weight:600}
+.chip .k{color:#5b7ba8}
+.chip button{border:0;background:none;color:var(--accent);cursor:pointer;font-size:14px;padding:0;font-family:inherit}
+.clearall{background:none;border:0;color:var(--text-2);font-size:12px;cursor:pointer;text-decoration:underline;font-family:inherit}
+.empty-f{font-size:12px;color:var(--text-3)}
+
+.tbl-scroll{overflow-x:auto;max-height:420px;overflow-y:auto}
+table.rows{border-collapse:collapse;width:100%;font-size:13px}
+.rows thead th{position:sticky;top:0;background:#fafbfc;z-index:3;font-size:10px;text-transform:uppercase;letter-spacing:.04em;
+  color:var(--text-2);font-weight:700;text-align:left;padding:8px 10px;border-bottom:1px solid var(--border);white-space:nowrap}
+.rows tbody td{padding:8px 10px;border-bottom:1px solid var(--border-soft);white-space:nowrap}
+.rows tbody tr:hover{background:#f5f6f7}
+.rows .num{text-align:right;font-variant-numeric:tabular-nums}
+.rows .masked{font-family:var(--mono);color:var(--text-2);font-size:12px}
+.age{font-variant-numeric:tabular-nums;font-weight:600}
+.age.ok{color:var(--green)}.age.mid{color:var(--amber)}.age.bad{color:var(--coral)}
+.me{background:#f0f6ff!important;box-shadow:inset 3px 0 0 var(--accent)}
+.foot{padding:9px 14px;font-size:12px;color:var(--text-2);border-top:1px solid var(--border-soft);display:flex;gap:14px;flex-wrap:wrap;align-items:center}
+.barwrap{display:inline-block;width:76px;background:#eceff1;border-radius:3px;vertical-align:middle}
+.bar{height:5px;background:var(--accent);border-radius:3px;display:inline-block;vertical-align:middle}
+.note{border:1px dashed var(--warn-bd);background:var(--warn-bg);border-radius:6px;padding:9px 12px;font-size:12px;color:#6b4e00;margin:12px 14px;line-height:1.5}
+.note b{color:#4a3600}
+.note.hyp{border-color:#b9c6d8;background:#f2f6fb;color:#3d5570}.note.hyp b{color:#22364d}
+.note.bad{border-color:#f0a6b3;background:#fdeef0;color:#8f1023}.note.bad b{color:#6d0b1b}
+code{font-family:var(--mono);font-size:11.5px;background:rgba(0,0,0,.05);padding:1px 4px;border-radius:3px}
+@media (max-width:900px){.kpis{grid-template-columns:repeat(3,1fr)!important}.funnels{flex-direction:column}}
+</style>
+</head>
+<body>
+
+<div class="mockbar">MOCKUP · datos de muestra <b>NO reales</b> · las etapas con borde punteado <b>no existen todavía</b> en Vambe o no están instrumentadas</div>
+
+<div class="topbar"><div class="topbar-in">
+  <span class="brand">Pipeline</span>
+  <span class="pill">Inmobili</span>
+  <select class="ctl" id="plaza"><option>Todas las plazas</option><option>Gómez Palacio</option><option>Torreón</option><option>Monterrey</option></select>
+  <select class="ctl"><option>Julio 2026</option><option>Junio 2026</option></select>
+  <span class="spacer"></span>
+  <div class="lens" id="lens"></div>
+  <span class="stamp"><span class="dot"></span><span>Vambe hace 12 min</span></span>
+</div></div>
+
+<div class="wrap">
+  <div class="funnels" id="funnels"></div>
+  <div class="kpis" id="kpis"></div>
+
+  <div class="card">
+    <div class="card-h">
+      <h2 id="mtxTitle"></h2>
+      <span class="sub" id="mtxSub"></span>
+      <span class="spacer"></span>
+      <span class="sub">Pícale a una celda para ver quiénes son</span>
+    </div>
+    <div class="mtx-scroll"><table class="mtx" id="mtx"></table></div>
+    <div id="mtxnotes"></div>
+  </div>
+
+  <div class="card">
+    <div class="filters" id="filters"></div>
+    <div class="card-h">
+      <h2 id="tblTitle"></h2>
+      <span class="spacer"></span>
+      <span class="sub">Agrupar por</span>
+      <select class="ctl" id="groupby"></select>
+    </div>
+    <div class="tbl-scroll"><table class="rows" id="rows"></table></div>
+    <div class="foot"><span id="footCount"></span><span class="spacer"></span><span id="footNote"></span></div>
+    <div id="tblnote"></div>
+  </div>
+</div>
+
+<script>
+// ===================================================== ETAPAS
+// estado: ok = instrumentado hoy | orf = stage existe en Vambe, falta en config.py | no = no existe, Inmobili lo debe crear
+const CAPTAR=[
+  {k:'Mensaje nuevo',       s:'ok', d:'entra por WhatsApp desde el anuncio', n:1387},
+  {k:'Agendado - Llamada',  s:'ok', d:'con hora puesta para llamar',        n:286},
+  {k:'Calificado p/ visita',s:'orf',d:'pasó filtro: sin deuda, sin juicio, cónyuge localizable', n:110},
+  {k:'Visita agendada',     s:'ok', d:'el captador de campo tiene la cita', n:34},
+  {k:'Visita realizada',    s:'no', d:'el captador fue a ver la propiedad', n:20},
+  {k:'A espera de aceptación',s:'orf',d:'propuesta entregada, esperando al dueño', n:30},
+  {k:'Captación',           s:'ok', d:'firmó contrato para listar con nosotros', n:19},
+  {k:'Descartado',          s:'orf',d:'deuda · jurídico · cónyuge · sin cuenta', n:1101}
+];
+const VENDER=[
+  {k:'Documentos',   s:'no', d:'escrituras, predial, identificaciones', n:6,  plazo:15},
+  {k:'Avalúo',       s:'no', d:'perito asignado y avalúo vigente',      n:4,  plazo:20},
+  {k:'En promoción', s:'no', d:'publicada y recibiendo interesados',    n:13, plazo:60},
+  {k:'Con oferta',   s:'no', d:'comprador con oferta sobre la mesa',    n:4,  plazo:20},
+  {k:'En notaría',   s:'no', d:'firma de escritura en proceso',         n:3,  plazo:30},
+  {k:'Vendida',      s:'no', d:'operación cerrada',                     n:0,  plazo:0}
+];
+const BUCKETS=[{k:'0–3 d',max:3},{k:'4–7 d',max:7},{k:'8–14 d',max:14},{k:'15–30 d',max:30},{k:'+30 d',max:999}];
+const BUCKETS_V=[{k:'Dentro de plazo',max:0},{k:'Por vencer',max:1},{k:'Vencido',max:2},{k:'Vencido +30d',max:3}];
+
+const PLAZAS=['Gómez Palacio','Torreón','Monterrey'];
+const ADMIN=['Caro','Lupita','Diana','Ale','Fer','Sandra'];
+const CAMPO=['Beto','Chuy'];
+const CAMP=['BB4','MM7','NV2','JJ9','DESC3','EE1','orgánico'];
+const INV={'BB4':24800,'MM7':19600,'NV2':17300,'JJ9':14100,'DESC3':12900,'EE1':9800,'orgánico':0};
+const MOTIVO=['Tiene deuda','Problema jurídico','Cónyuge ilocalizable','Sin cuenta bancaria','Ya no quiere vender','No contesta'];
+const COLONIA=['Fracc. Las Rosas','Col. Centro','Fracc. San Isidro','Col. La Merced','Fracc. Los Ángeles','Col. Jardines'];
+
+let _s=7; const rnd=()=>(_s=(_s*1664525+1013904223)%4294967296)/4294967296;
+const pick=a=>a[Math.floor(rnd()*a.length)];
+const skew=()=>Math.pow(rnd(),1.7);
+
+// leads del embudo de captación
+const L1=[]; let id=1;
+CAPTAR.forEach((e,ix)=>{
+  // etapas tempranas rotan rápido; las de en medio se atoran (ése es el hallazgo)
+  const lento=(ix>=2&&ix<=5);
+  for(let i=0;i<e.n;i++){
+    const dias=Math.round(skew()*(lento?42:9))+ (lento?2:0);
+    L1.push({id:id++,etapa:e.k,dias,toques:1+Math.floor(rnd()*4),
+      nombre:'•••••••• '+String.fromCharCode(65+Math.floor(rnd()*26))+'.',
+      tel:'••••'+String(1000+Math.floor(rnd()*8999)),
+      plaza:pick(PLAZAS),admin:pick(ADMIN),campo:pick(CAMPO),campana:pick(CAMP),
+      colonia:pick(COLONIA),motivo:e.k==='Descartado'?pick(MOTIVO):'',
+      valor:Math.round((450+rnd()*950))*1000});
+  }
+});
+// expedientes del embudo de venta
+const L2=[]; let id2=1;
+VENDER.forEach(e=>{ for(let i=0;i<e.n;i++){
+  const dias=Math.round(e.plazo*(0.4+rnd()*1.9));
+  L2.push({id:id2++,etapa:e.k,dias,plazo:e.plazo,
+    nombre:pick(COLONIA)+' #'+(100+Math.floor(rnd()*899)),
+    plaza:pick(PLAZAS),admin:pick(ADMIN),campo:pick(CAMPO),campana:'—',colonia:'',motivo:'',toques:0,
+    valor:Math.round((450+rnd()*950))*1000});
+}});
+
+// ===================================================== LENTES
+const LENSES={
+  dueno:{nm:'Dueño',who:'Elizandro',funnel:'vender',
+    kpis:['inventario','ciclo','vendidas','pct_vende','captaciones','valor'],
+    group:[['plaza','Plaza'],['','— (fila por propiedad)']],defGroup:'plaza',
+    cols:['nombre','etapa','dias','sla','plaza','valor']},
+  gerente:{nm:'Gerente',who:'Araceli',funnel:'vender',
+    kpis:['inventario','vencidos','ciclo','porvencer','captaciones','tintero'],
+    group:[['etapa','Etapa'],['','— (fila por propiedad)'],['plaza','Plaza']],defGroup:'',
+    cols:['nombre','etapa','dias','sla','plaza','admin']},
+  admin:{nm:'Captación admin',who:'Caro · su cola',funnel:'captar',mine:'admin',me:'Caro',
+    kpis:['micola','misinagendar','misllamadas','miconv','medianaEquipo'],
+    group:[['','— (fila por lead)']],defGroup:'',
+    cols:['nombre','tel','etapa','dias','toques','plaza']},
+  campo:{nm:'Captación campo',who:'Beto · su agenda',funnel:'captar',mine:'campo',me:'Beto',
+    kpis:['misvisitas','misrealizadas','misespera','micaptaciones','medianaEquipo'],
+    group:[['','— (fila por lead)']],defGroup:'',
+    cols:['nombre','etapa','dias','colonia','plaza','valor']},
+  agencia:{nm:'Agencia',who:'OptimizAds',funnel:'captar',
+    kpis:['mensajes','calificados','captaciones','cac','sinperseguir','descartados'],
+    group:[['campana','Campaña'],['','— (fila por lead)'],['plaza','Plaza'],['motivo','Motivo de descarte']],defGroup:'campana',
+    cols:['nombre','etapa','dias','toques','plaza','campana']}
+};
+let S={lens:'gerente',funnel:'vender',cells:[],group:''};
+const L=()=>LENSES[S.lens];
+const money=n=>'$'+Math.round(n).toLocaleString('es-MX');
+const short=n=>n>=1e6?'$'+(n/1e6).toFixed(1)+'M':money(n);
+const steps=()=>S.funnel==='captar'?CAPTAR:VENDER;
+const pool=()=>{
+  let r=S.funnel==='captar'?L1:L2;
+  const m=L().mine; if(m) r=r.filter(x=>x[m]===L().me);
+  return r;
+};
+const ageCls=d=>d>14?'bad':d>7?'mid':'ok';
+const slaState=r=>{const p=r.plazo||0; if(!p)return 0; const q=r.dias/p; return q<=0.8?0:q<=1?1:r.dias-p>30?3:2};
+const SLA=['Dentro de plazo','Por vencer','Vencido','Vencido +30d'];
+
+// ===================================================== KPIs
+function kpiDefs(){
+  const viva=L2.filter(r=>r.etapa!=='Vendida');
+  const venc=L2.filter(r=>slaState(r)>=2);
+  const cap=CAPTAR.find(e=>e.k==='Captación').n;
+  const calif=L1.filter(r=>r.etapa==='Calificado p/ visita');
+  const sinPerseguir=calif.filter(r=>r.dias>7);
+  const inv=Object.values(INV).reduce((a,b)=>a+b,0);
+  const mineA=L1.filter(r=>r.admin==='Caro'), mineC=L1.filter(r=>r.campo==='Beto');
+  return {
+    inventario:['Propiedades vivas',viva.length,'el sistema hoy reporta 4','r'],
+    ciclo:['Ciclo promedio',Math.round(viva.reduce((a,b)=>a+b.dias,0)/viva.length)+' d','de captación a hoy','a'],
+    vendidas:['Vendidas este mes','—','no existe el dato','ghost'],
+    pct_vende:['% de lo captado que se vende','—','nadie lo mide hoy','ghost'],
+    captaciones:['Captaciones del mes',cap,'contrato firmado','g'],
+    valor:['Valor del inventario',short(viva.reduce((a,b)=>a+b.valor,0)),'precio de lista'],
+    vencidos:['Fuera de plazo',venc.length,'de '+viva.length+' expedientes','r'],
+    porvencer:['Por vencer esta semana',L2.filter(r=>slaState(r)===1).length,'aún se salvan','a'],
+    tintero:['Propuestas sin respuesta',CAPTAR.find(e=>e.k==='A espera de aceptación').n,'15 son de antes del 20-abr','a'],
+    mensajes:['Mensajes',1387,'entradas del mes'],
+    calificados:['Calificados p/ visita',calif.length,'38.5% de los llamados'],
+    sinperseguir:['Calificados sin agendar +7d',sinPerseguir.length,'nadie los persigue con calendario','r'],
+    descartados:['Descartados',1101,'sin auditar nunca','a'],
+    cac:['CAC captación',money(inv/cap),'inversión ÷ captaciones'],
+    micola:['Mi cola',mineA.filter(r=>['Agendado - Llamada','Calificado p/ visita'].includes(r.etapa)).length,'leads asignados a Caro'],
+    misinagendar:['Míos sin agendar +7d',mineA.filter(r=>r.etapa==='Calificado p/ visita'&&r.dias>7).length,'ya calificados, sin cita','r'],
+    misllamadas:['Por llamar hoy',mineA.filter(r=>r.etapa==='Agendado - Llamada'&&r.dias<=3).length,'con hora puesta'],
+    miconv:['Mi conversión a cita',Math.round(mineA.filter(r=>['Visita agendada','Visita realizada','Captación'].includes(r.etapa)).length/Math.max(1,mineA.filter(r=>r.etapa!=='Mensaje nuevo').length)*100)+'%','de calificado a cita'],
+    misvisitas:['Mis visitas agendadas',mineC.filter(r=>r.etapa==='Visita agendada').length,'pendientes de ir'],
+    misrealizadas:['Visitas hechas',mineC.filter(r=>r.etapa==='Visita realizada').length,'este mes'],
+    misespera:['Mis propuestas sin respuesta',mineC.filter(r=>r.etapa==='A espera de aceptación').length,'esperando al dueño','a'],
+    micaptaciones:['Mis captaciones',mineC.filter(r=>r.etapa==='Captación').length,'contrato firmado','g'],
+    medianaEquipo:['Mediana del equipo','31%','tu número vs la mediana, sin ranking']
+  };
+}
+function renderKpis(){
+  const d=kpiDefs(),ks=L().kpis,el=document.getElementById('kpis');
+  el.style.gridTemplateColumns='repeat('+ks.length+',1fr)';
+  el.innerHTML=ks.map(k=>{const [l,v,s,c]=d[k];
+    return `<div class="kpi"><div class="l">${l}</div><div class="v tnum ${c||''}">${typeof v==='number'?v.toLocaleString('es-MX'):v}</div><div class="d">${s}</div></div>`}).join('');
+}
+
+// ===================================================== embudos
+function renderFunnels(){
+  const viva=L2.filter(r=>r.etapa!=='Vendida').length;
+  document.getElementById('funnels').innerHTML=`
+  <button class="fbtn ${S.funnel==='captar'?'on':''}" data-f="captar">
+    <span class="big">19<small>captaciones</small></span>
+    <span><span class="t">CAPTAR — conseguir la casa</span><span class="s">Vambe · del mensaje al contrato de captación · 6 etapas, 4 medidas</span></span></button>
+  <button class="fbtn ${S.funnel==='vender'?'on':''}" data-f="vender">
+    <span class="big">${viva}<small>en inventario</small></span>
+    <span><span class="t">VENDER — colocar la casa</span><span class="s">Leadtime de Araceli · de la captación a la escritura · 0 etapas medidas</span></span></button>`;
+  document.querySelectorAll('.fbtn').forEach(b=>b.onclick=()=>{
+    S.funnel=b.dataset.f;S.cells=[];
+    if(!LENSES[S.lens].mine) S.group=L().defGroup;
+    renderAll();
+  });
+}
+function renderLens(){
+  document.getElementById('lens').innerHTML=Object.entries(LENSES).map(([k,v])=>
+    `<button data-l="${k}" class="${S.lens===k?'on':''}">${v.nm}<span class="who">${v.who}</span></button>`).join('');
+  document.querySelectorAll('#lens button').forEach(b=>b.onclick=()=>{
+    S.lens=b.dataset.l;S.funnel=L().funnel;S.group=L().defGroup;S.cells=[];renderAll();
+  });
+}
+
+// ===================================================== matriz
+function bucketOf(r){
+  if(S.funnel==='vender') return slaState(r);
+  for(let i=0;i<BUCKETS.length;i++) if(r.dias<=BUCKETS[i].max) return i;
+  return BUCKETS.length-1;
+}
+function renderMtx(){
+  const cap=S.funnel==='captar', bks=cap?BUCKETS:BUCKETS_V, st=steps(), data=pool();
+  document.getElementById('mtxTitle').textContent=cap?'Etapa × cuánto llevan ahí':'Expediente × plazo';
+  document.getElementById('mtxSub').textContent=cap
+    ?'No es cuántos hay. Es cuántos llevan demasiado tiempo sin moverse.'
+    :'Cada etapa tiene su plazo. Rojo = ya se pasó.';
+
+  const cnt={};
+  data.forEach(r=>{const k=r.etapa+'|'+bucketOf(r);cnt[k]=(cnt[k]||0)+1});
+
+  let h='<thead><tr><th class="rowhead">Etapa</th>';
+  bks.forEach(b=>h+=`<th>${b.k}</th>`);
+  h+='<th class="tot">Total</th>'+(cap?'<th class="tot">Pasa a la siguiente</th>':'<th class="tot">Plazo</th>')+'</tr></thead><tbody>';
+
+  st.forEach((e,ix)=>{
+    const tot=bks.reduce((a,_,i)=>a+(cnt[e.k+'|'+i]||0),0);
+    const nxt=cap&&st[ix+1]&&e.k!=='Descartado'?st[ix+1]:null;
+    const conv=nxt?Math.round(nxt.n/e.n*100):null;
+    h+=`<tr class="${e.s!=='ok'?'ghost':''}"><td class="rowhead">
+      <div class="nm"><span class="step">${ix+1}</span>${e.k}
+      ${e.s==='no'?'<span class="badge no">no existe el stage</span>':''}
+      ${e.s==='orf'?'<span class="badge orf">existe en Vambe, no en Optix</span>':''}</div>
+      <div class="sm">${e.d}</div></td>`;
+    bks.forEach((b,i)=>{
+      const n=cnt[e.k+'|'+i]||0, key=e.k+'|'+i, on=S.cells.includes(key);
+      const risk = cap ? (i>=4?'hot':i===3?'warm':'') : (i>=2?'hot':i===1?'warm':'');
+      const cls=['cell',n?'':'zero',n?risk:'',on?'on':''].filter(Boolean).join(' ');
+      h+=`<td><button class="${cls}" data-k="${key}" ${n?'':'disabled'} title="${n} en ${e.k} · ${b.k}">${n||'·'}</button></td>`;
+    });
+    h+=`<td class="tot">${tot}</td>`;
+    h+= cap
+      ? `<td class="conv">${conv!==null?`<b>${conv}%</b>`:'—'}</td>`
+      : `<td class="conv">${e.plazo?e.plazo+' d':'—'}</td>`;
+    h+='</tr>';
+  });
+  h+='<tr class="totrow"><td class="rowhead">Total</td>';
+  bks.forEach((b,i)=>{const n=st.reduce((a,e)=>a+(cnt[e.k+'|'+i]||0),0);h+=`<td>${n||'·'}</td>`});
+  h+=`<td class="tot">${data.length}</td><td class="conv"></td></tr></tbody>`;
+  document.getElementById('mtx').innerHTML=h;
+
+  document.getElementById('mtxnotes').innerHTML = cap
+    ? `<div class="note bad"><b>La columna de +30 días es el hallazgo.</b> Un lead ya calificado —sin deuda, sin juicio, con cónyuge localizable— que lleva un mes sin cita no es un lead perdido: es uno por el que ya se pagó y nadie está persiguiendo con calendario.</div>
+       <div class="note"><b>Las filas grises no se pueden pintar hoy.</b> <i>Visita realizada</i> no existe como stage en Vambe — hay que crearlo, es un clic. <i>Calificado p/ visita</i>, <i>A espera de aceptación</i> y <i>Descartado</i> sí existen en Vambe y le faltan a Optix. Sin esas cuatro filas, el embudo que se le reporta al cliente tiene 4 pasos y el real tiene 6.</div>`
+    : `<div class="note bad"><b>El sistema dice 4 propiedades activas. Aquí hay ${L2.filter(r=>r.etapa!=='Vendida').length}, y Araceli dice ~30.</b> La aritmética le da la razón a ella: entran ~16 captaciones al mes con plazos de 60/90/120 días, así que el inventario en equilibrio ronda las 30. El Leadtime no tiene ninguna columna que registre la venta final — por eso todo lo captado se ve como cerrado.</div>
+       <div class="note hyp"><b>Este embudo completo es hipótesis.</b> Ninguna de estas seis etapas existe hoy como dato estructurado: viven en el archivo personal de Araceli. Lo que se necesita para construirlo son cinco columnas de fecha por sub-etapa y acceso de lectura. Es la petición más barata y la de mayor retorno de todo el proyecto.</div>`;
+
+  document.querySelectorAll('.cell:not(.zero)').forEach(b=>b.onclick=ev=>{
+    const k=b.dataset.k;
+    if(ev.shiftKey){if(S.cells.includes(k))S.cells=S.cells.filter(x=>x!==k);else S.cells.push(k)}
+    else S.cells=(S.cells.length===1&&S.cells[0]===k)?[]:[k];
+    renderAll();
+  });
+}
+
+// ===================================================== filtros + tabla
+function renderFilters(){
+  const el=document.getElementById('filters'),bks=S.funnel==='captar'?BUCKETS:BUCKETS_V;
+  if(!S.cells.length){el.innerHTML='<span class="lbl">Filtros</span><span class="empty-f">ninguno — pícale a una celda</span>';return}
+  el.innerHTML='<span class="lbl">Filtros</span>'+S.cells.map(k=>{const [e,i]=k.split('|');
+    return `<span class="chip"><span class="k">${e}</span> ${bks[+i].k}<button data-x="${k}">×</button></span>`}).join('')
+    +'<button class="clearall" id="clr">limpiar todo</button>';
+  el.querySelectorAll('[data-x]').forEach(b=>b.onclick=()=>{S.cells=S.cells.filter(x=>x!==b.dataset.x);renderAll()});
+  document.getElementById('clr').onclick=()=>{S.cells=[];renderAll()};
+}
+const COLDEF={
+  nombre:['Propietario / propiedad',r=>`<td class="${S.funnel==='captar'?'masked':''}">${r.nombre}</td>`],
+  tel:['Teléfono',r=>`<td class="masked">${r.tel}</td>`],
+  etapa:['Etapa',r=>`<td>${r.etapa}</td>`],
+  dias:['Lleva',r=>`<td class="num age ${ageCls(S.funnel==='vender'?(r.dias/(r.plazo||1))*10:r.dias)}">${r.dias} d</td>`],
+  sla:['Plazo',r=>{const s=slaState(r);return `<td class="age ${s>=2?'bad':s===1?'mid':'ok'}">${SLA[s]}</td>`}],
+  toques:['Toques',r=>`<td class="num tnum">${r.toques||'—'}</td>`],
+  colonia:['Zona',r=>`<td>${r.colonia||'—'}</td>`],
+  plaza:['Plaza',r=>`<td>${r.plaza}</td>`],
+  admin:['Captadora',r=>`<td>${r.admin}</td>`],
+  campo:['Captador',r=>`<td>${r.campo}</td>`],
+  campana:['Campaña',r=>`<td>${r.campana}</td>`],
+  motivo:['Motivo',r=>`<td>${r.motivo||'—'}</td>`],
+  valor:['Valor',r=>`<td class="num tnum">${money(r.valor)}</td>`]
+};
+function renderGroupSel(){
+  document.getElementById('groupby').innerHTML=L().group.map(([v,t])=>`<option value="${v}" ${S.group===v?'selected':''}>${t}</option>`).join('');
+}
+function renderRows(){
+  let data=pool(), lens=L();
+  if(S.cells.length) data=data.filter(r=>S.cells.includes(r.etapa+'|'+bucketOf(r)));
+  const t=document.getElementById('rows');
+  const gL=(lens.group.find(g=>g[0]===S.group)||['',''])[1];
+  document.getElementById('tblTitle').textContent=S.group?'Resumen por '+gL.toLowerCase():(S.funnel==='captar'?'Leads':'Expedientes');
+  document.getElementById('footNote').textContent=lens.mine?'Solo ves tu cartera. No hay ranking entre personas.':'Datos personales enmascarados';
+
+  if(S.group){
+    const g={};data.forEach(r=>{(g[r[S.group]]=g[r[S.group]]||[]).push(r)});
+    const arr=Object.entries(g).map(([k,v])=>({k,n:v.length,
+      dmed:Math.round(v.reduce((a,b)=>a+b.dias,0)/v.length),
+      viejos:v.filter(r=>S.funnel==='captar'?r.dias>14:slaState(r)>=2).length,
+      cap:v.filter(r=>r.etapa==='Captación').length,
+      inv:S.group==='campana'?(INV[k]||0):null,
+      valor:v.reduce((a,b)=>a+b.valor,0)})).sort((a,b)=>b.n-a.n);
+    const max=Math.max(...arr.map(x=>x.n));
+    const cac=lens.kpis.includes('cac')&&S.group==='campana';
+    t.innerHTML='<thead><tr><th>'+gL+'</th><th>Total</th><th></th><th>Lleva (prom)</th><th>'
+      +(S.funnel==='captar'?'+14 días':'Vencidos')+'</th>'+(S.funnel==='captar'?'<th>Captaciones</th>':'<th>Valor</th>')
+      +(cac?'<th>Inversión</th><th>CAC</th>':'')+'</tr></thead><tbody>'
+      +arr.map(x=>`<tr><td style="font-weight:600">${x.k}</td><td class="num tnum">${x.n}</td>
+        <td><span class="barwrap"><span class="bar" style="width:${Math.round(x.n/max*76)}px"></span></span></td>
+        <td class="num age ${ageCls(x.dmed)}">${x.dmed} d</td>
+        <td class="num tnum" style="${x.viejos?'color:var(--coral);font-weight:700':''}">${x.viejos||'—'}</td>
+        ${S.funnel==='captar'?`<td class="num tnum">${x.cap||'—'}</td>`:`<td class="num tnum">${short(x.valor)}</td>`}
+        ${cac?`<td class="num tnum">${x.inv?money(x.inv):'—'}</td><td class="num tnum">${x.inv&&x.cap?money(x.inv/x.cap):'—'}</td>`:''}
+      </tr>`).join('')+'</tbody>';
+  } else {
+    const cols=lens.cols;
+    t.innerHTML='<thead><tr>'+cols.map(c=>`<th>${COLDEF[c][0]}</th>`).join('')+'</tr></thead><tbody>'
+      +data.slice(0,300).sort((a,b)=>b.dias-a.dias).map(r=>`<tr class="${lens.mine?'me':''}">`+cols.map(c=>COLDEF[c][1](r)).join('')+'</tr>').join('')+'</tbody>';
+  }
+  document.getElementById('footCount').innerHTML=`<b>${data.length}</b> ${S.funnel==='captar'?'leads':'expedientes'}`;
+  document.getElementById('tblnote').innerHTML = lens.mine
+    ? '<div class="note"><b>Vista personal, a propósito.</b> Cada captadora ve su propia cola y la mediana del equipo, nunca la tabla con todos los nombres. Con ~18 leads calificados por persona al mes, una diferencia menor a 30 puntos porcentuales es ruido estadístico, no desempeño — publicarla como ranking crearía el incentivo a reportar menos actividad, no a captar más.</div>'
+    : (S.lens==='agencia'&&S.group==='campana' ? '<div class="note hyp"><b>El CAC por campaña depende de la atribución del Leadtime</b>, que hoy sub-atribuye en ventanas cortas. En acumulado y mes cerrado sirve; en 7 y 14 días todavía no.</div>' : '');
+}
+
+function renderAll(){renderLens();renderFunnels();renderKpis();renderMtx();renderFilters();renderGroupSel();renderRows()}
+document.getElementById('groupby').onchange=e=>{S.group=e.target.value;renderRows()};
+renderAll();
+</script>
+</body>
+</html>
