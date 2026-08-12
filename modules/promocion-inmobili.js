@@ -715,7 +715,7 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
     }
     if (esperando7 > 0 && !S.noticesCerrados.has('esperando')) {
       n.push(`<div class="pv-notice"><span class="pv-dot pv-dot-amber"></span>
-        <span><b>${esperando7} propiedad${esperando7 === 1 ? '' : 'es'}</b> lleva${esperando7 === 1 ? '' : 'n'} +7 días esperando al cliente.</span>
+        <span><b>${esperando7} propiedad${esperando7 === 1 ? '' : 'es'}</b> lleva${esperando7 === 1 ? '' : 'n'} +7 días esperando a Inmobili.</span>
         <a href="#" data-action="go" data-tab="esperando">Ver</a>
         <button class="pv-x" data-action="cerrar-notice" data-notice="esperando">×</button></div>`);
     }
@@ -731,7 +731,7 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
   function renderTabs(counts) {
     const defs = [
       ['todas', 'Todas'], ['apagar', 'Apagar'], ['lista', 'Lista para subir'],
-      ['esperando', 'Esperando cliente'], ['activas', 'Activas'], ['apagadas', 'Apagadas'],
+      ['esperando', 'Esperando Inmobili'], ['activas', 'Activas'], ['apagadas', 'Apagadas'],
     ];
     return `<div class="pv-tabs">${defs.map(([k, label]) =>
       `<button class="pv-tab${S.tab === k ? ' active' : ''}" data-action="go" data-tab="${k}">
@@ -820,7 +820,7 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
     const defs = [
       ['apagar', 'Apagar pendiente', 'var(--pv-red)', 'Avisó venta/descarte · falta apagar campaña'],
       ['lista', 'Lista para subir', 'var(--pv-green)', 'Material + copies listos · falta subir'],
-      ['esperando', 'Esperando cliente', 'var(--pv-amber)', 'Falta entrega · la etiqueta dice qué'],
+      ['esperando', 'Esperando Inmobili', 'var(--pv-amber)', 'Falta entrega · la etiqueta dice qué'],
       ['activas', 'Activas', 'var(--pv-blue-track)', 'Campaña corriendo · si se vende, salta a Apagar'],
       ['apagadas', 'Apagadas', '#bcc0c4', 'Cerradas · filtradas por temporalidad (arriba)'],
     ];
