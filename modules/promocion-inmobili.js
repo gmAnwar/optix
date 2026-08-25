@@ -39,7 +39,7 @@ export const TOAST_MS = 5000;
 // 2026-07-07). Misma de clients/inmobili/ads_manager_config.py en optix-loops.
 export const ADS_ACCOUNT = 'act_936995767352512';
 
-export const CUBETAS = ['apagar', 'lista', 'esperando', 'activas', 'apagadas'];
+export const CUBETAS = ['revisar', 'apagar', 'lista', 'esperando', 'activas', 'apagadas'];
 
 const PLAZA_LABELS = { gomez: 'Gómez Palacio', torreon: 'Torreón', monterrey: 'Monterrey' };
 
@@ -53,21 +53,39 @@ export function copyLleno(copy) {
   return typeof copy === 'string' && copy.trim() !== '';
 }
 
+/** ¿La propiedad trae captura (material o copy)? */
+export function tieneCaptura(p) {
+  return !!p.material || copyLleno(p.copy);
+}
+
 /**
  * Deriva la cubeta de una property. p = property del KV, fs = doc Firestore
  * (o null → placeholders del KV, que son todos false/null).
  * missing_from_sheet NO altera la derivación (solo agrega chip en UI).
- * Retorna 'apagadas'|'apagar'|'activas'|'lista'|'esperando'|null.
- * null = no aparece (vendida/descartada histórica sin ciclo de subida).
+ * Retorna 'apagadas'|'apagar'|'activas'|'lista'|'esperando'|'revisar'|null.
+ *
+ * INVARIANTE (24-ago-2026): jamás devuelve null para una propiedad CON
+ * captura. Antes sí lo hacía, y por eso el material de San Pablo —capturado
+ * por error bajo Villas Regina, que estaba vendida— desapareció de las cinco
+ * cubetas sin contador, sin chip y sin warning. La ausencia solo se detectaba
+ * si un humano echaba de menos algo que nunca estuvo en pantalla. El null
+ * queda reservado a lo que de verdad no interesa: histórico sin captura y sin
+ * ciclo de subida.
+ *
+ * `revisar` va PRIMERO a propósito: una captura sospechosa tiene que verse
+ * aunque también calificara para otra cubeta.
  */
 export function derivarCubeta(p, fs) {
   const sub = fs ? !!fs.subida : false;
   const apag = fs ? !!fs.apagada : false;
+  const revisar = Array.isArray(p.revisar) ? p.revisar : [];
+  if (revisar.length && !sub && !apag) return 'revisar';
   if (apag) return 'apagadas';
   if (sub && p.estado !== 'activa') return 'apagar';   // vendida O descartada
   if (sub && p.estado === 'activa') return 'activas';
   if (p.estado === 'activa' && p.material && copyLleno(p.copy)) return 'lista';
   if (p.estado === 'activa') return 'esperando';
+  if (tieneCaptura(p)) return 'revisar';   // captura huérfana: NUNCA invisible
   return null;
 }
 
@@ -127,7 +145,7 @@ export function restaurarCampos(previo, campos) {
 }
 
 export function contarCubetas(items) {
-  const counts = { todas: 0, apagar: 0, lista: 0, esperando: 0, activas: 0, apagadas: 0 };
+  const counts = { todas: 0, revisar: 0, apagar: 0, lista: 0, esperando: 0, activas: 0, apagadas: 0 };
   for (const it of items) {
     if (!it.cubeta) continue;
     counts[it.cubeta] += 1;
@@ -730,8 +748,9 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
 
   function renderTabs(counts) {
     const defs = [
-      ['todas', 'Todas'], ['apagar', 'Apagar'], ['lista', 'Lista para subir'],
-      ['esperando', 'Esperando Inmobili'], ['activas', 'Activas'], ['apagadas', 'Apagadas'],
+      ['todas', 'Todas'], ['revisar', 'Revisar captura'], ['apagar', 'Apagar'],
+      ['lista', 'Lista para subir'], ['esperando', 'Esperando Inmobili'],
+      ['activas', 'Activas'], ['apagadas', 'Apagadas'],
     ];
     return `<div class="pv-tabs">${defs.map(([k, label]) =>
       `<button class="pv-tab${S.tab === k ? ' active' : ''}" data-action="go" data-tab="${k}">
@@ -773,6 +792,17 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
     </div>`;
   }
 
+  // El chip va en el NOMBRE, no en la fila de la cubeta `revisar`: una
+  // propiedad con ciclo de subida ya cerrado (monterrey_7: subida+apagada)
+  // aterriza en Apagadas y ahí nunca vería sus razones. La sospecha tiene que
+  // viajar con la propiedad, esté en la cubeta que esté.
+  function chipRevisar(it) {
+    const razones = Array.isArray(it.p.revisar) ? it.p.revisar : [];
+    if (!razones.length) return '';
+    const detalle = razones.join(' · ');
+    return ` <span class="pv-chip-amber" title="${escapeHtml(detalle)}">revisar captura</span>`;
+  }
+
   function chipMissing(it) {
     return it.p.missing_from_sheet
       ? ` <span class="pv-chip-amber" title="La fila ya no está en el sheet — se conserva el último estado">fuera del sheet</span>`
@@ -797,7 +827,7 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
   function celName(it) {
     const sub = fmtPrecio(it.p.precio);
     return `<td class="pv-c-name"><div class="pv-name">
-      <span class="pv-idtag">${escapeHtml(String(it.p.id))}</span>${escapeHtml(it.p.propiedad)}${chipMissing(it)}${celTrace(it)}${celNotaBtn(it)}
+      <span class="pv-idtag">${escapeHtml(String(it.p.id))}</span>${escapeHtml(it.p.propiedad)}${chipRevisar(it)}${chipMissing(it)}${celTrace(it)}${celNotaBtn(it)}
       ${sub ? `<span class="pv-sub">${escapeHtml(sub)}</span>` : ''}
     </div></td>`;
   }
@@ -818,6 +848,7 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
 
   function renderSecciones(porCubeta, hoy) {
     const defs = [
+      ['revisar', 'Revisar captura', 'var(--pv-red)', 'Material capturado que no cuadra con su propiedad · verificar el ID en el sheet'],
       ['apagar', 'Apagar pendiente', 'var(--pv-red)', 'Avisó venta/descarte · falta apagar campaña'],
       ['lista', 'Lista para subir', 'var(--pv-green)', 'Material + copies listos · falta subir'],
       ['esperando', 'Esperando Inmobili', 'var(--pv-amber)', 'Falta entrega · la etiqueta dice qué'],
@@ -845,6 +876,7 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
   function headerDe(cubeta) {
     const chk = `<th class="pv-c-chk"><input type="checkbox" class="pv-rowchk" data-action="sel-all" data-cubeta="${cubeta}"></th>`;
     const H = {
+      revisar: `<tr><th class="pv-c-chk"></th><th class="pv-c-sw"></th><th class="pv-c-name">Propiedad (según el ID capturado)</th><th>Plaza</th><th>Estado</th><th>Qué no cuadra</th><th>Material</th><th>Copy</th></tr>`,
       apagar: `<tr>${chk}<th class="pv-c-sw"></th><th class="pv-c-name">Propiedad</th><th>Plaza</th><th>Adset activo</th><th>Avisó vendida</th><th>¿Cómo se vendió?</th><th class="pv-num">Acción</th></tr>`,
       lista: `<tr>${chk}<th class="pv-c-sw">Subir</th><th class="pv-c-name">Propiedad</th><th>Plaza</th><th class="pv-num">Captada</th><th class="pv-num">Promesa</th><th class="pv-num">En estado</th><th>Material</th><th>Copy</th><th>Adset</th></tr>`,
       esperando: `<tr>${chk}<th class="pv-c-sw"></th><th class="pv-c-name">Propiedad</th><th>Plaza</th><th class="pv-num">Promesa</th><th class="pv-num">En estado</th><th>Falta</th><th>Material</th><th>Copy</th><th>Recordatorio</th></tr>`,
@@ -866,6 +898,23 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
       ? `<span class="pv-adset">${escapeHtml(it.adset_id)}</span>`
       : `<span class="pv-adset-empty"><span class="pv-dot pv-dot-amber"></span>sin adset</span>`;
     const edad = diasDesde(it.p.f_captacion, hoy);
+
+    if (cubeta === 'revisar') {
+      // Sin checkbox ni switch a propósito: acá no hay nada que accionar
+      // desde Optix. El arreglo es en el sheet (corregir el ID de la
+      // captura), y esta cubeta existe para que se ENTERE, no para operar.
+      const razones = Array.isArray(it.p.revisar) ? it.p.revisar : [];
+      const motivos = razones.length
+        ? razones.map((r) => `<span class="pv-chip-amber">${escapeHtml(r)}</span>`).join(' ')
+        : `<span class="pv-chip-amber">captura sobre propiedad ${escapeHtml(it.p.estado || '—')} sin ciclo de subida</span>`;
+      return `<tr>
+        <td class="pv-c-chk"></td><td class="pv-c-sw"></td>
+        ${celName(it)}${plaza}
+        <td data-l="Estado" class="pv-muted">${escapeHtml(it.p.estado || '—')}</td>
+        <td data-l="Qué no cuadra">${motivos}</td>
+        ${material}${copyBtn}
+      </tr>`;
+    }
 
     if (cubeta === 'apagar') {
       const dias = diasDesde(it.p.timeline.cerrada_at, hoy);
@@ -948,6 +997,7 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
   function footerDe(cubeta, items, hoy) {
     const n = items.length;
     let txt = '';
+    if (cubeta === 'revisar') txt = `${n} captura${n === 1 ? '' : 's'} que no cuadra${n === 1 ? '' : 'n'} — se arregla el ID en el sheet, no acá`;
     if (cubeta === 'apagar') txt = `${n} propiedad${n === 1 ? '' : 'es'} por apagar`;
     if (cubeta === 'lista') txt = `${n} propiedad${n === 1 ? '' : 'es'} lista${n === 1 ? '' : 's'} para subir`;
     if (cubeta === 'esperando') {
