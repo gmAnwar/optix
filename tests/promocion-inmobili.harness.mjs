@@ -42,6 +42,48 @@ function prop(overrides = {}) {
 
 const HOY = new Date('2026-07-07T12:00:00');
 
+// ── cubeta `revisar` [24-ago-2026] ────────────────────────────────────────
+// El invariante: derivarCubeta NUNCA devuelve null para una propiedad con
+// captura. Antes sí, y por eso el material de San Pablo (capturado bajo
+// Villas Regina, vendida) desapareció de las cinco cubetas sin señal alguna.
+
+caso('EL CASO REAL: vendida + captura + sin subida → revisar, NO null',
+  derivarCubeta(prop({ estado: 'vendida', material: true, copy: 'Copy de otra casa' }), null) === 'revisar');
+
+caso('descartada + captura + sin subida → revisar',
+  derivarCubeta(prop({ estado: 'descartada', material: true, copy: 'x' }), null) === 'revisar');
+
+caso('vendida SIN captura y sin subida → null (histórico, no interesa)',
+  derivarCubeta(prop({ estado: 'vendida' }), null) === null);
+
+caso('solo copy, sin material → igual cuenta como captura → revisar',
+  derivarCubeta(prop({ estado: 'vendida', material: false, copy: 'texto' }), null) === 'revisar');
+
+caso('razones del pipeline mandan aunque la propiedad sea activa',
+  derivarCubeta(prop({ estado: 'activa', material: true, copy: 'x', revisar: ['el copy no menciona la ciudad'] }), null) === 'revisar');
+
+caso('ciclo NORMAL: vendida + captura + subida=true → apagar (no revisar)',
+  derivarCubeta(prop({ estado: 'vendida', material: true, copy: 'x' }), { subida: true, apagada: false }) === 'apagar');
+
+caso('ciclo NORMAL: apagada=true gana aunque haya razones',
+  derivarCubeta(prop({ estado: 'vendida', material: true, copy: 'x', revisar: ['lo que sea'] }), { subida: true, apagada: true }) === 'apagadas');
+
+caso('activa+material+copy SIN razones sigue en lista (no falso positivo)',
+  derivarCubeta(prop({ material: true, copy: 'Casa lista' }), null) === 'lista');
+
+caso('revisar ausente en payload viejo no rompe',
+  derivarCubeta(prop({ material: true, copy: 'Casa lista' }), null) === 'lista');
+
+caso('contarCubetas incluye revisar y lo suma a todas', (() => {
+  const items = mergeItems([
+    { office: 'mty', id: 4, estado: 'vendida', material: true, copy: 'ajeno', revisar: ['x'] },
+    { office: 'mty', id: 9, estado: 'activa', material: false, copy: null, revisar: [] },
+  ], null);
+  const c = contarCubetas(items);
+  return c.revisar === 1 && c.esperando === 1 && c.todas === 2;
+})());
+
+
 // ── derivarCubeta: los 12 casos del SPEC ──────────────────────────────────
 
 caso('activa sin nada → esperando',
