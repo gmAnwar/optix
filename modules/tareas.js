@@ -1524,6 +1524,9 @@ function tareasApplyVista() {
   const banner = document.getElementById('tareas-cli-atrasadas-banner');
   const btnHelp = document.getElementById('btn-tareas-cli-help');
   const btnQuickClient = document.getElementById('btn-quick-client');
+  // [OPTIX-TAREAS-CSV-IMPORT]: el import escribe objetivos/subtareas de cliente,
+  // así que vive en el mismo eje que "＋ Rápido" — solo vista Clientes.
+  const btnImportCsv = document.getElementById('btn-tareas-import-csv');
   if (vista === 'areas') {
     if (areasBody) areasBody.style.display = '';
     if (cliBody) cliBody.style.display = 'none';
@@ -1532,6 +1535,7 @@ function tareasApplyVista() {
     if (btnAddArea) btnAddArea.style.display = '';
     if (btnHelp) btnHelp.style.display = 'none';
     if (btnQuickClient) btnQuickClient.style.display = 'none';
+    if (btnImportCsv) btnImportCsv.style.display = 'none';
     if (typeof renderTareas === 'function') renderTareas();
     return;
   }
@@ -1540,6 +1544,7 @@ function tareasApplyVista() {
   if (btnAddArea) btnAddArea.style.display = 'none';
   if (btnHelp) btnHelp.style.display = '';
   if (btnQuickClient) btnQuickClient.style.display = '';
+  if (btnImportCsv) btnImportCsv.style.display = '';
   if (window.innerWidth < 1280) {
     if (cliBody) cliBody.style.display = 'none';
     if (banner) banner.style.display = 'none';
@@ -3612,6 +3617,11 @@ function initTareas() {
   window.tareasCliAddTarea = tareasCliAddTarea;
   // Inbox v1 (S75): consumers legacy esperan symmetría con AddObjetivo/AddTarea.
   window.tareasCliSave = tareasCliSave;
+  // [OPTIX-TAREAS-CSV-IMPORT]: el import CSV crea objetivos fuera de
+  // tareasCliAddObjetivo, así que necesita la MISMA fábrica de campos de dueño
+  // (S90). Sin esto nacerían con owner_uid null y quedarían fuera del filtro
+  // 'mios' — single source of truth, no una copia en el otro módulo.
+  window.tareasCliNewOwnerFields = tareasCliNewOwnerFields;
   window.tareasCliAddSubtask = tareasCliAddSubtask;
   window.tareasCliEditTareaTexto = tareasCliEditTareaTexto;
   window.tareasCliEditTareaNotas = tareasCliEditTareaNotas;
