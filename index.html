@@ -34,6 +34,14 @@
   import { init as initInbox } from './modules/inbox.js';
   window.__initInbox = initInbox;
 </script>
+<!-- Import CSV de objetivos semanales [OPTIX-TAREAS-CSV-IMPORT]: Mario sube el
+     plan de la semana de un jalón en vez de capturarlo objetivo por objetivo.
+     Escribe SOLO vía tareasCliSave (read-modify-write) + calendarSemana.createBloque;
+     no toca el worker ni nada compartido con AurisIQ. -->
+<script type="module">
+  import { init as initTareasImport } from './modules/tareas-import.js';
+  window.__initTareasImport = initTareasImport;
+</script>
 
 <script>
   const firebaseConfig = {
@@ -4384,6 +4392,7 @@
         <button id="btn-tareas-cli-help" onclick="tareasCliShowRitualModal()" title="Ritual del primer lunes" style="display:none;background:var(--surface2);border:1px solid var(--border);color:var(--text2);width:32px;height:32px;border-radius:8px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:14px;font-weight:600;flex-shrink:0;">?</button>
         <button id="btn-tareas-add-area" onclick="tareasAddArea()" class="btn btn-ghost" style="font-size:12px; flex-shrink:0;">＋ Nueva área</button>
         <button id="btn-quick-client" onclick="openQuickClientModal()" class="btn btn-ghost" style="display:none;font-size:12px;flex-shrink:0;" title="Crea cliente externo o división interna">＋ Rápido</button>
+        <button id="btn-tareas-import-csv" onclick="tareasImportShowModal()" class="btn btn-ghost" style="display:none;font-size:12px;flex-shrink:0;" title="Sube objetivos y subtareas de la semana desde un CSV (con fecha, caen en Mi Semana)">📥 Importar CSV</button>
         <button onclick="enterAs('mi-semana')" class="btn btn-ghost" style="font-size:12px;flex-shrink:0;" title="Ir a Plan Semanal (Mi semana)">→ Mi semana</button>
       </div>
     </div>
@@ -4716,6 +4725,16 @@ window.init = async function init(workspaceId) {
     window.__initInbox();
   } else {
     console.error('[bootstrap] window.__initInbox no disponible — modules/inbox.js falló al cargar.');
+  }
+
+  // Import CSV [OPTIX-TAREAS-CSV-IMPORT]: expone los handlers del modal
+  // (tareasImportShowModal y compañía) que usa el botón "＋ Importar CSV" de la
+  // vista Clientes. Idempotente. Va DESPUÉS de initTareas/__initMiSemana porque
+  // el import llama a window.tareasCliSave y window.calendarSemana.
+  if (typeof window.__initTareasImport === 'function') {
+    window.__initTareasImport();
+  } else {
+    console.error('[bootstrap] window.__initTareasImport no disponible — modules/tareas-import.js falló al cargar.');
   }
 
   // Si init fue llamado desde selectAgencia, mostrar screen-rol
